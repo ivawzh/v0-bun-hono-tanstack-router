@@ -50,6 +50,9 @@ export const agents = pgTable("agents", {
   character: text("character"), // free text persona
   config: jsonb("config").default({}),
   runtime: text("runtime").notNull(), // windows-runner|cloud
+  modelProvider: text("model_provider").default("openai"), // openai|openrouter|anthropic|etc
+  modelName: text("model_name").default("gpt-4"), // specific model to use
+  modelConfig: jsonb("model_config").default({}), // temperature, max_tokens, etc
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -128,11 +131,14 @@ export const notifications = pgTable("notifications", {
   type: text("type").notNull(), // question|blocked|stage_change
   channel: text("channel").notNull(), // email|webhook|push|inapp
   payload: jsonb("payload").default({}),
-  deliveredAt: timestamp("delivered_at")
+  webhookUrl: text("webhook_url"), // For webhook notifications
+  deliveredAt: timestamp("delivered_at"),
+  retryCount: integer("retry_count").default(0),
+  lastRetryAt: timestamp("last_retry_at")
 });
 
-// Automation table
-export const automations = pgTable("automations", {
+// Task Hook table (automation for task lifecycle)
+export const taskHooks = pgTable("task_hooks", {
   id: uuid("id").primaryKey().defaultRandom(),
   boardId: uuid("board_id").notNull().references(() => boards.id),
   trigger: text("trigger").notNull(), // stage_change
@@ -171,6 +177,37 @@ export const sourceRefs = pgTable("source_refs", {
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
+// Requirements Document table (for database-based requirements storage)
+export const requirements = pgTable("requirements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull().references(() => projects.id),
+  title: text("title").notNull(),
+  content: text("content").notNull(), // Markdown content
+  category: text("category"), // functional|technical|ux|business|etc
+  version: integer("version").default(1),
+  parentId: uuid("parent_id").references(() => requirements.id), // For hierarchical docs
+  metadata: jsonb("metadata").default({}),
+  // Vector search preparation fields
+  embedding: jsonb("embedding"), // Will store vector embeddings when we add vector search
+  searchText: text("search_text"), // Preprocessed text for full-text search
+  tags: jsonb("tags").default([]), // Array of tags for filtering
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdBy: uuid("created_by").references(() => users.id),
+  updatedBy: uuid("updated_by").references(() => users.id)
+});
+
+// Requirements Change History table
+export const requirementsHistory = pgTable("requirements_history", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  requirementId: uuid("requirement_id").notNull().references(() => requirements.id),
+  version: integer("version").notNull(),
+  content: text("content").notNull(),
+  changeDescription: text("change_description"),
+  changedBy: uuid("changed_by").references(() => users.id),
+  changedAt: timestamp("changed_at").defaultNow().notNull()
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
@@ -200,7 +237,7 @@ export const boardsRelations = relations(boards, ({ one, many }) => ({
     references: [projects.id]
   }),
   tasks: many(tasks),
-  automations: many(automations)
+  taskHooks: many(taskHooks)
 }));
 
 export const tasksRelations = relations(tasks, ({ one, many }) => ({
@@ -291,9 +328,9 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   })
 }));
 
-export const automationsRelations = relations(automations, ({ one }) => ({
+export const taskHooksRelations = relations(taskHooks, ({ one }) => ({
   board: one(boards, {
-    fields: [automations.boardId],
+    fields: [taskHooks.boardId],
     references: [boards.id]
   })
 }));

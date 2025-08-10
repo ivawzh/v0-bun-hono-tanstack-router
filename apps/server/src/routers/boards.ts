@@ -1,7 +1,7 @@
 import { protectedProcedure } from "../lib/orpc";
 import { z } from "zod";
 import { db } from "../db";
-import { boards, projects, tasks, automations } from "../db/schema/core";
+import { boards, projects, tasks, taskHooks } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
 
 export const boardsRouter = {
@@ -95,7 +95,7 @@ export const boardsRouter = {
         .returning();
       
       // Create default automations for the board
-      const defaultAutomations = [
+      const defaultHooks = [
         {
           boardId: newBoard[0].id,
           trigger: "stage_change",
@@ -122,7 +122,7 @@ export const boardsRouter = {
         }
       ];
       
-      await db.insert(automations).values(defaultAutomations);
+      await db.insert(taskHooks).values(defaultHooks);
       
       return newBoard[0];
     }),
@@ -194,7 +194,7 @@ export const boardsRouter = {
       
       // Delete related data
       await db.delete(tasks).where(eq(tasks.boardId, input.id));
-      await db.delete(automations).where(eq(automations.boardId, input.id));
+      await db.delete(taskHooks).where(eq(taskHooks.boardId, input.id));
       
       // Delete board
       await db.delete(boards).where(eq(boards.id, input.id));
@@ -238,7 +238,7 @@ export const boardsRouter = {
       };
     }),
   
-  listAutomations: protectedProcedure
+  listTaskHooks: protectedProcedure
     .input(z.object({
       boardId: z.string().uuid()
     }))
@@ -263,15 +263,15 @@ export const boardsRouter = {
         throw new Error("Board not found or unauthorized");
       }
       
-      const boardAutomations = await db
+      const boardTaskHooks = await db
         .select()
-        .from(automations)
-        .where(eq(automations.boardId, input.boardId));
+        .from(taskHooks)
+        .where(eq(taskHooks.boardId, input.boardId));
       
-      return boardAutomations;
+      return boardTaskHooks;
     }),
   
-  createAutomation: protectedProcedure
+  createTaskHook: protectedProcedure
     .input(z.object({
       boardId: z.string().uuid(),
       trigger: z.enum(["stage_change"]),
@@ -301,8 +301,8 @@ export const boardsRouter = {
         throw new Error("Board not found or unauthorized");
       }
       
-      const newAutomation = await db
-        .insert(automations)
+      const newTaskHook = await db
+        .insert(taskHooks)
         .values({
           boardId: input.boardId,
           trigger: input.trigger,
@@ -313,6 +313,6 @@ export const boardsRouter = {
         })
         .returning();
       
-      return newAutomation[0];
+      return newTaskHook[0];
     })
 };

@@ -5,6 +5,7 @@ import { repositoriesRouter } from "./repositories";
 import { boardsRouter } from "./boards";
 import { tasksRouter } from "./tasks";
 import { agentsRouter } from "./agents";
+import { voiceRouter } from "./voice";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -24,5 +25,6 @@ export const appRouter = {
   boards: boardsRouter,
   tasks: tasksRouter,
   agents: agentsRouter,
+  voice: voiceRouter,
 };
 export type AppRouter = typeof appRouter;

@@ -3,7 +3,7 @@ import { z } from "zod";
 import { db } from "../db";
 import { 
   tasks, boards, projects, agents, taskEvents, taskArtifacts,
-  taskChecklistItems, messages, questions, notifications, automations
+  taskChecklistItems, messages, questions, notifications, taskHooks
 } from "../db/schema/core";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 
@@ -216,25 +216,25 @@ export const tasksRouter = {
           payload: { from: oldTask.stage, to: input.stage, user: context.user.id }
         });
         
-        // Trigger automations
-        const boardAutomations = await db
+        // Trigger task hooks
+        const boardTaskHooks = await db
           .select()
-          .from(automations)
+          .from(taskHooks)
           .where(
             and(
-              eq(automations.boardId, oldTask.boardId),
-              eq(automations.trigger, "stage_change"),
+              eq(taskHooks.boardId, oldTask.boardId),
+              eq(taskHooks.trigger, "stage_change"),
               or(
-                eq(automations.fromStage, "*"),
-                eq(automations.fromStage, oldTask.stage)
+                eq(taskHooks.fromStage, "*"),
+                eq(taskHooks.fromStage, oldTask.stage)
               ),
-              eq(automations.toStage, input.stage)
+              eq(taskHooks.toStage, input.stage)
             )
           );
         
-        for (const automation of boardAutomations) {
-          if (automation.action === "create_checklist" && automation.payload) {
-            const items = (automation.payload as any).items || [];
+        for (const hook of boardTaskHooks) {
+          if (hook.action === "create_checklist" && hook.payload) {
+            const items = (hook.payload as any).items || [];
             await db.insert(taskChecklistItems).values(
               items.map((item: string) => ({
                 taskId: input.id,
@@ -245,12 +245,13 @@ export const tasksRouter = {
             );
           }
           
-          if (automation.action === "notify") {
+          if (hook.action === "notify") {
             await db.insert(notifications).values({
               taskId: input.id,
               type: "stage_change",
               channel: "inapp",
-              payload: automation.payload
+              payload: hook.payload,
+              webhookUrl: (hook.payload as any).webhookUrl
             });
           }
         }
