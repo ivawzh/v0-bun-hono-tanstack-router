@@ -9,6 +9,8 @@ import { logger } from "hono/logger";
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
+import { agentGateway } from "./gateway/agent-gateway";
+import { mcpServer } from "./mcp/mcp-server";
 
 const app = new Hono();
 
@@ -54,5 +56,11 @@ app.post("/ai", async (c) => {
 app.get("/", (c) => {
   return c.text("OK");
 });
+
+// Mount agent gateway at /agent
+app.route("/agent", agentGateway);
+
+// Mount MCP server at /mcp
+app.route("/mcp", mcpServer);
 
 export default app;
