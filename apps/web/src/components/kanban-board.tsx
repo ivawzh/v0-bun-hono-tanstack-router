@@ -16,6 +16,24 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { TaskDetail } from "./task-detail";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface KanbanBoardProps {
   boardId: string;
@@ -42,8 +60,27 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
+  const [newTask, setNewTask] = useState({
+    title: "",
+    bodyMd: "",
+    stage: "kickoff",
+    priority: 0,
+  });
 
   const { data: boardData, isLoading, refetch } = orpc.boards.getWithTasks.useQuery({ id: boardId });
+  
+  const createTask = orpc.tasks.create.useMutation({
+    onSuccess: () => {
+      toast.success("Task created successfully");
+      setShowNewTaskDialog(false);
+      setNewTask({ title: "", bodyMd: "", stage: "kickoff", priority: 0 });
+      refetch();
+    },
+    onError: (error) => {
+      toast.error(`Failed to create task: ${error.message}`);
+    },
+  });
+  
   const updateTask = orpc.tasks.update.useMutation({
     onSuccess: () => {
       toast.success("Task updated");
@@ -222,6 +259,93 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
           if (!open) setSelectedTaskId(null);
         }}
       />
+
+      {/* New Task Dialog */}
+      <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>
+              Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Title</Label>
+              <Input
+                id="task-title"
+                placeholder="Task title"
+                value={newTask.title}
+                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                placeholder="Task description (optional)"
+                value={newTask.bodyMd}
+                onChange={(e) => setNewTask({ ...newTask, bodyMd: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-stage">Stage</Label>
+                <Select
+                  value={newTask.stage}
+                  onValueChange={(value) => setNewTask({ ...newTask, stage: value })}
+                >
+                  <SelectTrigger id="task-stage">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="kickoff">Kickoff</SelectItem>
+                    <SelectItem value="spec">Specification</SelectItem>
+                    <SelectItem value="design">Design</SelectItem>
+                    <SelectItem value="dev">Development</SelectItem>
+                    <SelectItem value="qa">QA</SelectItem>
+                    <SelectItem value="done">Done</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="task-priority">Priority (0-10)</Label>
+                <Input
+                  id="task-priority"
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({ ...newTask, priority: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewTaskDialog(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (newTask.title) {
+                  createTask.mutate({
+                    boardId,
+                    title: newTask.title,
+                    bodyMd: newTask.bodyMd || undefined,
+                    status: newTaskColumn as any,
+                    stage: newTask.stage as any,
+                    priority: newTask.priority,
+                  });
+                }
+              }}
+              disabled={!newTask.title || createTask.isPending}
+            >
+              Create Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
