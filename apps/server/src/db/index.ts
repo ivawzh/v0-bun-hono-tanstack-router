@@ -9,8 +9,7 @@ let dbAny: any;
 if (!process.env.DATABASE_URL) {
   try {
     // Lazy import pglite only when DATABASE_URL is not set
-    // @ts-expect-error types may not exist by default
-    const { PGlite } = await import("pglite");
+    const { PGlite } = await import("@electric-sql/pglite");
     const client = new PGlite();
     dbAny = drizzle(client);
     console.log("DB: Using PGlite (local dev)");
