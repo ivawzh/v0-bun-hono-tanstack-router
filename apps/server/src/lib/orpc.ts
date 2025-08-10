@@ -26,9 +26,3 @@ export const requireOwnerAuth = o.middleware(async ({ context, next }) => {
   // For day-0, treat any authenticated user as owner; later: check role/claims
   return next({ context: { ...context, user } });
 });
-
-// Export the oRPC builder for creating routers
-export const orpc = {
-  router: o.router,
-  protectedRouter: o.router.use(requireAuth),
-};

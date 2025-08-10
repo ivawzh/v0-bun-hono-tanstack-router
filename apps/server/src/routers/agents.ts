@@ -1,4 +1,4 @@
-import { orpc } from "../lib/orpc";
+import { protectedProcedure } from "../lib/orpc";
 import { z } from "zod";
 import { db } from "../db";
 import { 
@@ -11,25 +11,23 @@ const agentRuntimeEnum = z.enum(["windows-runner", "cloud"]);
 const sessionStateEnum = z.enum(["booting", "running", "paused", "stopped", "error", "done"]);
 const actionTypeEnum = z.enum(["plan", "tool_call", "code_edit", "commit", "test", "comment"]);
 
-export const agentsRouter = orpc.protectedRouter
-  .route("list", {
-    method: "GET",
-    input: z.object({}).optional(),
-    handler: async ({ ctx }) => {
+export const agentsRouter = {
+  list: protectedProcedure
+    .input(z.object({}).optional())
+    .handler(async ({ context }) => {
       const agentsList = await db
         .select()
         .from(agents)
         .orderBy(desc(agents.createdAt));
       
       return agentsList;
-    }
-  })
-  .route("get", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  get: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const agent = await db
         .select()
         .from(agents)
@@ -41,18 +39,17 @@ export const agentsRouter = orpc.protectedRouter
       }
       
       return agent[0];
-    }
-  })
-  .route("create", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  create: protectedProcedure
+    .input(z.object({
       name: z.string().min(1).max(255),
       role: agentRoleEnum,
       character: z.string().optional(),
       config: z.record(z.any()).default({}),
       runtime: agentRuntimeEnum
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       const newAgent = await db
         .insert(agents)
         .values({
@@ -65,19 +62,18 @@ export const agentsRouter = orpc.protectedRouter
         .returning();
       
       return newAgent[0];
-    }
-  })
-  .route("update", {
-    method: "PUT",
-    input: z.object({
+    }),
+  
+  update: protectedProcedure
+    .input(z.object({
       id: z.string().uuid(),
       name: z.string().min(1).max(255).optional(),
       role: agentRoleEnum.optional(),
       character: z.string().optional(),
       config: z.record(z.any()).optional(),
       runtime: agentRuntimeEnum.optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       const updates: any = { updatedAt: new Date() };
       
       if (input.name !== undefined) updates.name = input.name;
@@ -97,14 +93,13 @@ export const agentsRouter = orpc.protectedRouter
       }
       
       return updated[0];
-    }
-  })
-  .route("delete", {
-    method: "DELETE",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  delete: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Check if agent has active sessions
       const activeSessions = await db
         .select()
@@ -123,15 +118,14 @@ export const agentsRouter = orpc.protectedRouter
       await db.delete(agents).where(eq(agents.id, input.id));
       
       return { success: true };
-    }
-  })
-  .route("startSession", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  startSession: protectedProcedure
+    .input(z.object({
       agentId: z.string().uuid(),
       taskId: z.string().uuid()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify task ownership
       const task = await db
         .select({
@@ -145,7 +139,7 @@ export const agentsRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.taskId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -191,15 +185,14 @@ export const agentsRouter = orpc.protectedRouter
         .where(eq(tasks.id, input.taskId));
       
       return newSession[0];
-    }
-  })
-  .route("updateSessionState", {
-    method: "PUT",
-    input: z.object({
+    }),
+  
+  updateSessionState: protectedProcedure
+    .input(z.object({
       sessionId: z.string().uuid(),
       state: sessionStateEnum
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       const updates: any = { state: input.state };
       
       if (input.state === "stopped" || input.state === "done" || input.state === "error") {
@@ -232,16 +225,15 @@ export const agentsRouter = orpc.protectedRouter
       }
       
       return updated[0];
-    }
-  })
-  .route("addAction", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  addAction: protectedProcedure
+    .input(z.object({
       sessionId: z.string().uuid(),
       type: actionTypeEnum,
       payload: z.record(z.any()).default({})
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify session exists and is active
       const session = await db
         .select()
@@ -267,14 +259,13 @@ export const agentsRouter = orpc.protectedRouter
         .returning();
       
       return newAction[0];
-    }
-  })
-  .route("getSessionActions", {
-    method: "GET",
-    input: z.object({
-      sessionId: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  getSessionActions: protectedProcedure
+    .input(z.object({
+      sessionId: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const actions = await db
         .select()
         .from(agentActions)
@@ -282,14 +273,13 @@ export const agentsRouter = orpc.protectedRouter
         .orderBy(desc(agentActions.at));
       
       return actions;
-    }
-  })
-  .route("getActiveSessions", {
-    method: "GET",
-    input: z.object({
-      agentId: z.string().uuid().optional()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  getActiveSessions: protectedProcedure
+    .input(z.object({
+      agentId: z.string().uuid().optional()
+    }))
+    .handler(async ({ context, input }) => {
       let query = db
         .select({
           session: agentSessions,
@@ -313,14 +303,13 @@ export const agentsRouter = orpc.protectedRouter
       const sessions = await query.orderBy(desc(agentSessions.startedAt));
       
       return sessions;
-    }
-  })
-  .route("pauseSession", {
-    method: "POST",
-    input: z.object({
-      sessionId: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  pauseSession: protectedProcedure
+    .input(z.object({
+      sessionId: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const updated = await db
         .update(agentSessions)
         .set({ state: "paused" })
@@ -346,14 +335,13 @@ export const agentsRouter = orpc.protectedRouter
         .where(eq(tasks.id, updated[0].taskId));
       
       return updated[0];
-    }
-  })
-  .route("resumeSession", {
-    method: "POST",
-    input: z.object({
-      sessionId: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  resumeSession: protectedProcedure
+    .input(z.object({
+      sessionId: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const updated = await db
         .update(agentSessions)
         .set({ state: "running" })
@@ -379,5 +367,5 @@ export const agentsRouter = orpc.protectedRouter
         .where(eq(tasks.id, updated[0].taskId));
       
       return updated[0];
-    }
-  });
+    })
+};

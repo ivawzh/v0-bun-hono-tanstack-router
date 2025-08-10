@@ -1,4 +1,4 @@
-import { orpc } from "../lib/orpc";
+import { protectedProcedure } from "../lib/orpc";
 import { z } from "zod";
 import { db } from "../db";
 import { 
@@ -10,16 +10,15 @@ import { eq, and, desc, or, inArray } from "drizzle-orm";
 const taskStatusEnum = z.enum(["todo", "in_progress", "blocked", "done", "paused"]);
 const taskStageEnum = z.enum(["kickoff", "spec", "design", "dev", "qa", "done"]);
 
-export const tasksRouter = orpc.protectedRouter
-  .route("list", {
-    method: "GET",
-    input: z.object({
+export const tasksRouter = {
+  list: protectedProcedure
+    .input(z.object({
       boardId: z.string().uuid().optional(),
       status: taskStatusEnum.optional(),
       stage: taskStageEnum.optional(),
       assignedActorType: z.enum(["agent", "human"]).optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       let query = db.select({
         task: tasks,
         board: boards,
@@ -28,7 +27,7 @@ export const tasksRouter = orpc.protectedRouter
       .from(tasks)
       .innerJoin(boards, eq(tasks.boardId, boards.id))
       .innerJoin(projects, eq(boards.projectId, projects.id))
-      .where(eq(projects.ownerId, ctx.user.id));
+      .where(eq(projects.ownerId, context.user.id));
       
       const conditions = [];
       if (input.boardId) conditions.push(eq(tasks.boardId, input.boardId));
@@ -37,20 +36,19 @@ export const tasksRouter = orpc.protectedRouter
       if (input.assignedActorType) conditions.push(eq(tasks.assignedActorType, input.assignedActorType));
       
       if (conditions.length > 0) {
-        query = query.where(and(...conditions, eq(projects.ownerId, ctx.user.id)));
+        query = query.where(and(...conditions, eq(projects.ownerId, context.user.id)));
       }
       
       const results = await query.orderBy(desc(tasks.priority), desc(tasks.createdAt));
       
       return results.map(r => r.task);
-    }
-  })
-  .route("get", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  get: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const task = await db
         .select({
           task: tasks,
@@ -63,7 +61,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -73,11 +71,10 @@ export const tasksRouter = orpc.protectedRouter
       }
       
       return task[0].task;
-    }
-  })
-  .route("create", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  create: protectedProcedure
+    .input(z.object({
       boardId: z.string().uuid(),
       title: z.string().min(1).max(255),
       bodyMd: z.string().optional(),
@@ -87,8 +84,8 @@ export const tasksRouter = orpc.protectedRouter
       metadata: z.record(z.any()).optional(),
       assignedActorType: z.enum(["agent", "human"]).optional(),
       assignedAgentId: z.string().uuid().optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify board ownership
       const board = await db
         .select({
@@ -100,7 +97,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.boardId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -128,7 +125,7 @@ export const tasksRouter = orpc.protectedRouter
       await db.insert(taskEvents).values({
         taskId: newTask[0].id,
         type: "created",
-        payload: { user: ctx.user.id }
+        payload: { user: context.user.id }
       });
       
       // Create kickoff checklist if stage is kickoff
@@ -152,11 +149,10 @@ export const tasksRouter = orpc.protectedRouter
       }
       
       return newTask[0];
-    }
-  })
-  .route("update", {
-    method: "PUT",
-    input: z.object({
+    }),
+  
+  update: protectedProcedure
+    .input(z.object({
       id: z.string().uuid(),
       title: z.string().min(1).max(255).optional(),
       bodyMd: z.string().optional(),
@@ -166,8 +162,8 @@ export const tasksRouter = orpc.protectedRouter
       metadata: z.record(z.any()).optional(),
       assignedActorType: z.enum(["agent", "human"]).nullish(),
       assignedAgentId: z.string().uuid().nullish()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership
       const task = await db
         .select({
@@ -181,7 +177,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -207,7 +203,7 @@ export const tasksRouter = orpc.protectedRouter
         events.push({
           taskId: input.id,
           type: "status_change",
-          payload: { from: oldTask.status, to: input.status, user: ctx.user.id }
+          payload: { from: oldTask.status, to: input.status, user: context.user.id }
         });
       }
       
@@ -217,7 +213,7 @@ export const tasksRouter = orpc.protectedRouter
         events.push({
           taskId: input.id,
           type: "stage_change",
-          payload: { from: oldTask.stage, to: input.stage, user: ctx.user.id }
+          payload: { from: oldTask.stage, to: input.stage, user: context.user.id }
         });
         
         // Trigger automations
@@ -274,19 +270,18 @@ export const tasksRouter = orpc.protectedRouter
         await db.insert(taskEvents).values({
           taskId: input.id,
           type: "updated",
-          payload: { user: ctx.user.id, changes: Object.keys(updates) }
+          payload: { user: context.user.id, changes: Object.keys(updates) }
         });
       }
       
       return updated[0];
-    }
-  })
-  .route("delete", {
-    method: "DELETE",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  delete: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership
       const task = await db
         .select({
@@ -300,7 +295,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -321,16 +316,15 @@ export const tasksRouter = orpc.protectedRouter
       await db.delete(tasks).where(eq(tasks.id, input.id));
       
       return { success: true };
-    }
-  })
-  .route("addMessage", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  addMessage: protectedProcedure
+    .input(z.object({
       taskId: z.string().uuid(),
       contentMd: z.string(),
       author: z.enum(["human", "agent", "system"]).default("human")
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership
       const task = await db
         .select({
@@ -344,7 +338,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.taskId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -370,17 +364,16 @@ export const tasksRouter = orpc.protectedRouter
       });
       
       return newMessage[0];
-    }
-  })
-  .route("addArtifact", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  addArtifact: protectedProcedure
+    .input(z.object({
       taskId: z.string().uuid(),
       kind: z.enum(["diff", "file", "link", "log"]),
       uri: z.string(),
       meta: z.record(z.any()).optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership
       const task = await db
         .select({
@@ -394,7 +387,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.taskId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -421,16 +414,15 @@ export const tasksRouter = orpc.protectedRouter
       });
       
       return newArtifact[0];
-    }
-  })
-  .route("askQuestion", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  askQuestion: protectedProcedure
+    .input(z.object({
       taskId: z.string().uuid(),
       text: z.string(),
       askedBy: z.enum(["agent", "human"]).default("human")
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership
       const task = await db
         .select({
@@ -444,7 +436,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.taskId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -486,15 +478,14 @@ export const tasksRouter = orpc.protectedRouter
       }
       
       return newQuestion[0];
-    }
-  })
-  .route("answerQuestion", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  answerQuestion: protectedProcedure
+    .input(z.object({
       questionId: z.string().uuid(),
       answer: z.string()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through task
       const question = await db
         .select({
@@ -510,7 +501,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(questions.id, input.questionId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -524,7 +515,7 @@ export const tasksRouter = orpc.protectedRouter
         .set({
           status: "answered",
           answer: input.answer,
-          answeredBy: ctx.user.id,
+          answeredBy: context.user.id,
           resolvedAt: new Date()
         })
         .where(eq(questions.id, input.questionId))
@@ -552,15 +543,14 @@ export const tasksRouter = orpc.protectedRouter
       }
       
       return updated[0];
-    }
-  })
-  .route("updateChecklistItem", {
-    method: "PUT",
-    input: z.object({
+    }),
+  
+  updateChecklistItem: protectedProcedure
+    .input(z.object({
       itemId: z.string().uuid(),
       state: z.enum(["open", "done"])
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through task
       const item = await db
         .select({
@@ -576,7 +566,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(taskChecklistItems.id, input.itemId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -595,14 +585,13 @@ export const tasksRouter = orpc.protectedRouter
         .returning();
       
       return updated[0];
-    }
-  })
-  .route("getDetails", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  getDetails: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership
       const task = await db
         .select({
@@ -616,7 +605,7 @@ export const tasksRouter = orpc.protectedRouter
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -644,5 +633,5 @@ export const tasksRouter = orpc.protectedRouter
         messages: taskMessages,
         questions: taskQuestions
       };
-    }
-  });
+    })
+};

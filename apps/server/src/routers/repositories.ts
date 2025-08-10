@@ -1,4 +1,4 @@
-import { orpc } from "../lib/orpc";
+import { protectedProcedure } from "../lib/orpc";
 import { z } from "zod";
 import { db } from "../db";
 import { repositories, projects, sourceRefs } from "../db/schema/core";
@@ -6,13 +6,12 @@ import { eq, and } from "drizzle-orm";
 
 const repositoryProviderEnum = z.enum(["github", "gitlab", "local", "cloud-code"]);
 
-export const repositoriesRouter = orpc.protectedRouter
-  .route("list", {
-    method: "GET",
-    input: z.object({
+export const repositoriesRouter = {
+  list: protectedProcedure
+    .input(z.object({
       projectId: z.string().uuid()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify project ownership
       const project = await db
         .select()
@@ -20,7 +19,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(projects.id, input.projectId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -35,14 +34,13 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(eq(repositories.projectId, input.projectId));
       
       return repos;
-    }
-  })
-  .route("get", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  get: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const repo = await db
         .select({
           repository: repositories,
@@ -53,7 +51,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(repositories.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -63,17 +61,16 @@ export const repositoriesRouter = orpc.protectedRouter
       }
       
       return repo[0].repository;
-    }
-  })
-  .route("create", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  create: protectedProcedure
+    .input(z.object({
       projectId: z.string().uuid(),
       provider: repositoryProviderEnum,
       url: z.string().optional(),
       defaultBranch: z.string().default("main")
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify project ownership
       const project = await db
         .select()
@@ -81,7 +78,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(projects.id, input.projectId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -101,17 +98,16 @@ export const repositoriesRouter = orpc.protectedRouter
         .returning();
       
       return newRepo[0];
-    }
-  })
-  .route("update", {
-    method: "PUT",
-    input: z.object({
+    }),
+  
+  update: protectedProcedure
+    .input(z.object({
       id: z.string().uuid(),
       provider: repositoryProviderEnum.optional(),
       url: z.string().optional(),
       defaultBranch: z.string().optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const repo = await db
         .select({
@@ -123,7 +119,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(repositories.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -144,14 +140,13 @@ export const repositoriesRouter = orpc.protectedRouter
         .returning();
       
       return updated[0];
-    }
-  })
-  .route("delete", {
-    method: "DELETE",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  delete: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const repo = await db
         .select({
@@ -163,7 +158,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(repositories.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -179,16 +174,15 @@ export const repositoriesRouter = orpc.protectedRouter
       await db.delete(repositories).where(eq(repositories.id, input.id));
       
       return { success: true };
-    }
-  })
-  .route("addSourceRef", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  addSourceRef: protectedProcedure
+    .input(z.object({
       repositoryId: z.string().uuid(),
       refType: z.enum(["branch", "commit", "tag"]),
       refValue: z.string()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const repo = await db
         .select({
@@ -200,7 +194,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(repositories.id, input.repositoryId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -219,14 +213,13 @@ export const repositoriesRouter = orpc.protectedRouter
         .returning();
       
       return newRef[0];
-    }
-  })
-  .route("listSourceRefs", {
-    method: "GET",
-    input: z.object({
-      repositoryId: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  listSourceRefs: protectedProcedure
+    .input(z.object({
+      repositoryId: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const repo = await db
         .select({
@@ -238,7 +231,7 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(
           and(
             eq(repositories.id, input.repositoryId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -253,5 +246,5 @@ export const repositoriesRouter = orpc.protectedRouter
         .where(eq(sourceRefs.repositoryId, input.repositoryId));
       
       return refs;
-    }
-  });
+    })
+};

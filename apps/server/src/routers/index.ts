@@ -1,4 +1,4 @@
-import { protectedProcedure, publicProcedure, requireOwnerAuth } from "../lib/orpc";
+import { protectedProcedure, publicProcedure } from "../lib/orpc";
 import { todoRouter } from "./todo";
 import { projectsRouter } from "./projects";
 import { repositoriesRouter } from "./repositories";
@@ -16,8 +16,8 @@ export const appRouter = {
       user: context.session?.user,
     };
   }),
-  // Example of applying owner guard explicitly to a route group in future
-  ownerPing: requireOwnerAuth.handler(() => ({ ok: true })),
+  // Protected endpoint example
+  ownerPing: protectedProcedure.handler(() => ({ ok: true })),
   todo: todoRouter,
   projects: projectsRouter,
   repositories: repositoriesRouter,

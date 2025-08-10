@@ -1,16 +1,15 @@
-import { orpc } from "../lib/orpc";
+import { protectedProcedure } from "../lib/orpc";
 import { z } from "zod";
 import { db } from "../db";
 import { boards, projects, tasks, automations } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
 
-export const boardsRouter = orpc.protectedRouter
-  .route("list", {
-    method: "GET",
-    input: z.object({
+export const boardsRouter = {
+  list: protectedProcedure
+    .input(z.object({
       projectId: z.string().uuid()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify project ownership
       const project = await db
         .select()
@@ -18,7 +17,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(projects.id, input.projectId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -34,14 +33,13 @@ export const boardsRouter = orpc.protectedRouter
         .orderBy(desc(boards.createdAt));
       
       return boardList;
-    }
-  })
-  .route("get", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  get: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const board = await db
         .select({
           board: boards,
@@ -52,7 +50,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -62,16 +60,15 @@ export const boardsRouter = orpc.protectedRouter
       }
       
       return board[0].board;
-    }
-  })
-  .route("create", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  create: protectedProcedure
+    .input(z.object({
       projectId: z.string().uuid(),
       name: z.string().min(1).max(255),
       purpose: z.string().optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify project ownership
       const project = await db
         .select()
@@ -79,7 +76,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(projects.id, input.projectId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -128,16 +125,15 @@ export const boardsRouter = orpc.protectedRouter
       await db.insert(automations).values(defaultAutomations);
       
       return newBoard[0];
-    }
-  })
-  .route("update", {
-    method: "PUT",
-    input: z.object({
+    }),
+  
+  update: protectedProcedure
+    .input(z.object({
       id: z.string().uuid(),
       name: z.string().min(1).max(255).optional(),
       purpose: z.string().optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const board = await db
         .select({
@@ -149,7 +145,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -169,14 +165,13 @@ export const boardsRouter = orpc.protectedRouter
         .returning();
       
       return updated[0];
-    }
-  })
-  .route("delete", {
-    method: "DELETE",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  delete: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const board = await db
         .select({
@@ -188,7 +183,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -205,14 +200,13 @@ export const boardsRouter = orpc.protectedRouter
       await db.delete(boards).where(eq(boards.id, input.id));
       
       return { success: true };
-    }
-  })
-  .route("getWithTasks", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  getWithTasks: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const board = await db
         .select({
           board: boards,
@@ -223,7 +217,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -242,14 +236,13 @@ export const boardsRouter = orpc.protectedRouter
         ...board[0].board,
         tasks: boardTasks
       };
-    }
-  })
-  .route("listAutomations", {
-    method: "GET",
-    input: z.object({
-      boardId: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+  
+  listAutomations: protectedProcedure
+    .input(z.object({
+      boardId: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const board = await db
         .select({
@@ -261,7 +254,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.boardId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -276,19 +269,18 @@ export const boardsRouter = orpc.protectedRouter
         .where(eq(automations.boardId, input.boardId));
       
       return boardAutomations;
-    }
-  })
-  .route("createAutomation", {
-    method: "POST",
-    input: z.object({
+    }),
+  
+  createAutomation: protectedProcedure
+    .input(z.object({
       boardId: z.string().uuid(),
       trigger: z.enum(["stage_change"]),
       fromStage: z.string().default("*"),
       toStage: z.string(),
       action: z.enum(["notify", "start_agent", "stop_agent", "create_checklist"]),
       payload: z.record(z.any()).default({})
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       // Verify ownership through project
       const board = await db
         .select({
@@ -300,7 +292,7 @@ export const boardsRouter = orpc.protectedRouter
         .where(
           and(
             eq(boards.id, input.boardId),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -322,5 +314,5 @@ export const boardsRouter = orpc.protectedRouter
         .returning();
       
       return newAutomation[0];
-    }
-  });
+    })
+};

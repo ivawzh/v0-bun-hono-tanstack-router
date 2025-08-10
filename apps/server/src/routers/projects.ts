@@ -1,36 +1,34 @@
-import { orpc } from "../lib/orpc";
 import { z } from "zod";
 import { db } from "../db";
 import { projects, boards, repositories, tasks } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
+import { protectedProcedure } from "../lib/orpc";
 
-export const projectsRouter = orpc.protectedRouter
-  .route("list", {
-    method: "GET",
-    input: z.object({}).optional(),
-    handler: async ({ ctx }) => {
+export const projectsRouter = {
+  list: protectedProcedure
+    .input(z.object({}).optional())
+    .handler(async ({ context }) => {
       const userProjects = await db
         .select()
         .from(projects)
-        .where(eq(projects.ownerId, ctx.user.id))
+        .where(eq(projects.ownerId, context.user.id))
         .orderBy(desc(projects.createdAt));
       
       return userProjects;
-    }
-  })
-  .route("get", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+
+  get: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const project = await db
         .select()
         .from(projects)
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -40,35 +38,33 @@ export const projectsRouter = orpc.protectedRouter
       }
       
       return project[0];
-    }
-  })
-  .route("create", {
-    method: "POST",
-    input: z.object({
+    }),
+
+  create: protectedProcedure
+    .input(z.object({
       name: z.string().min(1).max(255),
       description: z.string().optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       const newProject = await db
         .insert(projects)
         .values({
           name: input.name,
           description: input.description,
-          ownerId: ctx.user.id
+          ownerId: context.user.id
         })
         .returning();
       
       return newProject[0];
-    }
-  })
-  .route("update", {
-    method: "PUT",
-    input: z.object({
+    }),
+
+  update: protectedProcedure
+    .input(z.object({
       id: z.string().uuid(),
       name: z.string().min(1).max(255).optional(),
       description: z.string().optional()
-    }),
-    handler: async ({ ctx, input }) => {
+    }))
+    .handler(async ({ context, input }) => {
       const updated = await db
         .update(projects)
         .set({
@@ -79,7 +75,7 @@ export const projectsRouter = orpc.protectedRouter
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .returning();
@@ -89,14 +85,13 @@ export const projectsRouter = orpc.protectedRouter
       }
       
       return updated[0];
-    }
-  })
-  .route("delete", {
-    method: "DELETE",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+
+  delete: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       // First check if project exists and user owns it
       const project = await db
         .select()
@@ -104,7 +99,7 @@ export const projectsRouter = orpc.protectedRouter
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -134,21 +129,20 @@ export const projectsRouter = orpc.protectedRouter
       await db.delete(projects).where(eq(projects.id, input.id));
       
       return { success: true };
-    }
-  })
-  .route("getWithStats", {
-    method: "GET",
-    input: z.object({
-      id: z.string().uuid()
     }),
-    handler: async ({ ctx, input }) => {
+
+  getWithStats: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid()
+    }))
+    .handler(async ({ context, input }) => {
       const project = await db
         .select()
         .from(projects)
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, ctx.user.id)
+            eq(projects.ownerId, context.user.id)
           )
         )
         .limit(1);
@@ -192,5 +186,5 @@ export const projectsRouter = orpc.protectedRouter
           }
         }
       };
-    }
-  });
+    }),
+};
