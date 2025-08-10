@@ -1,4 +1,4 @@
-import { drizzle } from "drizzle-orm";
+import { drizzle as drizzlePgLite } from "drizzle-orm/pglite";
 import { drizzle as drizzlePg } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
@@ -11,7 +11,7 @@ if (!process.env.DATABASE_URL) {
     // Lazy import pglite only when DATABASE_URL is not set
     const { PGlite } = await import("@electric-sql/pglite");
     const client = new PGlite();
-    dbAny = drizzle(client);
+    dbAny = drizzlePgLite(client);
     console.log("DB: Using PGlite (local dev)");
   } catch {
     throw new Error("PGlite not available and DATABASE_URL not set. Set DATABASE_URL or add pglite.");
@@ -23,4 +23,3 @@ if (!process.env.DATABASE_URL) {
 }
 
 export const db = dbAny;
-
