@@ -1,19 +1,19 @@
 import { protectedProcedure } from "../lib/orpc";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { 
   agents, agentSessions, agentActions, tasks, boards, projects 
 } from "../db/schema/core";
 import { eq, and, desc, isNull } from "drizzle-orm";
 
-const agentRoleEnum = z.enum(["PM", "Designer", "Architect", "Engineer", "QA"]);
-const agentRuntimeEnum = z.enum(["windows-runner", "cloud"]);
-const sessionStateEnum = z.enum(["booting", "running", "paused", "stopped", "error", "done"]);
-const actionTypeEnum = z.enum(["plan", "tool_call", "code_edit", "commit", "test", "comment"]);
+const agentRoleEnum = v.picklist(["PM", "Designer", "Architect", "Engineer", "QA"]);
+const agentRuntimeEnum = v.picklist(["windows-runner", "cloud"]);
+const sessionStateEnum = v.picklist(["booting", "running", "paused", "stopped", "error", "done"]);
+const actionTypeEnum = v.picklist(["plan", "tool_call", "code_edit", "commit", "test", "comment"]);
 
 export const agentsRouter = {
   list: protectedProcedure
-    .input(z.object({}).optional())
+    .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
       const agentsList = await db
         .select()
@@ -24,8 +24,8 @@ export const agentsRouter = {
     }),
   
   get: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const agent = await db
@@ -42,11 +42,11 @@ export const agentsRouter = {
     }),
   
   create: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1).max(255),
+    .input(v.object({
+      name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
       role: agentRoleEnum,
-      character: z.string().optional(),
-      config: z.record(z.any()).default({}),
+      character: v.optional(v.string()),
+      config: v.optional(v.record(v.string(), v.any()), {}),
       runtime: agentRuntimeEnum
     }))
     .handler(async ({ context, input }) => {
@@ -65,13 +65,13 @@ export const agentsRouter = {
     }),
   
   update: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      name: z.string().min(1).max(255).optional(),
-      role: agentRoleEnum.optional(),
-      character: z.string().optional(),
-      config: z.record(z.any()).optional(),
-      runtime: agentRuntimeEnum.optional()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
+      role: v.optional(agentRoleEnum),
+      character: v.optional(v.string()),
+      config: v.optional(v.record(v.string(), v.any())),
+      runtime: v.optional(agentRuntimeEnum)
     }))
     .handler(async ({ context, input }) => {
       const updates: any = { updatedAt: new Date() };
@@ -96,8 +96,8 @@ export const agentsRouter = {
     }),
   
   delete: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Check if agent has active sessions
@@ -121,9 +121,9 @@ export const agentsRouter = {
     }),
   
   startSession: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid(),
-      taskId: z.string().uuid()
+    .input(v.object({
+      agentId: v.pipe(v.string(), v.uuid()),
+      taskId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify task ownership
@@ -188,8 +188,8 @@ export const agentsRouter = {
     }),
   
   updateSessionState: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid(),
+    .input(v.object({
+      sessionId: v.pipe(v.string(), v.uuid()),
       state: sessionStateEnum
     }))
     .handler(async ({ context, input }) => {
@@ -228,10 +228,10 @@ export const agentsRouter = {
     }),
   
   addAction: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid(),
+    .input(v.object({
+      sessionId: v.pipe(v.string(), v.uuid()),
       type: actionTypeEnum,
-      payload: z.record(z.any()).default({})
+      payload: v.optional(v.record(v.string(), v.any()), {})
     }))
     .handler(async ({ context, input }) => {
       // Verify session exists and is active
@@ -262,8 +262,8 @@ export const agentsRouter = {
     }),
   
   getSessionActions: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid()
+    .input(v.object({
+      sessionId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const actions = await db
@@ -276,8 +276,8 @@ export const agentsRouter = {
     }),
   
   getActiveSessions: protectedProcedure
-    .input(z.object({
-      agentId: z.string().uuid().optional()
+    .input(v.object({
+      agentId: v.optional(v.pipe(v.string(), v.uuid()))
     }))
     .handler(async ({ context, input }) => {
       let query = db
@@ -306,8 +306,8 @@ export const agentsRouter = {
     }),
   
   pauseSession: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid()
+    .input(v.object({
+      sessionId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const updated = await db
@@ -338,8 +338,8 @@ export const agentsRouter = {
     }),
   
   resumeSession: protectedProcedure
-    .input(z.object({
-      sessionId: z.string().uuid()
+    .input(v.object({
+      sessionId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const updated = await db

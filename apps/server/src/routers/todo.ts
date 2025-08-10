@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import z from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { todo } from "../db/schema/todo";
 import { publicProcedure } from "../lib/orpc";
@@ -10,7 +10,7 @@ export const todoRouter = {
   }),
 
   create: publicProcedure
-    .input(z.object({ text: z.string().min(1) }))
+    .input(v.object({ text: v.pipe(v.string(), v.minLength(1)) }))
     .handler(async ({ input }) => {
       return await db
         .insert(todo)
@@ -20,7 +20,7 @@ export const todoRouter = {
     }),
 
   toggle: publicProcedure
-    .input(z.object({ id: z.number(), completed: z.boolean() }))
+    .input(v.object({ id: v.number(), completed: v.boolean() }))
     .handler(async ({ input }) => {
       return await db
         .update(todo)
@@ -29,7 +29,7 @@ export const todoRouter = {
     }),
 
   delete: publicProcedure
-    .input(z.object({ id: z.number() }))
+    .input(v.object({ id: v.number() }))
     .handler(async ({ input }) => {
       return await db.delete(todo).where(eq(todo.id, input.id));
     }),

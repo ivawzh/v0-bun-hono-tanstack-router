@@ -18,5 +18,9 @@
     "db:generate": "bun run --filter server db:generate",
     "db:migrate": "bun run --filter server db:migrate"
   },
-  "packageManager": "bun@1.2.11"
+  "packageManager": "bun@1.2.11",
+  "dependencies": {
+    "@paralleldrive/cuid2": "^2.2.2",
+    "valibot": "^1.1.0"
+  }
 }

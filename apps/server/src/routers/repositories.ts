@@ -1,15 +1,15 @@
 import { protectedProcedure } from "../lib/orpc";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { repositories, projects, sourceRefs } from "../db/schema/core";
 import { eq, and } from "drizzle-orm";
 
-const repositoryProviderEnum = z.enum(["github", "gitlab", "local", "cloud-code"]);
+const repositoryProviderEnum = v.picklist(["github", "gitlab", "local", "cloud-code"]);
 
 export const repositoriesRouter = {
   list: protectedProcedure
-    .input(z.object({
-      projectId: z.string().uuid()
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -37,8 +37,8 @@ export const repositoriesRouter = {
     }),
   
   get: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const repo = await db
@@ -64,11 +64,11 @@ export const repositoriesRouter = {
     }),
   
   create: protectedProcedure
-    .input(z.object({
-      projectId: z.string().uuid(),
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid()),
       provider: repositoryProviderEnum,
-      url: z.string().optional(),
-      defaultBranch: z.string().default("main")
+      url: v.optional(v.string()),
+      defaultBranch: v.optional(v.string(), "main")
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -101,11 +101,11 @@ export const repositoriesRouter = {
     }),
   
   update: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      provider: repositoryProviderEnum.optional(),
-      url: z.string().optional(),
-      defaultBranch: z.string().optional()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      provider: v.optional(repositoryProviderEnum),
+      url: v.optional(v.string()),
+      defaultBranch: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
@@ -143,8 +143,8 @@ export const repositoriesRouter = {
     }),
   
   delete: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
@@ -177,10 +177,10 @@ export const repositoriesRouter = {
     }),
   
   addSourceRef: protectedProcedure
-    .input(z.object({
-      repositoryId: z.string().uuid(),
-      refType: z.enum(["branch", "commit", "tag"]),
-      refValue: z.string()
+    .input(v.object({
+      repositoryId: v.pipe(v.string(), v.uuid()),
+      refType: v.picklist(["branch", "commit", "tag"]),
+      refValue: v.string()
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
@@ -216,8 +216,8 @@ export const repositoriesRouter = {
     }),
   
   listSourceRefs: protectedProcedure
-    .input(z.object({
-      repositoryId: z.string().uuid()
+    .input(v.object({
+      repositoryId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project

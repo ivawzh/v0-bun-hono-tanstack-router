@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { agents, agentSessions, agentActions, tasks, boards, projects } from "../db/schema/core";
 import { eq, and, desc, isNull } from "drizzle-orm";
@@ -33,11 +33,11 @@ agentGateway.use("/*", async (c, next) => {
 // Agent registration/heartbeat
 agentGateway.post("/register", async (c) => {
   const body = await c.req.json();
-  const { agentId, runtime, capabilities } = z.object({
-    agentId: z.string().uuid(),
-    runtime: z.enum(["windows-runner", "cloud"]),
-    capabilities: z.array(z.string()).optional(),
-  }).parse(body);
+  const { agentId, runtime, capabilities } = v.parse(v.object({
+    agentId: v.pipe(v.string(), v.uuid()),
+    runtime: v.picklist(["windows-runner", "cloud"]),
+    capabilities: v.optional(v.array(v.string())),
+  }), body);
 
   // Update agent's last seen timestamp
   await db
@@ -58,9 +58,9 @@ agentGateway.post("/register", async (c) => {
 // Claim a task for the agent
 agentGateway.post("/tasks/claim", async (c) => {
   const body = await c.req.json();
-  const { agentId } = z.object({
-    agentId: z.string().uuid(),
-  }).parse(body);
+  const { agentId } = v.parse(v.object({
+    agentId: v.pipe(v.string(), v.uuid()),
+  }), body);
 
   // Find an unassigned task or a task assigned to this agent
   const availableTask = await db
@@ -119,11 +119,11 @@ agentGateway.post("/sessions/:sessionId/progress", async (c) => {
   const sessionId = c.req.param("sessionId");
   const body = await c.req.json();
   
-  const { type, payload, message } = z.object({
-    type: z.enum(["plan", "tool_call", "code_edit", "commit", "test", "comment"]),
-    payload: z.record(z.any()).optional(),
-    message: z.string().optional(),
-  }).parse(body);
+  const { type, payload, message } = v.parse(v.object({
+    type: v.picklist(["plan", "tool_call", "code_edit", "commit", "test", "comment"]),
+    payload: v.optional(v.record(v.string(), v.any())),
+    message: v.optional(v.string()),
+  }), body);
 
   // Add action to the session
   await db
@@ -162,10 +162,10 @@ agentGateway.post("/sessions/:sessionId/complete", async (c) => {
   const sessionId = c.req.param("sessionId");
   const body = await c.req.json();
   
-  const { status, result } = z.object({
-    status: z.enum(["done", "error", "blocked"]),
-    result: z.record(z.any()).optional(),
-  }).parse(body);
+  const { status, result } = v.parse(v.object({
+    status: v.picklist(["done", "error", "blocked"]),
+    result: v.optional(v.record(v.string(), v.any())),
+  }), body);
 
   // Update session
   await db
@@ -211,9 +211,9 @@ agentGateway.post("/sessions/:sessionId/question", async (c) => {
   const sessionId = c.req.param("sessionId");
   const body = await c.req.json();
   
-  const { question } = z.object({
-    question: z.string(),
-  }).parse(body);
+  const { question } = v.parse(v.object({
+    question: v.string(),
+  }), body);
 
   // Get session details
   const session = await db

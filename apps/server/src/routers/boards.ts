@@ -1,13 +1,13 @@
 import { protectedProcedure } from "../lib/orpc";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { boards, projects, tasks, taskHooks } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
 
 export const boardsRouter = {
   list: protectedProcedure
-    .input(z.object({
-      projectId: z.string().uuid()
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -36,8 +36,8 @@ export const boardsRouter = {
     }),
   
   get: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const board = await db
@@ -63,10 +63,10 @@ export const boardsRouter = {
     }),
   
   create: protectedProcedure
-    .input(z.object({
-      projectId: z.string().uuid(),
-      name: z.string().min(1).max(255),
-      purpose: z.string().optional()
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid()),
+      name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      purpose: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -128,10 +128,10 @@ export const boardsRouter = {
     }),
   
   update: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      name: z.string().min(1).max(255).optional(),
-      purpose: z.string().optional()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
+      purpose: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
@@ -168,8 +168,8 @@ export const boardsRouter = {
     }),
   
   delete: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
@@ -203,8 +203,8 @@ export const boardsRouter = {
     }),
   
   getWithTasks: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const board = await db
@@ -239,8 +239,8 @@ export const boardsRouter = {
     }),
   
   listTaskHooks: protectedProcedure
-    .input(z.object({
-      boardId: z.string().uuid()
+    .input(v.object({
+      boardId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
@@ -272,13 +272,13 @@ export const boardsRouter = {
     }),
   
   createTaskHook: protectedProcedure
-    .input(z.object({
-      boardId: z.string().uuid(),
-      trigger: z.enum(["stage_change"]),
-      fromStage: z.string().default("*"),
-      toStage: z.string(),
-      action: z.enum(["notify", "start_agent", "stop_agent", "create_checklist"]),
-      payload: z.record(z.any()).default({})
+    .input(v.object({
+      boardId: v.pipe(v.string(), v.uuid()),
+      trigger: v.picklist(["stage_change"]),
+      fromStage: v.optional(v.string(), "*"),
+      toStage: v.string(),
+      action: v.picklist(["notify", "start_agent", "stop_agent", "create_checklist"]),
+      payload: v.optional(v.record(v.string(), v.any()), {})
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project

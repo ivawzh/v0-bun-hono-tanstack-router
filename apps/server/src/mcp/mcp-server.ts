@@ -1,13 +1,13 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { 
   projects, boards, tasks, repositories, 
   taskEvents, taskArtifacts, taskChecklistItems, 
   messages, questions, agents, agentSessions 
 } from "../db/schema/core";
-import { eq, and, desc, or, inArray } from "drizzle-orm";
+import { eq, and, desc, or, inArray, gt } from "drizzle-orm";
 
 const mcpServer = new Hono();
 
@@ -127,12 +127,12 @@ const cardsRouter = new Hono();
 // List tasks with filters
 cardsRouter.get("/list", async (c) => {
   const query = c.req.query();
-  const filters = z.object({
-    boardId: z.string().uuid().optional(),
-    status: z.string().optional(),
-    stage: z.string().optional(),
-    assignedAgentId: z.string().uuid().optional(),
-  }).parse(query);
+  const filters = v.parse(v.object({
+    boardId: v.optional(v.pipe(v.string(), v.uuid())),
+    status: v.optional(v.string()),
+    stage: v.optional(v.string()),
+    assignedAgentId: v.optional(v.pipe(v.string(), v.uuid())),
+  }), query);
 
   let conditions = [];
   if (filters.boardId) conditions.push(eq(tasks.boardId, filters.boardId));
@@ -169,14 +169,14 @@ cardsRouter.get("/:taskId", async (c) => {
 // Create a new task
 cardsRouter.post("/create", async (c) => {
   const body = await c.req.json();
-  const input = z.object({
-    boardId: z.string().uuid(),
-    title: z.string(),
-    bodyMd: z.string().optional(),
-    status: z.string().default("todo"),
-    stage: z.string().default("kickoff"),
-    priority: z.number().default(0),
-  }).parse(body);
+  const input = v.parse(v.object({
+    boardId: v.pipe(v.string(), v.uuid()),
+    title: v.string(),
+    bodyMd: v.optional(v.string()),
+    status: v.optional(v.string(), "todo"),
+    stage: v.optional(v.string(), "kickoff"),
+    priority: v.optional(v.number(), 0),
+  }), body);
 
   const newTask = await db
     .insert(tasks)
@@ -197,9 +197,9 @@ cardsRouter.post("/create", async (c) => {
 cardsRouter.put("/:taskId/status", async (c) => {
   const taskId = c.req.param("taskId");
   const body = await c.req.json();
-  const { status } = z.object({
-    status: z.enum(["todo", "in_progress", "blocked", "done", "paused"]),
-  }).parse(body);
+  const { status } = v.parse(v.object({
+    status: v.picklist(["todo", "in_progress", "blocked", "done", "paused"]),
+  }), body);
 
   const oldTask = await db
     .select()
@@ -230,9 +230,9 @@ cardsRouter.put("/:taskId/status", async (c) => {
 cardsRouter.put("/:taskId/stage", async (c) => {
   const taskId = c.req.param("taskId");
   const body = await c.req.json();
-  const { stage } = z.object({
-    stage: z.enum(["kickoff", "spec", "design", "dev", "qa", "done"]),
-  }).parse(body);
+  const { stage } = v.parse(v.object({
+    stage: v.picklist(["kickoff", "spec", "design", "dev", "qa", "done"]),
+  }), body);
 
   const oldTask = await db
     .select()
@@ -299,10 +299,10 @@ cardsRouter.post("/:taskId/resume", async (c) => {
 cardsRouter.post("/:taskId/message", async (c) => {
   const taskId = c.req.param("taskId");
   const body = await c.req.json();
-  const { content, author = "agent" } = z.object({
-    content: z.string(),
-    author: z.enum(["human", "agent", "system"]).default("agent"),
-  }).parse(body);
+  const { content, author = "agent" } = v.parse(v.object({
+    content: v.string(),
+    author: v.optional(v.picklist(["human", "agent", "system"]), "agent"),
+  }), body);
 
   const newMessage = await db
     .insert(messages)
@@ -326,11 +326,11 @@ cardsRouter.post("/:taskId/message", async (c) => {
 cardsRouter.post("/:taskId/artifact", async (c) => {
   const taskId = c.req.param("taskId");
   const body = await c.req.json();
-  const { kind, uri, meta } = z.object({
-    kind: z.enum(["diff", "file", "link", "log"]),
-    uri: z.string(),
-    meta: z.record(z.any()).optional(),
-  }).parse(body);
+  const { kind, uri, meta } = v.parse(v.object({
+    kind: v.picklist(["diff", "file", "link", "log"]),
+    uri: v.string(),
+    meta: v.optional(v.record(v.string(), v.any())),
+  }), body);
 
   const newArtifact = await db
     .insert(taskArtifacts)
@@ -355,9 +355,9 @@ cardsRouter.post("/:taskId/artifact", async (c) => {
 cardsRouter.post("/:taskId/question", async (c) => {
   const taskId = c.req.param("taskId");
   const body = await c.req.json();
-  const { text } = z.object({
-    text: z.string(),
-  }).parse(body);
+  const { text } = v.parse(v.object({
+    text: v.string(),
+  }), body);
 
   const newQuestion = await db
     .insert(questions)
@@ -390,14 +390,14 @@ const eventsRouter = new Hono();
 // Poll for task events
 eventsRouter.get("/poll", async (c) => {
   const query = c.req.query();
-  const { taskId, since } = z.object({
-    taskId: z.string().uuid().optional(),
-    since: z.string().datetime().optional(),
-  }).parse(query);
+  const { taskId, since } = v.parse(v.object({
+    taskId: v.optional(v.pipe(v.string(), v.uuid())),
+    since: v.optional(v.pipe(v.string(), v.isoDateTime())),
+  }), query);
 
   let conditions = [];
   if (taskId) conditions.push(eq(taskEvents.taskId, taskId));
-  if (since) conditions.push(taskEvents.at > new Date(since));
+  if (since) conditions.push(gt(taskEvents.at, new Date(since)));
 
   const events = await db
     .select()

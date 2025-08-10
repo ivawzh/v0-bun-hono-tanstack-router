@@ -1,5 +1,5 @@
 import { protectedProcedure } from "../lib/orpc";
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { 
   tasks, boards, projects, agents, taskEvents, taskArtifacts,
@@ -7,16 +7,16 @@ import {
 } from "../db/schema/core";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 
-const taskStatusEnum = z.enum(["todo", "in_progress", "blocked", "done", "paused"]);
-const taskStageEnum = z.enum(["kickoff", "spec", "design", "dev", "qa", "done"]);
+const taskStatusEnum = v.picklist(["todo", "in_progress", "blocked", "done", "paused"]);
+const taskStageEnum = v.picklist(["kickoff", "spec", "design", "dev", "qa", "done"]);
 
 export const tasksRouter = {
   list: protectedProcedure
-    .input(z.object({
-      boardId: z.string().uuid().optional(),
-      status: taskStatusEnum.optional(),
-      stage: taskStageEnum.optional(),
-      assignedActorType: z.enum(["agent", "human"]).optional()
+    .input(v.object({
+      boardId: v.optional(v.pipe(v.string(), v.uuid())),
+      status: v.optional(taskStatusEnum),
+      stage: v.optional(taskStageEnum),
+      assignedActorType: v.optional(v.picklist(["agent", "human"]))
     }))
     .handler(async ({ context, input }) => {
       let query = db.select({
@@ -41,12 +41,12 @@ export const tasksRouter = {
       
       const results = await query.orderBy(desc(tasks.priority), desc(tasks.createdAt));
       
-      return results.map(r => r.task);
+      return results.map((r: any) => r.task);
     }),
   
   get: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const task = await db
@@ -74,16 +74,16 @@ export const tasksRouter = {
     }),
   
   create: protectedProcedure
-    .input(z.object({
-      boardId: z.string().uuid(),
-      title: z.string().min(1).max(255),
-      bodyMd: z.string().optional(),
-      status: taskStatusEnum.default("todo"),
-      stage: taskStageEnum.default("kickoff"),
-      priority: z.number().int().min(0).max(10).default(0),
-      metadata: z.record(z.any()).optional(),
-      assignedActorType: z.enum(["agent", "human"]).optional(),
-      assignedAgentId: z.string().uuid().optional()
+    .input(v.object({
+      boardId: v.pipe(v.string(), v.uuid()),
+      title: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      bodyMd: v.optional(v.string()),
+      status: v.optional(taskStatusEnum, "todo"),
+      stage: v.optional(taskStageEnum, "kickoff"),
+      priority: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10)), 0),
+      metadata: v.optional(v.record(v.string(), v.any())),
+      assignedActorType: v.optional(v.picklist(["agent", "human"])),
+      assignedAgentId: v.optional(v.pipe(v.string(), v.uuid()))
     }))
     .handler(async ({ context, input }) => {
       // Verify board ownership
@@ -152,16 +152,16 @@ export const tasksRouter = {
     }),
   
   update: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      title: z.string().min(1).max(255).optional(),
-      bodyMd: z.string().optional(),
-      status: taskStatusEnum.optional(),
-      stage: taskStageEnum.optional(),
-      priority: z.number().int().min(0).max(10).optional(),
-      metadata: z.record(z.any()).optional(),
-      assignedActorType: z.enum(["agent", "human"]).nullish(),
-      assignedAgentId: z.string().uuid().nullish()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      title: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
+      bodyMd: v.optional(v.string()),
+      status: v.optional(taskStatusEnum),
+      stage: v.optional(taskStageEnum),
+      priority: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10))),
+      metadata: v.optional(v.record(v.string(), v.any())),
+      assignedActorType: v.nullish(v.picklist(["agent", "human"])),
+      assignedAgentId: v.nullish(v.pipe(v.string(), v.uuid()))
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -279,8 +279,8 @@ export const tasksRouter = {
     }),
   
   delete: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -320,10 +320,10 @@ export const tasksRouter = {
     }),
   
   addMessage: protectedProcedure
-    .input(z.object({
-      taskId: z.string().uuid(),
-      contentMd: z.string(),
-      author: z.enum(["human", "agent", "system"]).default("human")
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      contentMd: v.string(),
+      author: v.optional(v.picklist(["human", "agent", "system"]), "human")
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -368,11 +368,11 @@ export const tasksRouter = {
     }),
   
   addArtifact: protectedProcedure
-    .input(z.object({
-      taskId: z.string().uuid(),
-      kind: z.enum(["diff", "file", "link", "log"]),
-      uri: z.string(),
-      meta: z.record(z.any()).optional()
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      kind: v.picklist(["diff", "file", "link", "log"]),
+      uri: v.string(),
+      meta: v.optional(v.record(v.string(), v.any()))
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -418,10 +418,10 @@ export const tasksRouter = {
     }),
   
   askQuestion: protectedProcedure
-    .input(z.object({
-      taskId: z.string().uuid(),
-      text: z.string(),
-      askedBy: z.enum(["agent", "human"]).default("human")
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      text: v.string(),
+      askedBy: v.optional(v.picklist(["agent", "human"]), "human")
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -482,9 +482,9 @@ export const tasksRouter = {
     }),
   
   answerQuestion: protectedProcedure
-    .input(z.object({
-      questionId: z.string().uuid(),
-      answer: z.string()
+    .input(v.object({
+      questionId: v.pipe(v.string(), v.uuid()),
+      answer: v.string()
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through task
@@ -547,9 +547,9 @@ export const tasksRouter = {
     }),
   
   updateChecklistItem: protectedProcedure
-    .input(z.object({
-      itemId: z.string().uuid(),
-      state: z.enum(["open", "done"])
+    .input(v.object({
+      itemId: v.pipe(v.string(), v.uuid()),
+      state: v.picklist(["open", "done"])
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through task
@@ -589,8 +589,8 @@ export const tasksRouter = {
     }),
   
   getDetails: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as v from "valibot";
 import { db } from "../db";
 import { projects, boards, repositories, tasks } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
@@ -6,7 +6,7 @@ import { protectedProcedure } from "../lib/orpc";
 
 export const projectsRouter = {
   list: protectedProcedure
-    .input(z.object({}).optional())
+    .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
       const userProjects = await db
         .select()
@@ -18,8 +18,8 @@ export const projectsRouter = {
     }),
 
   get: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const project = await db
@@ -41,9 +41,9 @@ export const projectsRouter = {
     }),
 
   create: protectedProcedure
-    .input(z.object({
-      name: z.string().min(1).max(255),
-      description: z.string().optional()
+    .input(v.object({
+      name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+      description: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
       const newProject = await db
@@ -59,10 +59,10 @@ export const projectsRouter = {
     }),
 
   update: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid(),
-      name: z.string().min(1).max(255).optional(),
-      description: z.string().optional()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
+      description: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
       const updated = await db
@@ -88,8 +88,8 @@ export const projectsRouter = {
     }),
 
   delete: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // First check if project exists and user owns it
@@ -132,8 +132,8 @@ export const projectsRouter = {
     }),
 
   getWithStats: protectedProcedure
-    .input(z.object({
-      id: z.string().uuid()
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       const project = await db
@@ -179,7 +179,7 @@ export const projectsRouter = {
           repositories: repoCount.length,
           tasks: {
             total: taskStats.length,
-            byStatus: taskStats.reduce((acc, stat) => {
+            byStatus: taskStats.reduce((acc: Record<string, number>, stat: { status: string; count: string }) => {
               acc[stat.status] = (acc[stat.status] || 0) + 1;
               return acc;
             }, {} as Record<string, number>)

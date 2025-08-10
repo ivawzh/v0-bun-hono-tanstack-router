@@ -1,6 +1,5 @@
-import { pgTable, text, uuid, timestamp, integer, jsonb, serial } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
-import { createId } from "@paralleldrive/cuid2";
 
 // User table
 export const users = pgTable("users", {
@@ -185,7 +184,7 @@ export const requirements = pgTable("requirements", {
   content: text("content").notNull(), // Markdown content
   category: text("category"), // functional|technical|ux|business|etc
   version: integer("version").default(1),
-  parentId: uuid("parent_id").references(() => requirements.id), // For hierarchical docs
+  parentId: uuid("parent_id"), // For hierarchical docs - self-reference added in relations
   metadata: jsonb("metadata").default({}),
   // Vector search preparation fields
   embedding: jsonb("embedding"), // Will store vector embeddings when we add vector search

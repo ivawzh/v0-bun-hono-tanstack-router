@@ -1,5 +1,5 @@
 import { protectedProcedure } from "../lib/orpc";
-import { z } from "zod";
+import * as v from "valibot";
 import OpenAI from "openai";
 
 // Initialize OpenAI client
@@ -10,10 +10,10 @@ const openai = new OpenAI({
 export const voiceRouter = {
   // Transcribe audio to text using OpenAI Whisper
   transcribe: protectedProcedure
-    .input(z.object({
-      audio: z.string(), // Base64 encoded audio data
-      format: z.enum(["webm", "mp3", "wav", "m4a"]).default("webm"),
-      language: z.string().optional(), // ISO 639-1 language code
+    .input(v.object({
+      audio: v.string(), // Base64 encoded audio data
+      format: v.optional(v.picklist(["webm", "mp3", "wav", "m4a"]), "webm"),
+      language: v.optional(v.string()), // ISO 639-1 language code
     }))
     .handler(async ({ input }) => {
       if (!process.env.OPENAI_API_KEY) {

@@ -1,4 +1,4 @@
-import { Context, Next } from "hono";
+import type { Context, Next } from "hono";
 import { auth } from "./auth";
 import { HTTPException } from "hono/http-exception";
 import { getCookie } from "hono/cookie";

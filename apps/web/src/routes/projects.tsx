@@ -40,7 +40,7 @@ function ProjectsPage() {
       setNewProjectDescription("");
       refetchProjects();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Failed to create project: ${error.message}`);
     },
   });
@@ -53,13 +53,13 @@ function ProjectsPage() {
       setNewBoardPurpose("");
       refetchProjects();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(`Failed to create board: ${error.message}`);
     },
   });
 
   // Fetch boards for each project
-  const boardsQueries = projects?.map(project => 
+  const boardsQueries = projects?.map((project: any) => 
     orpc.boards.list.useQuery({ projectId: project.id })
   ) || [];
 
@@ -87,7 +87,7 @@ function ProjectsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {projects?.map((project, index) => {
+        {projects?.map((project: any, index: number) => {
           const boards = boardsQueries[index]?.data || [];
           return (
             <Card key={project.id} className="hover:shadow-lg transition-shadow">
@@ -110,7 +110,7 @@ function ProjectsPage() {
                   
                   {boards.length > 0 && (
                     <div className="space-y-2">
-                      {boards.slice(0, 3).map((board) => (
+                      {boards.slice(0, 3).map((board: any) => (
                         <Link
                           key={board.id}
                           to="/boards/$boardId"

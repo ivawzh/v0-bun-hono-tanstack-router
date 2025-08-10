@@ -97,7 +97,7 @@ function TodosRoute() {
               </p>
             ) : (
               <ul className="space-y-2">
-                {todos.data?.map((todo) => (
+                {todos.data?.map((todo: any) => (
                   <li
                     key={todo.id}
                     className="flex items-center justify-between rounded-md border p-2"
