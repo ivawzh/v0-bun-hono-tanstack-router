@@ -23,18 +23,20 @@ First, install the dependencies:
 ```bash
 bun install
 ```
+
 ## Database Setup
+
+Run `brew install supabase/tap/supabase` to install Supabase CLI.
 
 This project uses PostgreSQL with Drizzle ORM.
 
 1. Make sure you have a PostgreSQL database set up.
 2. Update your `apps/server/.env` file with your PostgreSQL connection details.
-
 3. Apply the schema to your database:
+
 ```bash
 bun db:push
 ```
-
 
 Then, run the development server:
 
@@ -45,15 +47,15 @@ bun dev
 Open [http://localhost:3001](http://localhost:3001) in your browser to see the web application.
 The API is running at [http://localhost:3000](http://localhost:3000).
 
-
-
 ## Project Structure
 
-```
+```text
 solo-unicorn/
 ├── apps/
 │   ├── web/         # Frontend application (React + TanStack Router)
 │   └── server/      # Backend API (Hono, ORPC)
+├── docs/
+│   └── requirements.md  # MVP requirements, architecture, ERD
 ```
 
 ## Available Scripts
@@ -66,3 +68,7 @@ solo-unicorn/
 - `bun db:push`: Push schema changes to database
 - `bun db:studio`: Open database studio UI
 - `cd apps/web && bun generate-pwa-assets`: Generate PWA assets
+
+## Documentation
+
+- MVP Requirements: [docs/requirements.md](docs/requirements.md)

@@ -21,8 +21,11 @@ export const queryClient = new QueryClient({
   }),
 });
 
+const defaultServerUrl = "http://localhost:3000";
+const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl;
+
 export const link = new RPCLink({
-  url: `${import.meta.env.VITE_SERVER_URL}/rpc`,
+  url: `${baseUrl}/rpc`,
   fetch(url, options) {
     return fetch(url, {
       ...options,
@@ -31,6 +34,6 @@ export const link = new RPCLink({
   },
 });
 
-export const client: RouterClient<typeof appRouter> = createORPCClient(link)
+export const client: RouterClient<typeof appRouter> = createORPCClient(link);
 
-export const orpc = createTanstackQueryUtils(client)
+export const orpc = createTanstackQueryUtils(client);
