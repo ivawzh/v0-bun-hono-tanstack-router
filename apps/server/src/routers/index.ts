@@ -1,4 +1,4 @@
-import { protectedProcedure, publicProcedure } from "../lib/orpc";
+import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
 import { todoRouter } from "./todo";
 import { projectsRouter } from "./projects";
 import { repositoriesRouter } from "./repositories";
@@ -7,7 +7,7 @@ import { tasksRouter } from "./tasks";
 import { agentsRouter } from "./agents";
 import { voiceRouter } from "./voice";
 
-export const appRouter = {
+export const appRouter = o.router({
   healthCheck: publicProcedure.handler(() => {
     return "OK";
   }),
@@ -26,5 +26,5 @@ export const appRouter = {
   tasks: tasksRouter,
   agents: agentsRouter,
   voice: voiceRouter,
-};
+});
 export type AppRouter = typeof appRouter;

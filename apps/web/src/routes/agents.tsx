@@ -41,6 +41,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/agents")({
   component: AgentsPage,
@@ -57,47 +58,55 @@ function AgentsPage() {
     runtime: "windows-runner",
   });
 
-  const { data: agents, isLoading, refetch: refetchAgents } = orpc.agents.list.useQuery({});
-  const { data: activeSessions } = orpc.agents.getActiveSessions.useQuery({});
+  const { data: agents, isLoading, refetch: refetchAgents } = useQuery(orpc.agents.list.queryOptions({}));
+  const { data: activeSessions } = useQuery(orpc.agents.getActiveSessions.queryOptions({}));
 
-  const createAgent = orpc.agents.create.useMutation({
-    onSuccess: () => {
-      toast.success("Agent created successfully");
-      setShowNewAgentDialog(false);
-      setNewAgent({ name: "", role: "Engineer", character: "", runtime: "windows-runner" });
-      refetchAgents();
-    },
-    onError: (error) => {
-      toast.error(`Failed to create agent: ${error.message}`);
-    },
-  });
+  const createAgent = useMutation(
+    orpc.agents.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Agent created successfully");
+        setShowNewAgentDialog(false);
+        setNewAgent({ name: "", role: "Engineer", character: "", runtime: "windows-runner" });
+        refetchAgents();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create agent: ${error.message}`);
+      },
+    })
+  );
 
-  const deleteAgent = orpc.agents.delete.useMutation({
-    onSuccess: () => {
-      toast.success("Agent deleted");
-      refetchAgents();
-    },
-    onError: (error) => {
-      toast.error(`Failed to delete agent: ${error.message}`);
-    },
-  });
+  const deleteAgent = useMutation(
+    orpc.agents.delete.mutationOptions({
+      onSuccess: () => {
+        toast.success("Agent deleted");
+        refetchAgents();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to delete agent: ${error.message}`);
+      },
+    })
+  );
 
-  const pauseSession = orpc.agents.pauseSession.useMutation({
-    onSuccess: () => {
-      toast.success("Session paused");
-      refetchAgents();
-    },
-  });
+  const pauseSession = useMutation(
+    orpc.agents.pauseSession.mutationOptions({
+      onSuccess: () => {
+        toast.success("Session paused");
+        refetchAgents();
+      },
+    })
+  );
 
-  const resumeSession = orpc.agents.resumeSession.useMutation({
-    onSuccess: () => {
-      toast.success("Session resumed");
-      refetchAgents();
-    },
-  });
+  const resumeSession = useMutation(
+    orpc.agents.resumeSession.mutationOptions({
+      onSuccess: () => {
+        toast.success("Session resumed");
+        refetchAgents();
+      },
+    })
+  );
 
   const getSessionForAgent = (agentId: string) => {
-    return activeSessions?.find((s) => s.agent.id === agentId);
+    return activeSessions?.find((s: any) => s.agent.id === agentId);
   };
 
   const getSessionStateColor = (state: string) => {

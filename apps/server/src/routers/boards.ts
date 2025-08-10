@@ -1,10 +1,10 @@
-import { protectedProcedure } from "../lib/orpc";
+import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { boards, projects, tasks, taskHooks } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
 
-export const boardsRouter = {
+export const boardsRouter = o.router({
   list: protectedProcedure
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid())
@@ -315,4 +315,4 @@ export const boardsRouter = {
       
       return newTaskHook[0];
     })
-};
+});

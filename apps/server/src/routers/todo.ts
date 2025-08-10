@@ -2,9 +2,9 @@ import { eq } from "drizzle-orm";
 import * as v from "valibot";
 import { db } from "../db";
 import { todo } from "../db/schema/todo";
-import { publicProcedure } from "../lib/orpc";
+import { publicProcedure, o } from "../lib/orpc";
 
-export const todoRouter = {
+export const todoRouter = o.router({
   getAll: publicProcedure.handler(async () => {
     return await db.select().from(todo);
   }),
@@ -33,5 +33,5 @@ export const todoRouter = {
     .handler(async ({ input }) => {
       return await db.delete(todo).where(eq(todo.id, input.id));
     }),
-};
+});
 

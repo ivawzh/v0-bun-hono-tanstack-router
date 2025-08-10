@@ -1,4 +1,4 @@
-import { protectedProcedure } from "../lib/orpc";
+import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { 
@@ -10,7 +10,7 @@ import { eq, and, desc, or, inArray } from "drizzle-orm";
 const taskStatusEnum = v.picklist(["todo", "in_progress", "blocked", "done", "paused"]);
 const taskStageEnum = v.picklist(["kickoff", "spec", "design", "dev", "qa", "done"]);
 
-export const tasksRouter = {
+export const tasksRouter = o.router({
   list: protectedProcedure
     .input(v.object({
       boardId: v.optional(v.pipe(v.string(), v.uuid())),
@@ -635,4 +635,4 @@ export const tasksRouter = {
         questions: taskQuestions
       };
     })
-};
+});

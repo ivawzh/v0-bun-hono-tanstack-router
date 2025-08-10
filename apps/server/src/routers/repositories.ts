@@ -1,4 +1,4 @@
-import { protectedProcedure } from "../lib/orpc";
+import { protectedProcedure, o } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { repositories, projects, sourceRefs } from "../db/schema/core";
@@ -6,7 +6,7 @@ import { eq, and } from "drizzle-orm";
 
 const repositoryProviderEnum = v.picklist(["github", "gitlab", "local", "cloud-code"]);
 
-export const repositoriesRouter = {
+export const repositoriesRouter = o.router({
   list: protectedProcedure
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid())
@@ -247,4 +247,4 @@ export const repositoriesRouter = {
       
       return refs;
     })
-};
+});

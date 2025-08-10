@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/popover";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 export function ProjectSwitcher() {
   const [open, setOpen] = useState(false);
@@ -37,21 +38,23 @@ export function ProjectSwitcher() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
 
-  const { data: projects, isLoading, refetch } = orpc.projects.list.useQuery({});
-  const createProject = orpc.projects.create.useMutation({
-    onSuccess: () => {
-      toast.success("Project created successfully");
-      setShowNewProjectDialog(false);
-      setNewProjectName("");
-      setNewProjectDescription("");
-      refetch();
-    },
-    onError: (error) => {
-      toast.error(`Failed to create project: ${error.message}`);
-    },
-  });
+  const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({}));
+  const createProject = useMutation(
+    orpc.projects.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Project created successfully");
+        setShowNewProjectDialog(false);
+        setNewProjectName("");
+        setNewProjectDescription("");
+        refetch();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create project: ${error.message}`);
+      },
+    })
+  );
 
-  const selectedProjectData = projects?.find((p) => p.id === selectedProject);
+  const selectedProjectData = projects?.find((p: any) => p.id === selectedProject);
 
   return (
     <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>

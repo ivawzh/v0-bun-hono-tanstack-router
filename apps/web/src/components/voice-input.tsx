@@ -3,6 +3,7 @@ import { Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
+import { useMutation } from "@tanstack/react-query";
 
 interface VoiceInputProps {
   onTranscription: (text: string) => void;
@@ -16,20 +17,22 @@ export function VoiceInput({ onTranscription, placeholder = "Click to start reco
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
 
-  const transcribeMutation = orpc.voice.transcribe.useMutation({
-    onSuccess: (data) => {
-      if (data.text) {
-        onTranscription(data.text);
-        toast.success("Transcription complete");
-      }
-    },
-    onError: (error) => {
-      toast.error(`Transcription failed: ${error.message}`);
-    },
-    onSettled: () => {
-      setIsProcessing(false);
-    },
-  });
+  const transcribeMutation = useMutation(
+    orpc.voice.transcribe.mutationOptions({
+      onSuccess: (data: any) => {
+        if (data.text) {
+          onTranscription(data.text);
+          toast.success("Transcription complete");
+        }
+      },
+      onError: (error: any) => {
+        toast.error(`Transcription failed: ${error.message}`);
+      },
+      onSettled: () => {
+        setIsProcessing(false);
+      },
+    })
+  );
 
   const startRecording = async () => {
     try {

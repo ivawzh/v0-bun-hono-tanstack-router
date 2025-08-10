@@ -1,4 +1,4 @@
-import { protectedProcedure } from "../lib/orpc";
+import { protectedProcedure, o } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { 
@@ -11,7 +11,7 @@ const agentRuntimeEnum = v.picklist(["windows-runner", "cloud"]);
 const sessionStateEnum = v.picklist(["booting", "running", "paused", "stopped", "error", "done"]);
 const actionTypeEnum = v.picklist(["plan", "tool_call", "code_edit", "commit", "test", "comment"]);
 
-export const agentsRouter = {
+export const agentsRouter = o.router({
   list: protectedProcedure
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
@@ -368,4 +368,4 @@ export const agentsRouter = {
       
       return updated[0];
     })
-};
+});

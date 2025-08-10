@@ -36,6 +36,7 @@ import {
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 interface TaskDetailProps {
   taskId: string | null;
@@ -64,39 +65,47 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
   const [newMessage, setNewMessage] = useState("");
   const [newQuestion, setNewQuestion] = useState("");
 
-  const { data: taskDetails, isLoading, refetch } = orpc.tasks.getDetails.useQuery(
-    { id: taskId! },
-    { enabled: !!taskId }
+  const { data: taskDetails, isLoading, refetch } = useQuery({
+    ...orpc.tasks.getDetails.queryOptions({ id: taskId! }),
+    enabled: !!taskId
+  });
+
+  const updateTask = useMutation(
+    orpc.tasks.update.mutationOptions({
+      onSuccess: () => {
+        toast.success("Task updated");
+        refetch();
+      },
+    })
   );
 
-  const updateTask = orpc.tasks.update.useMutation({
-    onSuccess: () => {
-      toast.success("Task updated");
-      refetch();
-    },
-  });
+  const addMessage = useMutation(
+    orpc.tasks.addMessage.mutationOptions({
+      onSuccess: () => {
+        toast.success("Message added");
+        setNewMessage("");
+        refetch();
+      },
+    })
+  );
 
-  const addMessage = orpc.tasks.addMessage.useMutation({
-    onSuccess: () => {
-      toast.success("Message added");
-      setNewMessage("");
-      refetch();
-    },
-  });
+  const askQuestion = useMutation(
+    orpc.tasks.askQuestion.mutationOptions({
+      onSuccess: () => {
+        toast.success("Question posted");
+        setNewQuestion("");
+        refetch();
+      },
+    })
+  );
 
-  const askQuestion = orpc.tasks.askQuestion.useMutation({
-    onSuccess: () => {
-      toast.success("Question posted");
-      setNewQuestion("");
-      refetch();
-    },
-  });
-
-  const updateChecklistItem = orpc.tasks.updateChecklistItem.useMutation({
-    onSuccess: () => {
-      refetch();
-    },
-  });
+  const updateChecklistItem = useMutation(
+    orpc.tasks.updateChecklistItem.mutationOptions({
+      onSuccess: () => {
+        refetch();
+      },
+    })
+  );
 
   if (!taskId) return null;
 

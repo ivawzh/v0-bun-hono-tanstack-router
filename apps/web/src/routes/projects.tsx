@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/projects")({
   component: ProjectsPage,
@@ -30,37 +31,41 @@ function ProjectsPage() {
   const [newBoardName, setNewBoardName] = useState("");
   const [newBoardPurpose, setNewBoardPurpose] = useState("");
 
-  const { data: projects, isLoading, refetch: refetchProjects } = orpc.projects.list.useQuery({});
+  const { data: projects, isLoading, refetch: refetchProjects } = useQuery(orpc.projects.list.queryOptions({}));
   
-  const createProject = orpc.projects.create.useMutation({
-    onSuccess: () => {
-      toast.success("Project created successfully");
-      setShowNewProjectDialog(false);
-      setNewProjectName("");
-      setNewProjectDescription("");
-      refetchProjects();
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to create project: ${error.message}`);
-    },
-  });
+  const createProject = useMutation(
+    orpc.projects.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Project created successfully");
+        setShowNewProjectDialog(false);
+        setNewProjectName("");
+        setNewProjectDescription("");
+        refetchProjects();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create project: ${error.message}`);
+      },
+    })
+  );
 
-  const createBoard = orpc.boards.create.useMutation({
-    onSuccess: () => {
-      toast.success("Board created successfully");
-      setShowNewBoardDialog(false);
-      setNewBoardName("");
-      setNewBoardPurpose("");
-      refetchProjects();
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to create board: ${error.message}`);
-    },
-  });
+  const createBoard = useMutation(
+    orpc.boards.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Board created successfully");
+        setShowNewBoardDialog(false);
+        setNewBoardName("");
+        setNewBoardPurpose("");
+        refetchProjects();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create board: ${error.message}`);
+      },
+    })
+  );
 
   // Fetch boards for each project
   const boardsQueries = projects?.map((project: any) => 
-    orpc.boards.list.useQuery({ projectId: project.id })
+    useQuery(orpc.boards.list.queryOptions({ projectId: project.id }))
   ) || [];
 
   if (isLoading) {

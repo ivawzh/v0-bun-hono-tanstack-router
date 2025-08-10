@@ -1,4 +1,4 @@
-import { protectedProcedure } from "../lib/orpc";
+import { protectedProcedure, o } from "../lib/orpc";
 import * as v from "valibot";
 import OpenAI from "openai";
 
@@ -7,7 +7,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export const voiceRouter = {
+export const voiceRouter = o.router({
   // Transcribe audio to text using OpenAI Whisper
   transcribe: protectedProcedure
     .input(v.object({
@@ -71,4 +71,4 @@ export const voiceRouter = {
         ],
       };
     }),
-};
+});

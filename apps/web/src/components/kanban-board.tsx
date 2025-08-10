@@ -16,6 +16,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { TaskDetail } from "./task-detail";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -67,29 +68,33 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     priority: 0,
   });
 
-  const { data: boardData, isLoading, refetch } = orpc.boards.getWithTasks.useQuery({ id: boardId });
+  const { data: boardData, isLoading, refetch } = useQuery(orpc.boards.getWithTasks.queryOptions({ id: boardId }));
   
-  const createTask = orpc.tasks.create.useMutation({
-    onSuccess: () => {
-      toast.success("Task created successfully");
-      setShowNewTaskDialog(false);
-      setNewTask({ title: "", bodyMd: "", stage: "kickoff", priority: 0 });
-      refetch();
-    },
-    onError: (error) => {
-      toast.error(`Failed to create task: ${error.message}`);
-    },
-  });
+  const createTask = useMutation(
+    orpc.tasks.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Task created successfully");
+        setShowNewTaskDialog(false);
+        setNewTask({ title: "", bodyMd: "", stage: "kickoff", priority: 0 });
+        refetch();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create task: ${error.message}`);
+      },
+    })
+  );
   
-  const updateTask = orpc.tasks.update.useMutation({
-    onSuccess: () => {
-      toast.success("Task updated");
-      refetch();
-    },
-    onError: (error) => {
-      toast.error(`Failed to update task: ${error.message}`);
-    },
-  });
+  const updateTask = useMutation(
+    orpc.tasks.update.mutationOptions({
+      onSuccess: () => {
+        toast.success("Task updated");
+        refetch();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update task: ${error.message}`);
+      },
+    })
+  );
 
   if (isLoading) {
     return (

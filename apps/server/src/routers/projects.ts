@@ -2,9 +2,9 @@ import * as v from "valibot";
 import { db } from "../db";
 import { projects, boards, repositories, tasks } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
-import { protectedProcedure } from "../lib/orpc";
+import { protectedProcedure, o } from "../lib/orpc";
 
-export const projectsRouter = {
+export const projectsRouter = o.router({
   list: protectedProcedure
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
@@ -187,4 +187,4 @@ export const projectsRouter = {
         }
       };
     }),
-};
+});
