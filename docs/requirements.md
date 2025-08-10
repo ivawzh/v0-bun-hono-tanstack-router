@@ -391,3 +391,127 @@ Recommendation (MVP): start with option 2 if using a mono-repo, otherwise option
 - Final choice for requirements storage (Git-based vs bucket vs DB) and indexing for agent context?
 - Voice input scope (which fields/screens) and on-device vs server transcription?
 - Do we allow assigning to non-code actors (e.g., PM/Designer agents) in MVP or later?
+
+## Code References: Claude Code UI and Claude Code Router
+
+### Claude Code UI (`apps/references/claudecodeui`)
+
+- What it is: a desktop/mobile web UI that drives the official Claude Code CLI. It does not use a Claude SDK directly; it shells out to the `claude` binary and streams JSON over WebSocket.
+- How it integrates with Claude Code:
+- Server spawns the CLI with streaming JSON and forwards events to the browser via WS. Key spawn point:
+
+```238:243:apps/references/claudecodeui/server/claude-cli.js
+const claudeProcess = spawnFunction('claude', args, {
+  cwd: workingDir,
+  stdio: ['pipe', 'pipe', 'pipe'],
+  env: { ...process.env }
+});
+```
+
+- The WS handler receives `claude-command` messages and calls the spawner:
+
+```458:466:apps/references/claudecodeui/server/index.js
+if (data.type === 'claude-command') {
+  await spawnClaude(data.command, data.options, ws);
+} else if (data.type === 'abort-session') {
+  const success = abortClaudeSession(data.sessionId);
+  ws.send(JSON.stringify({ type: 'session-aborted', sessionId: data.sessionId, success }));
+}
+```
+
+- The browser connects to `/ws` and streams messages:
+
+```58:66:apps/references/claudecodeui/src/utils/websocket.js
+const wsUrl = `${wsBaseUrl}/ws?token=${encodeURIComponent(token)}`;
+const websocket = new WebSocket(wsUrl);
+websocket.onopen = () => { setIsConnected(true); setWs(websocket); };
+```
+
+- The spawner adds Claude flags for streaming, MCP, models, and tool permissions; it can attach temp image files and pass their paths:
+
+```92:101:apps/references/claudecodeui/server/claude-cli.js
+args.push('--output-format', 'stream-json', '--verbose');
+// ... detect ~/.claude.json MCP config and add --mcp-config
+// ... default model for new sessions
+if (!resume) { args.push('--model', 'sonnet'); }
+```
+
+- Embed options for Solo Unicorn:
+- Microservice: run the UI server alongside our stack and link/iframe it from the app. Reuse its auth via bearer token; map our user token to its `Authorization` header and WS `?token=` param.
+- Native bridge: replicate its small API/WS surface in our backend and reuse the spawner logic to call the `claude` CLI from our agent gateway.
+- Terminal mode: optionally surface its PTY-backed shell for advanced users.
+
+Integration notes:
+
+- If we later adopt the Router (below), set `ANTHROPIC_BASE_URL` in the spawn environment so the same UI drives any provider.
+
+### Claude Code Router (`apps/references/claude-code-router`)
+
+- What it is: a router that presents an Anthropic-compatible `/v1/messages` endpoint and forwards/rewrites requests to different providers/models. It can be used transparently by the Claude Code CLI by pointing the CLI to the router base URL.
+- How switching works:
+- When running commands, it sets env vars so the `claude` CLI talks to the router:
+
+```13:18:apps/references/claude-code-router/src/utils/codeCommand.ts
+env.ANTHROPIC_AUTH_TOKEN = 'test';
+env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${config.PORT || 3456}`;
+env.API_TIMEOUT_MS = String(config.API_TIMEOUT_MS ?? 600000);
+```
+
+- The server hooks routing for Anthropic-compatible calls and applies model selection:
+
+```121:125:apps/references/claude-code-router/src/index.ts
+server.addHook('preHandler', async (req, reply) => {
+  if (req.url.startsWith('/v1/messages')) {
+    router(req, reply, config);
+  }
+});
+```
+
+- Routing policy inspects token counts, system tags, tools, and explicit `/model provider,model` to choose a backend:
+
+```79:89:apps/references/claude-code-router/src/utils/router.ts
+const longContextThreshold = config.Router.longContextThreshold || 60000;
+if (tokenCount > longContextThreshold && config.Router.longContext) {
+  return config.Router.longContext;
+}
+```
+
+```105:116:apps/references/claude-code-router/src/utils/router.ts
+if (req.body.model?.startsWith('claude-3-5-haiku') && config.Router.background) {
+  return config.Router.background;
+}
+if (req.body.thinking && config.Router.think) {
+  return config.Router.think;
+}
+```
+
+- Custom routing is supported via a JS file path in config:
+
+```138:146:apps/references/claude-code-router/src/utils/router.ts
+if (config.CUSTOM_ROUTER_PATH) {
+  const customRouter = require(config.CUSTOM_ROUTER_PATH);
+  req.tokenCount = tokenCount;
+  model = await customRouter(req, config);
+}
+```
+
+- Providers and Router presets are declared in JSON:
+
+```107:114:apps/references/claude-code-router/config.example.json
+"Router": {
+  "default": "deepseek,deepseek-chat",
+  "background": "ollama,qwen2.5-coder:latest",
+  "think": "deepseek,deepseek-reasoner",
+  "longContext": "openrouter,google/gemini-2.5-pro-preview"
+}
+```
+
+- Embed options for Solo Unicorn:
+- System-wide: have users install and run the router (`ccr`) and set env for the agent/CLI; or we run it as a managed background service.
+- App-level: when we spawn `claude` (in our gateway), set `ANTHROPIC_BASE_URL=http://127.0.0.1:<router-port>` and optional `ANTHROPIC_API_KEY` to route traffic through CCR without changing UI code.
+- Future-proofing: CCR lets us swap to GPT-5 or others while keeping Claude Code’s tooling UX; use the `/model provider,model` command in chat to switch backends dynamically.
+
+Recommended path:
+
+- Short term: integrate Claude Code UI as a microservice link in Solo Unicorn; add a config toggle to set router base URL env for spawned CLI.
+- Mid term: port the small spawn/WS bridge into our agent gateway for tighter auth and unification.
