@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
+import { TaskDetail } from "./task-detail";
 
 interface KanbanBoardProps {
   boardId: string;
@@ -213,6 +214,14 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
           </div>
         ))}
       </div>
+
+      <TaskDetail
+        taskId={selectedTaskId}
+        open={!!selectedTaskId}
+        onOpenChange={(open) => {
+          if (!open) setSelectedTaskId(null);
+        }}
+      />
     </div>
   );
 }
