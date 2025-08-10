@@ -1,5 +1,9 @@
 import { protectedProcedure, publicProcedure, requireOwnerAuth } from "../lib/orpc";
 import { todoRouter } from "./todo";
+import { projectsRouter } from "./projects";
+import { repositoriesRouter } from "./repositories";
+import { boardsRouter } from "./boards";
+import { tasksRouter } from "./tasks";
 
 export const appRouter = {
   healthCheck: publicProcedure.handler(() => {
@@ -14,5 +18,9 @@ export const appRouter = {
   // Example of applying owner guard explicitly to a route group in future
   ownerPing: requireOwnerAuth.handler(() => ({ ok: true })),
   todo: todoRouter,
+  projects: projectsRouter,
+  repositories: repositoriesRouter,
+  boards: boardsRouter,
+  tasks: tasksRouter,
 };
 export type AppRouter = typeof appRouter;
