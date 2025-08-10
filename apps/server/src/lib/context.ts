@@ -6,9 +6,14 @@ export type CreateContextOptions = {
 };
 
 export async function createContext({ context }: CreateContextOptions) {
-  const session = await auth.api.getSession({
-    headers: context.req.raw.headers,
-  });
+  let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null;
+  try {
+    session = await auth.api.getSession({
+      headers: context.req.raw.headers,
+    });
+  } catch (err) {
+    console.warn("auth.getSession failed; proceeding without session (likely no tables in dev)", err);
+  }
   return {
     session,
   };
