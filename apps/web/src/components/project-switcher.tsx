@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -32,9 +32,14 @@ import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
+const SELECTED_PROJECT_KEY = 'solo-unicorn-selected-project';
+
 export function ProjectSwitcher() {
   const [open, setOpen] = useState(false);
-  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [selectedProject, setSelectedProject] = useState<string | null>(() => {
+    // Initialize from localStorage
+    return localStorage.getItem(SELECTED_PROJECT_KEY);
+  });
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
@@ -42,14 +47,40 @@ export function ProjectSwitcher() {
   const queryClient = useQueryClient();
 
   const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
+
+  // Auto-select first project if none selected and projects exist
+  useEffect(() => {
+    if (projects && (projects as any).length > 0) {
+      if (!selectedProject) {
+        const firstProject = (projects as any)[0];
+        setSelectedProject(firstProject.id);
+        localStorage.setItem(SELECTED_PROJECT_KEY, firstProject.id);
+      } else {
+        // Verify selected project still exists
+        const projectExists = (projects as any).some((p: any) => p.id === selectedProject);
+        if (!projectExists && (projects as any).length > 0) {
+          const firstProject = (projects as any)[0];
+          setSelectedProject(firstProject.id);
+          localStorage.setItem(SELECTED_PROJECT_KEY, firstProject.id);
+        }
+      }
+    }
+  }, [projects, selectedProject]);
   const createProject = useMutation(
     orpc.projects.create.mutationOptions({
-      onSuccess: (newProject) => {
+      onSuccess: async (newProject) => {
         toast.success("Project created successfully");
         setShowNewProjectDialog(false);
         setNewProjectName("");
         setNewProjectDescription("");
-        refetch();
+        await refetch();
+        
+        // Select the new project
+        if (newProject && (newProject as any).id) {
+          setSelectedProject((newProject as any).id);
+          localStorage.setItem(SELECTED_PROJECT_KEY, (newProject as any).id);
+        }
+        
         // Navigate to projects page after creating
         navigate({ to: "/projects" });
       },
@@ -87,6 +118,7 @@ export function ProjectSwitcher() {
                     key={project.id}
                     onSelect={async () => {
                       setSelectedProject(project.id);
+                      localStorage.setItem(SELECTED_PROJECT_KEY, project.id);
                       setOpen(false);
                       
                       // Fetch boards for the selected project

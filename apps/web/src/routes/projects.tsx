@@ -48,6 +48,29 @@ function ProjectsPage() {
     })
   );
 
+  // Fetch all boards in a single query
+  const projectIds = (projects as any)?.map((p: any) => p.id) || [];
+  const { data: allBoards, refetch: refetchBoards } = useQuery({
+    queryKey: ['boards', 'all', projectIds],
+    queryFn: async () => {
+      if (!projectIds.length) return {};
+      const boardsByProject: Record<string, any[]> = {};
+      
+      for (const projectId of projectIds) {
+        try {
+          const boards = await orpc.boards.list.query({ projectId });
+          boardsByProject[projectId] = boards || [];
+        } catch (error) {
+          console.error(`Error fetching boards for project ${projectId}:`, error);
+          boardsByProject[projectId] = [];
+        }
+      }
+      
+      return boardsByProject;
+    },
+    enabled: projectIds.length > 0,
+  });
+
   const createBoard = useMutation(
     orpc.boards.create.mutationOptions({
       onSuccess: () => {
@@ -55,18 +78,13 @@ function ProjectsPage() {
         setShowNewBoardDialog(false);
         setNewBoardName("");
         setNewBoardPurpose("");
-        refetchProjects();
+        refetchBoards();
       },
       onError: (error: any) => {
         toast.error(`Failed to create board: ${error.message}`);
       },
     })
   );
-
-  // Fetch boards for each project
-  const boardsQueries = (projects as any)?.map((project: any) => 
-    useQuery(orpc.boards.list.queryOptions({ input: { projectId: project.id } }))
-  ) || [];
 
   if (isLoading) {
     return (
@@ -92,8 +110,8 @@ function ProjectsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {(projects as any)?.map((project: any, index: number) => {
-          const boards = boardsQueries[index]?.data || [];
+        {(projects as any)?.map((project: any) => {
+          const boards = allBoards?.[project.id] || [];
           return (
             <Card key={project.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
