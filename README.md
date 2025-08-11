@@ -190,7 +190,7 @@ Requirements:
    ```bash
    # Generate strong BETTER_AUTH_SECRET (minimum 32 characters)
    openssl rand -base64 32
-   
+
    # Generate strong AGENT_AUTH_TOKEN
    openssl rand -hex 32
    ```
