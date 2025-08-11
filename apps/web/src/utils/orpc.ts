@@ -21,7 +21,7 @@ export const queryClient = new QueryClient({
   }),
 });
 
-const defaultServerUrl = "http://localhost:3000";
+const defaultServerUrl = "http://localhost:8500";
 const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl;
 
 export const link = new RPCLink({

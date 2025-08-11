@@ -52,18 +52,37 @@ bun install
 
 ### 3. Set Up Environment Variables
 
-Create `.env` files in the `apps/server` directory:
+#### Generate Secure Secrets
+
+Before setting up your environment variables, generate secure secrets:
+
+```bash
+# Generate BETTER_AUTH_SECRET (minimum 32 characters)
+openssl rand -base64 32
+
+# Generate AGENT_AUTH_TOKEN (for agent authentication)
+openssl rand -hex 32
+```
+
+#### Create Environment File
+
+Create `.env` file in the `apps/server` directory:
 
 ```bash
 # apps/server/.env
-# Auth
+
+# Auth - REQUIRED
+# Generate a secure secret with: openssl rand -base64 32
 BETTER_AUTH_SECRET=your-secret-key-here-min-32-chars
-BETTER_AUTH_URL=http://localhost:3000
+BETTER_AUTH_URL=http://localhost:8500
 
-# CORS
-CORS_ORIGIN=http://localhost:3001
+# CORS - Update if using different port
+CORS_ORIGIN=http://localhost:8302
 
-# Agent Gateway
+# Agent Gateway Authentication
+# This token is used to authenticate AI agents connecting to the gateway.
+# Generate a secure token with: openssl rand -hex 32
+# Share this token with your AI agent configuration (e.g., in Claude Code settings)
 AGENT_AUTH_TOKEN=your-agent-token-here
 
 # OpenAI (for voice transcription)
@@ -83,8 +102,8 @@ bun dev
 ```
 
 This will start:
-- **Web App**: http://localhost:3001 (or next available port)
-- **API Server**: http://localhost:3000
+- **Web App**: http://localhost:8302
+- **API Server**: http://localhost:8500
 
 > Note: If ports are in use, the web app will automatically find the next available port
 
@@ -114,16 +133,39 @@ Each task includes:
 
 ### Connecting AI Agents
 
-1. **Create an Agent**: Go to Agents page and create a new agent
+#### Understanding AGENT_AUTH_TOKEN
+
+The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Claude Code, Windsurf, or custom agents) when they connect to your Solo Unicorn instance. This ensures only authorized agents can:
+- Retrieve tasks assigned to them
+- Submit work artifacts and logs
+- Ask questions and receive answers
+- Update task status
+
+#### Setting Up Agent Authentication
+
+1. **Generate a Secure Token** (if you haven't already):
+   ```bash
+   openssl rand -hex 32
+   ```
+
+2. **Add to Server Environment**:
+   - Add the token to `apps/server/.env` as `AGENT_AUTH_TOKEN`
+
+3. **Configure Your AI Agent**:
+   - **For Claude Code**: Add to your project's `.claudecode/config.json` or as an environment variable
+   - **For Windsurf/Cursor**: Set in the extension settings
+   - **For Custom Agents**: Include in the `Authorization` header as `Bearer <token>`
+
+4. **Create an Agent in Solo Unicorn**:
+   - Go to Agents page and create a new agent
    - Choose role (PM, Designer, Architect, Engineer, QA)
    - Select runtime (Windows Runner or Cloud)
-   - Configure AI model (OpenAI, OpenRouter, etc.)
+   - Note the Agent ID for configuration
 
-2. **Agent Authentication**: Use the `AGENT_AUTH_TOKEN` for agent connections
-
-3. **API Endpoints for Agents**:
-   - Agent Gateway: `http://localhost:3000/agent/*`
-   - MCP Server: `http://localhost:3000/mcp/*`
+5. **Agent API Endpoints**:
+   - Agent Gateway: `http://localhost:8500/agent/*`
+   - MCP Server: `http://localhost:8500/mcp/*`
+   - WebSocket: `ws://localhost:8500/agent/ws` (for real-time updates)
 
 ### Voice Input
 
@@ -135,6 +177,34 @@ Voice input is available on:
 Requirements:
 - Microphone permissions in browser
 - OpenAI API key configured
+
+## 🔒 Security Best Practices
+
+### Environment Variables
+
+1. **Never commit `.env` files to version control**
+   - Add `.env` to your `.gitignore`
+   - Use `.env.example` for templates
+
+2. **Use Strong Secrets**:
+   ```bash
+   # Generate strong BETTER_AUTH_SECRET (minimum 32 characters)
+   openssl rand -base64 32
+   
+   # Generate strong AGENT_AUTH_TOKEN
+   openssl rand -hex 32
+   ```
+
+3. **Rotate Tokens Regularly**:
+   - Change `AGENT_AUTH_TOKEN` if compromised
+   - Update all connected agents with new token
+   - Consider using different tokens for different environments
+
+4. **Secure Your Deployment**:
+   - Always use HTTPS in production
+   - Set appropriate CORS origins
+   - Use environment-specific configurations
+   - Enable rate limiting for API endpoints
 
 ## 🔧 Configuration
 

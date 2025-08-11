@@ -16,7 +16,7 @@ const app = new Hono();
 
 app.use(logger());
 app.use("/*", cors({
-  origin: process.env.CORS_ORIGIN || "http://localhost:3001",
+  origin: process.env.CORS_ORIGIN || "http://localhost:8302",
   allowMethods: ["GET", "POST", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
   credentials: true,
@@ -63,4 +63,9 @@ app.route("/agent", agentGateway);
 // Mount MCP server at /mcp
 app.route("/mcp", mcpServer);
 
-export default app;
+const port = process.env.PORT || 8500;
+
+export default {
+  port,
+  fetch: app.fetch,
+};
