@@ -65,13 +65,13 @@
 
 ```mermaid
 flowchart TD
-  U["Owner (You)\nWeb/Mobile"] --> WEB["Web App (React + TanStack Router)\n(Vercel)"]
-  WEB --> API["Hono API / oRPC\n(Vercel Functions or Bun)"]
-  API <--> DB["Supabase\n(Postgres, Storage)"]
-  API <--> AGW["Agent Gateway\n(HTTPS/WebSocket)"]
-  AGW <--> AR["Windows PC\nCode Agent Runner"]
-  AR -. optional .-> GIT["Git Provider\n(GitHub/GitLab)"]
-  WEB --- MOB["Mobile browser (read/act)\nOccasional remote access"]
+  U["Owner (You); Web/Mobile"] --> WEB["Web App (React + TanStack Router); (Vercel)"]
+  WEB --> API["Hono API / oRPC; (Vercel Functions or Bun)"]
+  API <--> DB["Supabase; (Postgres, Storage)"]
+  API <--> AGW["Agent Gateway; (HTTPS/WebSocket)"]
+  AGW <--> AR["Windows PC; Code Agent Runner"]
+  AR -. optional .-> GIT["Git Provider; (GitHub/GitLab)"]
+  WEB --- MOB["Mobile browser (read/act); Occasional remote access"]
   classDef infra fill:#e6f7ff,stroke:#1890ff,stroke-width:1px
   classDef runtime fill:#fffbe6,stroke:#faad14,stroke-width:1px
   class WEB,API,DB,AGW infra
@@ -343,13 +343,15 @@ Recommendation (MVP): start with option 2 if using a mono-repo, otherwise option
 ## Authentication Implementation (Monster Auth)
 
 ### Overview
-- **Provider**: Monster Auth service (https://auth.monstermake.limited)
+
+- **Provider**: Monster Auth service (<https://auth.monstermake.limited>)
 - **Method**: Google OAuth 2.0 with OpenAuth client
 - **Client ID**: Hardcoded as `'solo-unicorn'` (no configuration required)
 - **Token Storage**: Secure HTTP-only cookies with 15-minute access tokens
 - **User Management**: Auto-creates users in local database on first login
 
 ### OAuth Flow
+
 1. User clicks "Sign in with Google" → calls `rpc.auth.login`
 2. Server redirects to Monster Auth authorization URL
 3. User authenticates with Google on Monster Auth hosted pages
@@ -361,6 +363,7 @@ Recommendation (MVP): start with option 2 if using a mono-repo, otherwise option
 9. User is redirected back to the application
 
 ### Technical Details
+
 - **OpenAuth Client**: `@openauthjs/openauth` package handles OAuth flow and JWKS verification
 - **Cookie Names**: `monster-auth-access-token`, `monster-auth-refresh-token`
 - **Cookie Settings**: httpOnly, secure (production), sameSite: lax, path: '/'
@@ -369,6 +372,7 @@ Recommendation (MVP): start with option 2 if using a mono-repo, otherwise option
 - **Session Resolution**: `resolveAuthCookies()` handles token validation and refresh
 
 ### Environment Variables
+
 ```bash
 # Monster Auth service URL (required)
 MONSTER_AUTH_URL=https://auth.monstermake.limited
@@ -378,6 +382,7 @@ HOST=localhost:8500
 ```
 
 ### Code Structure
+
 - `/apps/server/src/lib/openauth.ts` - OpenAuth client configuration
 - `/apps/server/src/ops/authCookies.ts` - Cookie and token management utilities
 - `/apps/server/src/routers/auth.ts` - Auth ORPC endpoints (login/logout/authenticate)
@@ -385,6 +390,7 @@ HOST=localhost:8500
 - `/apps/web/src/lib/auth-client.ts` - React hooks for authentication
 
 ### Auth Guards
+
 - **App/API**: `requireOwnerAuth()` - Validates Monster Auth session via cookies
 - **Agent Gateway**: `requireAgentAuth()` - Validates agent token via headers
 - **ORPC Context**: Automatically resolves user session and populates `context.appUser`
