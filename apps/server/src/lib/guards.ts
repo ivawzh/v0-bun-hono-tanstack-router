@@ -1,31 +1,24 @@
 import type { Context, Next } from "hono";
-import { auth } from "./auth";
 import { HTTPException } from "hono/http-exception";
-import { getCookie } from "hono/cookie";
+import { resolveAuthCookies } from "../ops/authCookies";
 
 export async function requireOwnerAuth(c: Context, next: Next) {
-  const headers = new Headers();
-  const authCookie = getCookie(c, "better-auth.session_token");
-  
-  if (authCookie) {
-    headers.set("cookie", `better-auth.session_token=${authCookie}`);
-  }
+  const authResult = await resolveAuthCookies(c);
 
-  const authorization = c.req.header("authorization");
-  if (authorization) {
-    headers.set("authorization", authorization);
-  }
-
-  const session = await auth.api.getSession({
-    headers: headers,
-  });
-
-  if (!session) {
+  if (!authResult.ok) {
     throw new HTTPException(401, { message: "Unauthorized - Owner authentication required" });
   }
 
-  c.set("user", session.user);
-  c.set("session", session.session);
+  const userInfo = authResult.good.subject.properties;
+  c.set("user", {
+    email: userInfo.email,
+    name: userInfo.name,
+    id: userInfo.email, // Using email as ID for compatibility
+  });
+  c.set("session", { 
+    userId: userInfo.email,
+    expiresAt: new Date(Date.now() + 15 * 60 * 1000), // 15 min from now
+  });
   
   await next();
 }

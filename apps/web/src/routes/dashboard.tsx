@@ -1,4 +1,4 @@
-import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 import { orpc } from "@/utils/orpc";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
@@ -9,21 +9,21 @@ export const Route = createFileRoute("/dashboard")({
 });
 
 function RouteComponent() {
-  const { data: session, isPending } = authClient.useSession();
+  const { data: session, isLoading } = useSession();
 
   const navigate = Route.useNavigate();
 
   const privateData = useQuery(orpc.privateData.queryOptions());
 
   useEffect(() => {
-    if (!session && !isPending) {
+    if (!session && !isLoading) {
       navigate({
         to: "/login",
       });
     }
-  }, [session, isPending]);
+  }, [session, isLoading]);
 
-  if (isPending) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
 

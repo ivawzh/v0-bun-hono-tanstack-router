@@ -26,7 +26,7 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 - **Backend**: Hono + oRPC + Drizzle ORM
 - **Database**: PGlite (dev) / PostgreSQL (production)
 - **Runtime**: Bun
-- **Auth**: Better Auth with email/password
+- **Auth**: Monster Auth with Google OAuth
 - **AI**: OpenAI API (voice), configurable LLM providers for agents
 
 ## 📋 Prerequisites
@@ -57,9 +57,6 @@ bun install
 Before setting up your environment variables, generate secure secrets:
 
 ```bash
-# Generate BETTER_AUTH_SECRET (minimum 32 characters)
-openssl rand -base64 32
-
 # Generate AGENT_AUTH_TOKEN (for agent authentication)
 openssl rand -hex 32
 ```
@@ -72,9 +69,9 @@ Create `.env` file in the `apps/server` directory:
 # apps/server/.env
 
 # Auth - REQUIRED
-# Generate a secure secret with: openssl rand -base64 32
-BETTER_AUTH_SECRET=your-secret-key-here-min-32-chars
-BETTER_AUTH_URL=http://localhost:8500
+# Monster Auth configuration
+MONSTER_AUTH_URL=https://auth.monstermake.limited
+HOST=localhost:8500
 
 # CORS - Update if using different port
 CORS_ORIGIN=http://localhost:8302
@@ -188,9 +185,6 @@ Requirements:
 
 2. **Use Strong Secrets**:
    ```bash
-   # Generate strong BETTER_AUTH_SECRET (minimum 32 characters)
-   openssl rand -base64 32
-
    # Generate strong AGENT_AUTH_TOKEN
    openssl rand -hex 32
    ```

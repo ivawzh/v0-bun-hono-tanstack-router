@@ -6,6 +6,7 @@ import { boardsRouter } from "./boards";
 import { tasksRouter } from "./tasks";
 import { agentsRouter } from "./agents";
 import { voiceRouter } from "./voice";
+import { authRouter } from "./auth";
 
 export const appRouter = o.router({
   healthCheck: publicProcedure.handler(() => {
@@ -19,6 +20,7 @@ export const appRouter = o.router({
   }),
   // Protected endpoint example
   ownerPing: protectedProcedure.handler(() => ({ ok: true })),
+  auth: authRouter,
   todo: todoRouter,
   projects: projectsRouter,
   repositories: repositoriesRouter,

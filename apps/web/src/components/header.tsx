@@ -2,10 +2,10 @@ import { Link } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 import { ProjectSwitcher } from "./project-switcher";
-import { authClient } from "@/lib/auth-client";
+import { useSession } from "@/lib/auth-client";
 
 export default function Header() {
-  const { data: session } = authClient.useSession();
+  const { data: session } = useSession();
   const links = [
     { to: "/", label: "Home" },
     { to: "/projects", label: "Projects" },

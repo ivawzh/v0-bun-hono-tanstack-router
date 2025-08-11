@@ -1,53 +1,69 @@
-import { createAuthClient } from "better-auth/react";
-import { toast } from "sonner";
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { orpc as rpc } from '@/utils/orpc';
+import { useNavigate } from '@tanstack/react-router';
 
-const defaultServerUrl = "http://localhost:8500";
-const serverUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl;
-// For better-auth, baseURL should be the server origin; the library appends /api/auth
-const baseURL = serverUrl;
+export function useRefreshAll() {
+  const queryClient = useQueryClient();
+  return () => queryClient.invalidateQueries();
+}
 
-console.log(`🔐 Auth Client initialized with baseURL: ${baseURL}`);
+export function useLogin() {
+  const refreshAll = useRefreshAll();
+  const navigate = useNavigate();
 
-export const authClient = createAuthClient({
-  baseURL,
-  fetchOptions: {
-    credentials: "include",
-    onRequest: () => {
-      // Silent on initial session checks to avoid noisy UX before login
-      console.log(`🔐 Auth Request`, { timestamp: new Date().toISOString() });
-    },
-    onResponse: (context) => {
-      if (!context.response.ok) {
-        const url = (context.response as any)?.url as string | undefined;
-        const isSessionCheck = url?.includes("/api/auth") ?? false;
-        console.warn(`🔐 Auth non-OK response: ${context.response.status} ${context.response.statusText}`, {
-          url,
-          status: context.response.status,
-          statusText: context.response.statusText,
-          timestamp: new Date().toISOString(),
-        });
-        // Do not toast on 401 or background auth checks; forms handle their own errors
-        if (context.response.status !== 401 && !isSessionCheck) {
-          toast.error(`Authentication Error (${context.response.status})`, {
-            description: `Auth server at ${baseURL} responded with an error.`,
-          });
+  const mutation = useMutation(
+    rpc.auth.login.mutationOptions({
+      onSuccess: (data: any) => {
+        if (data.rpcRedirect) {
+          window.location.href = data.location;
         }
-      } else {
-        console.log(`🔐✅ Auth Success: ${context.response.status}`, {
-          status: context.response.status,
-          timestamp: new Date().toISOString()
-        });
+        refreshAll();
+      },
+    }),
+  );
+
+  return { ...mutation, login: () => mutation.mutate() };
+}
+
+export function useLogout() {
+  const refreshAll = useRefreshAll();
+  const navigate = useNavigate();
+
+  const mutation = useMutation(
+    rpc.auth.logout.mutationOptions({
+      onSuccess: (data: any) => {
+        if (data.rpcRedirect) {
+          navigate({ to: data.location });
+        }
+        refreshAll();
+      },
+    }),
+  );
+
+  return { ...mutation, logout: () => mutation.mutate() };
+}
+
+export function useAuth() {
+  return useQuery(
+    rpc.auth.authenticate.queryOptions({
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      refetchOnWindowFocus: true,
+    })
+  );
+}
+
+export function useSession() {
+  const auth = useAuth();
+  
+  return {
+    data: auth.data && typeof auth.data === 'object' && 'email' in auth.data ? {
+      user: {
+        email: (auth.data as any).email,
+        name: (auth.data as any).name || (auth.data as any).email,
+        id: (auth.data as any).email,
       }
-    },
-    onError: (context) => {
-      const message = context?.error?.message || "Unknown error";
-      console.warn(`🔐 Auth fetch error (suppressed)`, {
-        error: message,
-        stack: context?.error?.stack,
-        timestamp: new Date().toISOString(),
-        baseURL,
-      });
-      // Suppress toast here; explicit flows (sign-in/up) already show errors
-    }
-  }
-});
+    } : null,
+    isLoading: auth.isLoading,
+    error: auth.error,
+  };
+}

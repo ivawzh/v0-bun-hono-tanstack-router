@@ -2,7 +2,6 @@ import "dotenv/config";
 import { RPCHandler } from "@orpc/server/fetch";
 import { createContext } from "./lib/context";
 import { appRouter } from "./routers/index";
-import { auth } from "./lib/auth";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
@@ -11,6 +10,7 @@ import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
 import { agentGateway } from "./gateway/agent-gateway";
 import { mcpServer } from "./mcp/mcp-server";
+import { oauthCallbackRoutes } from "./routers/oauth-callback";
 
 const app = new Hono();
 
@@ -22,8 +22,8 @@ app.use("/*", cors({
   credentials: true,
 }));
 
-// Mount Better Auth under /api/auth
-app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
+// Mount OAuth callback routes
+app.route("/api/oauth", oauthCallbackRoutes);
 
 const handler = new RPCHandler(appRouter);
 app.use("/rpc/*", async (c, next) => {

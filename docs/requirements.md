@@ -42,7 +42,7 @@
 - Event log, conversations, and simple artifacts (links, logs, file/diff references).
 - Web UI with a board view, task details, activity feed, and stage checklist.
 - Agent gateway to communicate with the Windows code agent and/or cloud-code executor.
-- Single-owner access; Better Auth for app; token auth for agent; all routes guarded from day 1.
+- Single-owner access; Monster Auth for app; token auth for agent; all routes guarded from day 1.
 - Mobile-friendly basics (responsive layouts).
 
 ## Out of Scope (MVP)

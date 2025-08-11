@@ -1,45 +1,57 @@
 import type { Context as HonoContext } from "hono";
-import { auth } from "./auth";
 import { db } from "../db";
 import { users } from "../db/schema/core";
 import { eq } from "drizzle-orm";
+import { resolveAuthCookies } from "../ops/authCookies";
+import type { AccessTokenPayload } from "../ops/authCookies";
 
 export type CreateContextOptions = {
   context: HonoContext;
 };
 
-export async function createContext({ context }: CreateContextOptions) {
-  let session: Awaited<ReturnType<typeof auth.api.getSession>> | null = null;
-  try {
-    session = await auth.api.getSession({
-      headers: context.req.raw.headers,
-    });
-  } catch (err) {
-    console.warn("auth.getSession failed; proceeding without session (likely no tables in dev)", err);
-  }
+export type MonsterAuthSession = {
+  user: {
+    email: string;
+    name: string;
+  };
+};
 
+export async function createContext({ context }: CreateContextOptions) {
+  let session: MonsterAuthSession | null = null;
   let appUser: typeof users.$inferSelect | null = null;
+  
   try {
-    if (session?.user?.email) {
-      const existing = await db.select().from(users).where(eq(users.email, session.user.email)).limit(1);
+    const authResult = await resolveAuthCookies(context);
+    if (authResult.ok) {
+      const userInfo = authResult.good.subject.properties;
+      session = {
+        user: {
+          email: userInfo.email,
+          name: userInfo.name,
+        }
+      };
+
+      // Get or create app user
+      const existing = await db.select().from(users).where(eq(users.email, userInfo.email)).limit(1);
       if (existing.length > 0) {
         appUser = existing[0];
       } else {
-        const displayName = session.user.name || session.user.email.split("@")[0] || "User";
+        const displayName = userInfo.name || userInfo.email.split("@")[0] || "User";
         const inserted = await db
           .insert(users)
-          .values({ email: session.user.email, displayName })
+          .values({ email: userInfo.email, displayName })
           .returning();
         appUser = inserted[0] ?? null;
       }
     }
   } catch (err) {
-    console.error("Failed to resolve/create app user for session user", err);
+    console.warn("Monster Auth session resolution failed; proceeding without session", err);
   }
 
   return {
     session,
     appUser,
+    context, // Pass through Hono context for auth operations
   };
 }
 
