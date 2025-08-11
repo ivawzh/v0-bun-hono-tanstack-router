@@ -79,16 +79,18 @@ export const projectsRouter = o.router({
     .input(v.object({
       id: v.pipe(v.string(), v.uuid()),
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
-      description: v.optional(v.string())
+      description: v.optional(v.string()),
+      agentPaused: v.optional(v.boolean())
     }))
     .handler(async ({ context, input }) => {
+      const updates: any = { updatedAt: new Date() };
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.description !== undefined) updates.description = input.description;
+      if (input.agentPaused !== undefined) updates.agentPaused = input.agentPaused;
+      
       const updated = await db
         .update(projects)
-        .set({
-          name: input.name,
-          description: input.description,
-          updatedAt: new Date()
-        })
+        .set(updates)
         .where(
           and(
             eq(projects.id, input.id),

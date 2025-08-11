@@ -7,7 +7,7 @@ import {
 } from "../db/schema/core";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 
-const taskStatusEnum = v.picklist(["todo", "in_progress", "blocked", "done", "paused"]);
+const taskStatusEnum = v.picklist(["todo", "in_progress", "qa", "done", "paused"]);
 const taskStageEnum = v.picklist(["kickoff", "spec", "design", "dev", "qa", "done"]);
 
 export const tasksRouter = o.router({
@@ -83,7 +83,10 @@ export const tasksRouter = o.router({
       priority: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10)), 0),
       metadata: v.optional(v.record(v.string(), v.any())),
       assignedActorType: v.optional(v.picklist(["agent", "human"])),
-      assignedAgentId: v.optional(v.pipe(v.string(), v.uuid()))
+      assignedAgentId: v.optional(v.pipe(v.string(), v.uuid())),
+      isBlocked: v.optional(v.boolean(), false),
+      qaRequired: v.optional(v.boolean(), false),
+      agentReady: v.optional(v.boolean(), false)
     }))
     .handler(async ({ context, input }) => {
       // Verify board ownership
@@ -117,7 +120,10 @@ export const tasksRouter = o.router({
           priority: input.priority,
           metadata: input.metadata || {},
           assignedActorType: input.assignedActorType,
-          assignedAgentId: input.assignedAgentId
+          assignedAgentId: input.assignedAgentId,
+          isBlocked: input.isBlocked,
+          qaRequired: input.qaRequired,
+          agentReady: input.agentReady
         })
         .returning();
       
@@ -161,7 +167,10 @@ export const tasksRouter = o.router({
       priority: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10))),
       metadata: v.optional(v.record(v.string(), v.any())),
       assignedActorType: v.nullish(v.picklist(["agent", "human"])),
-      assignedAgentId: v.nullish(v.pipe(v.string(), v.uuid()))
+      assignedAgentId: v.nullish(v.pipe(v.string(), v.uuid())),
+      isBlocked: v.optional(v.boolean()),
+      qaRequired: v.optional(v.boolean()),
+      agentReady: v.optional(v.boolean())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -196,6 +205,9 @@ export const tasksRouter = o.router({
       if (input.metadata !== undefined) updates.metadata = input.metadata;
       if (input.assignedActorType !== undefined) updates.assignedActorType = input.assignedActorType;
       if (input.assignedAgentId !== undefined) updates.assignedAgentId = input.assignedAgentId;
+      if (input.isBlocked !== undefined) updates.isBlocked = input.isBlocked;
+      if (input.qaRequired !== undefined) updates.qaRequired = input.qaRequired;
+      if (input.agentReady !== undefined) updates.agentReady = input.agentReady;
       
       // Track status change
       if (input.status && input.status !== oldTask.status) {
