@@ -9,18 +9,18 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as TodosRouteImport } from './routes/todos'
+import { Route as SearchRouteImport } from './routes/search'
 import { Route as ProjectsRouteImport } from './routes/projects'
 import { Route as LoginRouteImport } from './routes/login'
-import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ChatRouteImport } from './routes/chat'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as AgentsRouteImport } from './routes/agents'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BoardsBoardIdRouteImport } from './routes/boards.$boardId'
 
-const TodosRoute = TodosRouteImport.update({
-  id: '/todos',
-  path: '/todos',
+const SearchRoute = SearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectsRoute = ProjectsRouteImport.update({
@@ -33,9 +33,9 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DashboardRoute = DashboardRouteImport.update({
-  id: '/dashboard',
-  path: '/dashboard',
+const ChatRoute = ChatRouteImport.update({
+  id: '/chat',
+  path: '/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AiRoute = AiRouteImport.update({
@@ -63,20 +63,20 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
   '/ai': typeof AiRoute
-  '/dashboard': typeof DashboardRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
-  '/todos': typeof TodosRoute
+  '/search': typeof SearchRoute
   '/boards/$boardId': typeof BoardsBoardIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
   '/ai': typeof AiRoute
-  '/dashboard': typeof DashboardRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
-  '/todos': typeof TodosRoute
+  '/search': typeof SearchRoute
   '/boards/$boardId': typeof BoardsBoardIdRoute
 }
 export interface FileRoutesById {
@@ -84,10 +84,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/agents': typeof AgentsRoute
   '/ai': typeof AiRoute
-  '/dashboard': typeof DashboardRoute
+  '/chat': typeof ChatRoute
   '/login': typeof LoginRoute
   '/projects': typeof ProjectsRoute
-  '/todos': typeof TodosRoute
+  '/search': typeof SearchRoute
   '/boards/$boardId': typeof BoardsBoardIdRoute
 }
 export interface FileRouteTypes {
@@ -96,30 +96,30 @@ export interface FileRouteTypes {
     | '/'
     | '/agents'
     | '/ai'
-    | '/dashboard'
+    | '/chat'
     | '/login'
     | '/projects'
-    | '/todos'
+    | '/search'
     | '/boards/$boardId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/agents'
     | '/ai'
-    | '/dashboard'
+    | '/chat'
     | '/login'
     | '/projects'
-    | '/todos'
+    | '/search'
     | '/boards/$boardId'
   id:
     | '__root__'
     | '/'
     | '/agents'
     | '/ai'
-    | '/dashboard'
+    | '/chat'
     | '/login'
     | '/projects'
-    | '/todos'
+    | '/search'
     | '/boards/$boardId'
   fileRoutesById: FileRoutesById
 }
@@ -127,20 +127,20 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgentsRoute: typeof AgentsRoute
   AiRoute: typeof AiRoute
-  DashboardRoute: typeof DashboardRoute
+  ChatRoute: typeof ChatRoute
   LoginRoute: typeof LoginRoute
   ProjectsRoute: typeof ProjectsRoute
-  TodosRoute: typeof TodosRoute
+  SearchRoute: typeof SearchRoute
   BoardsBoardIdRoute: typeof BoardsBoardIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/todos': {
-      id: '/todos'
-      path: '/todos'
-      fullPath: '/todos'
-      preLoaderRoute: typeof TodosRouteImport
+    '/search': {
+      id: '/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof SearchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/projects': {
@@ -157,11 +157,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/dashboard': {
-      id: '/dashboard'
-      path: '/dashboard'
-      fullPath: '/dashboard'
-      preLoaderRoute: typeof DashboardRouteImport
+    '/chat': {
+      id: '/chat'
+      path: '/chat'
+      fullPath: '/chat'
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai': {
@@ -199,10 +199,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgentsRoute: AgentsRoute,
   AiRoute: AiRoute,
-  DashboardRoute: DashboardRoute,
+  ChatRoute: ChatRoute,
   LoginRoute: LoginRoute,
   ProjectsRoute: ProjectsRoute,
-  TodosRoute: TodosRoute,
+  SearchRoute: SearchRoute,
   BoardsBoardIdRoute: BoardsBoardIdRoute,
 }
 export const routeTree = rootRouteImport
