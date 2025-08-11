@@ -74,14 +74,12 @@ export const link = new RPCLink({
 
         // 401 handling: navigate to login
         if (response.status === 401) {
-          toast.error(`Unauthorized (401)`, {
-            description: `Your session has expired. Redirecting to login...`,
-          });
+          // Silent redirect to login when unauthenticated
           const currentPath = window.location.pathname;
           if (currentPath !== "/login") {
             setTimeout(() => {
               window.location.href = "/login";
-            }, 300);
+            }, 50);
           }
         } else {
           toast.error(`Network Error (${response.status}): ${response.statusText}`, {

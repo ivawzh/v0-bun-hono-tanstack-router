@@ -11,34 +11,24 @@ export const authClient = createAuthClient({
   fetchOptions: {
     credentials: "include",
     onRequest: () => {
-      console.log(`🔐 Auth Request`, {
-        timestamp: new Date().toISOString(),
-      });
+      // Silent on initial session checks to avoid noisy UX before login
+      console.log(`🔐 Auth Request`, { timestamp: new Date().toISOString() });
     },
     onResponse: (context) => {
       if (!context.response.ok) {
-        console.error(`🔐❌ Auth Error: ${context.response.status} ${context.response.statusText}`, {
+        const url = (context.response as any)?.url as string | undefined;
+        const isSessionCheck = url?.includes("/api/auth") ?? false;
+        console.warn(`🔐 Auth non-OK response: ${context.response.status} ${context.response.statusText}`, {
+          url,
           status: context.response.status,
           statusText: context.response.statusText,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
-
-        toast.error(`Authentication Error (${context.response.status})`, {
-          description: `Failed to authenticate with server at ${baseURL}`,
-          action: {
-            label: "View Details",
-            onClick: () => console.log('Full auth error details logged to console')
-          }
-        });
-
-        if (context.response.status === 401) {
-          // Redirect unauthenticated users to login
-          const currentPath = window.location.pathname;
-          if (currentPath !== "/login") {
-            setTimeout(() => {
-              window.location.href = "/login";
-            }, 300);
-          }
+        // Do not toast on 401 or background auth checks; forms handle their own errors
+        if (context.response.status !== 401 && !isSessionCheck) {
+          toast.error(`Authentication Error (${context.response.status})`, {
+            description: `Auth server at ${baseURL} responded with an error.`,
+          });
         }
       } else {
         console.log(`🔐✅ Auth Success: ${context.response.status}`, {
@@ -49,20 +39,13 @@ export const authClient = createAuthClient({
     },
     onError: (context) => {
       const message = context?.error?.message || "Unknown error";
-      console.error(`🔐💥 Auth Connection Failed:`, {
+      console.warn(`🔐 Auth fetch error (suppressed)`, {
         error: message,
         stack: context?.error?.stack,
         timestamp: new Date().toISOString(),
-        baseURL
+        baseURL,
       });
-
-      toast.error(`Auth Connection Failed`, {
-        description: `${message}. Unable to reach auth server at ${baseURL}.`,
-        action: {
-          label: "Retry",
-          onClick: () => window.location.reload()
-        }
-      });
+      // Suppress toast here; explicit flows (sign-in/up) already show errors
     }
   }
 });
