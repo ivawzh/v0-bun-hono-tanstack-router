@@ -43,14 +43,14 @@ export const link = new RPCLink({
       body: parsedBody,
       timestamp: new Date().toISOString()
     });
-    
+
     return fetch(url, {
       ...options,
       credentials: "include",
     }).then(async (response) => {
       const contentType = response.headers.get('content-type');
       let responseBody;
-      
+
       try {
         if (contentType?.includes('application/json')) {
           responseBody = await response.clone().json();
@@ -60,7 +60,7 @@ export const link = new RPCLink({
       } catch (e) {
         responseBody = '[Unable to parse response]';
       }
-      
+
       if (!response.ok) {
         console.error(`❌ API Error: ${response.status} ${response.statusText}`, {
           url: urlString,
@@ -71,15 +71,18 @@ export const link = new RPCLink({
           body: responseBody,
           timestamp: new Date().toISOString()
         });
-        
+
         // 401 handling: navigate to login
         if (response.status === 401) {
           toast.error(`Unauthorized (401)`, {
             description: `Your session has expired. Redirecting to login...`,
           });
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 300);
+          const currentPath = window.location.pathname;
+          if (currentPath !== "/login") {
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 300);
+          }
         } else {
           toast.error(`Network Error (${response.status}): ${response.statusText}`, {
             description: `Failed to connect to ${urlString}`,
@@ -98,7 +101,7 @@ export const link = new RPCLink({
           timestamp: new Date().toISOString()
         });
       }
-      
+
       return response;
     }).catch((error) => {
       console.error(`💥 Network Connection Failed:`, {
@@ -110,7 +113,7 @@ export const link = new RPCLink({
         baseUrl,
         serverUrl: baseUrl
       });
-      
+
       toast.error(`Connection Failed: ${error.message}`, {
         description: `Unable to reach server at ${baseUrl}. Check if the server is running.`,
         action: {
@@ -120,7 +123,7 @@ export const link = new RPCLink({
           }
         }
       });
-      
+
       throw error;
     });
   },

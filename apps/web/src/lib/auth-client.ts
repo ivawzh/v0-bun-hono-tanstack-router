@@ -22,7 +22,7 @@ export const authClient = createAuthClient({
           statusText: context.response.statusText,
           timestamp: new Date().toISOString()
         });
-        
+
         toast.error(`Authentication Error (${context.response.status})`, {
           description: `Failed to authenticate with server at ${baseURL}`,
           action: {
@@ -33,9 +33,12 @@ export const authClient = createAuthClient({
 
         if (context.response.status === 401) {
           // Redirect unauthenticated users to login
-          setTimeout(() => {
-            window.location.href = "/login";
-          }, 300);
+          const currentPath = window.location.pathname;
+          if (currentPath !== "/login") {
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 300);
+          }
         }
       } else {
         console.log(`🔐✅ Auth Success: ${context.response.status}`, {
@@ -45,15 +48,16 @@ export const authClient = createAuthClient({
       }
     },
     onError: (context) => {
+      const message = context?.error?.message || "Unknown error";
       console.error(`🔐💥 Auth Connection Failed:`, {
-        error: context.error.message,
-        stack: context.error.stack,
+        error: message,
+        stack: context?.error?.stack,
         timestamp: new Date().toISOString(),
         baseURL
       });
       
-      toast.error(`Auth Connection Failed: ${context.error.message}`, {
-        description: `Unable to reach auth server at ${baseURL}. Check if the server is running.`,
+      toast.error(`Auth Connection Failed`, {
+        description: `${message}. Unable to reach auth server at ${baseURL}.`,
         action: {
           label: "Retry",
           onClick: () => window.location.reload()
