@@ -402,7 +402,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                               <Switch 
                                 checked={task.agentReady} 
                                 className="scale-75"
-                                onClick={(e) => {
+                                onClick={(e: React.MouseEvent) => {
                                   e.stopPropagation();
                                   updateTask.mutate({
                                     id: task.id,
@@ -567,7 +567,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                 <Switch
                   id="qa-required"
                   checked={newTask.qaRequired}
-                  onCheckedChange={(checked) => setNewTask({ ...newTask, qaRequired: checked })}
+                  onCheckedChange={(checked: boolean) => setNewTask({ ...newTask, qaRequired: checked })}
                 />
                 <Label htmlFor="qa-required">QA Required</Label>
               </div>
@@ -575,7 +575,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                 <Switch
                   id="agent-ready"
                   checked={newTask.agentReady}
-                  onCheckedChange={(checked) => setNewTask({ ...newTask, agentReady: checked })}
+                  onCheckedChange={(checked: boolean) => setNewTask({ ...newTask, agentReady: checked })}
                 />
                 <Label htmlFor="agent-ready">Auto-Start Agent</Label>
               </div>

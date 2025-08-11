@@ -380,7 +380,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                     <Switch
                       id="auto-start"
                       checked={(taskDetails as any)?.agentReady || false}
-                      onCheckedChange={(checked) => updateTask.mutate({
+                      onCheckedChange={(checked: boolean) => updateTask.mutate({
                         id: taskId,
                         agentReady: checked,
                       } as any)}
@@ -431,7 +431,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                     <Switch
                       id="qa-required"
                       checked={(taskDetails as any)?.qaRequired || false}
-                      onCheckedChange={(checked) => updateTask.mutate({
+                      onCheckedChange={(checked: boolean) => updateTask.mutate({
                         id: taskId,
                         qaRequired: checked,
                       } as any)}
@@ -598,7 +598,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           </div>
                           <Switch
                             checked={(taskDetails as any)?.isBlocked || false}
-                            onCheckedChange={(checked) => updateTask.mutate({
+                            onCheckedChange={(checked: boolean) => updateTask.mutate({
                               id: taskId,
                               isBlocked: checked,
                             } as any)}
@@ -612,7 +612,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           </div>
                           <Switch
                             checked={(taskDetails as any)?.status === "paused"}
-                            onCheckedChange={(checked) => updateTask.mutate({
+                            onCheckedChange={(checked: boolean) => updateTask.mutate({
                               id: taskId,
                               status: checked ? "paused" : "in_progress",
                             } as any)}
