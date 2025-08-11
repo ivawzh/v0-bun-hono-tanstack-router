@@ -22,7 +22,8 @@ app.use("/*", cors({
   credentials: true,
 }));
 
-app.on(["POST", "GET"], "/api/auth/**", (c) => auth.handler(c.req.raw));
+// Mount Better Auth under /api/auth
+app.on(["POST", "GET"], "/api/auth/*", (c) => auth.handler(c.req.raw));
 
 const handler = new RPCHandler(appRouter);
 app.use("/rpc/*", async (c, next) => {
