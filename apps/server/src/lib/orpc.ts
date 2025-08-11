@@ -9,10 +9,15 @@ const requireAuth = o.middleware(async ({ context, next }) => {
   if (!context.session?.user) {
     throw new ORPCError("UNAUTHORIZED");
   }
+  const appUser = (context as any).appUser;
+  if (!appUser) {
+    // Fail closed to avoid accidental use of external auth user (string id)
+    throw new ORPCError("UNAUTHORIZED");
+  }
   return next({
     context: {
       session: context.session,
-      user: (context as any).appUser ?? context.session.user,
+      user: appUser,
     },
   });
 });

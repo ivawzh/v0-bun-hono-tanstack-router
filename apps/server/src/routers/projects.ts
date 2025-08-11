@@ -8,13 +8,21 @@ export const projectsRouter = o.router({
   list: protectedProcedure
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
-      const userProjects = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.ownerId, context.user.id))
-        .orderBy(desc(projects.createdAt));
-      
-      return userProjects;
+      try {
+        const userProjects = await db
+          .select()
+          .from(projects)
+          .where(eq(projects.ownerId, context.user.id))
+          .orderBy(desc(projects.createdAt));
+        return userProjects;
+      } catch (err: any) {
+        console.error("projects.list failed", {
+          userId: context.user?.id,
+          error: err?.message,
+          stack: err?.stack,
+        });
+        throw err;
+      }
     }),
 
   get: protectedProcedure
@@ -46,16 +54,25 @@ export const projectsRouter = o.router({
       description: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
-      const newProject = await db
-        .insert(projects)
-        .values({
-          name: input.name,
-          description: input.description,
-          ownerId: context.user.id
-        })
-        .returning();
-      
-      return newProject[0];
+      try {
+        const newProject = await db
+          .insert(projects)
+          .values({
+            name: input.name,
+            description: input.description,
+            ownerId: context.user.id,
+          })
+          .returning();
+        return newProject[0];
+      } catch (err: any) {
+        console.error("projects.create failed", {
+          userId: context.user?.id,
+          input,
+          error: err?.message,
+          stack: err?.stack,
+        });
+        throw err;
+      }
     }),
 
   update: protectedProcedure
