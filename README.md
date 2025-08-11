@@ -368,6 +368,85 @@ POST /agent/sessions/:sessionId/complete
 - CORS configured for security
 - Environment variables for sensitive data
 
+## 🧪 Testing
+
+### E2E Testing with Playwright
+
+Solo Unicorn includes comprehensive end-to-end tests using Playwright.
+
+#### Setup
+
+1. **Install Playwright browsers**:
+   ```bash
+   bun test:install
+   ```
+
+2. **Create test database**:
+   ```bash
+   bun run --filter server db:create:test
+   bun run --filter server db:push:test
+   ```
+
+3. **Set test environment variables** (optional):
+   ```bash
+   # In .env.test or export before running tests
+   DATABASE_TEST_URL=postgresql://username@localhost:5432/solo_unicorn_test
+   AGENT_AUTH_TOKEN=test-agent-token
+   ```
+
+#### Running Tests
+
+```bash
+# Run all E2E tests
+bun test:e2e
+
+# Run tests with UI mode (interactive)
+bun test:e2e:ui
+
+# Run tests in debug mode
+bun test:e2e:debug
+
+# Run tests in headed mode (see browser)
+bun test:e2e:headed
+
+# Run specific test file
+bun test:e2e e2e/auth.spec.ts
+
+# Run tests in specific browser
+bun test:e2e --project=chromium
+```
+
+#### Test Coverage
+
+E2E tests cover:
+- **Authentication**: Login flow, OAuth callback, protected routes
+- **Projects**: CRUD operations, navigation
+- **Tasks**: Board management, drag-and-drop, task updates
+- **Agent Gateway**: Registration, task claiming, progress reporting
+
+#### Writing New Tests
+
+Tests are located in the `e2e/` directory. Use the following helpers:
+
+```typescript
+// Mock authentication
+async function mockAuth(page: Page) {
+  await page.addInitScript(() => {
+    localStorage.setItem('auth', JSON.stringify({
+      user: { id: 'test-id', email: 'test@example.com' },
+      token: 'mock-token'
+    }));
+  });
+}
+
+// Use in your tests
+test('should do something', async ({ page }) => {
+  await mockAuth(page);
+  await page.goto('/protected-route');
+  // Your test logic
+});
+```
+
 ## 🐛 Troubleshooting
 
 ### Port Already in Use
