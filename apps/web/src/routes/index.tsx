@@ -1,5 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { orpc } from "@/utils/orpc";
+import { useQuery } from "@tanstack/react-query";
 import { useSession } from "@/lib/auth-client";
 import { useEffect } from "react";
 import { KanbanBoard } from "@/components/kanban-board";
@@ -11,25 +12,30 @@ export const Route = createFileRoute("/")({
 function HomeComponent() {
   const { data: session } = useSession();
   const navigate = useNavigate();
-  
-  // Get the first project if available
-  const { data: projects } = orpc.projects.list.useQuery(
-    {},
-    { enabled: !!session }
+
+  // Get the first project
+  const { data: projects } = useQuery(
+    orpc.projects.list.queryOptions({ input: {}, enabled: !!session })
   );
 
-  const firstProject = projects?.[0];
+  const firstProject = Array.isArray(projects) ? projects[0] : undefined;
+
+  // Get the first board for the first project
+  const { data: boards } = useQuery(
+    orpc.boards.list.queryOptions({ input: { projectId: firstProject?.id }, enabled: !!firstProject?.id })
+  );
+
+  const firstBoard = Array.isArray(boards) ? boards[0] : undefined;
 
   useEffect(() => {
-    // If we have a project, navigate to its board
-    if (firstProject) {
-      navigate({ to: "/projects/$projectId/board", params: { projectId: firstProject.id } });
+    if (firstBoard) {
+      navigate({ to: "/boards/$boardId", params: { boardId: firstBoard.id } });
     }
-  }, [firstProject, navigate]);
+  }, [firstBoard, navigate]);
 
   // Show the board for the first project if available
-  if (firstProject) {
-    return <KanbanBoard projectId={firstProject.id} />;
+  if (firstBoard) {
+    return <KanbanBoard boardId={firstBoard.id} />;
   }
 
   // If no projects, show welcome screen

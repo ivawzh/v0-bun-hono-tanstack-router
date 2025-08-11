@@ -27,6 +27,7 @@ app.route("/api/oauth", oauthCallbackRoutes);
 
 const handler = new RPCHandler(appRouter);
 app.use("/rpc/*", async (c, next) => {
+  console.log(`🚀 -> "/rpc/*":`, "/rpc/*");
   const context = await createContext({ context: c });
   const { matched, response } = await handler.handle(c.req.raw, {
     prefix: "/rpc",

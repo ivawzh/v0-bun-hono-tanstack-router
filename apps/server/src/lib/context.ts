@@ -19,11 +19,32 @@ export type MonsterAuthSession = {
 export async function createContext({ context }: CreateContextOptions) {
   let session: MonsterAuthSession | null = null;
   let appUser: typeof users.$inferSelect | null = null;
-  
+
   try {
     const authResult = await resolveAuthCookies(context);
     if (authResult.ok) {
-      const userInfo = authResult.good.subject.properties;
+      const payload: any = authResult.good as any;
+      const userInfo = {
+        email:
+          payload?.subject?.properties?.email ??
+          payload?.properties?.email ??
+          payload?.email ??
+          payload?.user?.email ??
+          payload?.userinfo?.email ??
+          payload?.claims?.email ??
+          null,
+        name:
+          payload?.subject?.properties?.name ??
+          payload?.properties?.name ??
+          payload?.name ??
+          payload?.user?.name ??
+          payload?.userinfo?.name ??
+          payload?.claims?.name ??
+          null,
+      };
+      if (!userInfo.email) {
+        throw new Error("Access token did not include an email claim");
+      }
       session = {
         user: {
           email: userInfo.email,

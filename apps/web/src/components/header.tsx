@@ -7,6 +7,7 @@ import { Button } from "./ui/button";
 import { Plus, Pause, Play, Search } from "lucide-react";
 import { Input } from "./ui/input";
 import { orpc } from "@/utils/orpc";
+import { useQuery, useMutation } from "@tanstack/react-query";
 
 export default function Header() {
   const { data: session } = useSession();
@@ -14,12 +15,13 @@ export default function Header() {
   const projectId = (params as any)?.projectId;
 
   // Get current project if we're in project context
-  const { data: project } = orpc.projects.get.useQuery(
-    { projectId: projectId as string },
-    { enabled: !!projectId }
+  const { data: project } = useQuery(
+    orpc.projects.get.queryOptions({ input: { id: projectId as string }, enabled: !!projectId })
   );
 
-  const { mutate: toggleProjectPause } = orpc.projects.update.useMutation();
+  const updateProject = useMutation(
+    orpc.projects.update.mutationOptions({})
+  );
 
   const links = [
     { to: "/", label: "Board" },
@@ -69,15 +71,12 @@ export default function Header() {
                 className="gap-2"
                 onClick={() => {
                   if (project) {
-                    toggleProjectPause({
-                      projectId: projectId as string,
-                      updates: { agentPaused: !project.agentPaused }
-                    });
+                    updateProject.mutate({ id: projectId as string, agentPaused: !(project as any).agentPaused } as any);
                   }
                 }}
               >
-                {project?.agentPaused ? (
-                  <><Play className="h-4 w-4" /> Resume All</>  
+                {(project as any)?.agentPaused ? (
+                  <><Play className="h-4 w-4" /> Resume All</>
                 ) : (
                   <><Pause className="h-4 w-4" /> Pause All Agents</>
                 )}

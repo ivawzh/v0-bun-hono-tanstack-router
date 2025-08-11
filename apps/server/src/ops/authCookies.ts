@@ -4,14 +4,22 @@ import jwt from 'jsonwebtoken';
 import { openauth } from '../lib/openauth';
 
 export interface AccessTokenPayload {
-  subject: {
-    properties: {
-      email: string;
-      name: string;
-      provider: 'google' | 'password';
+  // Primary shape from Monster Auth (subject.properties.*)
+  subject?: {
+    properties?: {
+      email?: string;
+      name?: string;
+      provider?: 'google' | 'password';
       [key: string]: any;
     };
   };
+  // Common alternative shapes from other providers/versions
+  properties?: { email?: string; name?: string; provider?: string; [key: string]: any };
+  email?: string;
+  name?: string;
+  user?: { email?: string; name?: string; [key: string]: any };
+  userinfo?: { email?: string; name?: string; [key: string]: any };
+  claims?: { email?: string; name?: string; [key: string]: any };
   [key: string]: any;
 }
 
@@ -20,7 +28,7 @@ export interface AuthTokens {
   refreshToken: string;
 }
 
-export type Result<T, E = Error> = 
+export type Result<T, E = Error> =
   | { ok: true; good: T }
   | { ok: false; bad: E };
 
@@ -81,7 +89,7 @@ export async function verifyAccessToken(token: string): Promise<Result<AccessTok
     // OpenAuth.exchange handles JWKS verification automatically
     // For now we just decode since exchange already verified it
     const decoded = jwt.decode(token) as AccessTokenPayload;
-    
+
     if (!decoded) {
       return { ok: false, bad: new Error('Invalid token') };
     }
@@ -95,7 +103,7 @@ export async function verifyAccessToken(token: string): Promise<Result<AccessTok
 export async function refreshAccessToken(refreshToken: string): Promise<Result<AuthTokens>> {
   try {
     const refreshed = await openauth.refresh(refreshToken);
-    
+
     if (!refreshed || refreshed.err) {
       return { ok: false, bad: refreshed?.err || new Error('Failed to refresh token') };
     }
@@ -104,8 +112,8 @@ export async function refreshAccessToken(refreshToken: string): Promise<Result<A
       return { ok: false, bad: new Error('No tokens returned from refresh') };
     }
 
-    return { 
-      ok: true, 
+    return {
+      ok: true,
       good: {
         accessToken: refreshed.tokens.access,
         refreshToken: refreshed.tokens.refresh,

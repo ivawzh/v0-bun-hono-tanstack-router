@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { 
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Pause, 
-  AlertTriangle, Paperclip, MessageSquare, HelpCircle, 
+import {
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Pause,
+  AlertTriangle, Paperclip, MessageSquare, HelpCircle,
   ExternalLink, User, Bot, ChevronRight
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -97,14 +97,14 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const { data: boardData, isLoading, refetch } = useQuery(
     orpc.boards.getWithTasks.queryOptions({ input: { id: boardId } })
   );
-  
+
   const { data: projectData } = useQuery(
-    orpc.projects.get.queryOptions({ 
+    orpc.projects.get.queryOptions({
       input: { id: (boardData as any)?.projectId },
-      enabled: !!(boardData as any)?.projectId 
+      enabled: !!(boardData as any)?.projectId
     })
   );
-  
+
   const createTask = useMutation(
     orpc.tasks.create.mutationOptions({
       onSuccess: () => {
@@ -118,7 +118,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       },
     })
   );
-  
+
   const updateTask = useMutation(
     orpc.tasks.update.mutationOptions({
       onSuccess: () => {
@@ -134,7 +134,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const toggleProjectAgentPause = useMutation(
     orpc.projects.update.mutationOptions({
       onSuccess: () => {
-        toast.success(projectData?.agentPaused ? "Agents resumed" : "All agents paused");
+        toast.success((projectData as any)?.agentPaused ? "Agents resumed" : "All agents paused");
         refetch();
       },
       onError: (error: any) => {
@@ -185,15 +185,15 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     const taskId = e.dataTransfer.getData("taskId");
     if (taskId) {
       const task = (boardData as any)?.tasks?.find((t: any) => t.id === taskId);
-      
+
       // If moving to QA and qaRequired is false, ask for confirmation
       if (newStatus === "qa" && task && !task.qaRequired) {
         if (!confirm("This task doesn't require QA. Move to QA anyway?")) {
           return;
         }
       }
-      
-      updateTask.mutate({ id: taskId, status: newStatus as any });
+
+      updateTask.mutate({ id: taskId, status: newStatus as any } as any);
     }
   };
 
@@ -217,21 +217,21 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
             <Bot className="h-4 w-4" />
             <span>Agents: {onlineAgents} online • Running {runningAgents}</span>
           </div>
-          
+
           {/* Pause All Agents button */}
           <Button
-            variant={projectData?.agentPaused ? "destructive" : "outline"}
+            variant={(projectData as any)?.agentPaused ? "destructive" : "outline"}
             size="sm"
             onClick={() => {
-              if (projectData?.id) {
+              if ((projectData as any)?.id) {
                 toggleProjectAgentPause.mutate({
-                  id: projectData.id,
-                  agentPaused: !projectData.agentPaused,
+                  id: (projectData as any).id,
+                  agentPaused: !(projectData as any).agentPaused,
                 } as any);
               }
             }}
           >
-            {projectData?.agentPaused ? (
+            {(projectData as any)?.agentPaused ? (
               <>
                 <Play className="h-4 w-4 mr-2" />
                 Resume All Agents
@@ -360,9 +360,9 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                         {/* Priority, Stage, and Assignee */}
                         <div className="flex items-center gap-2 mb-2">
                           {task.priority > 0 && (
-                            <Badge 
-                              variant="outline" 
-                              className={cn("text-xs border", 
+                            <Badge
+                              variant="outline"
+                              className={cn("text-xs border",
                                 task.priority <= 2 ? priorityColors[1] :
                                 task.priority <= 4 ? priorityColors[2] :
                                 task.priority <= 6 ? priorityColors[3] :
@@ -373,8 +373,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                               P{task.priority}
                             </Badge>
                           )}
-                          <Badge 
-                            variant="secondary" 
+                          <Badge
+                            variant="secondary"
                             className={cn("text-xs border", stageColors[task.stage as keyof typeof stageColors])}
                           >
                             {task.stage}
@@ -399,8 +399,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                         {task.assignedActorType === "agent" && (
                           <div className="flex items-center gap-2 mb-2 text-xs">
                             <div className="flex items-center gap-1">
-                              <Switch 
-                                checked={task.agentReady} 
+                              <Switch
+                                checked={task.agentReady}
                                 className="scale-75"
                                 onClick={(e: React.MouseEvent) => {
                                   e.stopPropagation();
@@ -437,21 +437,21 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                               </Tooltip>
                             </TooltipProvider>
                           )}
-                          
+
                           {task.attachmentCount > 0 && (
                             <div className="flex items-center gap-1">
                               <Paperclip className="h-3 w-3" />
                               <span>{task.attachmentCount}</span>
                             </div>
                           )}
-                          
+
                           {task.messageCount > 0 && (
                             <div className="flex items-center gap-1">
                               <MessageSquare className="h-3 w-3" />
                               <span>{task.messageCount}</span>
                             </div>
                           )}
-                          
+
                           {task.questionCount > 0 && (
                             <div className="flex items-center gap-1 text-orange-600">
                               <HelpCircle className="h-3 w-3" />

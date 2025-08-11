@@ -10,7 +10,9 @@ import type { AccessTokenPayload } from '../ops/authCookies';
 const app = new Hono();
 
 app.get('/callback', async (c) => {
+  console.log("🚀 -> '/callback':", '/callback');
   const url = new URL(c.req.url);
+  console.log(`🚀 -> url:`, url);
   const code = url.searchParams.get('code');
 
   if (!code) {
@@ -40,21 +42,45 @@ app.get('/callback', async (c) => {
 
   await upsertUserIfNewAuthInfo(exchanged.tokens.access);
 
-  return c.redirect(url.origin);
+  const frontendOrigin =
+    process.env.FRONTEND_ORIGIN ||
+    process.env.CORS_ORIGIN ||
+    'http://localhost:8302';
+  console.log('🔁 Redirecting back to frontend:', frontendOrigin);
+  return c.redirect(frontendOrigin);
 });
 
 async function upsertUserIfNewAuthInfo(accessToken: string) {
+  console.log(`🚀 -> upsertUserIfNewAuthInfo -> accessToken:`, accessToken);
   const result = jwtDecode<AccessTokenPayload>(accessToken);
+  console.log(`🚀 -> upsertUserIfNewAuthInfo -> result:`, JSON.stringify(result, null, 2));
 
   if (!result.ok) return;
 
-  const email = result.good.subject.properties.email;
+  const payload: any = result.good as any;
+  const email =
+    payload?.subject?.properties?.email ??
+    payload?.properties?.email ??
+    payload?.email ??
+    payload?.user?.email ??
+    payload?.userinfo?.email ??
+    payload?.claims?.email;
+
+  if (!email) {
+    console.error('No email found in access token payload. Payload was:', payload);
+    return;
+  }
 
   const userFound = await db.query.users.findFirst({ where: eq(users.email, email) });
 
   if (userFound) {
     // Update user info if there's new information
-    const name = result.good.subject.properties.name;
+    const name =
+      payload?.subject?.properties?.name ??
+      payload?.properties?.name ??
+      payload?.name ??
+      payload?.user?.name ??
+      payload?.userinfo?.name;
     if (name && name !== userFound.displayName) {
       await db
         .update(users)
@@ -67,7 +93,13 @@ async function upsertUserIfNewAuthInfo(accessToken: string) {
   // Create new user
   await db.insert(users).values({
     email,
-    displayName: result.good.subject.properties.name || email.split('@')[0],
+    displayName:
+      payload?.subject?.properties?.name ??
+      payload?.properties?.name ??
+      payload?.name ??
+      payload?.user?.name ??
+      payload?.userinfo?.name ??
+      email.split('@')[0],
   });
 }
 
