@@ -55,7 +55,7 @@ export const authClient = createAuthClient({
         timestamp: new Date().toISOString(),
         baseURL
       });
-      
+
       toast.error(`Auth Connection Failed`, {
         description: `${message}. Unable to reach auth server at ${baseURL}.`,
         action: {
