@@ -22,5 +22,8 @@
   "dependencies": {
     "@paralleldrive/cuid2": "^2.2.2",
     "valibot": "^1.1.0"
+  },
+  "devDependencies": {
+    "pg-god": "^1.0.12"
   }
 }

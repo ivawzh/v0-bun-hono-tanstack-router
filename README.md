@@ -5,6 +5,7 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 ## 🚀 Features
 
 ### Core Functionality
+
 - **Project & Board Management**: Organize work across multiple projects with Kanban boards
 - **Task Lifecycle Management**: Full task tracking from kickoff → spec → design → dev → qa → done
 - **AI Agent Integration**: Connect Windows PC or cloud-based AI agents to execute tasks
@@ -13,6 +14,7 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 - **Requirements Management**: Database-stored requirements with version control and future vector search support
 
 ### Technical Features
+
 - **Local-first Development**: Uses PGlite (embedded PostgreSQL) - no external database needed for development
 - **Day-1 Security**: All endpoints protected with authentication from the start
 - **Agent Gateway**: Secure HTTPS/WebSocket gateway for Windows PC agents
@@ -85,8 +87,11 @@ AGENT_AUTH_TOKEN=your-agent-token-here
 # OpenAI (for voice transcription)
 OPENAI_API_KEY=sk-your-openai-api-key
 
-# Optional: Database URL (for production)
-# DATABASE_URL=postgresql://user:password@localhost:5432/solo_unicorn
+# Database URL (recommended for stability)
+# For local PostgreSQL:
+DATABASE_URL=postgresql://$USER@localhost:5432/solo_unicorn_dev
+# For production:
+# DATABASE_URL=postgresql://user:password@host:5432/database
 
 # Optional: OpenRouter (for multi-model support)
 # OPENROUTER_API_KEY=your-openrouter-key
@@ -99,8 +104,9 @@ bun dev
 ```
 
 This will start:
-- **Web App**: http://localhost:8302
-- **API Server**: http://localhost:8500
+
+- **Web App**: <http://localhost:8302>
+- **API Server**: <http://localhost:8500>
 
 > Note: If ports are in use, the web app will automatically find the next available port
 
@@ -116,10 +122,12 @@ This will start:
 ### Working with Tasks
 
 Tasks have two dimensions:
+
 - **Status**: Todo → In Progress → Blocked → Paused → Done
 - **Stage**: Kickoff → Spec → Design → Dev → QA → Done
 
 Each task includes:
+
 - Description (Markdown supported)
 - Priority (0-10)
 - Checklist items per stage
@@ -133,6 +141,7 @@ Each task includes:
 #### Understanding AGENT_AUTH_TOKEN
 
 The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Claude Code, Windsurf, or custom agents) when they connect to your Solo Unicorn instance. This ensures only authorized agents can:
+
 - Retrieve tasks assigned to them
 - Submit work artifacts and logs
 - Ask questions and receive answers
@@ -141,6 +150,7 @@ The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Cla
 #### Setting Up Agent Authentication
 
 1. **Generate a Secure Token** (if you haven't already):
+
    ```bash
    openssl rand -hex 32
    ```
@@ -167,11 +177,13 @@ The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Cla
 ### Voice Input
 
 Voice input is available on:
+
 - Task description fields
 - Message inputs
 - Any textarea with the microphone icon
 
 Requirements:
+
 - Microphone permissions in browser
 - OpenAI API key configured
 
@@ -184,6 +196,7 @@ Requirements:
    - Use `.env.example` for templates
 
 2. **Use Strong Secrets**:
+
    ```bash
    # Generate strong AGENT_AUTH_TOKEN
    openssl rand -hex 32
@@ -202,17 +215,95 @@ Requirements:
 
 ## 🔧 Configuration
 
-### Database Options
+### Database Setup
 
-**Development (Default)**:
-- Uses PGlite (embedded PostgreSQL) by default for the API server
-- No external database needed
+#### Local PostgreSQL Setup (Recommended)
+
+Due to stability issues with PGlite, we recommend using local PostgreSQL for development:
+
+1. **Install PostgreSQL** (if not already installed):
+   ```bash
+   # Ubuntu/Debian
+   sudo apt-get install postgresql
+   
+   # macOS
+   brew install postgresql
+   
+   # Windows WSL
+   sudo apt-get install postgresql
+   ```
+
+2. **Create Development Database**:
+   ```bash
+   # Create development database
+   bun run --filter server db:create
+   # Or specify custom database name
+   DB_NAME=my_db bun run --filter server db:create
+   ```
+
+3. **Set Database URL** in `apps/server/.env`:
+   ```bash
+   DATABASE_URL=postgresql://your_username@localhost:5432/solo_unicorn_dev
+   ```
+
+4. **Push Schema to Database**:
+   ```bash
+   bun run --filter server db:push
+   ```
+
+#### Test Database Setup
+
+For running tests with a separate database:
+
+```bash
+# Create test database
+bun run --filter server db:create:test
+
+# Push schema to test database
+bun run --filter server db:push:test
+
+# Or use custom test database URL
+DATABASE_TEST_URL=postgresql://user@localhost:5432/my_test_db bun run --filter server db:push:test
+```
+
+#### Database Management Scripts
+
+```bash
+# Create databases
+bun run --filter server db:create        # Creates solo_unicorn_dev
+bun run --filter server db:create:test   # Creates solo_unicorn_test
+
+# Drop databases (use with caution)
+bun run --filter server db:drop          # Drops solo_unicorn_dev
+bun run --filter server db:drop:test     # Drops solo_unicorn_test
+
+# Custom database names
+DB_NAME=custom_db DB_USER=myuser bun run --filter server db:create
+DB_NAME=custom_db DB_USER=myuser bun run --filter server db:drop
+
+# Push schema (applies changes without migrations)
+bun run --filter server db:push          # To dev database
+bun run --filter server db:push:test     # To test database
+
+# Run migrations
+bun run --filter server db:migrate       # Run on dev database
+bun run --filter server db:migrate:test  # Run on test database
+```
+
+#### PGlite (Embedded PostgreSQL) - Fallback Option
+
+If you prefer not to install PostgreSQL:
+
+- Comment out `DATABASE_URL` in `.env`
+- The server will use PGlite (embedded PostgreSQL)
 - Data persisted locally under `apps/server/pgdata`
+- ⚠️ **Warning**: PGlite may crash with certain operations
 
 **Production**:
+
+- Always use a real PostgreSQL database
 - Set `DATABASE_URL` in environment variables
-- Supports any PostgreSQL database
-- Recommended: Supabase or local PostgreSQL
+- Recommended: Supabase, AWS RDS, or any PostgreSQL service
 
 ### Agent Configuration
 
@@ -232,6 +323,7 @@ Agents can be configured with different AI models:
 ### Task Hooks (Automations)
 
 Task hooks trigger actions on stage changes:
+
 - Create checklists
 - Send notifications
 - Start/stop agent sessions
@@ -341,10 +433,16 @@ bun build            # Build all apps
 bun check-types      # TypeScript type checking
 
 # Database
-bun db:push          # Push schema to database
+bun db:create        # Create development database
+bun db:create:test   # Create test database
+bun db:drop          # Drop development database (use with caution)
+bun db:drop:test     # Drop test database
+bun db:push          # Push schema to development database
+bun db:push:test     # Push schema to test database
 bun db:studio        # Open Drizzle Studio
 bun db:generate      # Generate migrations
-bun db:migrate       # Run migrations
+bun db:migrate       # Run migrations on development database
+bun db:migrate:test  # Run migrations on test database
 
 # Drizzle Migrations (with rollback support)
 bun run --filter server migrations:generate   # Generate a migration (name defaults to "init")
@@ -381,18 +479,58 @@ We use `@drepkovsky/drizzle-migrations` to add up/down rollback support on top o
    - The server auto-applies SQL migrations at startup when using PGlite. This keeps dev flows simple while still producing portable SQL for production.
 
 References:
+
 - Drizzle migrations tool: [drepkovsky/drizzle-migrations](https://github.com/drepkovsky/drizzle-migrations)
 
 ## 🚢 Deployment
 
+### Environment Configuration
+
+Solo Unicorn supports multiple environments:
+
+- **dev** - Local development (default)
+- **test** - Test environment for E2E tests
+- **alpha** - Staging/pre-production environment
+- **production** - Production environment
+
+### Database URLs by Environment
+
+Set these environment variables based on your deployment:
+
+```bash
+# Development (local)
+DATABASE_URL=postgresql://username@localhost:5432/solo_unicorn_dev
+
+# Test (local)
+DATABASE_TEST_URL=postgresql://username@localhost:5432/solo_unicorn_test
+
+# Alpha/Staging
+DATABASE_ALPHA_URL=postgresql://user:pass@staging-host:5432/solo_unicorn_alpha
+
+# Production
+DATABASE_PROD_URL=postgresql://user:pass@prod-host:5432/solo_unicorn_prod
+```
+
 ### Vercel Deployment
 
-1. Connect your GitHub repository to Vercel
-2. Set environment variables in Vercel dashboard
-3. Configure build settings:
-   - Build Command: `bun build`
+1. **Connect Repository**: Link your GitHub repository to Vercel
+
+2. **Set Environment Variables** in Vercel dashboard:
+   ```
+   NODE_ENV=production
+   DATABASE_URL=your_production_database_url
+   MONSTER_AUTH_URL=https://auth.monstermake.limited
+   CORS_ORIGIN=https://your-domain.vercel.app
+   AGENT_AUTH_TOKEN=your_secure_token
+   OPENAI_API_KEY=your_openai_key
+   ```
+
+3. **Automatic Migrations**: Migrations run automatically after build via `postbuild` hook
+
+4. **Build Settings** (automatically configured via vercel.json):
+   - Build Command: `bun install && bun run build`
    - Output Directory: `apps/web/dist`
-   - Install Command: `bun install`
+   - Install Command: Uses Bun runtime
 
 ### Docker Deployment
 
