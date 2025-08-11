@@ -42,7 +42,7 @@
 - Event log, conversations, and simple artifacts (links, logs, file/diff references).
 - Web UI with a board view, task details, activity feed, and stage checklist.
 - Agent gateway to communicate with the Windows code agent and/or cloud-code executor.
-- Single-owner access; Monster Auth for app; token auth for agent; all routes guarded from day 1.
+- Single-owner access; Monster Auth (Google OAuth) for app; token auth for agent; all routes guarded from day 1.
 - Mobile-friendly basics (responsive layouts).
 
 ## Out of Scope (MVP)
@@ -340,6 +340,55 @@ Recommendation (MVP): start with option 2 if using a mono-repo, otherwise option
 - Optional Git integration: if repository provider is GitHub/GitLab, allow commit and PR creation when configured
 - Can post questions and wait for responses; respects pause/resume
 
+## Authentication Implementation (Monster Auth)
+
+### Overview
+- **Provider**: Monster Auth service (https://auth.monstermake.limited)
+- **Method**: Google OAuth 2.0 with OpenAuth client
+- **Client ID**: Hardcoded as `'solo-unicorn'` (no configuration required)
+- **Token Storage**: Secure HTTP-only cookies with 15-minute access tokens
+- **User Management**: Auto-creates users in local database on first login
+
+### OAuth Flow
+1. User clicks "Sign in with Google" → calls `rpc.auth.login`
+2. Server redirects to Monster Auth authorization URL
+3. User authenticates with Google on Monster Auth hosted pages
+4. Monster Auth redirects back to `/api/oauth/callback` with authorization code
+5. Server exchanges code for access/refresh tokens using OpenAuth client
+6. Tokens are verified automatically via JWKS (built into OpenAuth.exchange)
+7. Server sets tokens in secure HTTP-only cookies
+8. User record is created/updated in local database
+9. User is redirected back to the application
+
+### Technical Details
+- **OpenAuth Client**: `@openauthjs/openauth` package handles OAuth flow and JWKS verification
+- **Cookie Names**: `monster-auth-access-token`, `monster-auth-refresh-token`
+- **Cookie Settings**: httpOnly, secure (production), sameSite: lax, path: '/'
+- **Token Refresh**: Automatic refresh when access token expires (via `openauth.refresh`)
+- **JWT Verification**: Handled automatically by OpenAuth during token exchange
+- **Session Resolution**: `resolveAuthCookies()` handles token validation and refresh
+
+### Environment Variables
+```bash
+# Monster Auth service URL (required)
+MONSTER_AUTH_URL=https://auth.monstermake.limited
+
+# Host configuration for OAuth callbacks (required)
+HOST=localhost:8500
+```
+
+### Code Structure
+- `/apps/server/src/lib/openauth.ts` - OpenAuth client configuration
+- `/apps/server/src/ops/authCookies.ts` - Cookie and token management utilities
+- `/apps/server/src/routers/auth.ts` - Auth ORPC endpoints (login/logout/authenticate)
+- `/apps/server/src/routers/oauth-callback.ts` - OAuth callback handler
+- `/apps/web/src/lib/auth-client.ts` - React hooks for authentication
+
+### Auth Guards
+- **App/API**: `requireOwnerAuth()` - Validates Monster Auth session via cookies
+- **Agent Gateway**: `requireAgentAuth()` - Validates agent token via headers
+- **ORPC Context**: Automatically resolves user session and populates `context.appUser`
+
 ## Security and Privacy (MVP)
 
 - Single-user app; no multi-tenant isolation required
@@ -347,6 +396,8 @@ Recommendation (MVP): start with option 2 if using a mono-repo, otherwise option
 - Prepare for future roles with route-level authorization gates (owner-only by default)
 - Store secrets in Vercel/Supabase env vars, not in the DB
 - Basic audit trail via `task_event` and `agent_action`
+- JWT tokens verified via JWKS automatically by OpenAuth
+- Secure HTTP-only cookies prevent XSS token theft
 
 ## Deployment
 
