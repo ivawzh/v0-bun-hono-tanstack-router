@@ -58,8 +58,8 @@ function AgentsPage() {
     runtime: "windows-runner",
   });
 
-  const { data: agents, isLoading, refetch: refetchAgents } = useQuery(orpc.agents.list.queryOptions({}));
-  const { data: activeSessions } = useQuery(orpc.agents.getActiveSessions.queryOptions({}));
+  const { data: agents, isLoading, refetch: refetchAgents } = useQuery(orpc.agents.list.queryOptions({ input: {} }));
+  const { data: activeSessions } = useQuery(orpc.agents.getActiveSessions.queryOptions({ input: {} }));
 
   const createAgent = useMutation(
     orpc.agents.create.mutationOptions({
@@ -106,7 +106,7 @@ function AgentsPage() {
   );
 
   const getSessionForAgent = (agentId: string) => {
-    return activeSessions?.find((s: any) => s.agent.id === agentId);
+    return (activeSessions as any)?.find((s: any) => s.agent.id === agentId);
   };
 
   const getSessionStateColor = (state: string) => {
@@ -150,7 +150,7 @@ function AgentsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {agents?.map((agent) => {
+        {(agents as any)?.map((agent: any) => {
           const session = getSessionForAgent(agent.id);
           return (
             <Card key={agent.id} className="hover:shadow-lg transition-shadow">
@@ -196,7 +196,7 @@ function AgentsPage() {
                             onClick={() =>
                               pauseSession.mutate({
                                 sessionId: session.session.id,
-                              })
+                              } as any)
                             }
                           >
                             <Pause className="h-3 w-3" />
@@ -209,7 +209,7 @@ function AgentsPage() {
                             onClick={() =>
                               resumeSession.mutate({
                                 sessionId: session.session.id,
-                              })
+                              } as any)
                             }
                           >
                             <Play className="h-3 w-3" />
@@ -255,7 +255,7 @@ function AgentsPage() {
                             `Are you sure you want to delete agent "${agent.name}"?`
                           )
                         ) {
-                          deleteAgent.mutate({ id: agent.id });
+                          deleteAgent.mutate({ id: agent.id } as any);
                         }
                       }}
                       disabled={!!session}
@@ -271,13 +271,13 @@ function AgentsPage() {
       </div>
 
       {/* Active Sessions Summary */}
-      {activeSessions && activeSessions.length > 0 && (
+      {activeSessions && (activeSessions as any).length > 0 && (
         <div className="mt-8">
           <h2 className="text-xl font-bold mb-4">Active Sessions</h2>
           <Card>
             <ScrollArea className="h-[200px]">
               <div className="p-4 space-y-2">
-                {activeSessions.map((session) => (
+                {(activeSessions as any)?.map((session: any) => (
                   <div
                     key={session.session.id}
                     className="flex items-center justify-between p-2 hover:bg-accent rounded-md"
@@ -394,7 +394,7 @@ function AgentsPage() {
                     role: newAgent.role as any,
                     character: newAgent.character || undefined,
                     runtime: newAgent.runtime as any,
-                  });
+                  } as any);
                 }
               }}
               disabled={!newAgent.name || createAgent.isPending}

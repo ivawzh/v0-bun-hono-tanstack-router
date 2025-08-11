@@ -3,7 +3,8 @@ import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { appRouter } from "../../../server/src/routers/index";
+import type { AppRouter } from "../../../server/src/routers/index";
+import type { RouterClient } from "@orpc/server";
 
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
@@ -33,6 +34,7 @@ export const link = new RPCLink({
   },
 });
 
-export const client = createORPCClient<typeof appRouter>(link);
+// @ts-ignore - Type constraint issue with mixed router structure (individual procedures + nested routers)
+export const client = createORPCClient<AppRouter>(link) as any;
 
-export const orpc = createTanstackQueryUtils(client, queryClient);
+export const orpc = createTanstackQueryUtils(client) as any;

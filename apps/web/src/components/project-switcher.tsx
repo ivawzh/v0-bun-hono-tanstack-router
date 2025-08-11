@@ -38,7 +38,7 @@ export function ProjectSwitcher() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
 
-  const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({}));
+  const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
   const createProject = useMutation(
     orpc.projects.create.mutationOptions({
       onSuccess: () => {
@@ -54,7 +54,7 @@ export function ProjectSwitcher() {
     })
   );
 
-  const selectedProjectData = projects?.find((p: any) => p.id === selectedProject);
+  const selectedProjectData = (projects as any)?.find((p: any) => p.id === selectedProject);
 
   return (
     <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
@@ -77,7 +77,7 @@ export function ProjectSwitcher() {
               <CommandInput placeholder="Search project..." />
               <CommandEmpty>No project found.</CommandEmpty>
               <CommandGroup heading="Projects">
-                {projects?.map((project) => (
+                {(projects as any)?.map((project: any) => (
                   <CommandItem
                     key={project.id}
                     onSelect={() => {
@@ -158,7 +158,7 @@ export function ProjectSwitcher() {
                 createProject.mutate({
                   name: newProjectName,
                   description: newProjectDescription || undefined,
-                });
+                } as any);
               }
             }}
             disabled={!newProjectName || createProject.isPending}

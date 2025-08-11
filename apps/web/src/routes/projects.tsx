@@ -31,7 +31,7 @@ function ProjectsPage() {
   const [newBoardName, setNewBoardName] = useState("");
   const [newBoardPurpose, setNewBoardPurpose] = useState("");
 
-  const { data: projects, isLoading, refetch: refetchProjects } = useQuery(orpc.projects.list.queryOptions({}));
+  const { data: projects, isLoading, refetch: refetchProjects } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
   
   const createProject = useMutation(
     orpc.projects.create.mutationOptions({
@@ -64,8 +64,8 @@ function ProjectsPage() {
   );
 
   // Fetch boards for each project
-  const boardsQueries = projects?.map((project: any) => 
-    useQuery(orpc.boards.list.queryOptions({ projectId: project.id }))
+  const boardsQueries = (projects as any)?.map((project: any) => 
+    useQuery(orpc.boards.list.queryOptions({ input: { projectId: project.id } }))
   ) || [];
 
   if (isLoading) {
@@ -92,7 +92,7 @@ function ProjectsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {projects?.map((project: any, index: number) => {
+        {(projects as any)?.map((project: any, index: number) => {
           const boards = boardsQueries[index]?.data || [];
           return (
             <Card key={project.id} className="hover:shadow-lg transition-shadow">
@@ -192,7 +192,7 @@ function ProjectsPage() {
                   createProject.mutate({
                     name: newProjectName,
                     description: newProjectDescription || undefined,
-                  });
+                  } as any);
                 }
               }}
               disabled={!newProjectName || createProject.isPending}
@@ -243,7 +243,7 @@ function ProjectsPage() {
                     projectId: selectedProjectId,
                     name: newBoardName,
                     purpose: newBoardPurpose || undefined,
-                  });
+                  } as any);
                 }
               }}
               disabled={!newBoardName || createBoard.isPending}

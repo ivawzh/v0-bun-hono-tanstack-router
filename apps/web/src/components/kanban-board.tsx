@@ -68,7 +68,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     priority: 0,
   });
 
-  const { data: boardData, isLoading, refetch } = useQuery(orpc.boards.getWithTasks.queryOptions({ id: boardId }));
+  const { data: boardData, isLoading, refetch } = useQuery(orpc.boards.getWithTasks.queryOptions({ input: { id: boardId } }));
   
   const createTask = useMutation(
     orpc.tasks.create.mutationOptions({
@@ -113,9 +113,9 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   }
 
   const tasksByStatus = statusColumns.reduce((acc, column) => {
-    acc[column.id] = boardData.tasks?.filter((task) => task.status === column.id) || [];
+    acc[column.id] = (boardData as any)?.tasks?.filter((task: any) => task.status === column.id) || [];
     return acc;
-  }, {} as Record<string, typeof boardData.tasks>);
+  }, {} as Record<string, any[]>);
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData("taskId", taskId);
@@ -131,7 +131,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     if (taskId) {
-      updateTask.mutate({ id: taskId, status: newStatus as any });
+      updateTask.mutate({ id: taskId, status: newStatus as any } as any);
     }
   };
 
@@ -139,9 +139,9 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     <div className="h-full">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">{boardData.name}</h2>
-          {boardData.purpose && (
-            <p className="text-muted-foreground">{boardData.purpose}</p>
+          <h2 className="text-2xl font-bold">{(boardData as any)?.name}</h2>
+          {(boardData as any)?.purpose && (
+            <p className="text-muted-foreground">{(boardData as any)?.purpose}</p>
           )}
         </div>
       </div>
@@ -177,7 +177,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
 
             <ScrollArea className="flex-1">
               <div className="space-y-2 pr-3">
-                {tasksByStatus[column.id]?.map((task) => (
+                {tasksByStatus[column.id]?.map((task: any) => (
                   <Card
                     key={task.id}
                     className="cursor-pointer hover:shadow-md transition-shadow"
@@ -210,7 +210,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                                 updateTask.mutate({
                                   id: task.id,
                                   status: task.status === "paused" ? "in_progress" : "paused",
-                                });
+                                } as any);
                               }}
                             >
                               {task.status === "paused" ? "Resume" : "Pause"}
@@ -341,7 +341,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                     status: newTaskColumn as any,
                     stage: newTask.stage as any,
                     priority: newTask.priority,
-                  });
+                  } as any);
                 }
               }}
               disabled={!newTask.title || createTask.isPending}

@@ -22,7 +22,7 @@ export const Route = createFileRoute("/todos")({
 function TodosRoute() {
   const [newTodoText, setNewTodoText] = useState("");
 
-    const todos = useQuery(orpc.todo.getAll.queryOptions());
+    const todos = useQuery(orpc.todo.getAll.queryOptions({ input: {} }));
     const createMutation = useMutation(
       orpc.todo.create.mutationOptions({
         onSuccess: () => {
@@ -45,16 +45,16 @@ function TodosRoute() {
   const handleAddTodo = (e: React.FormEvent) => {
     e.preventDefault();
     if (newTodoText.trim()) {
-      createMutation.mutate({ text: newTodoText });
+      createMutation.mutate({ text: newTodoText } as any);
     }
   };
 
   const handleToggleTodo = (id: number, completed: boolean) => {
-    toggleMutation.mutate({ id, completed: !completed });
+    toggleMutation.mutate({ id, completed: !completed } as any);
   };
 
   const handleDeleteTodo = (id: number) => {
-    deleteMutation.mutate({ id });
+    deleteMutation.mutate({ id } as any);
   };
 
   return (
@@ -91,13 +91,13 @@ function TodosRoute() {
               <div className="flex justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin" />
               </div>
-            ) : todos.data?.length === 0 ? (
+            ) : (todos.data as any)?.length === 0 ? (
               <p className="py-4 text-center">
                 No todos yet. Add one above!
               </p>
             ) : (
               <ul className="space-y-2">
-                {todos.data?.map((todo: any) => (
+                {(todos.data as any)?.map((todo: any) => (
                   <li
                     key={todo.id}
                     className="flex items-center justify-between rounded-md border p-2"

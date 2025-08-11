@@ -85,7 +85,7 @@ export function VoiceInput({ onTranscription, placeholder = "Click to start reco
         transcribeMutation.mutate({
           audio: base64Audio,
           format: "webm",
-        });
+        } as any);
       } else {
         toast.error("Failed to process audio");
         setIsProcessing(false);

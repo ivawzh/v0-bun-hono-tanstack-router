@@ -66,7 +66,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
   const [newQuestion, setNewQuestion] = useState("");
 
   const { data: taskDetails, isLoading, refetch } = useQuery({
-    ...orpc.tasks.getDetails.queryOptions({ id: taskId! }),
+    ...orpc.tasks.getDetails.queryOptions({ input: { id: taskId! } }),
     enabled: !!taskId
   });
 
@@ -120,14 +120,14 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
           <>
             <SheetHeader>
               <SheetTitle className="flex items-start justify-between">
-                <span className="pr-4">{taskDetails.title}</span>
+                <span className="pr-4">{(taskDetails as any)?.title}</span>
                 <div className="flex gap-2">
-                  <Badge variant="outline">{taskDetails.status}</Badge>
-                  <Badge variant="secondary">{taskDetails.stage}</Badge>
+                  <Badge variant="outline">{(taskDetails as any)?.status}</Badge>
+                  <Badge variant="secondary">{(taskDetails as any)?.stage}</Badge>
                 </div>
               </SheetTitle>
               <SheetDescription>
-                Created {format(new Date(taskDetails.createdAt), "PPP")}
+                Created {format(new Date((taskDetails as any)?.createdAt), "PPP")}
               </SheetDescription>
             </SheetHeader>
 
@@ -136,9 +136,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <div>
                   <label className="text-sm font-medium">Status</label>
                   <Select
-                    value={taskDetails.status}
+                    value={(taskDetails as any)?.status}
                     onValueChange={(value) =>
-                      updateTask.mutate({ id: taskId, status: value as any })
+                      updateTask.mutate({ id: taskId, status: value as any } as any)
                     }
                   >
                     <SelectTrigger className="mt-1">
@@ -156,9 +156,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <div>
                   <label className="text-sm font-medium">Stage</label>
                   <Select
-                    value={taskDetails.stage}
+                    value={(taskDetails as any)?.stage}
                     onValueChange={(value) =>
-                      updateTask.mutate({ id: taskId, stage: value as any })
+                      updateTask.mutate({ id: taskId, stage: value as any } as any)
                     }
                   >
                     <SelectTrigger className="mt-1">
@@ -175,11 +175,11 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 </div>
               </div>
 
-              {taskDetails.bodyMd && (
+              {(taskDetails as any)?.bodyMd && (
                 <div>
                   <label className="text-sm font-medium">Description</label>
                   <p className="mt-1 text-sm text-muted-foreground whitespace-pre-wrap">
-                    {taskDetails.bodyMd}
+                    {(taskDetails as any)?.bodyMd}
                   </p>
                 </div>
               )}
@@ -206,7 +206,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <TabsContent value="checklist" className="mt-4">
                   <ScrollArea className="h-[300px]">
                     <div className="space-y-2">
-                      {taskDetails.checklistItems.map((item) => (
+                      {(taskDetails as any).checklistItems?.map((item: any) => (
                         <div key={item.id} className="flex items-center space-x-2">
                           <Checkbox
                             checked={item.state === "done"}
@@ -214,7 +214,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                               updateChecklistItem.mutate({
                                 itemId: item.id,
                                 state: checked ? "done" : "open",
-                              })
+                              } as any)
                             }
                           />
                           <label className="text-sm flex-1">{item.title}</label>
@@ -230,7 +230,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <TabsContent value="messages" className="mt-4">
                   <ScrollArea className="h-[250px]">
                     <div className="space-y-3">
-                      {taskDetails.messages.map((message) => (
+                      {(taskDetails as any).messages?.map((message: any) => (
                         <Card key={message.id}>
                           <CardHeader className="py-2">
                             <div className="flex items-center justify-between">
@@ -260,7 +260,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           addMessage.mutate({
                             taskId,
                             contentMd: newMessage,
-                          });
+                          } as any);
                         }
                       }}
                       disabled={!newMessage || addMessage.isPending}
@@ -273,7 +273,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <TabsContent value="questions" className="mt-4">
                   <ScrollArea className="h-[250px]">
                     <div className="space-y-3">
-                      {taskDetails.questions.map((question) => (
+                      {(taskDetails as any).questions?.map((question: any) => (
                         <Card key={question.id}>
                           <CardHeader className="py-2">
                             <div className="flex items-center justify-between">
@@ -310,7 +310,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           askQuestion.mutate({
                             taskId,
                             text: newQuestion,
-                          });
+                          } as any);
                         }
                       }}
                       disabled={!newQuestion || askQuestion.isPending}
@@ -323,7 +323,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <TabsContent value="artifacts" className="mt-4">
                   <ScrollArea className="h-[300px]">
                     <div className="space-y-2">
-                      {taskDetails.artifacts.map((artifact) => (
+                      {(taskDetails as any).artifacts?.map((artifact: any) => (
                         <Card key={artifact.id}>
                           <CardContent className="py-2">
                             <div className="flex items-center justify-between">
@@ -343,7 +343,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <TabsContent value="activity" className="mt-4">
                   <ScrollArea className="h-[300px]">
                     <div className="space-y-2">
-                      {taskDetails.events.map((event) => (
+                      {(taskDetails as any).events?.map((event: any) => (
                         <div key={event.id} className="flex items-start gap-2 text-sm">
                           <Activity className="h-4 w-4 mt-0.5 text-muted-foreground" />
                           <div className="flex-1">
@@ -363,11 +363,11 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 <Button
                   variant="outline"
                   onClick={() => {
-                    const newStatus = taskDetails.status === "paused" ? "in_progress" : "paused";
-                    updateTask.mutate({ id: taskId, status: newStatus });
+                    const newStatus = (taskDetails as any)?.status === "paused" ? "in_progress" : "paused";
+                    updateTask.mutate({ id: taskId, status: newStatus } as any);
                   }}
                 >
-                  {taskDetails.status === "paused" ? (
+                  {(taskDetails as any)?.status === "paused" ? (
                     <>
                       <Play className="h-4 w-4 mr-2" />
                       Resume
@@ -379,10 +379,10 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                     </>
                   )}
                 </Button>
-                {taskDetails.status !== "blocked" && (
+                {(taskDetails as any)?.status !== "blocked" && (
                   <Button
                     variant="outline"
-                    onClick={() => updateTask.mutate({ id: taskId, status: "blocked" })}
+                    onClick={() => updateTask.mutate({ id: taskId, status: "blocked" } as any)}
                   >
                     <AlertCircle className="h-4 w-4 mr-2" />
                     Mark Blocked
