@@ -2,7 +2,7 @@ import { authClient } from "@/lib/auth-client";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import z from "zod";
+import * as v from "valibot";
 import Loader from "./loader";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -43,9 +43,9 @@ export default function SignInForm({
 			);
 		},
 		validators: {
-			onSubmit: z.object({
-				email: z.email("Invalid email address"),
-				password: z.string().min(8, "Password must be at least 8 characters"),
+			onSubmit: v.object({
+				email: v.pipe(v.string(), v.email("Invalid email address")),
+				password: v.pipe(v.string(), v.minLength(8, "Password must be at least 8 characters")),
 			}),
 		},
 	});

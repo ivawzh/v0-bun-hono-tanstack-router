@@ -10,9 +10,10 @@ if (!process.env.DATABASE_URL) {
   try {
     // Lazy import pglite only when DATABASE_URL is not set
     const { PGlite } = await import("@electric-sql/pglite");
-    const client = new PGlite();
+    // Persist to local filesystem in ./pgdata directory
+    const client = new PGlite("./pgdata");
     dbAny = drizzlePgLite(client);
-    console.log("DB: Using PGlite (local dev)");
+    console.log("DB: Using PGlite (local dev) with persistence at ./pgdata");
   } catch {
     throw new Error("PGlite not available and DATABASE_URL not set. Set DATABASE_URL or add pglite.");
   }

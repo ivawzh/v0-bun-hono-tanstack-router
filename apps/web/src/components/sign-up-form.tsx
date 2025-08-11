@@ -2,7 +2,7 @@ import { authClient } from "@/lib/auth-client";
 import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import z from "zod";
+import * as v from "valibot";
 import Loader from "./loader";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -45,10 +45,10 @@ export default function SignUpForm({
 			);
 		},
 		validators: {
-			onSubmit: z.object({
-				name: z.string().min(2, "Name must be at least 2 characters"),
-				email: z.email("Invalid email address"),
-				password: z.string().min(8, "Password must be at least 8 characters"),
+			onSubmit: v.object({
+				name: v.pipe(v.string(), v.minLength(2, "Name must be at least 2 characters")),
+				email: v.pipe(v.string(), v.email("Invalid email address")),
+				password: v.pipe(v.string(), v.minLength(8, "Password must be at least 8 characters")),
 			}),
 		},
 	});

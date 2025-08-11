@@ -21,6 +21,7 @@
   - ORM: Drizzle
   - Database: PGlite for local development; Supabase PostgreSQL for later/production
   - Hosting: Vercel (app + server functions), Supabase (DB/Storage)
+  - Validation: Valibot
 - Agent runner on personal Windows PC.
 
 ## Database Implementation (Day-0 pragmatism)
