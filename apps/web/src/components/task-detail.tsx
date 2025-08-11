@@ -127,6 +127,12 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
     refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
   });
 
+  // Fetch available agents
+  const { data: agents } = useQuery({
+    ...orpc.agents.list.queryOptions({ input: {} }),
+    enabled: !!taskId,
+  });
+
   const updateTask = useMutation(
     orpc.tasks.update.mutationOptions({
       onSuccess: () => {
@@ -353,24 +359,55 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                                (taskDetails as any)?.assignedActorType === "human" ? "H" : "?"}
                             </AvatarFallback>
                           </Avatar>
-                          {(taskDetails as any)?.assignedActorType || "Unassigned"}
+                          {(() => {
+                            if ((taskDetails as any)?.assignedActorType === "agent" && (taskDetails as any)?.assignedAgentId) {
+                              const agent = (agents as any)?.find((a: any) => a.id === (taskDetails as any).assignedAgentId);
+                              return agent ? agent.name : "Agent";
+                            }
+                            return (taskDetails as any)?.assignedActorType || "Unassigned";
+                          })()}
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
                         <DropdownMenuItem onClick={() => updateTask.mutate({ 
                           id: taskId, 
-                          assignedActorType: "human" 
+                          assignedActorType: "human",
+                          assignedAgentId: null 
                         } as any)}>
                           <User className="h-4 w-4 mr-2" />
                           Human
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => updateTask.mutate({ 
-                          id: taskId, 
-                          assignedActorType: "agent" 
-                        } as any)}>
-                          <Bot className="h-4 w-4 mr-2" />
-                          Agent (Engineer)
-                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs">Agents</DropdownMenuLabel>
+                        {(agents as any)?.length > 0 ? (
+                          (agents as any).map((agent: any) => (
+                            <DropdownMenuItem 
+                              key={agent.id}
+                              onClick={() => updateTask.mutate({ 
+                                id: taskId, 
+                                assignedActorType: "agent",
+                                assignedAgentId: agent.id 
+                              } as any)}
+                            >
+                              <Bot className="h-4 w-4 mr-2" />
+                              {agent.name} ({agent.role})
+                            </DropdownMenuItem>
+                          ))
+                        ) : (
+                          <DropdownMenuItem 
+                            onClick={() => {
+                              toast.info("Please create an agent first", {
+                                description: "Go to Agents page to create a new agent",
+                                action: {
+                                  label: "Go to Agents",
+                                  onClick: () => window.location.href = "/agents"
+                                }
+                              });
+                            }}
+                          >
+                            <span className="text-muted-foreground">No agents available - Create one first</span>
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
