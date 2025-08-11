@@ -3,8 +3,8 @@ import { toast } from "sonner";
 
 const defaultServerUrl = "http://localhost:8500";
 const serverUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl;
-// better-auth endpoints are mounted at /api/auth on the server
-const baseURL = `${serverUrl}/api/auth`;
+// For better-auth, baseURL should be the server origin; the library appends /api/auth
+const baseURL = serverUrl;
 
 console.log(`🔐 Auth Client initialized with baseURL: ${baseURL}`);
 
