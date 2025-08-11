@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "@tanstack/react-router";
 import {
   Command,
   CommandEmpty,
@@ -29,7 +30,7 @@ import {
 } from "@/components/ui/popover";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 export function ProjectSwitcher() {
   const [open, setOpen] = useState(false);
@@ -37,16 +38,20 @@ export function ProjectSwitcher() {
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectDescription, setNewProjectDescription] = useState("");
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
   const createProject = useMutation(
     orpc.projects.create.mutationOptions({
-      onSuccess: () => {
+      onSuccess: (newProject) => {
         toast.success("Project created successfully");
         setShowNewProjectDialog(false);
         setNewProjectName("");
         setNewProjectDescription("");
         refetch();
+        // Navigate to projects page after creating
+        navigate({ to: "/projects" });
       },
       onError: (error: any) => {
         toast.error(`Failed to create project: ${error.message}`);
@@ -80,9 +85,28 @@ export function ProjectSwitcher() {
                 {(projects as any)?.map((project: any) => (
                   <CommandItem
                     key={project.id}
-                    onSelect={() => {
+                    onSelect={async () => {
                       setSelectedProject(project.id);
                       setOpen(false);
+                      
+                      // Fetch boards for the selected project
+                      try {
+                        const boards = await queryClient.fetchQuery(
+                          orpc.boards.list.queryOptions({ input: { projectId: project.id } })
+                        );
+                        
+                        if (boards && (boards as any).length > 0) {
+                          // Navigate to the first board
+                          navigate({ to: "/boards/$boardId", params: { boardId: (boards as any)[0].id } });
+                        } else {
+                          // No boards, navigate to projects page to create one
+                          navigate({ to: "/projects" });
+                          toast.info("Create a board to get started");
+                        }
+                      } catch (error) {
+                        console.error("Error fetching boards:", error);
+                        navigate({ to: "/projects" });
+                      }
                     }}
                     className="text-sm"
                   >

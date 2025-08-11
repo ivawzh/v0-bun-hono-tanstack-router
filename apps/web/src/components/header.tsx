@@ -24,7 +24,7 @@ export default function Header() {
   );
 
   const links = [
-    { to: "/", label: "Board" },
+    { to: "/projects", label: "Projects" },
     { to: "/chat", label: "Chat" },
     { to: "/search", label: "Search" },
   ];
