@@ -269,17 +269,13 @@ DATABASE_TEST_URL=postgresql://user@localhost:5432/my_test_db bun run --filter s
 #### Database Management Scripts
 
 ```bash
-# Create databases
+# Create databases (uses current system user)
 bun run --filter server db:create        # Creates solo_unicorn_dev
 bun run --filter server db:create:test   # Creates solo_unicorn_test
 
 # Drop databases (use with caution)
 bun run --filter server db:drop          # Drops solo_unicorn_dev
 bun run --filter server db:drop:test     # Drops solo_unicorn_test
-
-# Custom database names
-DB_NAME=custom_db DB_USER=myuser bun run --filter server db:create
-DB_NAME=custom_db DB_USER=myuser bun run --filter server db:drop
 
 # Push schema (applies changes without migrations)
 bun run --filter server db:push          # To dev database
@@ -288,6 +284,9 @@ bun run --filter server db:push:test     # To test database
 # Run migrations
 bun run --filter server db:migrate       # Run on dev database
 bun run --filter server db:migrate:test  # Run on test database
+
+# Open database studio
+bun run --filter server db:studio        # Visual database browser
 ```
 
 #### PGlite (Embedded PostgreSQL) - Fallback Option
@@ -387,11 +386,10 @@ Solo Unicorn includes comprehensive end-to-end tests using Playwright.
    bun run --filter server db:push:test
    ```
 
-3. **Set test environment variables** (optional):
+3. **Verify test database connection**:
    ```bash
-   # In .env.test or export before running tests
-   DATABASE_TEST_URL=postgresql://username@localhost:5432/solo_unicorn_test
-   AGENT_AUTH_TOKEN=test-agent-token
+   # Test database uses: postgresql://$USER@localhost:5432/solo_unicorn_test
+   # Override if needed by setting DATABASE_TEST_URL environment variable
    ```
 
 #### Running Tests
@@ -512,15 +510,15 @@ bun build            # Build all apps
 bun check-types      # TypeScript type checking
 
 # Database
-bun db:create        # Create development database
-bun db:create:test   # Create test database
-bun db:drop          # Drop development database (use with caution)
-bun db:drop:test     # Drop test database
-bun db:push          # Push schema to development database
+bun db:create        # Create solo_unicorn_dev database
+bun db:create:test   # Create solo_unicorn_test database  
+bun db:drop          # Drop solo_unicorn_dev (use with caution)
+bun db:drop:test     # Drop solo_unicorn_test
+bun db:push          # Push schema to dev database
 bun db:push:test     # Push schema to test database
 bun db:studio        # Open Drizzle Studio
 bun db:generate      # Generate migrations
-bun db:migrate       # Run migrations on development database
+bun db:migrate       # Run migrations on dev database
 bun db:migrate:test  # Run migrations on test database
 
 # Drizzle Migrations (with rollback support)
