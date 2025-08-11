@@ -2,7 +2,9 @@ import { createAuthClient } from "better-auth/react";
 import { toast } from "sonner";
 
 const defaultServerUrl = "http://localhost:8500";
-const baseURL = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl;
+const serverUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl;
+// better-auth endpoints are mounted at /api/auth on the server
+const baseURL = `${serverUrl}/api/auth`;
 
 console.log(`🔐 Auth Client initialized with baseURL: ${baseURL}`);
 
