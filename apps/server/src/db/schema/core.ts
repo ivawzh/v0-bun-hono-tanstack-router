@@ -16,6 +16,7 @@ export const projects = pgTable("projects", {
   name: text("name").notNull(),
   description: text("description"),
   ownerId: uuid("owner_id").notNull().references(() => users.id),
+  agentPaused: jsonb("agent_paused").default(false), // Project-level "Pause All Agents" control
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -62,12 +63,16 @@ export const tasks = pgTable("tasks", {
   boardId: uuid("board_id").notNull().references(() => boards.id),
   title: text("title").notNull(),
   bodyMd: text("body_md"),
-  status: text("status").notNull().default("todo"), // todo|in_progress|blocked|done|paused
+  status: text("status").notNull().default("todo"), // todo|in_progress|qa|done|paused (removed blocked as status)
   stage: text("stage").notNull().default("kickoff"), // kickoff|spec|design|dev|qa|done
   priority: integer("priority").default(0),
   metadata: jsonb("metadata").default({}),
   assignedActorType: text("assigned_actor_type"), // agent|human
   assignedAgentId: uuid("assigned_agent_id").references(() => agents.id),
+  // New fields for UI/UX design requirements
+  isBlocked: jsonb("is_blocked").default(false), // Blocked is now a boolean flag, not a status
+  qaRequired: jsonb("qa_required").default(false), // Controls whether task flows through QA column
+  agentReady: jsonb("agent_ready").default(false), // Card-level control for agent auto-start
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -207,6 +212,27 @@ export const requirementsHistory = pgTable("requirements_history", {
   changedAt: timestamp("changed_at").defaultNow().notNull()
 });
 
+// Chat Channel table (for project/board/task chat)
+export const chatChannels = pgTable("chat_channels", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  scopeType: text("scope_type").notNull(), // project|board|task
+  scopeId: uuid("scope_id").notNull(), // FK to project/board/task depending on scopeType
+  name: text("name"),
+  topic: text("topic"),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+// Chat Message table
+export const chatMessages = pgTable("chat_messages", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  channelId: uuid("channel_id").notNull().references(() => chatChannels.id),
+  parentMessageId: uuid("parent_message_id"), // For threading
+  author: text("author").notNull(), // human|agent|system
+  contentMd: text("content_md").notNull(),
+  mentions: jsonb("mentions").default([]), // [{type:"agent|user|role", id, label}]
+  at: timestamp("at").defaultNow().notNull()
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
@@ -338,5 +364,20 @@ export const sourceRefsRelations = relations(sourceRefs, ({ one }) => ({
   repository: one(repositories, {
     fields: [sourceRefs.repositoryId],
     references: [repositories.id]
+  })
+}));
+
+export const chatChannelsRelations = relations(chatChannels, ({ many }) => ({
+  messages: many(chatMessages)
+}));
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  channel: one(chatChannels, {
+    fields: [chatMessages.channelId],
+    references: [chatChannels.id]
+  }),
+  parentMessage: one(chatMessages, {
+    fields: [chatMessages.parentMessageId],
+    references: [chatMessages.id]
   })
 }));
