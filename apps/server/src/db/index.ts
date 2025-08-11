@@ -14,6 +14,10 @@ if (!process.env.DATABASE_URL) {
     const client = new PGlite("./pgdata");
     dbAny = drizzlePgLite(client);
     console.log("DB: Using PGlite (local dev) with persistence at ./pgdata");
+    // Auto-apply migrations for PGlite in dev
+    const { migrate } = await import("drizzle-orm/pglite/migrator");
+    await migrate(dbAny, { migrationsFolder: "./src/db/migrations" });
+    console.log("DB: Migrations applied (PGlite)");
   } catch {
     throw new Error("PGlite not available and DATABASE_URL not set. Set DATABASE_URL or add pglite.");
   }
@@ -21,6 +25,14 @@ if (!process.env.DATABASE_URL) {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   dbAny = drizzlePg(pool);
   console.log("DB: Using Postgres via DATABASE_URL");
+  // Optionally run migrations for Postgres too
+  try {
+    const { migrate } = await import("drizzle-orm/node-postgres/migrator");
+    await migrate(dbAny, { migrationsFolder: "./src/db/migrations" });
+    console.log("DB: Migrations applied (Postgres)");
+  } catch (err) {
+    console.warn("DB: Skipped applying migrations for Postgres:", err);
+  }
 }
 
 export const db = dbAny;
