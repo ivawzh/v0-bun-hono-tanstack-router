@@ -40,11 +40,11 @@ export const projectsRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found");
       }
-      
+
       return project[0];
     }),
 
@@ -96,11 +96,11 @@ export const projectsRouter = o.router({
           )
         )
         .returning();
-      
+
       if (updated.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
-      
+
       return updated[0];
     }),
 
@@ -120,7 +120,7 @@ export const projectsRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
@@ -131,20 +131,20 @@ export const projectsRouter = o.router({
         .select({ id: boards.id })
         .from(boards)
         .where(eq(boards.projectId, input.id));
-      
+
       for (const board of projectBoards) {
         await db.delete(tasks).where(eq(tasks.boardId, board.id));
       }
-      
+
       // Delete boards
       await db.delete(boards).where(eq(boards.projectId, input.id));
-      
+
       // Delete repositories
       await db.delete(repositories).where(eq(repositories.projectId, input.id));
-      
+
       // Finally delete the project
       await db.delete(projects).where(eq(projects.id, input.id));
-      
+
       return { success: true };
     }),
 
@@ -163,22 +163,22 @@ export const projectsRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found");
       }
-      
+
       // Get counts
       const boardCount = await db
         .select()
         .from(boards)
         .where(eq(boards.projectId, input.id));
-      
+
       const repoCount = await db
         .select()
         .from(repositories)
         .where(eq(repositories.projectId, input.id));
-      
+
       // Get task counts by status
       const taskStats = await db
         .select({
@@ -188,7 +188,7 @@ export const projectsRouter = o.router({
         .from(tasks)
         .innerJoin(boards, eq(tasks.boardId, boards.id))
         .where(eq(boards.projectId, input.id));
-      
+
       return {
         ...project[0],
         stats: {

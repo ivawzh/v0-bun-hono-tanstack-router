@@ -27,6 +27,7 @@
         "zod": "^4.0.2",
       },
       "devDependencies": {
+        "@drepkovsky/drizzle-migrations": "github:drepkovsky/drizzle-migrations",
         "@types/bun": "^1.2.6",
         "@types/pg": "^8.11.11",
         "drizzle-kit": "^0.31.2",
@@ -69,7 +70,6 @@
         "tailwind-merge": "^3.3.1",
         "tw-animate-css": "^1.2.5",
         "vite-plugin-pwa": "^1.0.1",
-        "zod": "^4.0.2",
       },
       "devDependencies": {
         "@playwright/test": "^1.46.1",
@@ -302,6 +302,8 @@
     "@better-fetch/fetch": ["@better-fetch/fetch@1.1.18", "", {}, "sha512-rEFOE1MYIsBmoMJtQbl32PGHHXuG2hDxvEd7rUHE0vCBoFQVSDqaVs9hkZEtHCxRoY+CljXKFCOuJ8uxqw1LcA=="],
 
     "@canvas/image-data": ["@canvas/image-data@1.0.0", "", {}, "sha512-BxOqI5LgsIQP1odU5KMwV9yoijleOPzHL18/YvNqF9KFSGF2K/DLlYAbDQsWqd/1nbaFuSkYD/191dpMtNh4vw=="],
+
+    "@drepkovsky/drizzle-migrations": ["drizzle-migrations@github:drepkovsky/drizzle-migrations#007867b", {}, "drepkovsky-drizzle-migrations-007867b"],
 
     "@drizzle-team/brocli": ["@drizzle-team/brocli@0.10.2", "", {}, "sha512-z33Il7l5dKjUgGULTqBsQBQwckHh5AbIuxhdsIxDDiZAzBOrZO6q9ogcWC65kU382AfynTfgNumVcNIjuIua6w=="],
 

@@ -211,9 +211,9 @@ Requirements:
 ### Database Options
 
 **Development (Default)**:
-- Uses PGlite (embedded PostgreSQL in WASM)
-- No configuration needed
-- Data stored locally in browser
+- Uses PGlite (embedded PostgreSQL) by default for the API server
+- No external database needed
+- Data persisted locally under `apps/server/pgdata`
 
 **Production**:
 - Set `DATABASE_URL` in environment variables
@@ -351,7 +351,43 @@ bun db:push          # Push schema to database
 bun db:studio        # Open Drizzle Studio
 bun db:generate      # Generate migrations
 bun db:migrate       # Run migrations
+
+# Drizzle Migrations (with rollback support)
+bun run --filter server migrations:generate   # Generate a migration (name defaults to "init")
+bun run --filter server migrations:up         # Apply pending migrations
+bun run --filter server migrations:down       # Roll back last batch
+bun run --filter server migrations:status     # Show migration status
+bun run --filter server migrations:refresh    # Roll back all and re-apply
+bun run --filter server migrations:fresh      # Drop all and re-run from zero
+bun run --filter server seed:create           # Create a seeder file
+bun run --filter server seed:run              # Run seeders
 ```
+
+### Migrations Setup & Usage
+
+We use `@drepkovsky/drizzle-migrations` to add up/down rollback support on top of Drizzle.
+
+1. Configure environment
+   - For Postgres: set `DATABASE_URL` in `apps/server/.env`.
+   - For local dev with PGlite, you can still develop without a database; the API auto-applies SQL migrations on startup. To run the CLI migrator, a real `DATABASE_URL` is required.
+
+2. Generate SQL from schema
+   - Edit schema in `apps/server/src/db/schema/`
+   - Run: `bun run --filter server db:generate`
+
+3. Commit the generated SQL
+   - Files are written to `apps/server/src/db/migrations/`
+
+4. Apply or roll back migrations (requires Postgres `DATABASE_URL`)
+   - Up: `bun run --filter server migrations:up`
+   - Down (last batch): `bun run --filter server migrations:down`
+   - Status: `bun run --filter server migrations:status`
+
+5. Auto-apply on startup (dev)
+   - The server auto-applies SQL migrations at startup when using PGlite. This keeps dev flows simple while still producing portable SQL for production.
+
+References:
+- Drizzle migrations tool: [drepkovsky/drizzle-migrations](https://github.com/drepkovsky/drizzle-migrations)
 
 ## 🚢 Deployment
 

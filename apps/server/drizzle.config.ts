@@ -1,4 +1,5 @@
-import { defineConfig } from "drizzle-kit";
+// @ts-nocheck
+import { defineConfig } from "@drepkovsky/drizzle-migrations";
 
 // Use PGlite filesystem path in dev if DATABASE_URL is missing
 const usePGlite = !process.env.DATABASE_URL;
@@ -10,4 +11,10 @@ export default defineConfig({
   dbCredentials: usePGlite
     ? { url: "file:./pgdata/dev.sqlite" }
     : { url: process.env.DATABASE_URL as string },
+  migrations: {
+    schema: "public",
+    table: "drizzle_migrations",
+  },
+  // getMigrator can be defined by the tool internally for Postgres
+  seed: { dirPath: "./src/db/seeders", defaultSeeder: "db-seeder" },
 });
