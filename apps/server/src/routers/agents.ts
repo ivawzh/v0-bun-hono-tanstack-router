@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { db } from "../db";
 import { agents, agentSessions, agentActions, tasks, boards, projects } from "../db/schema/core";
 import { eq, and, desc } from "drizzle-orm";
+import { notifyClaudeCodeAboutTask } from "../gateway/websocket-handler";
 
 export const agentsRouter = o.router({
   initializeDefaults: protectedProcedure
@@ -201,22 +202,34 @@ export const agentsRouter = o.router({
       });
 
       // Notify WebSocket clients if available
-      if ((global as any).agentWsServer) {
-        const wsServer = (global as any).agentWsServer;
-        const fullTask = task[0];
-        
-        // Notify Claude Code UI if project has Claude project ID
-        if (fullTask.project.claudeProjectId) {
-          wsServer.notifyClaudeProject(fullTask.project.claudeProjectId, {
-            id: fullTask.task.id,
-            title: fullTask.task.title,
-            description: fullTask.task.bodyMd,
-            localRepoPath: fullTask.project.localRepoPath,
-            sessionId: session[0].id,
-            projectName: fullTask.project.name,
-            claudeProjectId: fullTask.project.claudeProjectId
-          });
-        }
+      console.log('[Agent Router] Notifying Claude Code UI about task...');
+      const fullTask = task[0];
+      
+      // Log task details for debugging
+      console.log('[Agent Router] Task details:', {
+        taskId: fullTask.task.id,
+        title: fullTask.task.title,
+        projectName: fullTask.project.name,
+        claudeProjectId: fullTask.project.claudeProjectId,
+        localRepoPath: fullTask.project.localRepoPath
+      });
+      
+      // Notify Claude Code UI about the task
+      try {
+        notifyClaudeCodeAboutTask({
+          id: fullTask.task.id,
+          title: fullTask.task.title,
+          description: fullTask.task.bodyMd,
+          localRepoPath: fullTask.project.localRepoPath,
+          sessionId: session[0].id,
+          projectName: fullTask.project.name,
+          claudeProjectId: fullTask.project.claudeProjectId,
+          priority: fullTask.task.priority,
+          stage: fullTask.task.stage
+        });
+        console.log('[Agent Router] Notification sent successfully');
+      } catch (error) {
+        console.error('[Agent Router] Error sending notification:', error);
       }
 
       return session[0];
@@ -240,6 +253,14 @@ export const agentsRouter = o.router({
       if (updated.length === 0) {
         throw new Error("Session not found");
       }
+
+      // Clear activeSessionId from task when pausing
+      await db
+        .update(tasks)
+        .set({
+          activeSessionId: null
+        })
+        .where(eq(tasks.activeSessionId, input.sessionId));
 
       // Log action
       await db.insert(agentActions).values({

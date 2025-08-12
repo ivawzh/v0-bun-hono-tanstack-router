@@ -95,6 +95,10 @@ export const websocketHandler = {
 async function handleAuth(ws: any, client: WSClient, data: any) {
   // Verify agent auth token
   const expectedToken = process.env.AGENT_AUTH_TOKEN || 'dev-token';
+  
+  console.log('[WS] Auth attempt with token:', data.token ? 'provided' : 'missing');
+  console.log('[WS] Expected token:', expectedToken ? 'configured' : 'using default');
+  
   if (data.token !== expectedToken) {
     ws.send(JSON.stringify({
       type: 'auth_failed',
@@ -105,6 +109,12 @@ async function handleAuth(ws: any, client: WSClient, data: any) {
 
   client.authenticated = true;
   client.agentId = data.agentId;
+
+  // Store this as a Claude Code client if it identifies as such
+  if (data.agentId === 'claude-code') {
+    claudeClients.set('claude-code-default', ws);
+    console.log('[WS] Claude Code UI connected and registered');
+  }
 
   ws.send(JSON.stringify({
     type: 'auth_success',
@@ -324,5 +334,35 @@ export function notifyClaudeProject(claudeProjectId: string, task: any) {
       type: 'new_task',
       task
     }));
+  }
+}
+
+// Method to notify Claude Code UI when a task is started
+export function notifyClaudeCodeAboutTask(task: any) {
+  console.log('[WS] Notifying Claude Code about task:', task.title);
+  
+  // Try project-specific client first
+  if (task.claudeProjectId) {
+    const projectWs = claudeClients.get(task.claudeProjectId);
+    if (projectWs) {
+      console.log('[WS] Sending to project-specific Claude Code:', task.claudeProjectId);
+      projectWs.send(JSON.stringify({
+        type: 'new_task',
+        task
+      }));
+      return;
+    }
+  }
+  
+  // Try default Claude Code client
+  const defaultWs = claudeClients.get('claude-code-default');
+  if (defaultWs) {
+    console.log('[WS] Sending to default Claude Code client');
+    defaultWs.send(JSON.stringify({
+      type: 'new_task',
+      task
+    }));
+  } else {
+    console.log('[WS] No Claude Code client connected to receive task notification');
   }
 }
