@@ -1,8 +1,8 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { agents, agentSessions, agentActions, tasks, boards, projects } from "../db/schema/core";
-import { eq, and, desc } from "drizzle-orm";
+import { agents, agentSessions, agentActions, tasks, boards, projects, agentIncidents } from "../db/schema/core";
+import { eq, and, desc, isNull } from "drizzle-orm";
 import { notifyClaudeCodeAboutTask } from "../gateway/websocket-handler";
 
 export const agentsRouter = o.router({
@@ -175,6 +175,15 @@ export const agentsRouter = o.router({
         }
       }
 
+      // Enforce single active session for this agent
+      const activeExisting = await db
+        .select()
+        .from(agentSessions)
+        .where(and(eq(agentSessions.agentId, agentId!), isNull(agentSessions.endedAt)));
+      if (activeExisting.length > 0) {
+        throw new Error("Agent is busy with another session. Only one active session allowed.");
+      }
+
       // Create session
       const session = await db
         .insert(agentSessions)
@@ -233,6 +242,38 @@ export const agentsRouter = o.router({
       }
 
       return session[0];
+    }),
+
+  // Log an agent incident (rate limit or other error)
+  logIncident: protectedProcedure
+    .input(v.object({
+      agentId: v.pipe(v.string(), v.uuid()),
+      type: v.picklist(["rate_limit", "error"]),
+      message: v.optional(v.string()),
+      providerHint: v.optional(v.string()),
+      inferredResetAt: v.optional(v.date()),
+      nextRetryAt: v.optional(v.date())
+    }))
+    .handler(async ({ input }) => {
+      const [incident] = await db.insert(agentIncidents).values({
+        agentId: input.agentId,
+        type: input.type,
+        message: input.message,
+        providerHint: input.providerHint,
+        inferredResetAt: input.inferredResetAt,
+        nextRetryAt: input.nextRetryAt
+      }).returning();
+
+      // Update agent state and next retry info
+      await db.update(agents)
+        .set({
+          state: input.type === "rate_limit" ? "rate_limited" : "error",
+          nextRetryAt: input.nextRetryAt ?? input.inferredResetAt ?? null,
+          lastIncidentAt: new Date()
+        })
+        .where(eq(agents.id, input.agentId));
+
+      return incident;
     }),
 
   pauseSession: protectedProcedure

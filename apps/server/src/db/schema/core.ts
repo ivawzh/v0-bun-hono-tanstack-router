@@ -56,6 +56,10 @@ export const agents = pgTable("agents", {
   modelProvider: text("model_provider").default("openai"), // openai|openrouter|anthropic|etc
   modelName: text("model_name").default("gpt-4"), // specific model to use
   modelConfig: jsonb("model_config").default({}), // temperature, max_tokens, etc
+  // Agent health/state
+  state: text("state").notNull().default("idle"), // idle|starting|running|paused|rate_limited|error
+  nextRetryAt: timestamp("next_retry_at"),
+  lastIncidentAt: timestamp("last_incident_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -174,6 +178,21 @@ export const agentActions = pgTable("agent_actions", {
   type: text("type").notNull(), // plan|tool_call|code_edit|commit|test|comment
   payload: jsonb("payload").default({}),
   at: timestamp("at").defaultNow().notNull()
+});
+
+// Agent incident log for rate limits and other errors
+export const agentIncidents = pgTable("agent_incidents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  agentId: uuid("agent_id").notNull().references(() => agents.id),
+  type: text("type").notNull(), // rate_limit|error
+  message: text("message"),
+  providerHint: text("provider_hint"), // raw message from provider if any
+  occurredAt: timestamp("occurred_at").defaultNow().notNull(),
+  inferredResetAt: timestamp("inferred_reset_at"),
+  nextRetryAt: timestamp("next_retry_at"),
+  resolvedAt: timestamp("resolved_at"),
+  resolution: text("resolution"), // auto_retry_success|manual_retry_success|canceled
+  metadata: jsonb("metadata").default({})
 });
 
 // Source Reference table
