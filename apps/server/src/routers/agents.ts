@@ -184,12 +184,40 @@ export const agentsRouter = o.router({
         })
         .returning();
 
+      // Update task status to in_progress and set activeSessionId
+      await db
+        .update(tasks)
+        .set({
+          status: "in_progress",
+          activeSessionId: session[0].id
+        })
+        .where(eq(tasks.id, input.taskId));
+
       // Log action
       await db.insert(agentActions).values({
         sessionId: session[0].id,
         type: "plan",
         payload: { action: "session_started" }
       });
+
+      // Notify WebSocket clients if available
+      if ((global as any).agentWsServer) {
+        const wsServer = (global as any).agentWsServer;
+        const fullTask = task[0];
+        
+        // Notify Claude Code UI if project has Claude project ID
+        if (fullTask.project.claudeProjectId) {
+          wsServer.notifyClaudeProject(fullTask.project.claudeProjectId, {
+            id: fullTask.task.id,
+            title: fullTask.task.title,
+            description: fullTask.task.bodyMd,
+            localRepoPath: fullTask.project.localRepoPath,
+            sessionId: session[0].id,
+            projectName: fullTask.project.name,
+            claudeProjectId: fullTask.project.claudeProjectId
+          });
+        }
+      }
 
       return session[0];
     }),

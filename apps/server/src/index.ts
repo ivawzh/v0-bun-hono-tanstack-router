@@ -12,6 +12,7 @@ import { agentGateway } from "./gateway/agent-gateway";
 import { mcpServer } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { websocketHandler } from "./gateway/websocket-handler";
+import { AgentWebSocketServer } from "./gateway/websocket-server";
 
 const app = new Hono();
 

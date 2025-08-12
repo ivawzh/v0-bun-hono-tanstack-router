@@ -76,6 +76,7 @@ export const tasks = pgTable("tasks", {
   isBlocked: jsonb("is_blocked").default(false), // Blocked is now a boolean flag, not a status
   qaRequired: jsonb("qa_required").default(false), // Controls whether task flows through QA column
   agentReady: jsonb("agent_ready").default(false), // Card-level control for agent auto-start
+  activeSessionId: uuid("active_session_id"), // Track current active agent session (FK added in migration)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -276,6 +277,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   assignedAgent: one(agents, {
     fields: [tasks.assignedAgentId],
     references: [agents.id]
+  }),
+  activeSession: one(agentSessions, {
+    fields: [tasks.activeSessionId],
+    references: [agentSessions.id]
   }),
   events: many(taskEvents),
   artifacts: many(taskArtifacts),
