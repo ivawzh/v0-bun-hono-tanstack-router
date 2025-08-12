@@ -17,6 +17,9 @@ export const projects = pgTable("projects", {
   description: text("description"),
   ownerId: uuid("owner_id").notNull().references(() => users.id),
   agentPaused: jsonb("agent_paused").default(false), // Project-level "Pause All Agents" control
+  // Claude Code integration
+  localRepoPath: text("local_repo_path"), // Path to local git repository
+  claudeProjectId: text("claude_project_id"), // Claude Code project ID for linking
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

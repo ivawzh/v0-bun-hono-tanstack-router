@@ -10,10 +10,14 @@ Build a web-based, agent-tasked workflow app with a Trello-inspired Kanban GUI f
 
 ## Principles
 
-- Think small: ignore performance, cost, and scalability at MVP
+- Think small: ignore performance, cost, and scalability at MVP. Aim for simplicity and ease of use with day-0 mindset.
 - Single-user only (you)
 - Local-first: primary usage from your environment; mobile browser occasionally
-- Day-1 Auth: every endpoint/operation must pass through Monster Auth guard
+- Auth: every endpoint/operation must pass through Monster Auth guard even though it's not yet perfect or implemented
+- Access control: every S3 bucket or similar cloud storage must have at least a basic access control policy
+- **Git Pull Rebase Strategy**: Minimize modifications to maintain compatibility with upstream updates via `git pull --rebase`. Keep customizations in separate files/folders when possible to avoid merge conflicts.
+- **Reactive UXUI**: Upon user interaction, implement real-time UI updates either by invalidating all queries or via WebSocket connections for immediate feedback and responsive user experience.
+- **Default Best Config**: Provide optimal default settings and configurations out-of-the-box, while allowing users to customize via UI, API, or environment variables. Assume sensible defaults for common use cases.
 - Tech stack (aligned with this repo):
   - Web: React + TanStack Router (apps/web)
   - UI: TailwindCSS + shadcn/ui component library
@@ -29,7 +33,7 @@ Build a web-based, agent-tasked workflow app with a Trello-inspired Kanban GUI f
 
 - Prefer jsonb for flexible fields (`metadata`, `payload`, `config`, etc.)
 - Minimize up-front normalization; evolve schema later as patterns stabilize
-- Local dev DB: PGlite (embedded Postgres/WASM) to avoid external setup
+- Local dev DB: Local PostgreSQL (using pg-god for management)
 - Production DB: Supabase PostgreSQL; seamless migration when ready
 - Index selectively and defer advanced indexing
 - Keep migrations small and reversible; refactor-friendly
@@ -73,6 +77,10 @@ Comprehensive task management with tabs:
 - **Per-Task**: Auto-Start toggle, Start/Pause Agent, Ask Human
 - **Project-Level**: "Pause All Agents" suspends all agent activity
 - **Session Linking**: Direct links to Claude Code sessions for active tasks
+- **Claude Code Integration**:
+  - Projects configure local repo path and Claude project ID
+  - Tasks automatically dispatched to Claude Code UI
+  - Real-time WebSocket communication for task status
 
 ## In-Scope (MVP)
 
@@ -87,6 +95,10 @@ Comprehensive task management with tabs:
   - Start/pause agent sessions with Claude Code integration
   - Agent auto-start on stage triggers (configurable per task)
   - Project-wide agent pause controls
+  - Claude Code UI integration via git submodule
+  - WebSocket server for real-time agent communication
+  - Claude Code hooks for task pickup and completion
+  - Project-level configuration for local repo path and Claude project ID
 - **Collaboration Features**:
   - Task-scoped comments with voice input (OpenAI Audio API)
   - Agent questions that block workflow until human answers
@@ -122,7 +134,10 @@ Key changes from UI/UX requirements:
 
 ### Project Model Updates
 
-- **New Field**: `agent_paused boolean default false` (project-level Pause All)
+- **New Fields**:
+  - `agent_paused boolean default false` (project-level Pause All)
+  - `local_repo_path text` (path to local git repository)
+  - `claude_project_id text` (Claude Code project ID for linking)
 
 ### Agent Pool and Rate Limits
 
@@ -263,11 +278,16 @@ Unchanged from previous requirements - using Monster Auth service with Google OA
 
 ## Deployment
 
-- **Development**: PGlite (no external DB required)
+- **Development**: Local PostgreSQL (managed via pg-god)
 - **Production**: Supabase PostgreSQL + Storage
 - **Hosting**: Vercel (app + server functions)
-- **Agent Runner**: Windows service with gateway connection
-- **Environment**: Supabase credentials, Monster Auth config, webhook secrets
+- **Agent Runner**: Local Claude Code via Claude Code UI
+- **Claude Code UI**: Integrated as git submodule at `/apps/claudecode-ui`
+- **Environment**:
+  - Database credentials
+  - Monster Auth config
+  - Solo Unicorn WebSocket URL for Claude Code UI
+  - Agent authentication tokens
 
 ## Acceptance Criteria (MVP)
 
@@ -305,9 +325,11 @@ Unchanged from previous requirements - using Monster Auth service with Google OA
 
 - ✅ All routes protected by Monster Auth
 - ✅ MCP servers for agent context and card manipulation
-- ✅ Local development with PGlite
+- ✅ Local development with PostgreSQL
 - ✅ Production deployment to Vercel + Supabase
-- ✅ Windows agent runner integration
+- ✅ Claude Code UI integration with WebSocket communication
+- ✅ Project-level configuration for local repositories
+- ✅ Claude Code hooks for automated task workflow
 
 ## Implementation Priority
 
@@ -340,3 +362,65 @@ Unchanged from previous requirements - using Monster Auth service with Google OA
 4. Performance and UX refinements
 
 This updated requirements document aligns with the detailed UI/UX wireframes and incorporates all the decisions from your open questions. The focus is now on delivering a polished, Trello-inspired experience with deep agent integration and comprehensive task management capabilities.
+
+## Claude Code Integration Setup
+
+### Prerequisites
+
+1. Local PostgreSQL database (installed via pg-god)
+2. Claude Code CLI installed globally
+3. Node.js/Bun runtime for servers
+
+### Setup Instructions
+
+1. **Initialize Database**:
+   ```bash
+   npm run db:create:dev
+   npm run db:push:dev
+   ```
+
+2. **Configure Claude Code UI**:
+   ```bash
+   cd apps/claudecode-ui
+   cp .env.example .env
+   # Edit .env to set SOLO_UNICORN_URL=ws://localhost:8500/ws/agent
+   npm install
+   npm run dev
+   ```
+
+3. **Start Solo Unicorn Server**:
+   ```bash
+   cd apps/server
+   npm run dev
+   ```
+
+4. **Configure Project Integration**:
+   - Navigate to Projects page in Solo Unicorn
+   - Click settings icon on a project
+   - Enter local repository path (e.g., `/home/user/my-repo`)
+   - Enter Claude project ID (from Claude Code)
+   - Save settings
+
+5. **Task Workflow**:
+   - Create task and assign to "Local Claude Code" agent
+   - Click "Start Task" to dispatch to Claude Code
+   - Claude Code UI automatically picks up the task
+   - Task status updates in real-time via WebSocket
+
+### Claude Settings
+
+Custom settings and hooks are provided in `/apps/claude-settings/`:
+- `task-pickup.sh`: Creates feature branch and task context
+- `task-complete.sh`: Cleans up and notifies completion
+- `claude-hooks.json`: Configuration for Claude Code hooks
+- Configure by setting `CLAUDE_HOOKS_DIR` environment variable pointing to `/apps/claude-settings/`
+
+### Development Workflow
+
+1. Solo Unicorn creates and manages tasks
+2. Tasks with configured projects auto-dispatch to Claude Code
+3. Claude Code works in local repository
+4. Progress updates stream back to Solo Unicorn
+5. Completed tasks automatically update status
+
+This integration enables seamless task management with local development using Claude Code as the AI agent executor.

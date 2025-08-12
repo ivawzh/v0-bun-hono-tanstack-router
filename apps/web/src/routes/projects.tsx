@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { ProjectSettingsButton } from "@/components/project-settings";
 
 export const Route = createFileRoute("/projects")({
   component: ProjectsPage,
@@ -120,6 +121,7 @@ function ProjectsPage() {
                     <FolderOpen className="h-5 w-5 text-muted-foreground" />
                     <CardTitle>{project.name}</CardTitle>
                   </div>
+                  <ProjectSettingsButton project={project} />
                 </div>
                 {project.description && (
                   <CardDescription>{project.description}</CardDescription>

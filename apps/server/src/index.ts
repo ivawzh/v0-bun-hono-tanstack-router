@@ -11,6 +11,7 @@ import { stream } from "hono/streaming";
 import { agentGateway } from "./gateway/agent-gateway";
 import { mcpServer } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
+import { websocketHandler } from "./gateway/websocket-handler";
 
 const app = new Hono();
 
@@ -69,5 +70,20 @@ const port = process.env.PORT || 8500;
 
 export default {
   port,
-  fetch: app.fetch,
+  fetch: async (request: Request, server: any) => {
+    // Check if this is a WebSocket upgrade request
+    if (request.headers.get("upgrade") === "websocket") {
+      const url = new URL(request.url);
+      if (url.pathname === "/ws/agent") {
+        // Upgrade to WebSocket
+        const success = server.upgrade(request, {
+          data: { path: "/ws/agent" }
+        });
+        return success ? undefined : new Response("WebSocket upgrade failed", { status: 400 });
+      }
+    }
+    // Otherwise handle as normal HTTP request
+    return app.fetch(request, server);
+  },
+  websocket: websocketHandler,
 };

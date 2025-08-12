@@ -5,6 +5,78 @@ import { agents, agentSessions, agentActions, tasks, boards, projects } from "..
 import { eq, and, desc } from "drizzle-orm";
 
 export const agentsRouter = o.router({
+  initializeDefaults: protectedProcedure
+    .input(v.optional(v.object({})))
+    .handler(async ({ context }) => {
+      // Create default agents if they don't exist
+      const defaultAgents = [
+        {
+          name: "Day-0 Business Owner",
+          role: "PM",
+          character: "Visionary entrepreneur focused on market validation and business strategy. Thinks big picture, prioritizes customer value, and makes decisive product decisions. Always considers ROI and business impact.",
+          runtime: "windows-runner",
+          modelProvider: "claude-code",
+          modelName: "claude-3-5-sonnet-20241022"
+        },
+        {
+          name: "Day-0 Product Manager",
+          role: "PM", 
+          character: "Analytical product strategist who bridges business needs with technical implementation. Expert at writing clear requirements, managing stakeholder expectations, and driving feature prioritization through data-driven decisions.",
+          runtime: "windows-runner",
+          modelProvider: "claude-code",
+          modelName: "claude-3-5-sonnet-20241022"
+        },
+        {
+          name: "Day-0 UX Designer",
+          role: "Designer",
+          character: "User-centered designer passionate about creating intuitive experiences. Thinks in user journeys, wireframes, and accessibility. Advocates for simplicity and usability while balancing business constraints.",
+          runtime: "windows-runner", 
+          modelProvider: "claude-code",
+          modelName: "claude-3-5-sonnet-20241022"
+        },
+        {
+          name: "Day-0 Developer",
+          role: "Engineer",
+          character: "Pragmatic full-stack engineer who delivers working solutions quickly. Focuses on clean, maintainable code and follows established patterns. Prefers proven technologies and iterative development.",
+          runtime: "windows-runner",
+          modelProvider: "claude-code", 
+          modelName: "claude-3-5-sonnet-20241022"
+        },
+        {
+          name: "Day-0 QA Engineer",
+          role: "QA",
+          character: "Detail-oriented quality advocate who thinks like an end user. Expert at edge case discovery, test automation, and ensuring reliable user experiences. Balances thoroughness with delivery speed.",
+          runtime: "windows-runner",
+          modelProvider: "claude-code",
+          modelName: "claude-3-5-sonnet-20241022"
+        }
+      ];
+
+      const createdAgents = [];
+      for (const agentData of defaultAgents) {
+        // Check if agent with this name already exists
+        const existing = await db
+          .select()
+          .from(agents)
+          .where(eq(agents.name, agentData.name))
+          .limit(1);
+
+        if (existing.length === 0) {
+          const newAgent = await db
+            .insert(agents)
+            .values({
+              ...agentData,
+              config: {}
+            })
+            .returning();
+          
+          createdAgents.push(newAgent[0]);
+        }
+      }
+
+      return { created: createdAgents, message: `Initialized ${createdAgents.length} default agents` };
+    }),
+
   list: protectedProcedure
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
@@ -22,8 +94,8 @@ export const agentsRouter = o.router({
       role: v.picklist(["PM", "Designer", "Architect", "Engineer", "QA"]),
       character: v.optional(v.string()),
       runtime: v.picklist(["windows-runner", "cloud"]),
-      modelProvider: v.optional(v.string(), "openai"),
-      modelName: v.optional(v.string(), "gpt-4"),
+      modelProvider: v.optional(v.string(), "claude-code"),
+      modelName: v.optional(v.string(), "claude-3-5-sonnet-20241022"),
       modelConfig: v.optional(v.record(v.string(), v.any()))
     }))
     .handler(async ({ context, input }) => {
@@ -86,12 +158,12 @@ export const agentsRouter = o.router({
           const newAgent = await db
             .insert(agents)
             .values({
-              name: "Default Engineer",
+              name: "Local Claude Code",
               role: "Engineer",
-              character: "Helpful and thorough software engineer",
-              runtime: "cloud",
-              modelProvider: "openai",
-              modelName: "gpt-4",
+              character: "Expert software engineer with access to local development environment via Claude Code",
+              runtime: "windows-runner",
+              modelProvider: "claude-code",
+              modelName: "claude-3-5-sonnet-20241022",
               config: {}
             })
             .returning();

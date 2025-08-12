@@ -6,7 +6,7 @@
     "build": "tsdown",
     "check-types": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
-    "dev": "bun run --hot src/index.ts",
+    "dev": "bun --hot run src/index.ts",
     "start": "bun run dist/index.js",
     "db:create:dev": "pg-god db-create --databaseName=solo_unicorn_dev --userName=$USER",
     "db:create:test": "pg-god db-create --databaseName=solo_unicorn_test --userName=$USER",

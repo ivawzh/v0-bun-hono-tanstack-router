@@ -106,6 +106,37 @@ export const projectsRouter = o.router({
       return updated[0];
     }),
 
+  updateIntegration: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      localRepoPath: v.nullable(v.string()),
+      claudeProjectId: v.nullable(v.string())
+    }))
+    .handler(async ({ context, input }) => {
+      const updates: any = { 
+        updatedAt: new Date(),
+        localRepoPath: input.localRepoPath,
+        claudeProjectId: input.claudeProjectId
+      };
+      
+      const updated = await db
+        .update(projects)
+        .set(updates)
+        .where(
+          and(
+            eq(projects.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .returning();
+
+      if (updated.length === 0) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      return updated[0];
+    }),
+
   delete: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())

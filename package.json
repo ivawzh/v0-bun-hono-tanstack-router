@@ -6,21 +6,21 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter '*' dev",
-    "build": "bun run --filter '*' build",
-    "check-types": "bun run --filter '*' check-types",
+    "dev": "bun run --elide-lines 0 --filter '*' dev",
+    "build": "bun run --elide-lines 0 --filter '*' build",
+    "check-types": "bun run --elide-lines 0 --filter '*' check-types",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:headed": "playwright test --headed",
     "test:install": "playwright install",
-    "dev:native": "bun run --filter native dev",
-    "dev:web": "bun run --filter web dev",
-    "dev:server": "bun run --filter server dev",
-    "db:push": "bun run --filter server db:push",
-    "db:studio": "bun run --filter server db:studio",
-    "db:generate": "bun run --filter server db:generate",
-    "db:migrate": "bun run --filter server db:migrate"
+    "dev:native": "bun run --elide-lines 0 --filter native dev",
+    "dev:web": "bun run --elide-lines 0 --filter web dev",
+    "dev:server": "bun run --elide-lines 0 --filter server dev",
+    "db:push": "bun run --elide-lines 0 --filter server db:push",
+    "db:studio": "bun run --elide-lines 0 --filter server db:studio",
+    "db:generate": "bun run --elide-lines 0 --filter server db:generate",
+    "db:migrate": "bun run --elide-lines 0 --filter server db:migrate"
   },
   "packageManager": "bun@1.2.11",
   "dependencies": {
