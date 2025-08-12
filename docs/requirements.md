@@ -142,9 +142,15 @@ Key changes from UI/UX requirements:
 
 ### Agent Pool and Rate Limits
 
-- Multiple `agent` rows represent the pool
-- Track budget in `agent.config.rate_limits` (jsonb): `{ hourly: {limit, used}, weekly: {limit, used} }`
-- UI shows "Agents: 2 online • Running 1" summary
+- Multiple `agent` rows represent the pool (single-user MVP may use one Claude Code agent)
+- Agent-centric Rate-Limit Controller (Claude Code):
+  - Enforce single active session (concurrency=1)
+  - Persist agent state: `idle|starting|running|paused|rate_limited|error`
+  - Record incidents in `agent_incidents` with fields: `agent_id`, `type=rate_limit|error`, `occurred_at`, `message`, `provider_hint`, `inferred_reset_at`, `next_retry_at`, `resolved_at`, `resolution`
+  - On rate limit, compute ETA if possible; otherwise backoff with jitter (e.g., 5/10/20/40m; cap 60m)
+  - Auto-resume by scheduled retries; log outcomes
+  - UI: header chip with countdown, card “Needs attention” badge, drawer banner (Retry/Snooze/Details)
+  - Prevent auto-move to Done on ambiguous/failed runs; allow human confirm/reopen
 
 ### Assignment History
 
@@ -261,6 +267,7 @@ Implementation:
   - Comment threading
   - Question raising/resolution
 - **Agent Sessions**: Start/stop, action streaming, Claude Code integration
+  - Add: `agents.logIncident` (server records rate-limit/error), `agents.getHealth` (returns current agent state, next retry, recent incidents)
 - **Chat**: Channel management, message posting, threading, mentions
 - **Notifications**: List, mark read, webhook configuration
 

@@ -42,6 +42,12 @@ Notes
 - QA column shows tasks where QA is required or currently in QA; other tasks may move from In Progress → Done directly
 - Per-card Auto-Start/Agent Paused: `Auto-Start` controls whether agents auto-start on stage triggers; `Agent Paused` indicates the card is paused for agents
 - Project-level "Pause All Agents" pauses all agent activity for this project
+- Agent-level rate limit UX (Agent-centric controller):
+  - Enforce single active Claude session (concurrency=1)
+  - When a rate limit occurs, show persistent banners in the task drawer and a yellow "Needs attention" badge on the card
+  - Display agent-level status in header chip with countdown to resume
+  - Provide actions: Retry now, Snooze (+15m or until reset), View details
+  - Record incidents for analytics (occurrence, inferred reset, retries)
 - Prioritization (MVP note): Use simple FIFO within `Todo` — cards are ordered manually; agents pick the top-most `Auto-Start`-enabled card first
 
 ### Task card (board tile)
@@ -94,6 +100,7 @@ ASCII (drawer)
 | Events | Questions                                                                                  |
 | - Assignment history (popover + entries): assigned/reassigned/unassigned with actor/time            |
 | - Status/stage changes, artifacts added, questions raised/resolved                                  |
+| - Agent incidents (rate limit/errors) with actions: Retry, Snooze, View details                     |
 +-----------------------------------------------------------------------------------------------------+
 ```
 
@@ -118,6 +125,12 @@ ASCII (drawer)
 - Agent readiness and pause
   - Per-card `agent_ready` flag governs auto-start behavior on triggers; manual Start/Pause always available
   - Project-level Pause All toggles a project `agent_paused` control to suspend agent sessions
+- Claude Code rate limits (Agent-centric controller)
+  - Agent state machine: `idle | starting | running | paused | rate_limited | error`
+  - Strict single-session: agent runs at most one coding session at a time
+  - On rate limit: set agent state to `rate_limited`, compute ETA if available, persist incident, and schedule retry
+  - UI surfaces: header chip (countdown), card badge “Needs attention: Rate limit”, drawer banner with actions
+  - No auto-move to Done on ambiguous completion; require verified success or human confirm
 - Kickoff guardrails (agent self-pause and questions)
   - During kickoff, the agent may self-pause and raise a question to the human; the card is automatically marked blocked until answered
   - Questions appear in the card’s Questions tab and project notifications; answering unblocks and resumes the agent if `agent_ready`
