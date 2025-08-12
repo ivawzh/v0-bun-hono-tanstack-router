@@ -12,9 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { 
-  Settings, FolderOpen, Code2, Info, HelpCircle, 
-  Loader2, CheckCircle, XCircle, AlertCircle 
+import {
+  Settings, FolderOpen, Code2, Info, HelpCircle,
+  Loader2, CheckCircle, XCircle, AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -52,7 +52,7 @@ export function ProjectSettings({
 }: ProjectSettingsProps) {
   const queryClient = useQueryClient();
   const folderInputRef = useRef<HTMLInputElement>(null);
-  
+
   const [localRepoPath, setLocalRepoPath] = useState(project.localRepoPath || "");
   const [claudeProjectId, setClaudeProjectId] = useState(project.claudeProjectId || "");
   const [isValidatingPath, setIsValidatingPath] = useState(false);
@@ -67,7 +67,7 @@ export function ProjectSettings({
   );
 
   // Generate suggested Claude Project ID from repo path
-  const suggestedProjectId = localRepoPath 
+  const suggestedProjectId = localRepoPath
     ? '-' + localRepoPath.replace(/^\//g, '').replace(/\//g, '-')
     : '';
 
@@ -79,7 +79,7 @@ export function ProjectSettings({
         try {
           const response = await orpc.claudeProjects.validate.mutate({ path: localRepoPath });
           setPathValidation(response);
-          
+
           // Auto-select Claude project if found
           if (response.inClaude && !claudeProjectId) {
             setClaudeProjectId(response.projectId);
@@ -90,35 +90,36 @@ export function ProjectSettings({
           setIsValidatingPath(false);
         }
       }, 500); // Debounce
-      
+
       return () => clearTimeout(timer);
     } else {
       setPathValidation(null);
     }
   }, [localRepoPath]);
 
-  // When a Claude project is selected from dropdown, auto-fill the path
+  // When a Claude project is selected from dropdown, set the path for display
   useEffect(() => {
     if (claudeProjectId && claudeProjects?.projects) {
       const selectedProject = claudeProjects.projects.find(p => p.id === claudeProjectId);
-      if (selectedProject && !localRepoPath) {
+      if (selectedProject) {
         setLocalRepoPath(selectedProject.path);
       }
     }
   }, [claudeProjectId, claudeProjects]);
 
-  const updateProject = useMutation({
-    mutationFn: orpc.projects.updateIntegration.mutate,
-    onSuccess: () => {
-      toast.success("Claude Code integration configured successfully");
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      onSuccess?.();
-      onOpenChange(false);
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update project: ${error.message}`);
-    },
-  });
+  const updateProject = useMutation(
+    orpc.projects.updateIntegration.mutationOptions({
+      onSuccess: () => {
+        toast.success("Claude Code integration configured successfully");
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        onSuccess?.();
+        onOpenChange(false);
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update project: ${error.message}`);
+      },
+    })
+  );
 
   const handleSave = () => {
     updateProject.mutate({
@@ -140,63 +141,8 @@ export function ProjectSettings({
             Configure Claude Code integration for {project.name}
           </DialogDescription>
         </DialogHeader>
-        
+
         <div className="grid gap-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="repo-path" className="flex items-center gap-2">
-              <FolderOpen className="h-4 w-4" />
-              Local Repository Path
-            </Label>
-            <div className="flex gap-2">
-              <div className="flex-1 relative">
-                <Input
-                  ref={folderInputRef}
-                  id="repo-path"
-                  type="text"
-                  placeholder="/path/to/your/repo"
-                  value={localRepoPath}
-                  onChange={(e) => {
-                    setLocalRepoPath(e.target.value);
-                  }}
-                  className={pathValidation ? (
-                    pathValidation.exists ? "pr-8" : "pr-8 border-red-500"
-                  ) : ""}
-                />
-                {isValidatingPath && (
-                  <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
-                )}
-                {!isValidatingPath && pathValidation && (
-                  pathValidation.exists ? (
-                    <CheckCircle className="absolute right-2 top-2.5 h-4 w-4 text-green-600" />
-                  ) : (
-                    <XCircle className="absolute right-2 top-2.5 h-4 w-4 text-red-600" />
-                  )
-                )}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <p className="text-sm text-muted-foreground">
-                Enter the absolute path to your local git repository
-              </p>
-              {pathValidation && !pathValidation.exists && (
-                <Alert className="bg-red-50 border-red-200">
-                  <AlertCircle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-sm text-red-800">
-                    Directory does not exist. Please check the path.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {pathValidation && pathValidation.exists && pathValidation.inClaude && (
-                <Alert className="bg-green-50 border-green-200">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <AlertDescription className="text-sm text-green-800">
-                    <strong>Claude project found!</strong> This repository is already configured in Claude Code.
-                  </AlertDescription>
-                </Alert>
-              )}
-            </div>
-          </div>
-          
           <div className="space-y-2">
             <Label htmlFor="claude-project" className="flex items-center gap-2">
               <Code2 className="h-4 w-4" />
@@ -212,7 +158,7 @@ export function ProjectSettings({
                 </Tooltip>
               </TooltipProvider>
             </Label>
-            
+
             {isDiscovering ? (
               <div className="flex items-center justify-center h-10 border rounded-md">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
@@ -263,7 +209,7 @@ export function ProjectSettings({
                 onChange={(e) => setClaudeProjectId(e.target.value)}
               />
             )}
-            
+
             <Alert className="bg-blue-50 border-blue-200">
               <Info className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-sm text-blue-800">
@@ -279,12 +225,12 @@ export function ProjectSettings({
                     <strong>How Claude Project IDs work:</strong>
                     <p className="mt-1">
                       Claude Code automatically creates a project ID from your repository path by replacing slashes with hyphens.
-                      For example: <code className="px-1 py-0.5 bg-blue-100 rounded">/home/user/repos/myproject</code> becomes 
+                      For example: <code className="px-1 py-0.5 bg-blue-100 rounded">/home/user/repos/myproject</code> becomes
                       <code className="px-1 py-0.5 bg-blue-100 rounded ml-1">-home-user-repos-myproject</code>
                     </p>
                   </>
                 )}
-                
+
                 {!claudeProjectId && suggestedProjectId && pathValidation?.exists && (
                   <p className="mt-2">
                     <strong>Suggested ID:</strong>{' '}
@@ -301,6 +247,59 @@ export function ProjectSettings({
             </Alert>
           </div>
 
+          <div className="space-y-2">
+            <Label htmlFor="repo-path" className="flex items-center gap-2">
+              <FolderOpen className="h-4 w-4" />
+              Local Repository Path
+            </Label>
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  ref={folderInputRef}
+                  id="repo-path"
+                  type="text"
+                  placeholder="/path/to/your/repo"
+                  value={localRepoPath}
+                  readOnly
+                  className={pathValidation ? (
+                    pathValidation.exists ? "pr-8" : "pr-8 border-red-500"
+                  ) : ""}
+                />
+                {isValidatingPath && (
+                  <Loader2 className="absolute right-2 top-2.5 h-4 w-4 animate-spin text-muted-foreground" />
+                )}
+                {!isValidatingPath && pathValidation && (
+                  pathValidation.exists ? (
+                    <CheckCircle className="absolute right-2 top-2.5 h-4 w-4 text-green-600" />
+                  ) : (
+                    <XCircle className="absolute right-2 top-2.5 h-4 w-4 text-red-600" />
+                  )
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                Local repository path is detected from the Claude project and cannot be edited here.
+              </p>
+              {pathValidation && !pathValidation.exists && (
+                <Alert className="bg-red-50 border-red-200">
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-sm text-red-800">
+                    Directory does not exist. Please check the path.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {pathValidation && pathValidation.exists && pathValidation.inClaude && (
+                <Alert className="bg-green-50 border-green-200">
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-sm text-green-800">
+                    <strong>Claude project found!</strong> This repository is already configured in Claude Code.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </div>
+
           {localRepoPath && claudeProjectId && (
             <div className="rounded-lg border bg-muted/50 p-3">
               <p className="text-sm text-muted-foreground">
@@ -310,7 +309,7 @@ export function ProjectSettings({
             </div>
           )}
         </div>
-        
+
         <DialogFooter>
           <Button
             variant="outline"
@@ -352,7 +351,7 @@ export function ProjectSettingsButton({ project }: { project: any }) {
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
-      
+
       {open && (
         <ProjectSettings
           project={project}
