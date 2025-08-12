@@ -2,7 +2,7 @@ import { useState } from "react";
 import {
   Plus, MoreHorizontal, Clock, Play, CheckCircle, Pause,
   AlertTriangle, Paperclip, MessageSquare, HelpCircle,
-  ExternalLink, User, Bot, ChevronRight
+  ExternalLink, User, Bot, ChevronRight, Settings, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ProjectSettings } from "./project-settings";
 
 interface KanbanBoardProps {
   boardId: string;
@@ -84,6 +85,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [showPausedColumn, setShowPausedColumn] = useState(false);
+  const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
   const [newTask, setNewTask] = useState({
     title: "",
@@ -98,7 +100,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     orpc.boards.getWithTasks.queryOptions({ input: { id: boardId } })
   );
 
-  const { data: projectData } = useQuery(
+  const { data: projectData, refetch: refetchProject } = useQuery(
     orpc.projects.get.queryOptions({
       input: { id: (boardData as any)?.projectId },
       enabled: !!(boardData as any)?.projectId
@@ -203,6 +205,25 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
 
   return (
     <div className="h-full flex flex-col">
+      {/* Integration warning */}
+      {projectData && (!(projectData as any)?.localRepoPath || !(projectData as any)?.claudeProjectId) && (
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
+          <AlertCircle className="h-5 w-5 text-yellow-600" />
+          <div className="flex-1">
+            <p className="text-sm text-yellow-800">
+              Claude Code integration is not configured. 
+              <button
+                onClick={() => setShowProjectSettings(true)}
+                className="ml-1 underline font-medium hover:text-yellow-900"
+              >
+                Configure now
+              </button>
+              {' '}to enable AI-assisted development.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Header with project controls */}
       <div className="mb-4 flex items-center justify-between border-b pb-4">
         <div>
@@ -217,6 +238,25 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
             <Bot className="h-4 w-4" />
             <span>Agents: {onlineAgents} online • Running {runningAgents}</span>
           </div>
+
+          {/* Project Settings button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowProjectSettings(true)}
+                >
+                  <Settings className="h-4 w-4 mr-2" />
+                  Settings
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Configure Claude Code integration</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
 
           {/* Pause All Agents button */}
           <Button
@@ -609,6 +649,21 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Project Settings Dialog */}
+      {projectData && (
+        <ProjectSettings
+          project={{
+            id: (projectData as any).id,
+            name: (projectData as any).name,
+            localRepoPath: (projectData as any).localRepoPath,
+            claudeProjectId: (projectData as any).claudeProjectId,
+          }}
+          open={showProjectSettings}
+          onOpenChange={setShowProjectSettings}
+          onSuccess={refetchProject}
+        />
+      )}
     </div>
   );
 }

@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Settings, FolderOpen, Code2 } from "lucide-react";
-// import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -30,12 +30,14 @@ interface ProjectSettingsProps {
   };
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 export function ProjectSettings({
   project,
   open,
   onOpenChange,
+  onSuccess,
 }: ProjectSettingsProps) {
   // const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -46,21 +48,13 @@ export function ProjectSettings({
   const updateProject = useMutation({
     mutationFn: orpc.projects.updateIntegration.mutate,
     onSuccess: () => {
-      // toast({
-      //   title: "Project settings updated",
-      //   description: "Claude Code integration configured successfully",
-      // });
-      console.log("Project settings updated successfully");
+      toast.success("Claude Code integration configured successfully");
       queryClient.invalidateQueries({ queryKey: ["projects"] });
+      onSuccess?.();
       onOpenChange(false);
     },
-    onError: (error) => {
-      // toast({
-      //   title: "Failed to update project",
-      //   description: error.message,
-      //   variant: "destructive",
-      // });
-      console.error("Failed to update project:", error.message);
+    onError: (error: any) => {
+      toast.error(`Failed to update project: ${error.message}`);
     },
   });
 
