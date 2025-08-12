@@ -26,6 +26,41 @@ export interface RouterAppContext {
 
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   component: RootComponent,
+  errorComponent: ({ error, reset }) => {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
+        <div className="max-w-md w-full text-center space-y-6">
+          <div className="space-y-2">
+            <h1 className="text-4xl font-bold">Oops!</h1>
+            <p className="text-xl text-muted-foreground">
+              Something went wrong
+            </p>
+          </div>
+          
+          <div className="bg-muted rounded-lg p-4 text-left">
+            <p className="font-mono text-sm text-muted-foreground">
+              {error.message || "An unexpected error occurred"}
+            </p>
+          </div>
+          
+          <div className="flex gap-4 justify-center">
+            <button
+              onClick={() => reset()}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => window.location.href = "/"}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
+            >
+              Go Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  },
   head: () => ({
     meta: [
       {

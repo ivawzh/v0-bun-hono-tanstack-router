@@ -219,13 +219,15 @@ export function ProjectSettings({
                 <span className="ml-2 text-sm text-muted-foreground">Discovering Claude projects...</span>
               </div>
             ) : claudeProjects?.projects && claudeProjects.projects.length > 0 ? (
-              <Select value={claudeProjectId} onValueChange={setClaudeProjectId}>
+              <Select value={claudeProjectId || "manual"} onValueChange={(value) => {
+                setClaudeProjectId(value === "manual" ? "" : value);
+              }}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select a Claude project" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">
-                    <span className="text-muted-foreground">None (manual entry)</span>
+                  <SelectItem value="manual">
+                    <span className="text-muted-foreground">Manual entry</span>
                   </SelectItem>
                   {claudeProjects.projects.map((proj) => (
                     <SelectItem key={proj.id} value={proj.id}>
