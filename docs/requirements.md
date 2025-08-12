@@ -18,6 +18,7 @@ Build a web-based, agent-tasked workflow app with a Trello-inspired Kanban GUI f
 - **Git Pull Rebase Strategy**: Minimize modifications to maintain compatibility with upstream updates via `git pull --rebase`. Keep customizations in separate files/folders when possible to avoid merge conflicts.
 - **Reactive UXUI**: Upon user interaction, implement real-time UI updates either by invalidating all queries or via WebSocket connections for immediate feedback and responsive user experience.
 - **Default Best Config**: Provide optimal default settings and configurations out-of-the-box, while allowing users to customize via UI, API, or environment variables. Assume sensible defaults for common use cases.
+- **Idempotency Everywhere**: All mutating operations (API writes, task/status/stage transitions, agent actions, webhook deliveries) must be safe to retry. Use idempotency keys and unique constraints; prefer UPSERTs; make event handling dedupe-safe.
 - Tech stack (aligned with this repo):
   - Web: React + TanStack Router (apps/web)
   - UI: TailwindCSS + shadcn/ui component library

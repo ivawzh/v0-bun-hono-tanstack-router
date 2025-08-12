@@ -83,7 +83,7 @@ export const link = new RPCLink({
           }
         } else {
           toast.error(`Network Error (${response.status}): ${response.statusText}`, {
-            description: `Failed to connect to ${urlString}`,
+            description: `Failed to connect to ${url.pathname || url.toString()}`,
           action: {
             label: "View Details",
             onClick: () => console.log('Full error details logged to console')

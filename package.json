@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --elide-lines 0 --filter '*' dev",
+    "dev": "bun run --filter '*' dev",
     "build": "bun run --elide-lines 0 --filter '*' build",
     "check-types": "bun run --elide-lines 0 --filter '*' check-types",
     "test:e2e": "playwright test",
@@ -29,6 +29,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
+    "concurrently": "^9.2.0",
     "pg-god": "^1.0.12",
     "playwright": "^1.54.2"
   }
