@@ -52,6 +52,31 @@ export const websocketHandler = {
           await handleAgentIncident(ws, client, data);
           break;
 
+        // Claude Code UI event handlers
+        case 'claude_session_created':
+          await handleClaudeSessionCreated(ws, client, data);
+          break;
+
+        case 'claude_session_progress':
+          await handleClaudeSessionProgress(ws, client, data);
+          break;
+
+        case 'claude_session_completed':
+          await handleClaudeSessionCompleted(ws, client, data);
+          break;
+
+        case 'claude_message_sent':
+          await handleClaudeMessageSent(ws, client, data);
+          break;
+
+        case 'claude_message_received':
+          await handleClaudeMessageReceived(ws, client, data);
+          break;
+
+        case 'claude_tool_use':
+          await handleClaudeToolUse(ws, client, data);
+          break;
+
         case 'ping':
           ws.send(JSON.stringify({ type: 'pong' }));
           break;
@@ -419,15 +444,24 @@ export function notifyClaudeProject(claudeProjectId: string, task: any) {
 export function notifyClaudeCodeAboutTask(task: any) {
   console.log('[WS] Notifying Claude Code about task:', task.title);
 
+  const taskMessage = {
+    type: 'session_started',
+    sessionId: task.sessionId,           // Solo Unicorn session ID
+    taskId: task.id,
+    taskTitle: task.title,
+    taskDescription: task.description,
+    projectPath: task.localRepoPath,
+    claudeProjectId: task.claudeProjectId,
+    priority: task.priority,
+    stage: task.stage
+  };
+
   // Try project-specific client first
   if (task.claudeProjectId) {
     const projectWs = claudeClients.get(task.claudeProjectId);
     if (projectWs) {
-      console.log('[WS] Sending to project-specific Claude Code:', task.claudeProjectId);
-      projectWs.send(JSON.stringify({
-        type: 'new_task',
-        task
-      }));
+      console.log('[WS] Sending session start to project-specific Claude Code:', task.claudeProjectId);
+      projectWs.send(JSON.stringify(taskMessage));
       return;
     }
   }
@@ -435,12 +469,146 @@ export function notifyClaudeCodeAboutTask(task: any) {
   // Try default Claude Code client
   const defaultWs = claudeClients.get('claude-code-default');
   if (defaultWs) {
-    console.log('[WS] Sending to default Claude Code client');
-    defaultWs.send(JSON.stringify({
-      type: 'new_task',
-      task
-    }));
+    console.log('[WS] Sending session start to default Claude Code client');
+    defaultWs.send(JSON.stringify(taskMessage));
   } else {
     console.log('[WS] No Claude Code client connected to receive task notification');
   }
+}
+
+// Claude Code UI Event Handlers
+// These functions handle real-time events from Claude Code UI and can be used
+// to update Solo Unicorn's UI, log activity, or trigger other workflows
+
+async function handleClaudeSessionCreated(ws: any, client: WSClient, data: any) {
+  console.log('[WS] Claude session created:', {
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    claudeSessionId: data.claudeSessionId
+  });
+
+  // Here we could update a session mapping in the database or notify web UI
+  // For now, just acknowledge the event
+  ws.send(JSON.stringify({
+    type: 'claude_session_created_ack',
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    claudeSessionId: data.claudeSessionId
+  }));
+
+  // Broadcast to all authenticated clients (like Solo Unicorn web UI)
+  clients.forEach((c, clientWs) => {
+    if (c.authenticated && clientWs !== ws) {
+      clientWs.send(JSON.stringify({
+        type: 'claude_session_created',
+        soloUnicornSessionId: data.soloUnicornSessionId,
+        claudeSessionId: data.claudeSessionId,
+        timestamp: data.timestamp
+      }));
+    }
+  });
+}
+
+async function handleClaudeSessionProgress(ws: any, client: WSClient, data: any) {
+  console.log('[WS] Claude session progress:', {
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    progress: data.progress,
+    message: data.message
+  });
+
+  // Broadcast progress to all authenticated clients
+  clients.forEach((c, clientWs) => {
+    if (c.authenticated && clientWs !== ws) {
+      clientWs.send(JSON.stringify({
+        type: 'claude_session_progress',
+        soloUnicornSessionId: data.soloUnicornSessionId,
+        claudeSessionId: data.claudeSessionId,
+        progress: data.progress,
+        message: data.message,
+        timestamp: data.timestamp
+      }));
+    }
+  });
+}
+
+async function handleClaudeSessionCompleted(ws: any, client: WSClient, data: any) {
+  console.log('[WS] Claude session completed:', {
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    result: data.result
+  });
+
+  // Here we could update task status in the database or trigger notifications
+  // For now, just broadcast to other clients
+  clients.forEach((c, clientWs) => {
+    if (c.authenticated && clientWs !== ws) {
+      clientWs.send(JSON.stringify({
+        type: 'claude_session_completed',
+        soloUnicornSessionId: data.soloUnicornSessionId,
+        claudeSessionId: data.claudeSessionId,
+        result: data.result,
+        timestamp: data.timestamp
+      }));
+    }
+  });
+}
+
+async function handleClaudeMessageSent(ws: any, client: WSClient, data: any) {
+  console.log('[WS] Claude message sent:', {
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    messagePreview: data.message?.content?.substring(0, 100) + '...'
+  });
+
+  // Broadcast to other clients for real-time activity monitoring
+  clients.forEach((c, clientWs) => {
+    if (c.authenticated && clientWs !== ws) {
+      clientWs.send(JSON.stringify({
+        type: 'claude_message_sent',
+        soloUnicornSessionId: data.soloUnicornSessionId,
+        claudeSessionId: data.claudeSessionId,
+        message: data.message,
+        timestamp: data.timestamp
+      }));
+    }
+  });
+}
+
+async function handleClaudeMessageReceived(ws: any, client: WSClient, data: any) {
+  console.log('[WS] Claude message received:', {
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    responsePreview: data.response?.content?.substring(0, 100) + '...'
+  });
+
+  // Broadcast to other clients for real-time activity monitoring
+  clients.forEach((c, clientWs) => {
+    if (c.authenticated && clientWs !== ws) {
+      clientWs.send(JSON.stringify({
+        type: 'claude_message_received',
+        soloUnicornSessionId: data.soloUnicornSessionId,
+        claudeSessionId: data.claudeSessionId,
+        response: data.response,
+        timestamp: data.timestamp
+      }));
+    }
+  });
+}
+
+async function handleClaudeToolUse(ws: any, client: WSClient, data: any) {
+  console.log('[WS] Claude tool use:', {
+    soloUnicornSessionId: data.soloUnicornSessionId,
+    toolName: data.toolName,
+    hasOutput: !!data.toolOutput
+  });
+
+  // Broadcast tool usage for real-time monitoring and logging
+  clients.forEach((c, clientWs) => {
+    if (c.authenticated && clientWs !== ws) {
+      clientWs.send(JSON.stringify({
+        type: 'claude_tool_use',
+        soloUnicornSessionId: data.soloUnicornSessionId,
+        claudeSessionId: data.claudeSessionId,
+        toolName: data.toolName,
+        toolInput: data.toolInput,
+        toolOutput: data.toolOutput,
+        timestamp: data.timestamp
+      }));
+    }
+  });
 }

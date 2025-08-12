@@ -11,10 +11,12 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 Please review the following documents for detailed requirements and design specifications:
 
 ### Requirements
-See [requirements.md](./docs/requirements.md) for complete functional and technical requirements.
+
+@docs/requirements.md
 
 ### UI/UX Design
-See [uiux-design.md](./docs/uiux-design.md) for detailed user interface and experience specifications.
+
+@docs/uiux-design.md
 
 ## Key Development Guidelines
 
