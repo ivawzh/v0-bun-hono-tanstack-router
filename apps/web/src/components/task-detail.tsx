@@ -194,6 +194,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
         toast.success("Agent session started");
         refetch();
       },
+      onError: (error: any) => {
+        toast.error(`Failed to start agent: ${error.message}`);
+      },
     })
   );
 
