@@ -7,6 +7,7 @@ import { tasksRouter } from "./tasks";
 import { agentsRouter } from "./agents";
 import { voiceRouter } from "./voice";
 import { authRouter } from "./auth";
+import { claudeProjectsRouter } from "./claude-projects";
 
 export const appRouter = o.router({
   healthCheck: publicProcedure.handler(() => {
@@ -28,5 +29,6 @@ export const appRouter = o.router({
   tasks: tasksRouter,
   agents: agentsRouter,
   voice: voiceRouter,
+  claudeProjects: claudeProjectsRouter,
 });
 export type AppRouter = typeof appRouter;
