@@ -306,10 +306,9 @@ export class AgentWebSocketServer {
         })
         .where(eq(agentSessions.id, sessionId));
 
-      // Update task status
+      // SAFEGUARD: Do not auto-mark Done here. Clear active session only; a verified success flow should handle Done.
       await db.update(tasks)
         .set({ 
-          status: 'done',
           activeSessionId: null
         })
         .where(eq(tasks.id, taskId));

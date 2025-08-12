@@ -293,12 +293,12 @@ async function handleTaskComplete(ws: any, client: WSClient, data: any) {
       })
       .where(eq(agentSessions.id, sessionId));
 
-    // Update task status
-    await db.update(tasks)
-      .set({ 
-        status: 'done'
-      })
-      .where(eq(tasks.id, taskId));
+    // SAFEGUARD: Do not auto-mark Done here. Leave status as-is; a verified success flow should handle Done.
+    // await db.update(tasks)
+    //   .set({ 
+    //     status: 'done'
+    //   })
+    //   .where(eq(tasks.id, taskId));
 
     ws.send(JSON.stringify({
       type: 'task_completed',
