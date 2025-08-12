@@ -70,6 +70,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useMediaRecorder } from "@/hooks/use-media-recorder";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getClaudeCodeBaseUrl } from "@/utils/claude";
 
 interface TaskDetailProps {
   taskId: string | null;
@@ -110,14 +111,14 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
   const [description, setDescription] = useState("");
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Kickoff state
   const [kickoffChallenge, setKickoffChallenge] = useState("");
   const [kickoffOptions, setKickoffOptions] = useState<string[]>([]);
   const [newOption, setNewOption] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [kickoffSpec, setKickoffSpec] = useState("");
-  
+
   // Voice recording state
   const { isRecording, startRecording, stopRecording, audioBlob } = useMediaRecorder();
 
@@ -253,7 +254,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
       selectedOption: selectedOption !== null ? kickoffOptions[selectedOption] : null,
       spec: kickoffSpec,
     };
-    
+
     updateTask.mutate({
       id: taskId!,
       metadata: {
@@ -304,7 +305,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         ))}
                       </SelectContent>
                     </Select>
-                    
+
                     <Select
                       value={(taskDetails as any)?.stage}
                       onValueChange={(value) =>
@@ -358,7 +359,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         <Button variant="outline" size="sm" className="h-8">
                           <Avatar className="h-5 w-5 mr-2">
                             <AvatarFallback className="text-[10px]">
-                              {(taskDetails as any)?.assignedActorType === "agent" ? "AI" : 
+                              {(taskDetails as any)?.assignedActorType === "agent" ? "AI" :
                                (taskDetails as any)?.assignedActorType === "human" ? "H" : "?"}
                             </AvatarFallback>
                           </Avatar>
@@ -372,10 +373,10 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => updateTask.mutate({ 
-                          id: taskId, 
+                        <DropdownMenuItem onClick={() => updateTask.mutate({
+                          id: taskId,
                           assignedActorType: "human",
-                          assignedAgentId: null 
+                          assignedAgentId: null
                         } as any)}>
                           <User className="h-4 w-4 mr-2" />
                           Human
@@ -384,12 +385,12 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         <DropdownMenuLabel className="text-xs">Agents</DropdownMenuLabel>
                         {(agents as any)?.length > 0 ? (
                           (agents as any).map((agent: any) => (
-                            <DropdownMenuItem 
+                            <DropdownMenuItem
                               key={agent.id}
-                              onClick={() => updateTask.mutate({ 
-                                id: taskId, 
+                              onClick={() => updateTask.mutate({
+                                id: taskId,
                                 assignedActorType: "agent",
-                                assignedAgentId: agent.id 
+                                assignedAgentId: agent.id
                               } as any)}
                             >
                               <Bot className="h-4 w-4 mr-2" />
@@ -397,7 +398,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                             </DropdownMenuItem>
                           ))
                         ) : (
-                          <DropdownMenuItem 
+                          <DropdownMenuItem
                             onClick={() => {
                               toast.info("Please create an agent first", {
                                 description: "Go to Agents page to create a new agent",
@@ -436,13 +437,13 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         variant={(taskDetails as any)?.activeSessionId ? "destructive" : "default"}
                         onClick={() => {
                           if ((taskDetails as any)?.activeSessionId) {
-                            pauseAgentSession.mutate({ 
-                              sessionId: (taskDetails as any).activeSessionId 
+                            pauseAgentSession.mutate({
+                              sessionId: (taskDetails as any).activeSessionId
                             } as any);
                           } else {
-                            startAgentSession.mutate({ 
+                            startAgentSession.mutate({
                               taskId,
-                              agentId: (taskDetails as any).assignedAgentId 
+                              agentId: (taskDetails as any).assignedAgentId
                             } as any);
                           }
                         }}
@@ -486,10 +487,8 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      window.open(
-                        `http://172.22.208.25:8888/session/${(taskDetails as any).activeSessionId}`,
-                        "_blank"
-                      );
+                      const base = getClaudeCodeBaseUrl();
+                      window.open(`${base}/session/${(taskDetails as any).activeSessionId}`, "_blank");
                     }}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
@@ -602,9 +601,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           <Select
                             value={String((taskDetails as any)?.priority || 0)}
                             onValueChange={(value) =>
-                              updateTask.mutate({ 
-                                id: taskId, 
-                                priority: parseInt(value) 
+                              updateTask.mutate({
+                                id: taskId,
+                                priority: parseInt(value)
                               } as any)
                             }
                           >
@@ -620,7 +619,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                             </SelectContent>
                           </Select>
                         </div>
-                        
+
                         <div>
                           <Label>Created</Label>
                           <p className="text-sm text-muted-foreground mt-1">
@@ -830,9 +829,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         const stageItems = (taskDetails as any)?.checklistItems?.filter(
                           (item: any) => item.stage === stage.value
                         ) || [];
-                        
+
                         if (stageItems.length === 0) return null;
-                        
+
                         return (
                           <div key={stage.value}>
                             <h3 className="font-medium mb-2">{stage.label}</h3>
@@ -855,7 +854,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           </div>
                         );
                       })}
-                      
+
                       <Button variant="outline" className="w-full">
                         Add Checklist Item
                       </Button>
@@ -874,7 +873,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                                   <div className="flex items-center gap-2">
                                     <Avatar className="h-6 w-6">
                                       <AvatarFallback className="text-[10px]">
-                                        {message.author === "agent" ? "AI" : 
+                                        {message.author === "agent" ? "AI" :
                                          message.author === "human" ? "H" : "S"}
                                       </AvatarFallback>
                                     </Avatar>
@@ -892,7 +891,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           ))}
                         </div>
                       </ScrollArea>
-                      
+
                       <div className="mt-3 flex gap-2">
                         <Textarea
                           placeholder="Type a message..."
@@ -955,7 +954,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
 
                       {/* Attachments grid */}
                       <div className="grid grid-cols-3 gap-4">
-                        {(taskDetails as any)?.artifacts?.filter((a: any) => 
+                        {(taskDetails as any)?.artifacts?.filter((a: any) =>
                           a.kind === 'file' || a.kind === 'image'
                         ).map((artifact: any) => (
                           <Card key={artifact.id} className="overflow-hidden">
@@ -1076,7 +1075,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           ))}
                         </div>
                       </ScrollArea>
-                      
+
                       <div className="mt-3">
                         <Label className="text-xs text-muted-foreground mb-2 block">
                           Asking a question will block the task until answered

@@ -149,7 +149,7 @@ Key changes from UI/UX requirements:
   - Record incidents in `agent_incidents` with fields: `agent_id`, `type=rate_limit|error`, `occurred_at`, `message`, `provider_hint`, `inferred_reset_at`, `next_retry_at`, `resolved_at`, `resolution`
   - On rate limit, compute ETA if possible; otherwise backoff with jitter (e.g., 5/10/20/40m; cap 60m)
   - Auto-resume by scheduled retries; log outcomes
-  - UI: header chip with countdown, card “Needs attention” badge, drawer banner (Retry/Snooze/Details)
+  - UI: header chip with countdown, card “Needs attention” badge, drawer/banner with auto-resume ETA
   - Prevent auto-move to Done on ambiguous/failed runs; allow human confirm/reopen
 
 ### Assignment History
@@ -267,7 +267,9 @@ Implementation:
   - Comment threading
   - Question raising/resolution
 - **Agent Sessions**: Start/stop, action streaming, Claude Code integration
-  - Add: `agents.logIncident` (server records rate-limit/error), `agents.getHealth` (returns current agent state, next retry, recent incidents)
+  - Add: `agents.logIncident` (server records rate-limit/error)
+  - Add: WebSocket `agent_incident` message from Claude Code → server persists, sets `agents.state=rate_limited`, `next_retry_at`
+  - Add: UI surfaces agent down state and auto-resume ETA in project header and board banner
 - **Chat**: Channel management, message posting, threading, mentions
 - **Notifications**: List, mark read, webhook configuration
 

@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { tasks, agentSessions, projects } from '../db/schema/core';
+import { tasks, agentSessions, projects, agents, agentIncidents } from '../db/schema/core';
 import { eq, and } from 'drizzle-orm';
 
 interface WSClient {
@@ -27,31 +27,35 @@ export const websocketHandler = {
         case 'auth':
           await handleAuth(ws, client, data);
           break;
-        
+
         case 'claude_register':
           await handleClaudeRegister(ws, client, data);
           break;
-        
+
         case 'task_request':
           await handleTaskRequest(ws, client, data);
           break;
-        
+
         case 'task_claim':
           await handleTaskClaim(ws, client, data);
           break;
-        
+
         case 'task_progress':
           await handleTaskProgress(ws, client, data);
           break;
-        
+
         case 'task_complete':
           await handleTaskComplete(ws, client, data);
           break;
-        
+
+        case 'agent_incident':
+          await handleAgentIncident(ws, client, data);
+          break;
+
         case 'ping':
           ws.send(JSON.stringify({ type: 'pong' }));
           break;
-        
+
         default:
           ws.send(JSON.stringify({
             type: 'error',
@@ -71,7 +75,7 @@ export const websocketHandler = {
     console.log('[WS] New connection');
     const client: WSClient = { authenticated: false };
     clients.set(ws, client);
-    
+
     ws.send(JSON.stringify({
       type: 'connected',
       timestamp: new Date().toISOString()
@@ -95,10 +99,10 @@ export const websocketHandler = {
 async function handleAuth(ws: any, client: WSClient, data: any) {
   // Verify agent auth token
   const expectedToken = process.env.AGENT_AUTH_TOKEN || 'dev-token';
-  
+
   console.log('[WS] Auth attempt with token:', data.token ? 'provided' : 'missing');
   console.log('[WS] Expected token:', expectedToken ? 'configured' : 'using default');
-  
+
   if (data.token !== expectedToken) {
     ws.send(JSON.stringify({
       type: 'auth_failed',
@@ -164,8 +168,8 @@ async function handleTaskRequest(ws: any, client: WSClient, data: any) {
     });
 
     // Filter for tasks in projects with local repos and Claude project IDs
-    const tasksWithRepos = availableTasks.filter(task => 
-      task.board?.project?.localRepoPath && 
+    const tasksWithRepos = availableTasks.filter(task =>
+      task.board?.project?.localRepoPath &&
       task.board?.project?.claudeProjectId
     );
 
@@ -202,7 +206,7 @@ async function handleTaskClaim(ws: any, client: WSClient, data: any) {
 
   try {
     const { taskId } = data;
-    
+
     // Create agent session
     const [session] = await db.insert(agentSessions)
       .values({
@@ -214,7 +218,7 @@ async function handleTaskClaim(ws: any, client: WSClient, data: any) {
 
     // Update task status
     await db.update(tasks)
-      .set({ 
+      .set({
         status: 'in_progress'
       })
       .where(eq(tasks.id, taskId));
@@ -287,7 +291,7 @@ async function handleTaskComplete(ws: any, client: WSClient, data: any) {
 
     // Update session state
     await db.update(agentSessions)
-      .set({ 
+      .set({
         state: 'completed',
         endedAt: new Date()
       })
@@ -295,7 +299,7 @@ async function handleTaskComplete(ws: any, client: WSClient, data: any) {
 
     // SAFEGUARD: Do not auto-mark Done here. Leave status as-is; a verified success flow should handle Done.
     // await db.update(tasks)
-    //   .set({ 
+    //   .set({
     //     status: 'done'
     //   })
     //   .where(eq(tasks.id, taskId));
@@ -326,6 +330,80 @@ async function handleTaskComplete(ws: any, client: WSClient, data: any) {
   }
 }
 
+async function resolveClaudeAgentId(): Promise<string> {
+  // Try to find an existing Claude Code agent
+  const existing = await db
+    .select()
+    .from(agents)
+    .where(eq(agents.modelProvider as any, 'claude-code'))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return (existing[0] as any).id as string;
+  }
+
+  // Create a default agent if missing (single-user MVP)
+  const created = await db
+    .insert(agents)
+    .values({
+      name: 'Local Claude Code',
+      role: 'Engineer',
+      character: 'Expert software engineer with access to local development environment via Claude Code',
+      runtime: 'windows-runner',
+      modelProvider: 'claude-code',
+      modelName: 'claude-3-5-sonnet-20241022',
+      config: {}
+    })
+    .returning();
+
+  return created[0].id as string;
+}
+
+async function handleAgentIncident(ws: any, client: WSClient, data: any) {
+  if (!client.authenticated) {
+    ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' }));
+    return;
+  }
+
+  try {
+    const agentId = await resolveClaudeAgentId();
+
+    const type = data?.incident?.type || 'error';
+    const message = data?.incident?.message || null;
+    const providerHint = data?.incident?.providerHint || null;
+    const inferredResetAt = data?.incident?.inferredResetAt ? new Date(data.incident.inferredResetAt) : null;
+    const nextRetryAt = data?.incident?.nextRetryAt ? new Date(data.incident.nextRetryAt) : inferredResetAt;
+
+    // Persist incident
+    const [incident] = await db
+      .insert(agentIncidents)
+      .values({
+        agentId,
+        type,
+        message,
+        providerHint,
+        inferredResetAt: inferredResetAt ?? undefined,
+        nextRetryAt: nextRetryAt ?? undefined
+      })
+      .returning();
+
+    // Update agent state
+    await db
+      .update(agents)
+      .set({
+        state: type === 'rate_limit' ? 'rate_limited' : 'error',
+        nextRetryAt: nextRetryAt ?? null,
+        lastIncidentAt: new Date()
+      })
+      .where(eq(agents.id, agentId));
+
+    ws.send(JSON.stringify({ type: 'agent_incident_logged', incidentId: incident.id, agentId }));
+  } catch (error) {
+    console.error('[WS] Error logging agent incident:', error);
+    ws.send(JSON.stringify({ type: 'error', message: 'Failed to log agent incident' }));
+  }
+}
+
 // Method to notify Claude Code about new tasks
 export function notifyClaudeProject(claudeProjectId: string, task: any) {
   const ws = claudeClients.get(claudeProjectId);
@@ -340,7 +418,7 @@ export function notifyClaudeProject(claudeProjectId: string, task: any) {
 // Method to notify Claude Code UI when a task is started
 export function notifyClaudeCodeAboutTask(task: any) {
   console.log('[WS] Notifying Claude Code about task:', task.title);
-  
+
   // Try project-specific client first
   if (task.claudeProjectId) {
     const projectWs = claudeClients.get(task.claudeProjectId);
@@ -353,7 +431,7 @@ export function notifyClaudeCodeAboutTask(task: any) {
       return;
     }
   }
-  
+
   // Try default Claude Code client
   const defaultWs = claudeClients.get('claude-code-default');
   if (defaultWs) {

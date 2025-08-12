@@ -45,7 +45,7 @@ Notes
 - Agent-level rate limit UX (Agent-centric controller):
   - Enforce single active Claude session (concurrency=1)
   - When a rate limit occurs, show persistent banners in the task drawer and a yellow "Needs attention" badge on the card
-  - Display agent-level status in header chip with countdown to resume
+  - Display agent-level status in header chip with countdown to resume; show a board-level banner with "Agent is rate limited • auto-resumes in Xm"
   - Provide actions: Retry now, Snooze (+15m or until reset), View details
   - Record incidents for analytics (occurrence, inferred reset, retries)
 - Prioritization (MVP note): Use simple FIFO within `Todo` — cards are ordered manually; agents pick the top-most `Auto-Start`-enabled card first

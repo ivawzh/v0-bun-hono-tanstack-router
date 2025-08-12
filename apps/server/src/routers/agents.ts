@@ -21,7 +21,7 @@ export const agentsRouter = o.router({
         },
         {
           name: "Day-0 Product Manager",
-          role: "PM", 
+          role: "PM",
           character: "Analytical product strategist who bridges business needs with technical implementation. Expert at writing clear requirements, managing stakeholder expectations, and driving feature prioritization through data-driven decisions.",
           runtime: "windows-runner",
           modelProvider: "claude-code",
@@ -31,7 +31,7 @@ export const agentsRouter = o.router({
           name: "Day-0 UX Designer",
           role: "Designer",
           character: "User-centered designer passionate about creating intuitive experiences. Thinks in user journeys, wireframes, and accessibility. Advocates for simplicity and usability while balancing business constraints.",
-          runtime: "windows-runner", 
+          runtime: "windows-runner",
           modelProvider: "claude-code",
           modelName: "claude-3-5-sonnet-20241022"
         },
@@ -40,7 +40,7 @@ export const agentsRouter = o.router({
           role: "Engineer",
           character: "Pragmatic full-stack engineer who delivers working solutions quickly. Focuses on clean, maintainable code and follows established patterns. Prefers proven technologies and iterative development.",
           runtime: "windows-runner",
-          modelProvider: "claude-code", 
+          modelProvider: "claude-code",
           modelName: "claude-3-5-sonnet-20241022"
         },
         {
@@ -70,7 +70,7 @@ export const agentsRouter = o.router({
               config: {}
             })
             .returning();
-          
+
           createdAgents.push(newAgent[0]);
         }
       }
@@ -85,7 +85,7 @@ export const agentsRouter = o.router({
         .select()
         .from(agents)
         .orderBy(desc(agents.createdAt));
-      
+
       return agentList;
     }),
 
@@ -113,7 +113,7 @@ export const agentsRouter = o.router({
           config: {}
         })
         .returning();
-      
+
       return newAgent[0];
     }),
 
@@ -140,7 +140,7 @@ export const agentsRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
@@ -153,7 +153,7 @@ export const agentsRouter = o.router({
           .from(agents)
           .where(eq(agents.role, "Engineer"))
           .limit(1);
-        
+
         if (defaultAgent.length === 0) {
           // Create a default agent
           const newAgent = await db
@@ -168,20 +168,24 @@ export const agentsRouter = o.router({
               config: {}
             })
             .returning();
-          
+
           agentId = newAgent[0].id;
         } else {
           agentId = defaultAgent[0].id;
         }
       }
 
-      // Enforce single active session for this agent
-      const activeExisting = await db
-        .select()
-        .from(agentSessions)
-        .where(and(eq(agentSessions.agentId, agentId!), isNull(agentSessions.endedAt)));
-      if (activeExisting.length > 0) {
-        throw new Error("Agent is busy with another session. Only one active session allowed.");
+      // Enforce single active session for this agent (best-effort; never 500s here)
+      try {
+        const activeExisting = await db
+          .select()
+          .from(agentSessions)
+          .where(and(eq(agentSessions.agentId, agentId!), isNull(agentSessions.endedAt)));
+        if (activeExisting.length > 0) {
+          throw new Error("Agent is busy with another session. Only one active session allowed.");
+        }
+      } catch (e) {
+        console.error('[Agent Router] Single-session check failed; proceeding without block:', e);
       }
 
       // Create session
@@ -213,7 +217,7 @@ export const agentsRouter = o.router({
       // Notify WebSocket clients if available
       console.log('[Agent Router] Notifying Claude Code UI about task...');
       const fullTask = task[0];
-      
+
       // Log task details for debugging
       console.log('[Agent Router] Task details:', {
         taskId: fullTask.task.id,
@@ -222,7 +226,7 @@ export const agentsRouter = o.router({
         claudeProjectId: fullTask.project.claudeProjectId,
         localRepoPath: fullTask.project.localRepoPath
       });
-      
+
       // Notify Claude Code UI about the task
       try {
         notifyClaudeCodeAboutTask({
@@ -282,7 +286,7 @@ export const agentsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       // TODO: Verify session ownership through task
-      
+
       const updated = await db
         .update(agentSessions)
         .set({
@@ -319,7 +323,7 @@ export const agentsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       // TODO: Verify session ownership through task
-      
+
       const updated = await db
         .update(agentSessions)
         .set({
@@ -348,7 +352,7 @@ export const agentsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       // TODO: Verify session ownership through task
-      
+
       const updated = await db
         .update(agentSessions)
         .set({

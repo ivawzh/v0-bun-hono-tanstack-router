@@ -48,6 +48,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ProjectSettings } from "./project-settings";
+import { getClaudeCodeBaseUrl } from "@/utils/claude";
 
 interface KanbanBoardProps {
   boardId: string;
@@ -105,6 +106,11 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       input: { id: (boardData as any)?.projectId },
       enabled: !!(boardData as any)?.projectId
     })
+  );
+
+  // Agents health for rate-limit banner
+  const { data: agents } = useQuery(
+    orpc.agents.list.queryOptions({ input: {} })
   );
 
   const createTask = useMutation(
@@ -206,12 +212,12 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
   return (
     <div className="h-full flex flex-col">
       {/* Integration warning */}
-      {projectData && (!(projectData as any)?.localRepoPath || !(projectData as any)?.claudeProjectId) && (
+      {!!projectData && (!(projectData as any)?.localRepoPath || !(projectData as any)?.claudeProjectId) && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
           <AlertCircle className="h-5 w-5 text-yellow-600" />
           <div className="flex-1">
             <p className="text-sm text-yellow-800">
-              Claude Code integration is not configured. 
+              Claude Code integration is not configured.
               <button
                 onClick={() => setShowProjectSettings(true)}
                 className="ml-1 underline font-medium hover:text-yellow-900"
@@ -233,6 +239,22 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
           )}
         </div>
         <div className="flex items-center gap-4">
+          {/* Agent rate limit banner */}
+          {Array.isArray(agents) && agents.some((a: any) => a.state === 'rate_limited') && (
+            <div className="mr-2 px-3 py-2 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-900 flex items-center gap-2">
+              <AlertCircle className="h-4 w-4" />
+              <span>Agent is rate limited</span>
+              {(() => {
+                const rlAgent = (agents as any).find((a: any) => a.state === 'rate_limited');
+                const eta = rlAgent?.nextRetryAt ? new Date(rlAgent.nextRetryAt) : null;
+                if (eta) {
+                  const mins = Math.max(1, Math.ceil((eta.getTime() - Date.now()) / 60000));
+                  return <span className="ml-1">• auto-resumes in {mins}m</span>;
+                }
+                return null;
+              })()}
+            </div>
+          )}
           {/* Agent status */}
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Bot className="h-4 w-4" />
@@ -514,7 +536,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                             className="w-full mt-2 text-xs"
                             onClick={(e) => {
                               e.stopPropagation();
-                              window.open(`http://172.22.208.25:8888/session/${task.activeSessionId}`, "_blank");
+                              const base = getClaudeCodeBaseUrl();
+                              window.open(`${base}/session/${task.activeSessionId}`, "_blank");
                             }}
                           >
                             <ExternalLink className="h-3 w-3 mr-1" />
@@ -651,7 +674,7 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
       </Dialog>
 
       {/* Project Settings Dialog */}
-      {projectData && (
+      {!!projectData && (
         <ProjectSettings
           project={{
             id: (projectData as any).id,

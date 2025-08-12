@@ -17,7 +17,7 @@ export class AgentWebSocketServer {
   private claudeClients: Map<string, WSClient> = new Map(); // Track Claude Code connections
 
   constructor(server: Server) {
-    this.wss = new WebSocketServer({ 
+    this.wss = new WebSocketServer({
       server,
       path: '/ws/agent'
     });
@@ -32,7 +32,7 @@ export class AgentWebSocketServer {
         ws,
         authenticated: false
       };
-      
+
       this.clients.set(clientId, client);
       console.log(`[WS] New connection: ${clientId}`);
 
@@ -75,31 +75,31 @@ export class AgentWebSocketServer {
       case 'auth':
         await this.handleAuth(clientId, message);
         break;
-      
+
       case 'claude_register':
         await this.handleClaudeRegister(clientId, message);
         break;
-      
+
       case 'task_request':
         await this.handleTaskRequest(clientId, message);
         break;
-      
+
       case 'task_claim':
         await this.handleTaskClaim(clientId, message);
         break;
-      
+
       case 'task_progress':
         await this.handleTaskProgress(clientId, message);
         break;
-      
+
       case 'task_complete':
         await this.handleTaskComplete(clientId, message);
         break;
-      
+
       case 'ping':
         client.ws.send(JSON.stringify({ type: 'pong' }));
         break;
-      
+
       default:
         client.ws.send(JSON.stringify({
           type: 'error',
@@ -177,8 +177,8 @@ export class AgentWebSocketServer {
       });
 
       // Filter for tasks in projects with local repos and Claude project IDs
-      const tasksWithRepos = availableTasks.filter(task => 
-        task.board?.project?.localRepoPath && 
+      const tasksWithRepos = availableTasks.filter(task =>
+        task.board?.project?.localRepoPath &&
         task.board?.project?.claudeProjectId
       );
 
@@ -216,7 +216,7 @@ export class AgentWebSocketServer {
 
     try {
       const { taskId } = message;
-      
+
       // Create agent session
       const [session] = await db.insert(agentSessions)
         .values({
@@ -228,7 +228,7 @@ export class AgentWebSocketServer {
 
       // Update task status
       await db.update(tasks)
-        .set({ 
+        .set({
           status: 'in_progress',
           activeSessionId: session.id
         })
@@ -300,7 +300,7 @@ export class AgentWebSocketServer {
 
       // Update session state
       await db.update(agentSessions)
-        .set({ 
+        .set({
           state: 'completed',
           completedAt: new Date()
         })
@@ -308,7 +308,7 @@ export class AgentWebSocketServer {
 
       // SAFEGUARD: Do not auto-mark Done here. Clear active session only; a verified success flow should handle Done.
       await db.update(tasks)
-        .set({ 
+        .set({
           activeSessionId: null
         })
         .where(eq(tasks.id, taskId));
