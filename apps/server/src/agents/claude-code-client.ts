@@ -28,6 +28,8 @@ export class ClaudeCodeClient {
   private isConnected = false;
   private reconnectTimeout: NodeJS.Timeout | null = null;
   private activeSessions = new Map<string, ClaudeCodeSession>();
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
 
   constructor(private options: ClaudeCodeClientOptions) {}
 
@@ -40,6 +42,7 @@ export class ClaudeCodeClient {
       this.ws.on('open', () => {
         console.log('🤖 Connected to Claude Code UI WebSocket');
         this.isConnected = true;
+        this.reconnectAttempts = 0; // Reset counter on successful connection
         resolve();
       });
 
@@ -70,14 +73,26 @@ export class ClaudeCodeClient {
       clearTimeout(this.reconnectTimeout);
     }
     
+    // Stop trying after max attempts
+    if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+      console.log(`🛑 Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping reconnection attempts.`);
+      console.log("ℹ️  Claude Code UI may not be running. Please start it and restart Solo Unicorn server.");
+      return;
+    }
+    
+    this.reconnectAttempts++;
+    const delay = Math.min(5000 * this.reconnectAttempts, 30000); // Exponential backoff, max 30s
+    
+    console.log(`🔄 Scheduling reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay/1000}s`);
+    
     this.reconnectTimeout = setTimeout(async () => {
       try {
         await this.connect();
       } catch (error) {
-        console.error('Failed to reconnect to Claude Code:', error);
+        console.error(`❌ Reconnect attempt ${this.reconnectAttempts} failed:`, error.message);
         this.scheduleReconnect();
       }
-    }, 5000);
+    }, delay);
   }
 
   private handleMessage(message: any) {
@@ -194,6 +209,29 @@ export class ClaudeCodeClient {
         type: 'get_active_sessions'
       }));
     });
+  }
+
+  // Method to check if connected
+  get connected(): boolean {
+    return this.isConnected;
+  }
+
+  // Method to retry connection (resets attempt counter)
+  async retryConnection(): Promise<boolean> {
+    if (this.isConnected) {
+      return true;
+    }
+
+    // Reset attempt counter to allow new connection attempts
+    this.reconnectAttempts = 0;
+    
+    try {
+      await this.connect();
+      return true;
+    } catch (error) {
+      console.error('❌ Manual retry failed:', error.message);
+      return false;
+    }
   }
 
   disconnect() {

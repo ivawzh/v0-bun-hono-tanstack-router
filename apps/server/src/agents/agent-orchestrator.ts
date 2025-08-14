@@ -11,6 +11,8 @@ export interface AgentOrchestratorOptions {
 
 export class AgentOrchestrator {
   private claudeCodeClient: ClaudeCodeClient;
+  private isConnected = false;
+  private lastReconnectAttempt = 0;
   private activeSessions = new Map<string, {
     taskId: string;
     repoAgentId: string;
@@ -26,10 +28,17 @@ export class AgentOrchestrator {
   }
 
   async initialize() {
-    await this.claudeCodeClient.connect();
-    console.log('🤖 Agent Orchestrator initialized');
+    try {
+      await this.claudeCodeClient.connect();
+      this.isConnected = true;
+      console.log('🤖 Agent Orchestrator initialized');
+    } catch (error) {
+      console.error('❌ Failed to connect to Claude Code UI:', error.message);
+      this.isConnected = false;
+      // Continue without connection - will retry automatically
+    }
     
-    // Start monitoring for ready tasks
+    // Start monitoring for ready tasks regardless of connection status
     this.startTaskMonitoring();
   }
 
@@ -37,6 +46,19 @@ export class AgentOrchestrator {
     // Poll for ready tasks every 10 seconds
     setInterval(async () => {
       try {
+        // Try to reconnect if not connected (every 30 seconds)
+        if (!this.isConnected) {
+          const now = Date.now();
+          if (now - this.lastReconnectAttempt > 30000) { // Only try every 30 seconds
+            this.lastReconnectAttempt = now;
+            const success = await this.claudeCodeClient.retryConnection();
+            if (success) {
+              this.isConnected = true;
+              console.log('🔄 Reconnected to Claude Code UI - task processing resumed');
+            }
+          }
+        }
+        
         await this.processReadyTasks();
       } catch (error) {
         console.error('Error processing ready tasks:', error);
@@ -48,6 +70,11 @@ export class AgentOrchestrator {
   }
 
   private async processReadyTasks() {
+    // Skip processing if not connected to Claude Code UI
+    if (!this.isConnected) {
+      return;
+    }
+    
     try {
       // Get ready tasks that are not currently being processed
       const readyTasks = await db
