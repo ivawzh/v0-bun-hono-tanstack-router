@@ -26,6 +26,8 @@ Build a minimal, local-first task management system for dispatching coding tasks
   - ORM: Drizzle
   - Database: Local PostgreSQL
   - Validation: Valibot
+  - MCP: @modelcontextprotocol/sdk/server/mcp
+  - WebSocket: Bun std `Bun.serve({ websocket })`
 
 ## Database Implementation
 
@@ -174,7 +176,7 @@ Agents automatically pick up ready cards in priority order (P1-P5, then card ord
 - `plan` (jsonb) - kickoff results
 - `status` (enum: todo, doing, done)
 - `stage` (enum: refine, kickoff, execute) - only for doing status
-- `priority` (enum: P1, P2, P3, P4, P5)
+- `priority` 1-5. With meaning of 1: Lowest, 2: Low, 3: Medium, 4: High, 5: Highest
 - `ready` (boolean) - replaces auto-start
 - `attachments` (jsonb array)
 - `created_at`, `updated_at`
@@ -184,23 +186,18 @@ Agents automatically pick up ready cards in priority order (P1-P5, then card ord
 - `status` (enum: starting, active, completed, failed)
 - `started_at`, `completed_at`
 
-## WebSocket Architecture
+## Code Agent Communication Architecture
 
-### Solo Unicorn WebSocket Server
-- Handles all agent communication on port 8500
-- Coordinates task pickup and status updates
-- Enforces single active session per client type
+### Claude Code UI WebSocket Server
+- CCU originally uses WebSocket to communicate with both code agent shell, server and UI.
+- Now we modify and add basic auth via env var `AGENT_AUTH_TOKEN` to its websocket server.
+- Solo Unicorn server will connect to CCU websocket to get code agent information.
 
-### Agent WebSocket Client
-- Each coding client adapts Solo Unicorn WebSocket protocol
-- Reports session status and capabilities
-- Receives task assignments and context
-
-### Protocol Messages
-- `AGENT_REGISTER`: Client announces availability
-- `TASK_ASSIGN`: Server assigns task to agent
-- `TASK_UPDATE`: Agent reports progress/completion
-- `SESSION_START/END`: Session lifecycle events
+### Solo Unicorn MCP Server
+- Solo Unicorn provides MCP server for code agents to push information to.
+- Usage includes:
+  - Update task status, stage, refined title, refined description, plan, code agent session id, etc.
+  - Update code agent client type status (e.g. rate limit and rate limit reset time)
 
 ## API Endpoints
 

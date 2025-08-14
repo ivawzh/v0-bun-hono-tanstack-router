@@ -1,231 +1,315 @@
-import { Hono } from "hono";
-import { cors } from "hono/cors";
-import * as v from "valibot";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { z } from "zod";
 import { db } from "../db";
-import {
-  projects, tasks, repoAgents, actors, sessions
-} from "../db/schema/simplified";
-import { eq, and, desc } from "drizzle-orm";
+import { projects, tasks, repoAgents, actors, sessions } from "../db/schema/simplified";
+import { and, desc, eq, sql } from "drizzle-orm";
 
-const mcpServer = new Hono();
+// Remove unused types - now using Zod schemas directly
 
-// CORS for MCP clients
-mcpServer.use("/*", cors({
-  origin: "*",
-  credentials: true,
-}));
-
-// Simple bearer token authentication for MCP access
-mcpServer.use("/*", async (c, next) => {
-  const authHeader = c.req.header("Authorization");
-  const expectedToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return c.json({ error: "Unauthorized - Missing bearer token" }, 401);
-  }
-
-  const token = authHeader.substring(7);
-  if (token !== expectedToken) {
-    return c.json({ error: "Unauthorized - Invalid token" }, 401);
-  }
-
-  await next();
+// Initialize MCP server with only the tools we need
+const server = new McpServer({
+  name: "solo-unicorn-mcp",
+  version: "1.0.0"
 });
 
-// Context namespace - Read operations
-const contextRouter = new Hono();
+// Small helper to enforce bearer auth from headers
+function assertBearer(authHeader: string | string[] | undefined) {
+  const expected = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
 
-// Get project context
-contextRouter.get("/projects/:projectId", async (c) => {
-  const projectId = c.req.param("projectId");
+  // Handle both string and string[] cases
+  const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
-  const project = await db
-    .select()
-    .from(projects)
-    .where(eq(projects.id, projectId))
-    .limit(1);
-
-  if (project.length === 0) {
-    return c.json({ error: "Project not found" }, 404);
+  if (!headerValue || !headerValue.startsWith("Bearer ")) {
+    throw new Error("unauthorized: missing token");
   }
+  const token = headerValue.slice(7);
+  if (token !== expected) {
+    throw new Error("unauthorized: invalid token");
+  }
+}
 
-  const [projectRepoAgents, projectActors, projectTasks] = await Promise.all([
-    db.select().from(repoAgents).where(eq(repoAgents.projectId, projectId)),
-    db.select().from(actors).where(eq(actors.projectId, projectId)),
-    db.select().from(tasks).where(eq(tasks.projectId, projectId)),
-  ]);
+// Tools for code agents
+server.tool(
+  "agent.auth",
+  "Validate a code agent by client type and repo path, then mark it active.",
+  {
+    clientType: z.enum(["claude_code", "opencode"]),
+    repoPath: z.string().min(1)
+  },
+  async ({ clientType, repoPath }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
 
-  return c.json({
-    project: project[0],
-    repoAgents: projectRepoAgents,
-    actors: projectActors,
-    tasks: projectTasks,
-  });
-});
+    const repoAgent = await db.query.repoAgents.findFirst({
+      where: and(
+        eq(repoAgents.clientType, clientType),
+        eq(repoAgents.repoPath, repoPath)
+      )
+    });
 
-// Get task context with all details
-contextRouter.get("/tasks/:taskId", async (c) => {
-  const taskId = c.req.param("taskId");
-
-  const task = await db.query.tasks.findFirst({
-    where: eq(tasks.id, taskId),
-    with: {
-      project: true,
-      repoAgent: true,
-      actor: true
+    if (!repoAgent) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ success: false, message: `No repo agent found for ${clientType} at ${repoPath}` })
+          }
+        ]
+      };
     }
-  });
 
-  if (!task) {
-    return c.json({ error: "Task not found" }, 404);
-  }
+    await db
+      .update(repoAgents)
+      .set({ status: "active", updatedAt: new Date() })
+      .where(eq(repoAgents.id, repoAgent.id));
 
-  return c.json({
-    task,
-    project: task.project,
-    repoAgent: task.repoAgent,
-    actor: task.actor
-  });
-});
-
-// Cards namespace - Write operations
-const cardsRouter = new Hono();
-
-// Update task fields (for agent workflow)
-cardsRouter.put("/:taskId", async (c) => {
-  const taskId = c.req.param("taskId");
-  const body = await c.req.json();
-
-  const updateData: any = { updatedAt: new Date() };
-  
-  // Allow updating specific fields during agent workflow
-  if (body.refinedTitle !== undefined) updateData.refinedTitle = body.refinedTitle;
-  if (body.refinedDescription !== undefined) updateData.refinedDescription = body.refinedDescription;
-  if (body.plan !== undefined) updateData.plan = body.plan;
-  if (body.status !== undefined) updateData.status = body.status;
-  if (body.stage !== undefined) updateData.stage = body.stage;
-
-  const updated = await db
-    .update(tasks)
-    .set(updateData)
-    .where(eq(tasks.id, taskId))
-    .returning();
-
-  if (updated.length === 0) {
-    return c.json({ error: "Task not found" }, 404);
-  }
-
-  return c.json({ task: updated[0] });
-});
-
-// Memory namespace - Project memory management
-const memoryRouter = new Hono();
-
-// Get project memory
-memoryRouter.get("/:projectId", async (c) => {
-  const projectId = c.req.param("projectId");
-
-  const project = await db
-    .select()
-    .from(projects)
-    .where(eq(projects.id, projectId))
-    .limit(1);
-
-  if (project.length === 0) {
-    return c.json({ error: "Project not found" }, 404);
-  }
-
-  return c.json({
-    projectId,
-    memory: project[0].memory || {}
-  });
-});
-
-// Update project memory
-memoryRouter.put("/:projectId", async (c) => {
-  const projectId = c.req.param("projectId");
-  const body = await c.req.json();
-
-  const updated = await db
-    .update(projects)
-    .set({
-      memory: body.memory,
-      updatedAt: new Date()
-    })
-    .where(eq(projects.id, projectId))
-    .returning();
-
-  if (updated.length === 0) {
-    return c.json({ error: "Project not found" }, 404);
-  }
-
-  return c.json({
-    projectId,
-    memory: updated[0].memory
-  });
-});
-
-// Sessions namespace - Session management
-const sessionsRouter = new Hono();
-
-// Update session status
-sessionsRouter.put("/:sessionId", async (c) => {
-  const sessionId = c.req.param("sessionId");
-  const body = await c.req.json();
-
-  const updateData: any = {};
-  
-  // Allow updating specific session fields
-  if (body.status !== undefined) updateData.status = body.status;
-  if (body.completedAt !== undefined) updateData.completedAt = body.completedAt;
-
-  const updated = await db
-    .update(sessions)
-    .set(updateData)
-    .where(eq(sessions.id, sessionId))
-    .returning();
-
-  if (updated.length === 0) {
-    return c.json({ error: "Session not found" }, 404);
-  }
-
-  return c.json({ session: updated[0] });
-});
-
-// Get session info
-sessionsRouter.get("/:sessionId", async (c) => {
-  const sessionId = c.req.param("sessionId");
-
-  const session = await db.query.sessions.findFirst({
-    where: eq(sessions.id, sessionId),
-    with: {
-      task: {
-        with: {
-          project: true,
-          repoAgent: true,
-          actor: true
+    return {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            success: true,
+            agent: { id: repoAgent.id, clientType: repoAgent.clientType, repoPath: repoAgent.repoPath }
+          })
         }
-      },
-      repoAgent: true
+      ]
+    };
+  }
+);
+
+server.tool(
+  "agent.requestTask",
+  "Assign the highest-priority ready task for this agent. Requires x-agent-id header.",
+  async ({ requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    if (!agentId) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+      };
     }
+
+    const repoAgent = await db.query.repoAgents.findFirst({
+      where: eq(repoAgents.id, agentId),
+      with: { project: true }
+    });
+    if (!repoAgent) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Repo agent not found" }) }]
+      };
+    }
+
+    const activeSession = await db.query.sessions.findFirst({
+      where: and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active"))
+    });
+    if (activeSession) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent already has an active session" }) }]
+      };
+    }
+
+    const availableTask = await db.query.tasks.findFirst({
+      where: and(eq(tasks.ready, true), eq(tasks.status, "todo"), eq(tasks.repoAgentId, repoAgent.id)),
+      orderBy: [
+        sql`CASE ${tasks.priority}
+            WHEN 'P1' THEN 1
+            WHEN 'P2' THEN 2
+            WHEN 'P3' THEN 3
+            WHEN 'P4' THEN 4
+            WHEN 'P5' THEN 5
+            ELSE 6
+          END`,
+        tasks.createdAt
+      ],
+      with: { project: true, repoAgent: true, actor: true }
+    });
+
+    if (!availableTask) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "No tasks available" }) }]
+      };
+    }
+
+    const [session] = await db
+      .insert(sessions)
+      .values({ taskId: availableTask.id, repoAgentId: repoAgent.id, status: "active" })
+      .returning();
+
+    await db
+      .update(tasks)
+      .set({ status: "doing", stage: "refine", updatedAt: new Date() })
+      .where(eq(tasks.id, availableTask.id));
+
+    return {
+      content: [{ type: "text", text: JSON.stringify({ success: true, task: availableTask, sessionId: session.id }) }]
+    };
+  }
+);
+
+server.tool(
+  "agent.health",
+  "Report runtime status for the agent. Requires x-agent-id header.",
+  {
+    status: z.enum(["available", "busy", "rate_limited", "error"])
+  },
+  async ({ status }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    if (!agentId) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+      };
+    }
+
+    let nextStatus: "idle" | "active" | "rate_limited" | "error" = "idle";
+    switch (status) {
+      case "available":
+        nextStatus = "idle"; break;
+      case "busy":
+        nextStatus = "active"; break;
+      case "rate_limited":
+        nextStatus = "rate_limited"; break;
+      case "error":
+        nextStatus = "error"; break;
+    }
+
+    await db.update(repoAgents).set({ status: nextStatus, updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+    return {
+      content: [{ type: "text", text: JSON.stringify({ success: true, status }) }]
+    };
+  }
+);
+
+server.tool(
+  "agent.rateLimit",
+  "Mark the agent as rate limited with an optional resolve time.",
+  {
+    sessionId: z.string().uuid(),
+    resolveAt: z.string().datetime()
+  },
+  async ({ sessionId, resolveAt }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    if (!agentId) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+      };
+    }
+
+    await db.update(repoAgents).set({ status: "rate_limited", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+    // Future: persist rate limit metadata
+    return {
+      content: [{ type: "text", text: JSON.stringify({ success: true }) }]
+    };
+  }
+);
+
+server.tool(
+  "agent.sessionComplete",
+  "Mark a session completed or failed and update the task state accordingly.",
+  {
+    sessionId: z.string().uuid(),
+    success: z.boolean(),
+    error: z.string().optional()
+  },
+  async ({ sessionId, success, error }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    if (!agentId) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+      };
+    }
+
+    const session = await db.query.sessions.findFirst({
+      where: and(eq(sessions.id, sessionId), eq(sessions.repoAgentId, agentId)),
+      with: { task: true }
+    });
+    if (!session) {
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Session not found" }) }]
+      };
+    }
+
+    await db
+      .update(sessions)
+      .set({ status: success ? "completed" : "failed", completedAt: new Date() })
+      .where(eq(sessions.id, sessionId));
+
+    if (success) {
+      await db.update(tasks).set({ status: "done", stage: null, updatedAt: new Date() }).where(eq(tasks.id, session.task.id));
+    } else {
+      await db
+        .update(tasks)
+        .set({ status: "todo", stage: null, ready: false, updatedAt: new Date() })
+        .where(eq(tasks.id, session.task.id));
+    }
+
+    await db.update(repoAgents).set({ status: "idle", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+    return {
+      content: [{ type: "text", text: JSON.stringify({ success: true }) }]
+    };
+  }
+);
+
+// Health tool for MCP server itself
+server.tool(
+  "server.health",
+  "Return MCP server status.",
+  async () => ({
+    content: [{ type: "text", text: JSON.stringify({ status: "ok", service: "Solo Unicorn MCP Server" }) }]
+  })
+);
+
+// Expose a function to register the HTTP transport handlers on a Hono app
+export async function registerMcpHttp(app: any, basePath = "/mcp") {
+  const transport = new StreamableHTTPServerTransport({
+    sessionIdGenerator: () => Math.random().toString(36).substring(2, 15)
   });
 
-  if (!session) {
-    return c.json({ error: "Session not found" }, 404);
-  }
+  // Connect the server to the transport
+  await server.connect(transport);
 
-  return c.json({ session });
-});
+  // Streamable HTTP uses a single endpoint that handles all MCP messages
+  app.all(basePath, async (c: any) => {
+    try {
+      // Extract body for POST requests
+      let body;
+      if (c.req.method === 'POST') {
+        body = await c.req.json();
+      }
 
-// Mount sub-routers
-mcpServer.route("/context", contextRouter);
-mcpServer.route("/cards", cardsRouter);
-mcpServer.route("/memory", memoryRouter);
-mcpServer.route("/sessions", sessionsRouter);
+      // Convert Hono's context to Node.js IncomingMessage/ServerResponse style
+      // This is a simplified approach - for production you might need a proper adapter
+      const nodeReq = c.req.raw as any;
 
-// Health check
-mcpServer.get("/health", (c) => {
-  return c.json({ status: "ok", service: "Solo Unicorn MCP Server" });
-});
+      // Create a mock response object that collects the response
+      let statusCode = 200;
+      let responseHeaders: Record<string, string> = {};
+      let responseBody = '';
 
-export { mcpServer };
+      const mockRes = {
+        statusCode,
+        setHeader: (name: string, value: string) => { responseHeaders[name] = value; },
+        writeHead: (code: number, headers?: Record<string, string>) => {
+          statusCode = code;
+          if (headers) Object.assign(responseHeaders, headers);
+        },
+        write: (chunk: any) => { responseBody += chunk; },
+        end: (chunk?: any) => {
+          if (chunk) responseBody += chunk;
+        },
+      } as any;
+
+      await transport.handleRequest(nodeReq, mockRes, body);
+
+      return c.text(responseBody, statusCode, responseHeaders);
+    } catch (err) {
+      return c.json({ error: "MCP server error" }, 500);
+    }
+  });
+}

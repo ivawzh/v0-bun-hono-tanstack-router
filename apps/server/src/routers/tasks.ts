@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { db } from "../db";
 import { tasks, projects, repoAgents, actors } from "../db/schema/simplified";
 import { eq, and, desc } from "drizzle-orm";
+// WebSocket notification removed - agents now use HTTP polling
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
 const taskStageEnum = v.picklist(["refine", "kickoff", "execute"]);
@@ -25,11 +26,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
-      
+
       const results = await db
         .select({
           task: tasks,
@@ -41,14 +42,14 @@ export const tasksRouter = o.router({
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .where(eq(tasks.projectId, input.projectId))
         .orderBy(tasks.priority, desc(tasks.createdAt));
-      
+
       return results.map(r => ({
         ...r.task,
         repoAgent: r.repoAgent,
         actor: r.actor
       }));
     }),
-  
+
   get: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -72,11 +73,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (result.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       return {
         ...result[0].task,
         project: result[0].project,
@@ -84,7 +85,7 @@ export const tasksRouter = o.router({
         actor: result[0].actor
       };
     }),
-  
+
   create: protectedProcedure
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid()),
@@ -107,11 +108,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
-      
+
       // Verify repo agent belongs to project
       const repoAgent = await db
         .select()
@@ -123,11 +124,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (repoAgent.length === 0) {
         throw new Error("Repo agent not found or doesn't belong to project");
       }
-      
+
       // Verify actor belongs to project (if provided)
       if (input.actorId) {
         const actor = await db
@@ -140,12 +141,12 @@ export const tasksRouter = o.router({
             )
           )
           .limit(1);
-        
+
         if (actor.length === 0) {
           throw new Error("Actor not found or doesn't belong to project");
         }
       }
-      
+
       const newTask = await db
         .insert(tasks)
         .values({
@@ -160,10 +161,10 @@ export const tasksRouter = o.router({
           ready: false
         })
         .returning();
-      
+
       return newTask[0];
     }),
-  
+
   update: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid()),
@@ -194,13 +195,13 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       const updates: any = { updatedAt: new Date() };
-      
+
       if (input.rawTitle !== undefined) updates.rawTitle = input.rawTitle;
       if (input.rawDescription !== undefined) updates.rawDescription = input.rawDescription;
       if (input.refinedTitle !== undefined) updates.refinedTitle = input.refinedTitle;
@@ -211,16 +212,16 @@ export const tasksRouter = o.router({
       if (input.priority !== undefined) updates.priority = input.priority;
       if (input.ready !== undefined) updates.ready = input.ready;
       if (input.attachments !== undefined) updates.attachments = input.attachments;
-      
+
       const updated = await db
         .update(tasks)
         .set(updates)
         .where(eq(tasks.id, input.id))
         .returning();
-      
+
       return updated[0];
     }),
-  
+
   delete: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -241,14 +242,14 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       // Delete task (no cascading needed in simplified model)
       await db.delete(tasks).where(eq(tasks.id, input.id));
-      
+
       return { success: true };
     }),
 
@@ -273,11 +274,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       const updated = await db
         .update(tasks)
         .set({
@@ -286,7 +287,7 @@ export const tasksRouter = o.router({
         })
         .where(eq(tasks.id, input.id))
         .returning();
-      
+
       return updated[0];
     })
 });

@@ -5,7 +5,7 @@ import path from "path";
 import { readFileSync, createReadStream } from "fs";
 import readline from "readline";
 
-interface ClaudeProject {
+export interface ClaudeProject {
   id: string;           // The folder name (e.g., "-home-user-repos-myproject")
   path: string;         // The actual file system path
   displayName: string;  // Human-friendly name

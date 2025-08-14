@@ -2,7 +2,7 @@ import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { repoAgents, actors, sessions, tasks, projects } from "../db/schema/simplified";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 
 export const agentsRouter = o.router({
   // Compatibility method for old frontend calls
@@ -100,7 +100,7 @@ export const agentsRouter = o.router({
       if (input.clientType !== undefined) updateData.clientType = input.clientType;
       if (input.status !== undefined) updateData.status = input.status;
       if (input.config !== undefined) updateData.config = input.config;
-      
+
       updateData.updatedAt = new Date();
 
       const [updated] = await db
@@ -245,7 +245,7 @@ export const agentsRouter = o.router({
       if (input.name !== undefined) updateData.name = input.name;
       if (input.description !== undefined) updateData.description = input.description;
       if (input.isDefault !== undefined) updateData.isDefault = input.isDefault;
-      
+
       updateData.updatedAt = new Date();
 
       const [updated] = await db
@@ -329,5 +329,7 @@ export const agentsRouter = o.router({
         .returning();
 
       return defaultActor;
-    })
+    }),
+
+  // Note: Code agent HTTP endpoints moved to MCP server tools
 });
