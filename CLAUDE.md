@@ -25,6 +25,26 @@ Please review the following documents for detailed requirements and design speci
 3. **Documentation**: Update relevant documentation when making significant changes
 4. **Security**: Never commit sensitive data or credentials
 
+## General Engineering Guidelines
+
+### Code Splitting (Hard Limits)
+
+- **Files**: ~300 lines maximum
+- **Action**: Proactively suggest refactoring when approaching these limits
+
+### Package Management Philosophy
+
+- **Prefer native solutions** over third-party libraries when possible
+- Only suggest external dependencies if they provide significant value
+
+## Communication Style
+
+- Be direct and actionable in suggestions
+- Explain the "why" behind recommendations
+- Act as a knowledgeable owner, not just an assistant
+- Proactively address potential UX issues
+- Keep explanations concise but thorough
+
 ## Quick Commands
 
 - Development server: `bun run dev` (in apps/server or apps/web)

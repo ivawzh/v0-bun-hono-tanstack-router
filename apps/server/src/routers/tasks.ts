@@ -19,7 +19,13 @@ export const tasksRouter = o.router({
       assignedActorType: v.optional(v.picklist(["agent", "human"]))
     }))
     .handler(async ({ context, input }) => {
-      let query = db.select({
+      const conditions = [eq(projects.ownerId, context.user.id)];
+      if (input.boardId) conditions.push(eq(tasks.boardId, input.boardId));
+      if (input.status) conditions.push(eq(tasks.status, input.status));
+      if (input.stage) conditions.push(eq(tasks.stage, input.stage));
+      if (input.assignedActorType) conditions.push(eq(tasks.assignedActorType, input.assignedActorType));
+      
+      const results = await db.select({
         task: tasks,
         board: boards,
         project: projects
@@ -27,19 +33,8 @@ export const tasksRouter = o.router({
       .from(tasks)
       .innerJoin(boards, eq(tasks.boardId, boards.id))
       .innerJoin(projects, eq(boards.projectId, projects.id))
-      .where(eq(projects.ownerId, context.user.id));
-      
-      const conditions = [];
-      if (input.boardId) conditions.push(eq(tasks.boardId, input.boardId));
-      if (input.status) conditions.push(eq(tasks.status, input.status));
-      if (input.stage) conditions.push(eq(tasks.stage, input.stage));
-      if (input.assignedActorType) conditions.push(eq(tasks.assignedActorType, input.assignedActorType));
-      
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions, eq(projects.ownerId, context.user.id)));
-      }
-      
-      const results = await query.orderBy(desc(tasks.priority), desc(tasks.createdAt));
+      .where(and(...conditions))
+      .orderBy(tasks.position, desc(tasks.priority), desc(tasks.createdAt));
       
       return results.map((r: any) => r.task);
     }),
@@ -598,6 +593,110 @@ export const tasksRouter = o.router({
         .returning();
       
       return updated[0];
+    }),
+  
+  reorder: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      boardId: v.pipe(v.string(), v.uuid()),
+      status: taskStatusEnum,
+      newPosition: v.pipe(v.number(), v.integer(), v.minValue(0))
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const board = await db
+        .select({
+          board: boards,
+          project: projects
+        })
+        .from(boards)
+        .innerJoin(projects, eq(boards.projectId, projects.id))
+        .where(
+          and(
+            eq(boards.id, input.boardId),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+      
+      if (board.length === 0) {
+        throw new Error("Board not found or unauthorized");
+      }
+
+      // Verify task exists and belongs to this board
+      const task = await db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.id, input.taskId),
+            eq(tasks.boardId, input.boardId)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or doesn't belong to this board");
+      }
+
+      // Get all tasks in the same status column ordered by position
+      const tasksInColumn = await db
+        .select()
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.boardId, input.boardId),
+            eq(tasks.status, input.status)
+          )
+        )
+        .orderBy(tasks.position);
+
+      // Update positions: 
+      // 1. Remove the task being moved from its current position
+      const filteredTasks = tasksInColumn.filter(t => t.id !== input.taskId);
+      
+      // 2. Insert the task at the new position
+      const newOrderedTasks = [
+        ...filteredTasks.slice(0, input.newPosition),
+        task[0], 
+        ...filteredTasks.slice(input.newPosition)
+      ];
+
+      // 3. Update all positions in batch
+      const updates = newOrderedTasks.map((t, index) => ({
+        id: t.id,
+        position: index,
+        // If this is the moved task and it's changing status, update that too
+        ...(t.id === input.taskId && t.status !== input.status ? { status: input.status } : {})
+      }));
+
+      // Execute position updates
+      for (const update of updates) {
+        await db
+          .update(tasks)
+          .set({ 
+            position: update.position, 
+            ...(update.status ? { status: update.status } : {}),
+            updatedAt: new Date() 
+          })
+          .where(eq(tasks.id, update.id));
+      }
+
+      // Log event if status changed
+      if (task[0].status !== input.status) {
+        await db.insert(taskEvents).values({
+          taskId: input.taskId,
+          type: "status_change",
+          payload: { 
+            from: task[0].status, 
+            to: input.status, 
+            user: context.user.id,
+            reordered: true 
+          }
+        });
+      }
+
+      return { success: true };
     }),
   
   getDetails: protectedProcedure

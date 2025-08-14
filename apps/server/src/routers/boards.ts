@@ -230,7 +230,7 @@ export const boardsRouter = o.router({
         .select()
         .from(tasks)
         .where(eq(tasks.boardId, input.id))
-        .orderBy(desc(tasks.priority), desc(tasks.createdAt));
+        .orderBy(tasks.position, desc(tasks.priority), desc(tasks.createdAt));
       
       return {
         ...board[0].board,

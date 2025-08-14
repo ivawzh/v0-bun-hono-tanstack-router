@@ -73,6 +73,7 @@ export const tasks = pgTable("tasks", {
   status: text("status").notNull().default("todo"), // todo|in_progress|qa|done|paused (removed blocked as status)
   stage: text("stage").notNull().default("kickoff"), // kickoff|spec|design|dev|qa|done
   priority: integer("priority").default(0),
+  position: integer("position").default(0), // Position within status column for drag/drop ordering
   metadata: jsonb("metadata").default({}),
   assignedActorType: text("assigned_actor_type"), // agent|human
   assignedAgentId: uuid("assigned_agent_id").references(() => agents.id),

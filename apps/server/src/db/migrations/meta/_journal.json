@@ -15,6 +15,13 @@
       "when": 1754983368069,
       "tag": "0001_sweet_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755134827585,
+      "tag": "0002_outstanding_carlie_cooper",
+      "breakpoints": true
     }
   ]
 }

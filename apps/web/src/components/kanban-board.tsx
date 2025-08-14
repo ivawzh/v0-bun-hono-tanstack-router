@@ -139,6 +139,17 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     })
   );
 
+  const reorderTask = useMutation(
+    orpc.tasks.reorder.mutationOptions({
+      onSuccess: () => {
+        refetch();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to reorder task: ${error.message}`);
+      },
+    })
+  );
+
   const toggleProjectAgentPause = useMutation(
     orpc.projects.update.mutationOptions({
       onSuccess: () => {
@@ -188,21 +199,62 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: string) => {
+  const handleDrop = (e: React.DragEvent, newStatus: string, insertIndex?: number) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
-    if (taskId) {
-      const task = (boardData as any)?.tasks?.find((t: any) => t.id === taskId);
+    if (!taskId) return;
 
-      // If moving to QA and qaRequired is false, ask for confirmation
-      if (newStatus === "qa" && task && !task.qaRequired) {
-        if (!confirm("This task doesn't require QA. Move to QA anyway?")) {
-          return;
-        }
+    const task = (boardData as any)?.tasks?.find((t: any) => t.id === taskId);
+    if (!task) return;
+
+    // If moving to QA and qaRequired is false, ask for confirmation
+    if (newStatus === "qa" && task && !task.qaRequired) {
+      if (!confirm("This task doesn't require QA. Move to QA anyway?")) {
+        return;
       }
-
-      updateTask.mutate({ id: taskId, status: newStatus as any } as any);
     }
+
+    // Calculate the position to insert at
+    let newPosition = insertIndex;
+    if (newPosition === undefined) {
+      // Default to end of column if no specific position given
+      const tasksInNewColumn = tasksByStatus[newStatus] || [];
+      newPosition = tasksInNewColumn.length;
+    }
+
+    // If it's the same status and we're inserting after the current position, adjust for removal
+    if (task.status === newStatus) {
+      const currentIndex = tasksByStatus[newStatus].findIndex((t: any) => t.id === taskId);
+      if (currentIndex < newPosition) {
+        newPosition = newPosition - 1;
+      }
+    }
+
+    // Use reorder mutation for all drag and drop operations
+    reorderTask.mutate({
+      taskId,
+      boardId,
+      status: newStatus,
+      newPosition
+    });
+  };
+
+  const handleCardDrop = (e: React.DragEvent, targetTaskId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const draggedTaskId = e.dataTransfer.getData("taskId");
+    if (!draggedTaskId || draggedTaskId === targetTaskId) return;
+
+    const draggedTask = (boardData as any)?.tasks?.find((t: any) => t.id === draggedTaskId);
+    const targetTask = (boardData as any)?.tasks?.find((t: any) => t.id === targetTaskId);
+    if (!draggedTask || !targetTask) return;
+
+    // Find the target task's position in its column
+    const tasksInTargetColumn = tasksByStatus[targetTask.status] || [];
+    const targetIndex = tasksInTargetColumn.findIndex((t: any) => t.id === targetTaskId);
+    
+    handleDrop(e, targetTask.status, targetIndex);
   };
 
   // Count online agents (mock data for now)
@@ -363,6 +415,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                       className="cursor-pointer hover:shadow-md transition-shadow group"
                       draggable
                       onDragStart={(e) => handleDragStart(e, task.id)}
+                      onDragOver={handleDragOver}
+                      onDrop={(e) => handleCardDrop(e, task.id)}
                       onClick={() => setSelectedTaskId(task.id)}
                     >
                       <CardHeader className="p-3 pb-2">
