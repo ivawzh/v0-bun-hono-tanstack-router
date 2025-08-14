@@ -169,7 +169,7 @@ export class AgentOrchestrator {
 
       // Create session record in database
       await db.insert(sessions).values({
-        id: sessionId,
+        claudeSessionId: sessionId,
         taskId: task.id,
         repoAgentId: repoAgent.id,
         status: 'starting',

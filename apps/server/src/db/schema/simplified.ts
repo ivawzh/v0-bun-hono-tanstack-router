@@ -83,6 +83,7 @@ export const tasks = pgTable("tasks", {
 // Sessions table (for tracking agent work sessions)
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
+  claudeSessionId: text("claude_session_id"), // ID from Claude Code UI
   taskId: uuid("task_id").notNull().references(() => tasks.id),
   repoAgentId: uuid("repo_agent_id").notNull().references(() => repoAgents.id),
   status: text("status").notNull().default("starting"), // starting, active, completed, failed
