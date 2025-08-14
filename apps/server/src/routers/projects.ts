@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { db } from "../db";
-import { projects, boards, repositories, tasks } from "../db/schema/core";
+import { projects, repoAgents, actors, tasks } from "../db/schema/simplified";
 import { eq, and, desc } from "drizzle-orm";
 import { protectedProcedure, o } from "../lib/orpc";
 
@@ -80,13 +80,13 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid()),
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
       description: v.optional(v.string()),
-      agentPaused: v.optional(v.boolean())
+      memory: v.optional(v.any())
     }))
     .handler(async ({ context, input }) => {
       const updates: any = { updatedAt: new Date() };
       if (input.name !== undefined) updates.name = input.name;
       if (input.description !== undefined) updates.description = input.description;
-      if (input.agentPaused !== undefined) updates.agentPaused = input.agentPaused;
+      if (input.memory !== undefined) updates.memory = input.memory;
       
       const updated = await db
         .update(projects)
@@ -106,36 +106,6 @@ export const projectsRouter = o.router({
       return updated[0];
     }),
 
-  updateIntegration: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid()),
-      localRepoPath: v.nullable(v.string()),
-      claudeProjectId: v.nullable(v.string())
-    }))
-    .handler(async ({ context, input }) => {
-      const updates: any = { 
-        updatedAt: new Date(),
-        localRepoPath: input.localRepoPath,
-        claudeProjectId: input.claudeProjectId
-      };
-      
-      const updated = await db
-        .update(projects)
-        .set(updates)
-        .where(
-          and(
-            eq(projects.id, input.id),
-            eq(projects.ownerId, context.user.id)
-          )
-        )
-        .returning();
-
-      if (updated.length === 0) {
-        throw new Error("Project not found or unauthorized");
-      }
-
-      return updated[0];
-    }),
 
   delete: protectedProcedure
     .input(v.object({
@@ -159,21 +129,14 @@ export const projectsRouter = o.router({
       }
 
       // Delete related data (cascade)
-      // Delete tasks from boards in this project
-      const projectBoards = await db
-        .select({ id: boards.id })
-        .from(boards)
-        .where(eq(boards.projectId, input.id));
+      // Delete tasks
+      await db.delete(tasks).where(eq(tasks.projectId, input.id));
 
-      for (const board of projectBoards) {
-        await db.delete(tasks).where(eq(tasks.boardId, board.id));
-      }
+      // Delete repo agents
+      await db.delete(repoAgents).where(eq(repoAgents.projectId, input.id));
 
-      // Delete boards
-      await db.delete(boards).where(eq(boards.projectId, input.id));
-
-      // Delete repositories
-      await db.delete(repositories).where(eq(repositories.projectId, input.id));
+      // Delete actors
+      await db.delete(actors).where(eq(actors.projectId, input.id));
 
       // Finally delete the project
       await db.delete(projects).where(eq(projects.id, input.id));
@@ -202,15 +165,15 @@ export const projectsRouter = o.router({
       }
 
       // Get counts
-      const boardCount = await db
+      const repoAgentCount = await db
         .select()
-        .from(boards)
-        .where(eq(boards.projectId, input.id));
+        .from(repoAgents)
+        .where(eq(repoAgents.projectId, input.id));
 
-      const repoCount = await db
+      const actorCount = await db
         .select()
-        .from(repositories)
-        .where(eq(repositories.projectId, input.id));
+        .from(actors)
+        .where(eq(actors.projectId, input.id));
 
       // Get task counts by status
       const taskStats = await db
@@ -219,14 +182,13 @@ export const projectsRouter = o.router({
           count: tasks.id
         })
         .from(tasks)
-        .innerJoin(boards, eq(tasks.boardId, boards.id))
-        .where(eq(boards.projectId, input.id));
+        .where(eq(tasks.projectId, input.id));
 
       return {
         ...project[0],
         stats: {
-          boards: boardCount.length,
-          repositories: repoCount.length,
+          repoAgents: repoAgentCount.length,
+          actors: actorCount.length,
           tasks: {
             total: taskStats.length,
             byStatus: taskStats.reduce((acc: Record<string, number>, stat: { status: string; count: string }) => {

@@ -1,4 +1,4 @@
-# Solo Unicorn — Simplified MVP Requirements
+# Solo Unicorn Project Overview
 
 ## Vision and Goal
 
