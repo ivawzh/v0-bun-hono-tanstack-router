@@ -37,9 +37,26 @@ export class ClaudeCodeClient {
     return new Promise((resolve, reject) => {
       const wsUrl = `${this.options.claudeCodeUrl}/ws/agent?token=${encodeURIComponent(this.options.agentToken)}`;
       console.log('🤖 Connecting to Claude Code UI WebSocket:', wsUrl);
+      
+      // Clean up existing connection if any
+      if (this.ws) {
+        this.ws.removeAllListeners();
+        this.ws.close();
+        this.ws = null;
+      }
+      
       this.ws = new WebSocket(wsUrl);
 
+      // Set a connection timeout
+      const connectionTimeout = setTimeout(() => {
+        if (this.ws && this.ws.readyState === WebSocket.CONNECTING) {
+          this.ws.close();
+          reject(new Error('WebSocket connection timeout'));
+        }
+      }, 10000); // 10 second timeout
+
       this.ws.on('open', () => {
+        clearTimeout(connectionTimeout);
         console.log('🤖 Connected to Claude Code UI WebSocket');
         this.isConnected = true;
         this.reconnectAttempts = 0; // Reset counter on successful connection
@@ -55,14 +72,17 @@ export class ClaudeCodeClient {
         }
       });
 
-      this.ws.on('close', () => {
-        console.log('🔌 Disconnected from Claude Code UI');
+      this.ws.on('close', (code, reason) => {
+        clearTimeout(connectionTimeout);
+        console.log(`🔌 Disconnected from Claude Code UI (code: ${code}, reason: ${reason})`);
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
       this.ws.on('error', (error) => {
+        clearTimeout(connectionTimeout);
         console.error('Claude Code WebSocket error:', error);
+        this.isConnected = false;
         reject(error);
       });
     });
@@ -241,10 +261,14 @@ export class ClaudeCodeClient {
     }
 
     if (this.ws) {
-      this.ws.close();
+      this.ws.removeAllListeners();
+      if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+        this.ws.close(1000, 'Client disconnect');
+      }
       this.ws = null;
     }
 
     this.isConnected = false;
+    this.activeSessions.clear();
   }
 }

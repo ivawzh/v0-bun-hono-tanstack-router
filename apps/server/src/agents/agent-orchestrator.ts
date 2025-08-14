@@ -13,11 +13,13 @@ export class AgentOrchestrator {
   private claudeCodeClient: ClaudeCodeClient;
   private isConnected = false;
   private lastReconnectAttempt = 0;
+  private lastMemoryLog = 0;
   private activeSessions = new Map<string, {
     taskId: string;
     repoAgentId: string;
     stage: 'refine' | 'kickoff' | 'execute';
     sessionId?: string;
+    startTime: Date;
   }>();
 
   constructor(options: AgentOrchestratorOptions) {
@@ -60,6 +62,14 @@ export class AgentOrchestrator {
         }
         
         await this.processReadyTasks();
+        await this.cleanupStaleSessions();
+        
+        // Log memory usage every 5 minutes
+        const now = Date.now();
+        if (!this.lastMemoryLog || now - this.lastMemoryLog > 5 * 60 * 1000) {
+          this.logMemoryUsage();
+          this.lastMemoryLog = now;
+        }
       } catch (error) {
         console.error('Error processing ready tasks:', error);
       }
@@ -164,7 +174,8 @@ export class AgentOrchestrator {
         taskId: task.id,
         repoAgentId: repoAgent.id,
         stage: 'refine',
-        sessionId
+        sessionId,
+        startTime: new Date()
       });
 
       // Create session record in database
@@ -287,7 +298,8 @@ export class AgentOrchestrator {
         taskId,
         repoAgentId: repoAgent.id,
         stage,
-        sessionId
+        sessionId,
+        startTime: new Date()
       });
 
       console.log(`📝 Started ${stage} session for task: ${task.refinedTitle || task.rawTitle}`);
@@ -339,6 +351,55 @@ export class AgentOrchestrator {
         await this.advanceTaskStage(taskId, 'refine');
       } else if (updates.plan && activeSession.stage === 'kickoff') {
         await this.advanceTaskStage(taskId, 'kickoff');
+      }
+    }
+  }
+
+  private logMemoryUsage() {
+    const memUsage = process.memoryUsage();
+    const activeSessions = this.activeSessions.size;
+    console.log(`📊 Memory: RSS=${Math.round(memUsage.rss / 1024 / 1024)}MB, Heap=${Math.round(memUsage.heapUsed / 1024 / 1024)}MB, Active Sessions=${activeSessions}`);
+  }
+
+  private async cleanupStaleSessions() {
+    const now = new Date();
+    const staleSessionTimeout = 30 * 60 * 1000; // 30 minutes
+
+    for (const [sessionId, session] of this.activeSessions) {
+      const sessionAge = now.getTime() - session.startTime.getTime();
+      
+      if (sessionAge > staleSessionTimeout) {
+        console.log(`🧹 Cleaning up stale session: ${sessionId} (age: ${Math.round(sessionAge / 60000)}min)`);
+        
+        try {
+          // Abort the Claude session
+          await this.claudeCodeClient.abortSession(sessionId);
+          
+          // Reset the task to todo status
+          await db
+            .update(tasks)
+            .set({
+              status: 'todo',
+              stage: null,
+              ready: false
+            })
+            .where(eq(tasks.id, session.taskId));
+
+          // Update database session status
+          await db
+            .update(sessions)
+            .set({
+              status: 'failed',
+              completedAt: now
+            })
+            .where(eq(sessions.claudeSessionId, sessionId));
+
+        } catch (error) {
+          console.error(`Error cleaning up stale session ${sessionId}:`, error);
+        }
+        
+        // Remove from active sessions
+        this.activeSessions.delete(sessionId);
       }
     }
   }
