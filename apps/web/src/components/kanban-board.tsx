@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle
 } from "lucide-react";
@@ -107,6 +107,28 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       enabled: !!projectId
     })
   );
+
+  // Auto-select repo agent and actor when there's only one choice
+  useEffect(() => {
+    if (repoAgents?.length === 1 && !newTask.repoAgentId) {
+      setNewTask(prev => ({ ...prev, repoAgentId: repoAgents[0].id }));
+    }
+  }, [repoAgents, newTask.repoAgentId]);
+
+  useEffect(() => {
+    if (actors && !newTask.actorId) {
+      if (actors.length === 1) {
+        // Auto-select if there's only one actor
+        setNewTask(prev => ({ ...prev, actorId: actors[0].id }));
+      } else {
+        // Auto-select default actor if there's one
+        const defaultActor = actors.find((actor: any) => actor.isDefault);
+        if (defaultActor) {
+          setNewTask(prev => ({ ...prev, actorId: defaultActor.id }));
+        }
+      }
+    }
+  }, [actors, newTask.actorId]);
 
   // Create task mutation
   const createTask = useMutation(
@@ -490,7 +512,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                   <SelectValue placeholder="Select actor (or use default)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Use default actor</SelectItem>
+                  <SelectItem value="__default__">Use default actor</SelectItem>
                   {actors?.map((actor: any) => (
                     <SelectItem key={actor.id} value={actor.id}>
                       {actor.name} {actor.isDefault ? "(Default)" : ""}
@@ -513,7 +535,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                     rawDescription: newTask.rawDescription || undefined,
                     priority: newTask.priority,
                     repoAgentId: newTask.repoAgentId,
-                    actorId: newTask.actorId || undefined
+                    actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId || undefined
                   });
                 } else {
                   toast.error("Please fill in title and select a repo agent");
