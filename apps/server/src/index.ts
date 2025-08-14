@@ -69,25 +69,23 @@ let agentOrchestrator: AgentOrchestrator | null = null;
 
 async function initializeAgentOrchestrator() {
   try {
-    const claudeCodeUrl = process.env.CLAUDE_CODE_URL || "ws://localhost:8888";
+    const claudeCodeWebsocketUrl = process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501";
     const agentToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
-    
+
     console.log("🤖 Initializing Agent Orchestrator...");
-    console.log(`   Claude Code URL: ${claudeCodeUrl}`);
-    console.log(`   Agent Token: ${agentToken.substring(0, 10)}...`);
-    
+
     agentOrchestrator = new AgentOrchestrator({
-      claudeCodeUrl,
+      claudeCodeUrl: claudeCodeWebsocketUrl,
       agentToken
     });
-    
+
     await agentOrchestrator.initialize();
     console.log("🤖 Agent Orchestrator initialized successfully");
   } catch (error) {
     console.error("❌ Failed to initialize Agent Orchestrator:", error.message);
     console.log("ℹ️  Agent Orchestrator will continue trying to connect in the background");
-    console.log("ℹ️  Make sure Claude Code UI is running on", process.env.CLAUDE_CODE_URL || "ws://localhost:8888");
-    
+    console.log("ℹ️  Make sure Claude Code UI is running on", process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501");
+
     // Don't throw error - let the app continue running
     // The agent orchestrator will retry connections automatically
   }

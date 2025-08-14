@@ -10,7 +10,7 @@ export interface ClaudeCodeSession {
 }
 
 export interface ClaudeCodeClientOptions {
-  claudeCodeUrl: string; // e.g. 'ws://localhost:8888'
+  claudeCodeUrl: string; // e.g. 'ws://localhost:8501'
   agentToken: string; // AGENT_AUTH_TOKEN
 }
 
@@ -35,8 +35,8 @@ export class ClaudeCodeClient {
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const wsUrl = `${this.options.claudeCodeUrl}/ws/agent?token=${encodeURIComponent(this.options.agentToken)}`;
-      
+      const wsUrl = `${this.options.claudeCodeUrl}/ws?token=${encodeURIComponent(this.options.agentToken)}`;
+      console.log('🤖 Connecting to Claude Code UI WebSocket:', wsUrl);
       this.ws = new WebSocket(wsUrl);
 
       this.ws.on('open', () => {
@@ -72,19 +72,19 @@ export class ClaudeCodeClient {
     if (this.reconnectTimeout) {
       clearTimeout(this.reconnectTimeout);
     }
-    
+
     // Stop trying after max attempts
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
       console.log(`🛑 Max reconnection attempts (${this.maxReconnectAttempts}) reached. Stopping reconnection attempts.`);
       console.log("ℹ️  Claude Code UI may not be running. Please start it and restart Solo Unicorn server.");
       return;
     }
-    
+
     this.reconnectAttempts++;
     const delay = Math.min(5000 * this.reconnectAttempts, 30000); // Exponential backoff, max 30s
-    
+
     console.log(`🔄 Scheduling reconnect attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts} in ${delay/1000}s`);
-    
+
     this.reconnectTimeout = setTimeout(async () => {
       try {
         await this.connect();
@@ -160,7 +160,7 @@ export class ClaudeCodeClient {
     };
 
     this.ws.send(JSON.stringify(sessionMessage));
-    
+
     // Return a temporary session ID (will be updated when session is created)
     return Date.now().toString();
   }
@@ -204,7 +204,7 @@ export class ClaudeCodeClient {
       };
 
       this.ws.on('message', messageHandler);
-      
+
       this.ws.send(JSON.stringify({
         type: 'get_active_sessions'
       }));
@@ -224,7 +224,7 @@ export class ClaudeCodeClient {
 
     // Reset attempt counter to allow new connection attempts
     this.reconnectAttempts = 0;
-    
+
     try {
       await this.connect();
       return true;

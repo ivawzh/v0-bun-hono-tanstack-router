@@ -70,7 +70,6 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useMediaRecorder } from "@/hooks/use-media-recorder";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { getClaudeCodeBaseUrl } from "@/utils/claude";
 
 interface TaskDetailProps {
   taskId: string | null;
@@ -487,7 +486,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const base = getClaudeCodeBaseUrl();
+                      const base = '' // #TODO: getClaudeCodeBaseUrl();
                       window.open(`${base}/session/${(taskDetails as any).activeSessionId}`, "_blank");
                     }}
                   >

@@ -16,7 +16,8 @@ Create `/home/iw/repos/solo-unicorn/apps/claudecode-ui/.env`:
 
 ```bash
 # Basic server configuration
-PORT=8888
+VITE_PORT=8303
+PORT=8501
 
 # Agent Authentication Token (must match Solo Unicorn server)
 AGENT_AUTH_TOKEN=your-secure-agent-token-here
@@ -37,7 +38,7 @@ PORT=8500
 DATABASE_URL=postgresql://postgres:password@localhost:5432/solo_unicorn
 
 # Claude Code Integration (must match Claude Code UI token)
-CLAUDE_CODE_URL=ws://localhost:8888
+CLAUDE_CODE_WS_URL=ws://localhost:8501
 AGENT_AUTH_TOKEN=your-secure-agent-token-here
 
 # CORS Configuration
@@ -62,7 +63,7 @@ sudo systemctl start postgresql
 docker run --name postgres -e POSTGRES_PASSWORD=password -p 5432:5432 -d postgres
 ```
 
-### 2. Start Claude Code UI Server (Port 8888)
+### 2. Start Claude Code UI Server (Port 8303 and 8501)
 
 ```bash
 cd /home/iw/repos/solo-unicorn/apps/claudecode-ui
@@ -74,7 +75,7 @@ You should see:
 ```
 ✅ WebSocket authenticated for user: <username>
 Claude Code UI Server
-➜ Local: http://localhost:8888/
+➜ Local: http://localhost:8303/
 ```
 
 ### 3. Start Solo Unicorn Server (Port 8500)
@@ -88,7 +89,7 @@ bun dev
 You should see:
 ```
 🤖 Initializing Agent Orchestrator...
-   Claude Code URL: ws://localhost:8888
+   Claude Code URL: ws://localhost:8501
    Agent Token: f9488f43...
 🤖 Connected to Claude Code UI WebSocket
 🤖 Agent Orchestrator initialized successfully
@@ -107,12 +108,12 @@ bun dev
 
 ### ❌ WebSocket Connection Failed
 
-**Error**: `WebSocket connection to 'ws://localhost:8888/ws/agent?token=...' failed`
+**Error**: `WebSocket connection to 'ws://localhost:8501/ws/agent?token=...' failed`
 
 **Solution**:
-1. Verify Claude Code UI is running on port 8888
+1. Verify Claude Code UI is running on port 8501
 2. Check that both servers have the same `AGENT_AUTH_TOKEN`
-3. Test Claude Code UI accessibility: `curl http://localhost:8888/`
+3. Test Claude Code UI accessibility: `curl http://localhost:8501/`
 
 **Expected Behavior**: If Claude Code UI isn't available, Solo Unicorn will:
 - Log connection failures with exponential backoff
@@ -147,7 +148,7 @@ bun dev
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Solo Unicorn  │    │   Claude Code UI │    │   Claude CLI    │
 │   Web UI        │    │   Server         │    │   Process       │
-│   (Port 8302)   │    │   (Port 8888)    │    │                 │
+│   (Port 8302)   │    │   (Port 8501)    │    │                 │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                        │                        │
          │ HTTP API               │ WebSocket              │ Process

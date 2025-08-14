@@ -1,5 +1,5 @@
 {
-  "name": "server",
+  "name": "solo-unicorn-server",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {

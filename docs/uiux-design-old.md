@@ -56,7 +56,7 @@ Notes
 - Badges: blocked (⛔), attachments count (📎), comments (💬), questions (❓)
 - Optional mini-pipeline dots for stage progress
 - Claude Code link: if the task has a recent/active agent session, show “Open in Claude Code” link/icon to the session
-  - Example: `http://172.22.208.25:8888/session/<session-id>` (e.g., `http://172.22.208.25:8888/session/18b64b03-bc9c-406e-a37f-34e9a5a2471a`)
+  - Example: `http://172.22.208.25:8303/session/<session-id>` (e.g., `http://172.22.208.25:8303/session/18b64b03-bc9c-406e-a37f-34e9a5a2471a`)
 
 ### Task drawer (slide-over)
 

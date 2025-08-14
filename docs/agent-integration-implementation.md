@@ -6,7 +6,7 @@ This document describes the implementation of autonomous agent integration betwe
 
 The integration allows Solo Unicorn to autonomously manage tasks through three stages:
 1. **Refine**: Agent understands and refines raw user input into clear requirements
-2. **Kickoff**: Agent creates detailed implementation plans with solution options  
+2. **Kickoff**: Agent creates detailed implementation plans with solution options
 3. **Execute**: Agent implements the solution with code changes and testing
 
 ## Architecture Components
@@ -37,7 +37,7 @@ The integration allows Solo Unicorn to autonomously manage tasks through three s
 - **Context**: Each prompt includes project memory, task details, and actor description
 
 ### 4. Agent Orchestrator
-- **File**: `apps/server/src/agents/agent-orchestrator.ts`  
+- **File**: `apps/server/src/agents/agent-orchestrator.ts`
 - **Responsibilities**:
   - Monitors database for ready tasks (polls every 10 seconds)
   - Orchestrates task processing through three stages
@@ -72,7 +72,7 @@ const readyTasks = await db.select(...)
 - Updates task with refined title and description
 - Automatic progression to Kickoff stage
 
-### 4. Stage 2: Kickoff  
+### 4. Stage 2: Kickoff
 - Agent creates solution options and ranks them
 - Selects final approach with detailed specification
 - Stores implementation plan in task's `plan` field
@@ -88,16 +88,17 @@ const readyTasks = await db.select(...)
 
 ### Claude Code UI (.env)
 ```bash
-PORT=8888
+VITE_PORT=8303
+PORT=8501
 AGENT_AUTH_TOKEN=your-secure-agent-token-here
 OPENAI_API_KEY=your-openai-api-key-here
 ```
 
-### Solo Unicorn Server (.env)  
+### Solo Unicorn Server (.env)
 ```bash
 PORT=8500
 DATABASE_URL=postgresql://postgres:password@localhost:5432/solo_unicorn
-CLAUDE_CODE_URL=ws://localhost:8888
+CLAUDE_CODE_WS_URL=ws://localhost:8501
 AGENT_AUTH_TOKEN=your-secure-agent-token-here
 CORS_ORIGIN=http://localhost:8302
 ```
@@ -157,7 +158,7 @@ CORS_ORIGIN=http://localhost:8302
 - Error logging for debugging
 - Session marked as failed in database
 
-### Rate Limiting  
+### Rate Limiting
 - Agents can report rate limit status via MCP
 - Orchestrator respects rate limits and retries later
 - Status tracking in repo agent records
@@ -165,7 +166,7 @@ CORS_ORIGIN=http://localhost:8302
 ## Deployment Considerations
 
 ### Dependencies
-- Claude Code UI must be running on specified port (default 8888)
+- Claude Code UI must be running on specified port (default 8303 and 8501)
 - PostgreSQL database must be accessible
 - Both services need same AGENT_AUTH_TOKEN value
 
@@ -175,7 +176,7 @@ CORS_ORIGIN=http://localhost:8302
 - All database operations use parameterized queries
 
 ### Monitoring
-- Extensive logging for debugging and monitoring  
+- Extensive logging for debugging and monitoring
 - Session lifecycle tracking in database
 - Error reporting via console logs and database status
 

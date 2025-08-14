@@ -48,7 +48,7 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 ## Integration Points
 
 - **WebSocket Server**: Port 8500 at `/ws/agent`
-- **Claude Code UI**: Port 8888
+- **Claude Code UI**: UI Port 8303, Server Port 8501
 - **Web Application**: Port 8302
 - **API Server**: Port 8500
 

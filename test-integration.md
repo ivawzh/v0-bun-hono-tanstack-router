@@ -24,7 +24,7 @@
 cd apps/server
 bun run dev
 
-# Claude Code UI (port 8888)  
+# Claude Code UI (UI port 8303, server port 8501)
 cd apps/claudecode-ui
 bun run dev
 ```
@@ -34,7 +34,8 @@ Create `/apps/claudecode-ui/.env`:
 ```env
 SOLO_UNICORN_URL=ws://localhost:8500/ws/agent
 AGENT_AUTH_TOKEN=dev-token
-PORT=8888
+VITE_PORT=8303
+PORT=8501
 ```
 
 ### 3. Test Flow
@@ -52,7 +53,7 @@ PORT=8888
 ### 4. Verify Database
 ```sql
 -- Check active sessions
-SELECT t.title, t.status, t.active_session_id, as.state 
+SELECT t.title, t.status, t.active_session_id, as.state
 FROM tasks t
 LEFT JOIN agent_sessions as ON t.active_session_id = as.id
 WHERE t.active_session_id IS NOT NULL;
