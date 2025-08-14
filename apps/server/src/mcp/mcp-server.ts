@@ -257,6 +257,146 @@ server.tool(
 );
 
 // Health tool for MCP server itself
+// Context and task management tools
+server.tool(
+  "context.read",
+  "Read project and task context for the current session.",
+  {
+    taskId: z.string().uuid().optional(),
+    projectId: z.string().uuid().optional()
+  },
+  async ({ taskId, projectId }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+
+    try {
+      let result: any = {};
+
+      if (taskId) {
+        const task = await db.query.tasks.findFirst({
+          where: eq(tasks.id, taskId),
+          with: {
+            project: true,
+            repoAgent: true,
+            actor: true
+          }
+        });
+
+        if (task) {
+          result.task = task;
+          result.project = task.project;
+          result.repoAgent = task.repoAgent;
+          result.actor = task.actor;
+        }
+      } else if (projectId) {
+        const project = await db.query.projects.findFirst({
+          where: eq(projects.id, projectId),
+          with: {
+            repoAgents: true,
+            actors: true
+          }
+        });
+
+        if (project) {
+          result.project = project;
+        }
+      }
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify(result)
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ success: false, error: error.message })
+        }]
+      };
+    }
+  }
+);
+
+server.tool(
+  "cards.update",
+  "Update task fields during workflow stages.",
+  {
+    taskId: z.string().uuid(),
+    updates: z.object({
+      refinedTitle: z.string().optional(),
+      refinedDescription: z.string().optional(),
+      plan: z.any().optional(),
+      status: z.enum(["todo", "doing", "done"]).optional(),
+      stage: z.enum(["refine", "kickoff", "execute"]).optional(),
+    })
+  },
+  async ({ taskId, updates }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+
+    try {
+      await db
+        .update(tasks)
+        .set({
+          ...updates,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, taskId));
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ success: true, taskId, updates })
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ success: false, error: error.message })
+        }]
+      };
+    }
+  }
+);
+
+server.tool(
+  "memory.update",
+  "Update project memory with learnings and context.",
+  {
+    projectId: z.string().uuid(),
+    memory: z.string()
+  },
+  async ({ projectId, memory }, { requestInfo }) => {
+    assertBearer(requestInfo?.headers?.authorization);
+
+    try {
+      await db
+        .update(projects)
+        .set({
+          memory,
+          updatedAt: new Date()
+        })
+        .where(eq(projects.id, projectId));
+
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ success: true, projectId })
+        }]
+      };
+    } catch (error) {
+      return {
+        content: [{
+          type: "text",
+          text: JSON.stringify({ success: false, error: error.message })
+        }]
+      };
+    }
+  }
+);
+
+// Health tool for MCP server itself
 server.tool(
   "server.health",
   "Return MCP server status.",

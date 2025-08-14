@@ -10,6 +10,7 @@ import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
 import { registerMcpHttp } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
+import { AgentOrchestrator } from "./agents/agent-orchestrator";
 
 const app = new Hono();
 
@@ -62,6 +63,46 @@ app.get("/", (c) => {
 registerMcpHttp(app, "/mcp");
 
 const port = process.env.PORT || 8500;
+
+// Initialize Agent Orchestrator
+let agentOrchestrator: AgentOrchestrator | null = null;
+
+async function initializeAgentOrchestrator() {
+  try {
+    const claudeCodeUrl = process.env.CLAUDE_CODE_URL || "ws://localhost:8888";
+    const agentToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
+    
+    agentOrchestrator = new AgentOrchestrator({
+      claudeCodeUrl,
+      agentToken
+    });
+    
+    await agentOrchestrator.initialize();
+    console.log("🤖 Agent Orchestrator initialized successfully");
+  } catch (error) {
+    console.error("❌ Failed to initialize Agent Orchestrator:", error);
+  }
+}
+
+// Initialize on startup
+initializeAgentOrchestrator();
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  if (agentOrchestrator) {
+    agentOrchestrator.shutdown();
+  }
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  if (agentOrchestrator) {
+    agentOrchestrator.shutdown();
+  }
+  process.exit(0);
+});
 
 export default {
   port,
