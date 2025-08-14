@@ -5,22 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1754880962483,
-      "tag": "0000_steady_gideon",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1754983368069,
-      "tag": "0001_sweet_famine",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1755134827585,
-      "tag": "0002_outstanding_carlie_cooper",
+      "when": 1734207600000,
+      "tag": "0000_simplified_schema",
       "breakpoints": true
     }
   ]
