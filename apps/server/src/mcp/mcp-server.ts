@@ -165,10 +165,63 @@ memoryRouter.put("/:projectId", async (c) => {
   });
 });
 
+// Sessions namespace - Session management
+const sessionsRouter = new Hono();
+
+// Update session status
+sessionsRouter.put("/:sessionId", async (c) => {
+  const sessionId = c.req.param("sessionId");
+  const body = await c.req.json();
+
+  const updateData: any = {};
+  
+  // Allow updating specific session fields
+  if (body.status !== undefined) updateData.status = body.status;
+  if (body.completedAt !== undefined) updateData.completedAt = body.completedAt;
+
+  const updated = await db
+    .update(sessions)
+    .set(updateData)
+    .where(eq(sessions.id, sessionId))
+    .returning();
+
+  if (updated.length === 0) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  return c.json({ session: updated[0] });
+});
+
+// Get session info
+sessionsRouter.get("/:sessionId", async (c) => {
+  const sessionId = c.req.param("sessionId");
+
+  const session = await db.query.sessions.findFirst({
+    where: eq(sessions.id, sessionId),
+    with: {
+      task: {
+        with: {
+          project: true,
+          repoAgent: true,
+          actor: true
+        }
+      },
+      repoAgent: true
+    }
+  });
+
+  if (!session) {
+    return c.json({ error: "Session not found" }, 404);
+  }
+
+  return c.json({ session });
+});
+
 // Mount sub-routers
 mcpServer.route("/context", contextRouter);
 mcpServer.route("/cards", cardsRouter);
 mcpServer.route("/memory", memoryRouter);
+mcpServer.route("/sessions", sessionsRouter);
 
 // Health check
 mcpServer.get("/health", (c) => {

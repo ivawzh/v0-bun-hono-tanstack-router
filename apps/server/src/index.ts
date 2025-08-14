@@ -8,10 +8,8 @@ import { logger } from "hono/logger";
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
-import { agentGateway } from "./gateway/agent-gateway";
 import { mcpServer } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
-import { simplifiedWebsocketHandler } from "./gateway/simplified-websocket-handler";
 
 const app = new Hono();
 
@@ -19,7 +17,7 @@ app.use(logger());
 app.use("/*", cors({
   origin: process.env.CORS_ORIGIN || "http://localhost:8302",
   allowMethods: ["GET", "POST", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "X-Agent-Id", "X-Client-Type", "X-Repo-Path"],
   credentials: true,
 }));
 
@@ -60,9 +58,6 @@ app.get("/", (c) => {
   return c.text("OK");
 });
 
-// Mount agent gateway at /agent
-app.route("/agent", agentGateway);
-
 // Mount MCP server at /mcp
 app.route("/mcp", mcpServer);
 
@@ -70,20 +65,5 @@ const port = process.env.PORT || 8500;
 
 export default {
   port,
-  fetch: async (request: Request, server: any) => {
-    // Check if this is a WebSocket upgrade request
-    if (request.headers.get("upgrade") === "websocket") {
-      const url = new URL(request.url);
-      if (url.pathname === "/ws/agent") {
-        // Upgrade to WebSocket
-        const success = server.upgrade(request, {
-          data: { path: "/ws/agent" }
-        });
-        return success ? undefined : new Response("WebSocket upgrade failed", { status: 400 });
-      }
-    }
-    // Otherwise handle as normal HTTP request
-    return app.fetch(request, server);
-  },
-  websocket: simplifiedWebsocketHandler,
+  fetch: app.fetch,
 };

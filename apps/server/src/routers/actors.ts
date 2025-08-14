@@ -2,7 +2,7 @@ import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { actors, projects } from "../db/schema/simplified";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, ne } from "drizzle-orm";
 
 export const actorsRouter = o.router({
   list: protectedProcedure
@@ -201,7 +201,7 @@ export const actorsRouter = o.router({
           .where(
             and(
               eq(actors.projectId, actor[0].actor.projectId),
-              eq(actors.id, input.id, "!=")
+              ne(actors.id, input.id)
             )
           );
         
