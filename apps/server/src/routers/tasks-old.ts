@@ -1,10 +1,10 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { 
+import {
   tasks, boards, projects, agents, taskEvents, taskArtifacts,
   taskChecklistItems, messages, questions, notifications, taskHooks
-} from "../db/schema/core";
+} from "../db/schema/simplified";
 import { eq, and, desc, or, inArray } from "drizzle-orm";
 
 const taskStatusEnum = v.picklist(["todo", "in_progress", "qa", "done", "paused"]);
@@ -24,7 +24,7 @@ export const tasksRouter = o.router({
       if (input.status) conditions.push(eq(tasks.status, input.status));
       if (input.stage) conditions.push(eq(tasks.stage, input.stage));
       if (input.assignedActorType) conditions.push(eq(tasks.assignedActorType, input.assignedActorType));
-      
+
       const results = await db.select({
         task: tasks,
         board: boards,
@@ -35,10 +35,10 @@ export const tasksRouter = o.router({
       .innerJoin(projects, eq(boards.projectId, projects.id))
       .where(and(...conditions))
       .orderBy(tasks.position, desc(tasks.priority), desc(tasks.createdAt));
-      
+
       return results.map((r: any) => r.task);
     }),
-  
+
   get: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -60,14 +60,14 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       return task[0].task;
     }),
-  
+
   create: protectedProcedure
     .input(v.object({
       boardId: v.pipe(v.string(), v.uuid()),
@@ -99,11 +99,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (board.length === 0) {
         throw new Error("Board not found or unauthorized");
       }
-      
+
       const newTask = await db
         .insert(tasks)
         .values({
@@ -121,14 +121,14 @@ export const tasksRouter = o.router({
           agentReady: input.agentReady
         })
         .returning();
-      
+
       // Create initial event
       await db.insert(taskEvents).values({
         taskId: newTask[0].id,
         type: "created",
         payload: { user: context.user.id }
       });
-      
+
       // Create kickoff checklist if stage is kickoff
       if (input.stage === "kickoff") {
         const kickoffItems = [
@@ -138,7 +138,7 @@ export const tasksRouter = o.router({
           "Select optimal solution",
           "Write acceptance criteria"
         ];
-        
+
         await db.insert(taskChecklistItems).values(
           kickoffItems.map(item => ({
             taskId: newTask[0].id,
@@ -148,10 +148,10 @@ export const tasksRouter = o.router({
           }))
         );
       }
-      
+
       return newTask[0];
     }),
-  
+
   update: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid()),
@@ -185,15 +185,15 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       const oldTask = task[0].task;
       const updates: any = { updatedAt: new Date() };
       const events: any[] = [];
-      
+
       if (input.title !== undefined) updates.title = input.title;
       if (input.bodyMd !== undefined) updates.bodyMd = input.bodyMd;
       if (input.priority !== undefined) updates.priority = input.priority;
@@ -203,7 +203,7 @@ export const tasksRouter = o.router({
       if (input.isBlocked !== undefined) updates.isBlocked = input.isBlocked;
       if (input.qaRequired !== undefined) updates.qaRequired = input.qaRequired;
       if (input.agentReady !== undefined) updates.agentReady = input.agentReady;
-      
+
       // Track status change
       if (input.status && input.status !== oldTask.status) {
         updates.status = input.status;
@@ -213,7 +213,7 @@ export const tasksRouter = o.router({
           payload: { from: oldTask.status, to: input.status, user: context.user.id }
         });
       }
-      
+
       // Track stage change
       if (input.stage && input.stage !== oldTask.stage) {
         updates.stage = input.stage;
@@ -222,7 +222,7 @@ export const tasksRouter = o.router({
           type: "stage_change",
           payload: { from: oldTask.stage, to: input.stage, user: context.user.id }
         });
-        
+
         // Trigger task hooks
         const boardTaskHooks = await db
           .select()
@@ -238,7 +238,7 @@ export const tasksRouter = o.router({
               eq(taskHooks.toStage, input.stage)
             )
           );
-        
+
         for (const hook of boardTaskHooks) {
           if (hook.action === "create_checklist" && hook.payload) {
             const items = (hook.payload as any).items || [];
@@ -251,7 +251,7 @@ export const tasksRouter = o.router({
               }))
             );
           }
-          
+
           if (hook.action === "notify") {
             await db.insert(notifications).values({
               taskId: input.id,
@@ -263,13 +263,13 @@ export const tasksRouter = o.router({
           }
         }
       }
-      
+
       const updated = await db
         .update(tasks)
         .set(updates)
         .where(eq(tasks.id, input.id))
         .returning();
-      
+
       // Insert events
       if (events.length > 0) {
         await db.insert(taskEvents).values(events);
@@ -281,10 +281,10 @@ export const tasksRouter = o.router({
           payload: { user: context.user.id, changes: Object.keys(updates) }
         });
       }
-      
+
       return updated[0];
     }),
-  
+
   delete: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -307,11 +307,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       // Delete related data
       await db.delete(taskEvents).where(eq(taskEvents.taskId, input.id));
       await db.delete(taskArtifacts).where(eq(taskArtifacts.taskId, input.id));
@@ -319,13 +319,13 @@ export const tasksRouter = o.router({
       await db.delete(messages).where(eq(messages.taskId, input.id));
       await db.delete(questions).where(eq(questions.taskId, input.id));
       await db.delete(notifications).where(eq(notifications.taskId, input.id));
-      
+
       // Delete task
       await db.delete(tasks).where(eq(tasks.id, input.id));
-      
+
       return { success: true };
     }),
-  
+
   addMessage: protectedProcedure
     .input(v.object({
       taskId: v.pipe(v.string(), v.uuid()),
@@ -350,11 +350,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       const newMessage = await db
         .insert(messages)
         .values({
@@ -363,17 +363,17 @@ export const tasksRouter = o.router({
           contentMd: input.contentMd
         })
         .returning();
-      
+
       // Add comment event
       await db.insert(taskEvents).values({
         taskId: input.taskId,
         type: "comment",
         payload: { messageId: newMessage[0].id, author: input.author }
       });
-      
+
       return newMessage[0];
     }),
-  
+
   addArtifact: protectedProcedure
     .input(v.object({
       taskId: v.pipe(v.string(), v.uuid()),
@@ -399,11 +399,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       const newArtifact = await db
         .insert(taskArtifacts)
         .values({
@@ -413,17 +413,17 @@ export const tasksRouter = o.router({
           meta: input.meta || {}
         })
         .returning();
-      
+
       // Add artifact event
       await db.insert(taskEvents).values({
         taskId: input.taskId,
         type: "artifact_added",
         payload: { artifactId: newArtifact[0].id, kind: input.kind }
       });
-      
+
       return newArtifact[0];
     }),
-  
+
   askQuestion: protectedProcedure
     .input(v.object({
       taskId: v.pipe(v.string(), v.uuid()),
@@ -448,11 +448,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       const newQuestion = await db
         .insert(questions)
         .values({
@@ -462,20 +462,20 @@ export const tasksRouter = o.router({
           status: "open"
         })
         .returning();
-      
+
       // Add question event and mark task as blocked if asked by agent
       await db.insert(taskEvents).values({
         taskId: input.taskId,
         type: "question",
         payload: { questionId: newQuestion[0].id, askedBy: input.askedBy }
       });
-      
+
       if (input.askedBy === "agent") {
         await db
           .update(tasks)
           .set({ status: "blocked", updatedAt: new Date() })
           .where(eq(tasks.id, input.taskId));
-        
+
         // Create notification
         await db.insert(notifications).values({
           taskId: input.taskId,
@@ -484,10 +484,10 @@ export const tasksRouter = o.router({
           payload: { questionId: newQuestion[0].id, text: input.text }
         });
       }
-      
+
       return newQuestion[0];
     }),
-  
+
   answerQuestion: protectedProcedure
     .input(v.object({
       questionId: v.pipe(v.string(), v.uuid()),
@@ -513,11 +513,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (question.length === 0) {
         throw new Error("Question not found or unauthorized");
       }
-      
+
       const updated = await db
         .update(questions)
         .set({
@@ -528,7 +528,7 @@ export const tasksRouter = o.router({
         })
         .where(eq(questions.id, input.questionId))
         .returning();
-      
+
       // If task was blocked due to this question, unblock it
       if (question[0].task.status === "blocked") {
         // Check if there are other open questions
@@ -541,7 +541,7 @@ export const tasksRouter = o.router({
               eq(questions.status, "open")
             )
           );
-        
+
         if (openQuestions.length === 0) {
           await db
             .update(tasks)
@@ -549,10 +549,10 @@ export const tasksRouter = o.router({
             .where(eq(tasks.id, question[0].task.id));
         }
       }
-      
+
       return updated[0];
     }),
-  
+
   updateChecklistItem: protectedProcedure
     .input(v.object({
       itemId: v.pipe(v.string(), v.uuid()),
@@ -578,11 +578,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (item.length === 0) {
         throw new Error("Checklist item not found or unauthorized");
       }
-      
+
       const updated = await db
         .update(taskChecklistItems)
         .set({
@@ -591,10 +591,10 @@ export const tasksRouter = o.router({
         })
         .where(eq(taskChecklistItems.id, input.itemId))
         .returning();
-      
+
       return updated[0];
     }),
-  
+
   reorder: protectedProcedure
     .input(v.object({
       taskId: v.pipe(v.string(), v.uuid()),
@@ -618,7 +618,7 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (board.length === 0) {
         throw new Error("Board not found or unauthorized");
       }
@@ -651,14 +651,14 @@ export const tasksRouter = o.router({
         )
         .orderBy(tasks.position);
 
-      // Update positions: 
+      // Update positions:
       // 1. Remove the task being moved from its current position
       const filteredTasks = tasksInColumn.filter(t => t.id !== input.taskId);
-      
+
       // 2. Insert the task at the new position
       const newOrderedTasks = [
         ...filteredTasks.slice(0, input.newPosition),
-        task[0], 
+        task[0],
         ...filteredTasks.slice(input.newPosition)
       ];
 
@@ -674,10 +674,10 @@ export const tasksRouter = o.router({
       for (const update of updates) {
         await db
           .update(tasks)
-          .set({ 
-            position: update.position, 
+          .set({
+            position: update.position,
             ...(update.status ? { status: update.status } : {}),
-            updatedAt: new Date() 
+            updatedAt: new Date()
           })
           .where(eq(tasks.id, update.id));
       }
@@ -687,18 +687,18 @@ export const tasksRouter = o.router({
         await db.insert(taskEvents).values({
           taskId: input.taskId,
           type: "status_change",
-          payload: { 
-            from: task[0].status, 
-            to: input.status, 
+          payload: {
+            from: task[0].status,
+            to: input.status,
             user: context.user.id,
-            reordered: true 
+            reordered: true
           }
         });
       }
 
       return { success: true };
     }),
-  
+
   getDetails: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -721,11 +721,11 @@ export const tasksRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (task.length === 0) {
         throw new Error("Task not found or unauthorized");
       }
-      
+
       // Get all related data
       const [events, artifacts, checklistItems, taskMessages, taskQuestions] = await Promise.all([
         db.select().from(taskEvents).where(eq(taskEvents.taskId, input.id)).orderBy(desc(taskEvents.at)),
@@ -734,7 +734,7 @@ export const tasksRouter = o.router({
         db.select().from(messages).where(eq(messages.taskId, input.id)).orderBy(desc(messages.at)),
         db.select().from(questions).where(eq(questions.taskId, input.id))
       ]);
-      
+
       return {
         ...task[0].task,
         board: task[0].board,

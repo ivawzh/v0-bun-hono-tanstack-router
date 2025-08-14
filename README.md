@@ -225,10 +225,10 @@ Due to stability issues with PGlite, we recommend using local PostgreSQL for dev
    ```bash
    # Ubuntu/Debian
    sudo apt-get install postgresql
-   
+
    # macOS
    brew install postgresql
-   
+
    # Windows WSL
    sudo apt-get install postgresql
    ```
@@ -507,11 +507,11 @@ bun dev:server       # Start only server
 
 # Build
 bun build            # Build all apps
-bun check-types      # TypeScript type checking
+bun typecheck      # TypeScript type checking
 
 # Database
 bun db:create        # Create solo_unicorn_dev database
-bun db:create:test   # Create solo_unicorn_test database  
+bun db:create:test   # Create solo_unicorn_test database
 bun db:drop          # Drop solo_unicorn_dev (use with caution)
 bun db:drop:test     # Drop solo_unicorn_test
 bun db:push          # Push schema to dev database

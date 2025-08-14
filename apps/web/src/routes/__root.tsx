@@ -27,6 +27,21 @@ export interface RouterAppContext {
 export const Route = createRootRouteWithContext<RouterAppContext>()({
   component: RootComponent,
   errorComponent: ({ error, reset }) => {
+    const err: any = error;
+    const rawStack: string = (err && err.stack) || '';
+    const stackLines = rawStack
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const isFrameworkFrame = (line: string) => /node_modules|\(internal\)|\(native\)|node:|vite|webpack|react-dom|@tanstack|@orpc/i.test(line);
+    const isFrame = (line: string) => line.startsWith('at ');
+    const firstAppIndex = stackLines.findIndex((l) => isFrame(l) && !isFrameworkFrame(l));
+    const copyDetails = () => {
+      const text = `${(err && err.name) || 'Error'}: ${(err && err.message) || ''}\n${rawStack}`;
+      if (navigator && 'clipboard' in navigator) {
+        void navigator.clipboard.writeText(text).catch(() => {});
+      }
+    };
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-background">
         <div className="max-w-md w-full text-center space-y-6">
@@ -36,13 +51,44 @@ export const Route = createRootRouteWithContext<RouterAppContext>()({
               Something went wrong
             </p>
           </div>
-          
+
           <div className="bg-muted rounded-lg p-4 text-left">
-            <p className="font-mono text-sm text-muted-foreground">
-              {error.message || "An unexpected error occurred"}
-            </p>
+            <div className="font-mono text-sm text-muted-foreground">
+              <div className="font-semibold">{(err && err.name) || 'Error'}</div>
+              <div className="mt-1">{(err && err.message) || 'An unexpected error occurred'}</div>
+            </div>
           </div>
-          
+
+          {rawStack ? (
+            <details className="bg-muted rounded-lg p-4 text-left" open={!import.meta.env.PROD}>
+              <summary className="cursor-pointer text-sm text-muted-foreground">
+                Stack trace
+              </summary>
+              <div className="mt-3 flex items-center justify-between">
+                <p className="text-xs text-muted-foreground">Highlighted frames are likely from your app.</p>
+                <button
+                  onClick={copyDetails}
+                  className="px-2 py-1 text-xs bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
+                >
+                  Copy
+                </button>
+              </div>
+              <ul className="mt-2 max-h-72 overflow-auto font-mono text-xs leading-5 space-y-1 pr-2">
+                {stackLines.map((line, idx) => {
+                  const appFrame = isFrame(line) && !isFrameworkFrame(line);
+                  const isPrimary = idx === firstAppIndex && appFrame;
+                  const base = appFrame ? 'text-foreground' : 'text-muted-foreground';
+                  const primary = isPrimary ? ' bg-destructive/10 ring-1 ring-destructive/30 rounded' : '';
+                  return (
+                    <li key={idx} className={`${base}${primary} break-all px-2 py-1`}>
+                      {line}
+                    </li>
+                  );
+                })}
+              </ul>
+            </details>
+          ) : null}
+
           <div className="flex gap-4 justify-center">
             <button
               onClick={() => reset()}

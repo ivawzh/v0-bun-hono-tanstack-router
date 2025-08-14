@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repoAgents, actors } from "../db/schema";
+import { tasks, projects, repoAgents, actors } from "../db/schema/simplified";
 import { eq, and, desc } from "drizzle-orm";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);

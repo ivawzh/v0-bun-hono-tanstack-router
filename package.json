@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "bun run --elide-lines 0 --filter '*' dev",
     "build": "bun run --elide-lines 0 --filter '*' build",
-    "check-types": "bun run --elide-lines 0 --filter '*' check-types",
+    "typecheck": "bun run --elide-lines 0 --filter '*' typecheck",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",

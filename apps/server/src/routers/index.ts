@@ -1,7 +1,7 @@
 import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
 import { todoRouter } from "./todo";
 import { projectsRouter } from "./projects";
-import { repositoriesRouter } from "./repositories";
+// import { repositoriesRouter } from "./repositories"; // Removed in simplified architecture
 import { tasksRouter } from "./tasks";
 import { repoAgentsRouter } from "./repo-agents";
 import { actorsRouter } from "./actors";
@@ -25,7 +25,7 @@ export const appRouter = o.router({
   auth: authRouter,
   todo: todoRouter,
   projects: projectsRouter,
-  repositories: repositoriesRouter,
+  // repositories: repositoriesRouter, // Removed in simplified architecture
   repoAgents: repoAgentsRouter,
   actors: actorsRouter,
   tasks: tasksRouter,

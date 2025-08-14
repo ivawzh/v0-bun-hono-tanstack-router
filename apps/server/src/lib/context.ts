@@ -1,6 +1,6 @@
 import type { Context as HonoContext } from "hono";
 import { db } from "../db";
-import { users } from "../db/schema/core";
+import { users } from "../db/schema/simplified";
 import { eq } from "drizzle-orm";
 import { resolveAuthCookies } from "../ops/authCookies";
 import type { AccessTokenPayload } from "../ops/authCookies";

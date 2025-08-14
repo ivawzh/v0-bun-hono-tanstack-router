@@ -1,7 +1,7 @@
 import { protectedProcedure, o } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repositories, projects, sourceRefs } from "../db/schema/core";
+import { repositories, projects, sourceRefs } from "../db/schema/simplified";
 import { eq, and } from "drizzle-orm";
 
 const repositoryProviderEnum = v.picklist(["github", "gitlab", "local", "cloud-code"]);
@@ -23,19 +23,19 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
-      
+
       const repos = await db
         .select()
         .from(repositories)
         .where(eq(repositories.projectId, input.projectId));
-      
+
       return repos;
     }),
-  
+
   get: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -55,14 +55,14 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (repo.length === 0) {
         throw new Error("Repository not found or unauthorized");
       }
-      
+
       return repo[0].repository;
     }),
-  
+
   create: protectedProcedure
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid()),
@@ -82,11 +82,11 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (project.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
-      
+
       const newRepo = await db
         .insert(repositories)
         .values({
@@ -96,10 +96,10 @@ export const repositoriesRouter = o.router({
           defaultBranch: input.defaultBranch
         })
         .returning();
-      
+
       return newRepo[0];
     }),
-  
+
   update: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid()),
@@ -123,11 +123,11 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (repo.length === 0) {
         throw new Error("Repository not found or unauthorized");
       }
-      
+
       const updated = await db
         .update(repositories)
         .set({
@@ -138,10 +138,10 @@ export const repositoriesRouter = o.router({
         })
         .where(eq(repositories.id, input.id))
         .returning();
-      
+
       return updated[0];
     }),
-  
+
   delete: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
@@ -162,20 +162,20 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (repo.length === 0) {
         throw new Error("Repository not found or unauthorized");
       }
-      
+
       // Delete source refs first
       await db.delete(sourceRefs).where(eq(sourceRefs.repositoryId, input.id));
-      
+
       // Delete repository
       await db.delete(repositories).where(eq(repositories.id, input.id));
-      
+
       return { success: true };
     }),
-  
+
   addSourceRef: protectedProcedure
     .input(v.object({
       repositoryId: v.pipe(v.string(), v.uuid()),
@@ -198,11 +198,11 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (repo.length === 0) {
         throw new Error("Repository not found or unauthorized");
       }
-      
+
       const newRef = await db
         .insert(sourceRefs)
         .values({
@@ -211,10 +211,10 @@ export const repositoriesRouter = o.router({
           refValue: input.refValue
         })
         .returning();
-      
+
       return newRef[0];
     }),
-  
+
   listSourceRefs: protectedProcedure
     .input(v.object({
       repositoryId: v.pipe(v.string(), v.uuid())
@@ -235,16 +235,16 @@ export const repositoriesRouter = o.router({
           )
         )
         .limit(1);
-      
+
       if (repo.length === 0) {
         throw new Error("Repository not found or unauthorized");
       }
-      
+
       const refs = await db
         .select()
         .from(sourceRefs)
         .where(eq(sourceRefs.repositoryId, input.repositoryId));
-      
+
       return refs;
     })
 });

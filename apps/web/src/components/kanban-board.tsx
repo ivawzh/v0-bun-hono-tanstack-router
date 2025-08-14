@@ -43,6 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
 
 interface KanbanBoardProps {
   projectId: string;
@@ -73,6 +74,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
+  const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [newTask, setNewTask] = useState({
     rawTitle: "",
     rawDescription: "",
@@ -228,7 +230,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toast.info("Project settings not yet implemented")}
+            onClick={() => setShowProjectSettings(true)}
           >
             <Settings className="h-4 w-4 mr-2" />
             Settings
@@ -238,13 +240,21 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
       {/* Warning if no repo agents */}
       {(!repoAgents || repoAgents.length === 0) && (
-        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
+        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-3">
           <AlertCircle className="h-5 w-5 text-yellow-600" />
           <div className="flex-1">
             <p className="text-sm text-yellow-800">
               No repo agents configured. Tasks won't be able to run until you add at least one repo agent.
             </p>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowProjectSettings(true)}
+            className="bg-yellow-100 hover:bg-yellow-200 border-yellow-300 text-yellow-800"
+          >
+            Configure Repo Agents
+          </Button>
         </div>
       )}
 
@@ -516,6 +526,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Project Settings Dialog */}
+      <ProjectSettingsComprehensive
+        project={project}
+        open={showProjectSettings}
+        onOpenChange={setShowProjectSettings}
+      />
     </div>
   );
 }

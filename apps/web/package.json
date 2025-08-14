@@ -8,7 +8,7 @@
     "build": "vite build",
     "serve": "vite preview",
     "start": "vite",
-    "check-types": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
     "generate-pwa-assets": "pwa-assets-generator"
   },

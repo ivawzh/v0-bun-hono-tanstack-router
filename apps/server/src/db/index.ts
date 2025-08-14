@@ -1,7 +1,7 @@
 import { drizzle as drizzlePgLite, type PgliteDatabase } from "drizzle-orm/pglite";
 import { drizzle as drizzlePg, type NodePgDatabase } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import * as schema from "./schema/core";
+import * as schema from "./schema/simplified";
 
 const isProduction = process.env.NODE_ENV === "production";
 

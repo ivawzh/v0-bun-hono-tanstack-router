@@ -14,9 +14,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
 - **Single-User Only**: No multi-user, permissions, or organizations.
 - **Local-First**: Everything runs locally. No cloud dependencies beyond auth.
-- **Reactive UXUI**: Upon user interaction, implement real-time UI updates either by
-invalidating all queries or via WebSocket connections for immediate feedback and
-responsive user experience.
+- **Reactive UXUI**: Upon user interaction, implement real-time UI updates either by invalidating all queries or via WebSocket connections for immediate feedback and responsive user experience.
 - **Idempotency**: All operations safe to retry with proper deduplication.
 - **Default Best Config**: Optimal defaults out-of-the-box, minimal configuration required.
 - **Auth**: Every endpoint/operation must pass through Monster Auth guard
