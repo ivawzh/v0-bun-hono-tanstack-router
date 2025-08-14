@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useLocation } from "@tanstack/react-router";
 import { Plus, FolderOpen } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -20,8 +20,22 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { ProjectSettingsButton } from "@/components/project-settings";
 
 export const Route = createFileRoute("/projects")({
-  component: ProjectsPage,
+  component: ProjectsLayout,
 });
+
+function ProjectsLayout() {
+  const pathname = useLocation({
+    select: (location) => location.pathname,
+  });
+  
+  // If we're on a specific project route, render the child route
+  if (pathname !== '/projects') {
+    return <Outlet />;
+  }
+  
+  // Otherwise render the projects list
+  return <ProjectsPage />;
+}
 
 function ProjectsPage() {
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
@@ -29,7 +43,7 @@ function ProjectsPage() {
   const [newProjectDescription, setNewProjectDescription] = useState("");
 
   const { data: projects, isLoading, refetch: refetchProjects } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
-  
+
   const createProject = useMutation(
     orpc.projects.create.mutationOptions({
       onSuccess: () => {

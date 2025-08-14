@@ -75,14 +75,14 @@ export function ProjectSwitcher() {
         setNewProjectDescription("");
         await refetch();
         
-        // Select the new project
+        // Select the new project and navigate to it
         if (newProject && (newProject as any).id) {
           setSelectedProject((newProject as any).id);
           localStorage.setItem(SELECTED_PROJECT_KEY, (newProject as any).id);
+          
+          // Navigate to the new project page
+          navigate({ to: "/projects/$projectId", params: { projectId: (newProject as any).id } });
         }
-        
-        // Navigate to projects page after creating
-        navigate({ to: "/projects" });
       },
       onError: (error: any) => {
         toast.error(`Failed to create project: ${error.message}`);
@@ -116,29 +116,13 @@ export function ProjectSwitcher() {
                 {(projects as any)?.map((project: any) => (
                   <CommandItem
                     key={project.id}
-                    onSelect={async () => {
+                    onSelect={() => {
                       setSelectedProject(project.id);
                       localStorage.setItem(SELECTED_PROJECT_KEY, project.id);
                       setOpen(false);
                       
-                      // Fetch boards for the selected project
-                      try {
-                        const boards = await queryClient.fetchQuery(
-                          orpc.boards.list.queryOptions({ input: { projectId: project.id } })
-                        );
-                        
-                        if (boards && (boards as any).length > 0) {
-                          // Navigate to the first board
-                          navigate({ to: "/boards/$boardId", params: { boardId: (boards as any)[0].id } });
-                        } else {
-                          // No boards, navigate to projects page to create one
-                          navigate({ to: "/projects" });
-                          toast.info("Create a board to get started");
-                        }
-                      } catch (error) {
-                        console.error("Error fetching boards:", error);
-                        navigate({ to: "/projects" });
-                      }
+                      // Navigate directly to the project page (simplified - no boards)
+                      navigate({ to: "/projects/$projectId", params: { projectId: project.id } });
                     }}
                     className="text-sm"
                   >

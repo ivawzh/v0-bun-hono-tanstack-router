@@ -7,7 +7,7 @@ export const Route = createFileRoute("/projects/$projectId")({
 
 function ProjectBoardPage() {
   const { projectId } = Route.useParams();
-  
+
   return (
     <div className="container mx-auto p-6">
       <KanbanBoard projectId={projectId} />

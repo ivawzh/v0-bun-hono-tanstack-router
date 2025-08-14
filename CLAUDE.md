@@ -4,17 +4,11 @@ This document provides context and instructions for Claude Code when working on 
 
 ## Project Overview
 
-Solo Unicorn is a comprehensive project management system designed for solo developers and small teams. It integrates with Claude Code to enable AI-assisted development workflows.
-
-## Core Documentation
-
-Please review the following documents for detailed requirements and design specifications:
-
-### Project overview
-
 @docs/overview.md
 
-### UI/UX Design
+Solo Unicorn is a comprehensive project management system designed for solo developers and small teams. It integrates with Claude Code to enable AI-assisted development workflows.
+
+## UI/UX Design
 
 @docs/uiux-design.md
 
@@ -47,7 +41,7 @@ Please review the following documents for detailed requirements and design speci
 
 ## Quick Commands
 
-- Development server: `bun run dev` (in apps/server or apps/web)
+- Development server: `bun dev` (in apps/server or apps/web). However, I manually keep `bun dev` running in the background. So that please don't run it from your side.
 - Database migrations: `bun run db:push` (in apps/server)
 - Run tests: `bun test`
 
