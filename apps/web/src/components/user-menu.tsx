@@ -6,16 +6,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useSession, useLogout } from "@/lib/auth-client";
+import { useSession, useLogout, useLogin } from "@/lib/auth-client";
 import { useNavigate } from "@tanstack/react-router";
 import { Button } from "./ui/button";
 import { Skeleton } from "./ui/skeleton";
-import { Link } from "@tanstack/react-router";
 
 export default function UserMenu() {
   const navigate = useNavigate();
   const { data: session, isLoading } = useSession();
   const { logout } = useLogout();
+  const { login, isPending } = useLogin();
 
   if (isLoading) {
     return <Skeleton className="h-9 w-24" />;
@@ -23,8 +23,12 @@ export default function UserMenu() {
 
   if (!session) {
     return (
-      <Button variant="outline" asChild>
-        <Link to="/login">Sign In</Link>
+      <Button 
+        variant="outline" 
+        onClick={() => login()}
+        disabled={isPending}
+      >
+        {isPending ? "Redirecting..." : "Sign In"}
       </Button>
     );
   }

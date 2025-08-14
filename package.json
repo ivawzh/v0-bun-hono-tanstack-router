@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --filter '*' dev",
+    "dev": "bun run --elide-lines 0 --filter '*' dev",
     "build": "bun run --elide-lines 0 --filter '*' build",
     "check-types": "bun run --elide-lines 0 --filter '*' check-types",
     "test:e2e": "playwright test",
