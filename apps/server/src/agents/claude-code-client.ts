@@ -35,7 +35,7 @@ export class ClaudeCodeClient {
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      const wsUrl = `${this.options.claudeCodeUrl}/ws?token=${encodeURIComponent(this.options.agentToken)}`;
+      const wsUrl = `${this.options.claudeCodeUrl}/ws/agent?token=${encodeURIComponent(this.options.agentToken)}`;
       console.log('🤖 Connecting to Claude Code UI WebSocket:', wsUrl);
       this.ws = new WebSocket(wsUrl);
 
