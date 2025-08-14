@@ -199,4 +199,37 @@ export const projectsRouter = o.router({
         }
       };
     }),
+
+  getWithTasks: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const project = await db
+        .select()
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (project.length === 0) {
+        throw new Error("Project not found");
+      }
+
+      // Get all tasks for this project
+      const projectTasks = await db
+        .select()
+        .from(tasks)
+        .where(eq(tasks.projectId, input.id))
+        .orderBy(desc(tasks.createdAt));
+
+      return {
+        ...project[0],
+        tasks: projectTasks
+      };
+    }),
 });

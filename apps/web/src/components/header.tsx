@@ -4,8 +4,7 @@ import UserMenu from "./user-menu";
 import { ProjectSwitcher } from "./project-switcher";
 import { useSession } from "@/lib/auth-client";
 import { Button } from "./ui/button";
-import { Plus, Pause, Play, Search, AlertTriangle } from "lucide-react";
-import { Input } from "./ui/input";
+import { Pause, Play, AlertTriangle } from "lucide-react";
 import { orpc } from "@/utils/orpc";
 import { useQuery, useMutation } from "@tanstack/react-query";
 
@@ -30,8 +29,6 @@ export default function Header() {
 
   const links = [
     { to: "/projects", label: "Projects" },
-    { to: "/chat", label: "Chat" },
-    { to: "/search", label: "Search" },
   ];
 
   return (
@@ -42,27 +39,11 @@ export default function Header() {
             Solo Unicorn
           </Link>
           {session && (
-            <>
-              <ProjectSwitcher />
-              {projectId && (
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Plus className="h-4 w-4" />
-                  New Task
-                </Button>
-              )}
-            </>
+            <ProjectSwitcher />
           )}
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              className="pl-8 w-48"
-            />
-          </div>
 
           {/* Agent Status - only show when in project context */}
           {projectId && (

@@ -2,8 +2,9 @@ import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
 import { todoRouter } from "./todo";
 import { projectsRouter } from "./projects";
 import { repositoriesRouter } from "./repositories";
-import { boardsRouter } from "./boards";
 import { tasksRouter } from "./tasks";
+import { repoAgentsRouter } from "./repo-agents";
+import { actorsRouter } from "./actors";
 import { agentsRouter } from "./agents";
 import { voiceRouter } from "./voice";
 import { authRouter } from "./auth";
@@ -25,7 +26,8 @@ export const appRouter = o.router({
   todo: todoRouter,
   projects: projectsRouter,
   repositories: repositoriesRouter,
-  boards: boardsRouter,
+  repoAgents: repoAgentsRouter,
+  actors: actorsRouter,
   tasks: tasksRouter,
   agents: agentsRouter,
   voice: voiceRouter,

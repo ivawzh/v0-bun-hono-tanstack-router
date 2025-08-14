@@ -1,12 +1,10 @@
 import { useState } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Pause,
-  AlertTriangle, Paperclip, MessageSquare, HelpCircle,
-  ExternalLink, User, Bot, ChevronRight, Settings, AlertCircle
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,8 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { TaskDetail } from "./task-detail";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -40,85 +37,88 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ProjectSettings } from "./project-settings";
-import { getClaudeCodeBaseUrl } from "@/utils/claude";
 
 interface KanbanBoardProps {
-  boardId: string;
+  projectId: string;
 }
 
-// Updated column structure based on requirements
+// Simplified 3-column structure
 const statusColumns = [
   { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
-  { id: "in_progress", label: "In Progress", icon: Play, color: "bg-blue-500" },
-  { id: "qa", label: "QA", icon: CheckCircle, color: "bg-purple-500" },
+  { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
   { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
 ];
 
-// Optional collapsed column
-const pausedColumn = { id: "paused", label: "Paused", icon: Pause, color: "bg-yellow-500" };
-
 const stageColors = {
-  kickoff: "bg-purple-100 text-purple-800 border-purple-200",
-  spec: "bg-pink-100 text-pink-800 border-pink-200",
-  design: "bg-indigo-100 text-indigo-800 border-indigo-200",
-  dev: "bg-blue-100 text-blue-800 border-blue-200",
-  qa: "bg-orange-100 text-orange-800 border-orange-200",
-  done: "bg-green-100 text-green-800 border-green-200",
+  refine: "bg-purple-100 text-purple-800 border-purple-200",
+  kickoff: "bg-pink-100 text-pink-800 border-pink-200",
+  execute: "bg-blue-100 text-blue-800 border-blue-200",
 };
 
 const priorityColors = {
-  1: "bg-red-100 text-red-800 border-red-200",
-  2: "bg-orange-100 text-orange-800 border-orange-200",
-  3: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  4: "bg-blue-100 text-blue-800 border-blue-200",
-  5: "bg-gray-100 text-gray-800 border-gray-200",
+  P1: "bg-red-100 text-red-800 border-red-200",
+  P2: "bg-orange-100 text-orange-800 border-orange-200",
+  P3: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  P4: "bg-blue-100 text-blue-800 border-blue-200",
+  P5: "bg-gray-100 text-gray-800 border-gray-200",
 };
 
-export function KanbanBoard({ boardId }: KanbanBoardProps) {
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
-  const [showPausedColumn, setShowPausedColumn] = useState(false);
-  const [showProjectSettings, setShowProjectSettings] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
   const [newTask, setNewTask] = useState({
-    title: "",
-    bodyMd: "",
-    stage: "kickoff",
-    priority: 0,
-    qaRequired: false,
-    agentReady: false,
+    rawTitle: "",
+    rawDescription: "",
+    priority: "P3" as keyof typeof priorityColors,
+    repoAgentId: "",
+    actorId: ""
   });
 
-  const { data: boardData, isLoading, refetch } = useQuery(
-    orpc.boards.getWithTasks.queryOptions({ input: { id: boardId } })
-  );
+  const queryClient = useQueryClient();
 
-  const { data: projectData, refetch: refetchProject } = useQuery(
-    orpc.projects.get.queryOptions({
-      input: { id: (boardData as any)?.projectId },
-      enabled: !!(boardData as any)?.projectId
+  // Fetch project with tasks
+  const { data: project, isLoading, refetch } = useQuery(
+    orpc.projects.getWithTasks.queryOptions({
+      input: { id: projectId },
     })
   );
 
-  // Agents health for rate-limit banner
-  const { data: agents } = useQuery(
-    orpc.agents.list.queryOptions({ input: {} })
+  // Fetch repo agents for this project
+  const { data: repoAgents } = useQuery(
+    orpc.repoAgents.list.queryOptions({
+      input: { projectId },
+      enabled: !!projectId
+    })
   );
 
+  // Fetch actors for this project
+  const { data: actors } = useQuery(
+    orpc.actors.list.queryOptions({
+      input: { projectId },
+      enabled: !!projectId
+    })
+  );
+
+  // Create task mutation
   const createTask = useMutation(
     orpc.tasks.create.mutationOptions({
       onSuccess: () => {
         toast.success("Task created successfully");
         setShowNewTaskDialog(false);
-        setNewTask({ title: "", bodyMd: "", stage: "kickoff", priority: 0, qaRequired: false, agentReady: false });
+        setNewTask({
+          rawTitle: "",
+          rawDescription: "",
+          priority: "P3",
+          repoAgentId: "",
+          actorId: ""
+        });
         refetch();
       },
       onError: (error: any) => {
@@ -127,10 +127,11 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     })
   );
 
+  // Update task mutation
   const updateTask = useMutation(
     orpc.tasks.update.mutationOptions({
       onSuccess: () => {
-        toast.success("Task updated");
+        toast.success("Task updated successfully");
         refetch();
       },
       onError: (error: any) => {
@@ -139,55 +140,52 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     })
   );
 
-  const reorderTask = useMutation(
-    orpc.tasks.reorder.mutationOptions({
+  // Toggle ready mutation
+  const toggleReady = useMutation(
+    orpc.tasks.toggleReady.mutationOptions({
       onSuccess: () => {
         refetch();
       },
       onError: (error: any) => {
-        toast.error(`Failed to reorder task: ${error.message}`);
+        toast.error(`Failed to toggle ready status: ${error.message}`);
       },
     })
   );
 
-  const toggleProjectAgentPause = useMutation(
-    orpc.projects.update.mutationOptions({
+  // Delete task mutation
+  const deleteTask = useMutation(
+    orpc.tasks.delete.mutationOptions({
       onSuccess: () => {
-        toast.success((projectData as any)?.agentPaused ? "Agents resumed" : "All agents paused");
+        toast.success("Task deleted successfully");
         refetch();
       },
       onError: (error: any) => {
-        toast.error(`Failed to update project: ${error.message}`);
+        toast.error(`Failed to delete task: ${error.message}`);
       },
     })
   );
-
-  // Get active columns (including paused if shown)
-  const activeColumns = showPausedColumn ? [...statusColumns, pausedColumn] : statusColumns;
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-muted-foreground">Loading board...</div>
+        <div className="text-muted-foreground">Loading project...</div>
       </div>
     );
   }
 
-  if (!boardData) {
+  if (!project) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="text-muted-foreground">Board not found</div>
+        <div className="text-muted-foreground">Project not found</div>
       </div>
     );
   }
 
-  const tasksByStatus = activeColumns.reduce((acc, column) => {
-    acc[column.id] = (boardData as any)?.tasks?.filter((task: any) => task.status === column.id) || [];
+  const tasks = project.tasks || [];
+  const tasksByStatus = statusColumns.reduce((acc, column) => {
+    acc[column.id] = tasks.filter((task: any) => task.status === column.id);
     return acc;
   }, {} as Record<string, any[]>);
-
-  // Check if there are any paused tasks
-  const pausedTaskCount = (boardData as any)?.tasks?.filter((task: any) => task.status === "paused").length || 0;
 
   const handleDragStart = (e: React.DragEvent, taskId: string) => {
     e.dataTransfer.setData("taskId", taskId);
@@ -199,187 +197,61 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
     e.dataTransfer.dropEffect = "move";
   };
 
-  const handleDrop = (e: React.DragEvent, newStatus: string, insertIndex?: number) => {
+  const handleDrop = (e: React.DragEvent, newStatus: string) => {
     e.preventDefault();
     const taskId = e.dataTransfer.getData("taskId");
     if (!taskId) return;
 
-    const task = (boardData as any)?.tasks?.find((t: any) => t.id === taskId);
-    if (!task) return;
+    const task = tasks.find((t: any) => t.id === taskId);
+    if (!task || task.status === newStatus) return;
 
-    // If moving to QA and qaRequired is false, ask for confirmation
-    if (newStatus === "qa" && task && !task.qaRequired) {
-      if (!confirm("This task doesn't require QA. Move to QA anyway?")) {
-        return;
-      }
-    }
-
-    // Calculate the position to insert at
-    let newPosition = insertIndex;
-    if (newPosition === undefined) {
-      // Default to end of column if no specific position given
-      const tasksInNewColumn = tasksByStatus[newStatus] || [];
-      newPosition = tasksInNewColumn.length;
-    }
-
-    // If it's the same status and we're inserting after the current position, adjust for removal
-    if (task.status === newStatus) {
-      const currentIndex = tasksByStatus[newStatus].findIndex((t: any) => t.id === taskId);
-      if (currentIndex < newPosition) {
-        newPosition = newPosition - 1;
-      }
-    }
-
-    // Use reorder mutation for all drag and drop operations
-    reorderTask.mutate({
-      taskId,
-      boardId,
-      status: newStatus,
-      newPosition
+    updateTask.mutate({
+      id: taskId,
+      status: newStatus as any,
+      stage: newStatus === "doing" ? "refine" : undefined
     });
   };
 
-  const handleCardDrop = (e: React.DragEvent, targetTaskId: string) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const draggedTaskId = e.dataTransfer.getData("taskId");
-    if (!draggedTaskId || draggedTaskId === targetTaskId) return;
-
-    const draggedTask = (boardData as any)?.tasks?.find((t: any) => t.id === draggedTaskId);
-    const targetTask = (boardData as any)?.tasks?.find((t: any) => t.id === targetTaskId);
-    if (!draggedTask || !targetTask) return;
-
-    // Find the target task's position in its column
-    const tasksInTargetColumn = tasksByStatus[targetTask.status] || [];
-    const targetIndex = tasksInTargetColumn.findIndex((t: any) => t.id === targetTaskId);
-    
-    handleDrop(e, targetTask.status, targetIndex);
-  };
-
-  // Count online agents (mock data for now)
-  const onlineAgents = 2;
-  const runningAgents = 1;
+  const defaultActor = actors?.find((actor: any) => actor.isDefault);
 
   return (
     <div className="h-full flex flex-col">
-      {/* Integration warning */}
-      {!!projectData && (!(projectData as any)?.localRepoPath || !(projectData as any)?.claudeProjectId) && (
+      {/* Header */}
+      <div className="mb-4 flex items-center justify-between border-b pb-4">
+        <div>
+          <h2 className="text-2xl font-bold">{project.name}</h2>
+          {project.description && (
+            <p className="text-muted-foreground">{project.description}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toast.info("Project settings not yet implemented")}
+          >
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+        </div>
+      </div>
+
+      {/* Warning if no repo agents */}
+      {(!repoAgents || repoAgents.length === 0) && (
         <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center gap-2">
           <AlertCircle className="h-5 w-5 text-yellow-600" />
           <div className="flex-1">
             <p className="text-sm text-yellow-800">
-              Claude Code integration is not configured.
-              <button
-                onClick={() => setShowProjectSettings(true)}
-                className="ml-1 underline font-medium hover:text-yellow-900"
-              >
-                Configure now
-              </button>
-              {' '}to enable AI-assisted development.
+              No repo agents configured. Tasks won't be able to run until you add at least one repo agent.
             </p>
           </div>
         </div>
       )}
 
-      {/* Header with project controls */}
-      <div className="mb-4 flex items-center justify-between border-b pb-4">
-        <div>
-          <h2 className="text-2xl font-bold">{(boardData as any)?.name}</h2>
-          {(boardData as any)?.purpose && (
-            <p className="text-muted-foreground">{(boardData as any)?.purpose}</p>
-          )}
-        </div>
-        <div className="flex items-center gap-4">
-          {/* Agent rate limit banner */}
-          {Array.isArray(agents) && agents.some((a: any) => a.state === 'rate_limited') && (
-            <div className="mr-2 px-3 py-2 rounded-md bg-yellow-50 border border-yellow-200 text-sm text-yellow-900 flex items-center gap-2">
-              <AlertCircle className="h-4 w-4" />
-              <span>Agent is rate limited</span>
-              {(() => {
-                const rlAgent = (agents as any).find((a: any) => a.state === 'rate_limited');
-                const eta = rlAgent?.nextRetryAt ? new Date(rlAgent.nextRetryAt) : null;
-                if (eta) {
-                  const mins = Math.max(1, Math.ceil((eta.getTime() - Date.now()) / 60000));
-                  return <span className="ml-1">• auto-resumes in {mins}m</span>;
-                }
-                return null;
-              })()}
-            </div>
-          )}
-          {/* Agent status */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Bot className="h-4 w-4" />
-            <span>Agents: {onlineAgents} online • Running {runningAgents}</span>
-          </div>
-
-          {/* Project Settings button */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowProjectSettings(true)}
-                >
-                  <Settings className="h-4 w-4 mr-2" />
-                  Settings
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Configure Claude Code integration</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          {/* Pause All Agents button */}
-          <Button
-            variant={(projectData as any)?.agentPaused ? "destructive" : "outline"}
-            size="sm"
-            onClick={() => {
-              if ((projectData as any)?.id) {
-                toggleProjectAgentPause.mutate({
-                  id: (projectData as any).id,
-                  agentPaused: !(projectData as any).agentPaused,
-                } as any);
-              }
-            }}
-          >
-            {(projectData as any)?.agentPaused ? (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Resume All Agents
-              </>
-            ) : (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Pause All Agents
-              </>
-            )}
-          </Button>
-
-          {/* Toggle paused column */}
-          {pausedTaskCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPausedColumn(!showPausedColumn)}
-            >
-              <ChevronRight className={cn("h-4 w-4 mr-1 transition-transform", showPausedColumn && "rotate-90")} />
-              Paused ({pausedTaskCount})
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Kanban columns - with horizontal scroll on mobile */}
+      {/* Kanban columns */}
       <ScrollArea className="flex-1">
-        <div className={cn(
-          "grid gap-4 h-[calc(100vh-12rem)] min-w-full",
-          activeColumns.length === 4 ? "grid-cols-4" : "grid-cols-5",
-          "md:grid-cols-" + activeColumns.length
-        )}>
-          {activeColumns.map((column) => (
+        <div className="grid gap-4 h-[calc(100vh-12rem)] min-w-full grid-cols-3">
+          {statusColumns.map((column) => (
             <div
               key={column.id}
               className="flex flex-col min-w-[280px]"
@@ -416,13 +288,12 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                       draggable
                       onDragStart={(e) => handleDragStart(e, task.id)}
                       onDragOver={handleDragOver}
-                      onDrop={(e) => handleCardDrop(e, task.id)}
                       onClick={() => setSelectedTaskId(task.id)}
                     >
                       <CardHeader className="p-3 pb-2">
                         <div className="flex items-start justify-between">
                           <CardTitle className="text-sm font-medium line-clamp-2 pr-2">
-                            {task.title}
+                            {task.refinedTitle || task.rawTitle}
                           </CardTitle>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -441,162 +312,85 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateTask.mutate({
+                                  toggleReady.mutate({
                                     id: task.id,
-                                    isBlocked: !task.isBlocked,
-                                  } as any);
+                                    ready: !task.ready
+                                  });
                                 }}
                               >
-                                {task.isBlocked ? "Unblock" : "Mark as Blocked"}
+                                Mark as {task.ready ? "Not Ready" : "Ready"}
                               </DropdownMenuItem>
                               <DropdownMenuItem
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateTask.mutate({
-                                    id: task.id,
-                                    status: task.status === "paused" ? "in_progress" : "paused",
-                                  } as any);
+                                  if (confirm("Are you sure you want to delete this task?")) {
+                                    deleteTask.mutate({ id: task.id });
+                                  }
                                 }}
+                                className="text-red-600"
                               >
-                                {task.status === "paused" ? "Resume" : "Pause"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedTaskId(task.id);
-                                }}
-                              >
-                                View Details
+                                Delete Task
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
                       </CardHeader>
                       <CardContent className="p-3 pt-0">
-                        {/* Priority, Stage, and Assignee */}
+                        {/* Priority and Stage */}
                         <div className="flex items-center gap-2 mb-2">
-                          {task.priority > 0 && (
+                          <Badge
+                            variant="outline"
+                            className={cn("text-xs border", priorityColors[task.priority as keyof typeof priorityColors])}
+                          >
+                            {task.priority}
+                          </Badge>
+                          {task.stage && (
                             <Badge
-                              variant="outline"
-                              className={cn("text-xs border",
-                                task.priority <= 2 ? priorityColors[1] :
-                                task.priority <= 4 ? priorityColors[2] :
-                                task.priority <= 6 ? priorityColors[3] :
-                                task.priority <= 8 ? priorityColors[4] :
-                                priorityColors[5]
-                              )}
+                              variant="secondary"
+                              className={cn("text-xs border", stageColors[task.stage as keyof typeof stageColors])}
                             >
-                              P{task.priority}
+                              {task.stage}
                             </Badge>
                           )}
-                          <Badge
-                            variant="secondary"
-                            className={cn("text-xs border", stageColors[task.stage as keyof typeof stageColors])}
-                          >
-                            {task.stage}
-                          </Badge>
                         </div>
 
-                        {/* Assignee */}
-                        {(task.assignedActorType || task.assignedAgentId) && (
-                          <div className="flex items-center gap-2 mb-2">
-                            <Avatar className="h-5 w-5">
-                              <AvatarFallback className="text-[10px]">
-                                {task.assignedActorType === "agent" ? "AI" : "H"}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs text-muted-foreground">
-                              {task.assignedActorType === "agent" ? "Agent" : "Human"}
+                        {/* Ready status */}
+                        <div className="flex items-center gap-2 mb-2 text-xs">
+                          <div className="flex items-center gap-1">
+                            <Switch
+                              checked={task.ready}
+                              size="sm"
+                              onClick={(e: React.MouseEvent) => {
+                                e.stopPropagation();
+                                toggleReady.mutate({
+                                  id: task.id,
+                                  ready: !task.ready
+                                });
+                              }}
+                            />
+                            <span className="text-muted-foreground">
+                              {task.ready ? "Ready" : "Not Ready"}
                             </span>
                           </div>
-                        )}
+                        </div>
 
-                        {/* Agent controls */}
-                        {task.assignedActorType === "agent" && (
-                          <div className="flex items-center gap-2 mb-2 text-xs">
-                            <div className="flex items-center gap-1">
-                              <Switch
-                                checked={task.agentReady}
-                                className="scale-75"
-                                onClick={(e: React.MouseEvent) => {
-                                  e.stopPropagation();
-                                  updateTask.mutate({
-                                    id: task.id,
-                                    agentReady: !task.agentReady,
-                                  } as any);
-                                }}
-                              />
-                              <span className="text-muted-foreground">Auto-Start</span>
-                            </div>
-                            {task.agentPaused && (
-                              <Badge variant="outline" className="text-xs bg-yellow-50">
-                                <Pause className="h-3 w-3 mr-1" />
-                                Agent Paused
-                              </Badge>
-                            )}
+                        {/* Repo Agent and Actor info */}
+                        {task.repoAgent && (
+                          <div className="text-xs text-muted-foreground mb-1">
+                            Repo: {task.repoAgent.name}
+                          </div>
+                        )}
+                        {task.actor && (
+                          <div className="text-xs text-muted-foreground mb-1">
+                            Actor: {task.actor.name}
                           </div>
                         )}
 
-                        {/* Badges for blocked, attachments, comments, questions */}
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                          {task.isBlocked && (
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <div className="flex items-center gap-1 text-red-600">
-                                    <AlertTriangle className="h-3 w-3" />
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>Blocked</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          )}
-
-                          {task.attachmentCount > 0 && (
-                            <div className="flex items-center gap-1">
-                              <Paperclip className="h-3 w-3" />
-                              <span>{task.attachmentCount}</span>
-                            </div>
-                          )}
-
-                          {task.messageCount > 0 && (
-                            <div className="flex items-center gap-1">
-                              <MessageSquare className="h-3 w-3" />
-                              <span>{task.messageCount}</span>
-                            </div>
-                          )}
-
-                          {task.questionCount > 0 && (
-                            <div className="flex items-center gap-1 text-orange-600">
-                              <HelpCircle className="h-3 w-3" />
-                              <span>{task.questionCount}</span>
-                            </div>
-                          )}
-
-                          {task.qaRequired && (
-                            <Badge variant="outline" className="text-xs">
-                              QA Required
-                            </Badge>
-                          )}
-                        </div>
-
-                        {/* Claude Code session link */}
-                        {task.activeSessionId && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full mt-2 text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const base = getClaudeCodeBaseUrl();
-                              window.open(`${base}/session/${task.activeSessionId}`, "_blank");
-                            }}
-                          >
-                            <ExternalLink className="h-3 w-3 mr-1" />
-                            Open in Claude Code
-                          </Button>
+                        {/* Attachments count */}
+                        {task.attachments && task.attachments.length > 0 && (
+                          <div className="text-xs text-muted-foreground">
+                            {task.attachments.length} attachment(s)
+                          </div>
                         )}
                       </CardContent>
                     </Card>
@@ -609,22 +403,13 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
 
-      {/* Task Detail Drawer */}
-      <TaskDetail
-        taskId={selectedTaskId}
-        open={!!selectedTaskId}
-        onOpenChange={(open) => {
-          if (!open) setSelectedTaskId(null);
-        }}
-      />
-
       {/* New Task Dialog */}
       <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
-              Add a new task to the {activeColumns.find(c => c.id === newTaskColumn)?.label} column
+              Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -633,8 +418,8 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
               <Input
                 id="task-title"
                 placeholder="Task title"
-                value={newTask.title}
-                onChange={(e) => setNewTask({ ...newTask, title: e.target.value })}
+                value={newTask.rawTitle}
+                onChange={(e) => setNewTask({ ...newTask, rawTitle: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -642,60 +427,67 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
               <Textarea
                 id="task-description"
                 placeholder="Task description (optional)"
-                value={newTask.bodyMd}
-                onChange={(e) => setNewTask({ ...newTask, bodyMd: e.target.value })}
+                value={newTask.rawDescription}
+                onChange={(e) => setNewTask({ ...newTask, rawDescription: e.target.value })}
                 rows={3}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="task-stage">Stage</Label>
+                <Label htmlFor="task-priority">Priority</Label>
                 <Select
-                  value={newTask.stage}
-                  onValueChange={(value) => setNewTask({ ...newTask, stage: value })}
+                  value={newTask.priority}
+                  onValueChange={(value) => setNewTask({ ...newTask, priority: value as any })}
                 >
-                  <SelectTrigger id="task-stage">
+                  <SelectTrigger id="task-priority">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="kickoff">Kickoff</SelectItem>
-                    <SelectItem value="spec">Specification</SelectItem>
-                    <SelectItem value="design">Design</SelectItem>
-                    <SelectItem value="dev">Development</SelectItem>
-                    <SelectItem value="qa">QA</SelectItem>
-                    <SelectItem value="done">Done</SelectItem>
+                    <SelectItem value="P1">P1 - Highest</SelectItem>
+                    <SelectItem value="P2">P2 - High</SelectItem>
+                    <SelectItem value="P3">P3 - Medium</SelectItem>
+                    <SelectItem value="P4">P4 - Low</SelectItem>
+                    <SelectItem value="P5">P5 - Lowest</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="task-priority">Priority (0-10)</Label>
-                <Input
-                  id="task-priority"
-                  type="number"
-                  min="0"
-                  max="10"
-                  value={newTask.priority}
-                  onChange={(e) => setNewTask({ ...newTask, priority: parseInt(e.target.value) || 0 })}
-                />
+                <Label htmlFor="task-repo-agent">Repo Agent</Label>
+                <Select
+                  value={newTask.repoAgentId}
+                  onValueChange={(value) => setNewTask({ ...newTask, repoAgentId: value })}
+                >
+                  <SelectTrigger id="task-repo-agent">
+                    <SelectValue placeholder="Select repo agent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {repoAgents?.map((agent: any) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name} ({agent.clientType})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="qa-required"
-                  checked={newTask.qaRequired}
-                  onCheckedChange={(checked: boolean) => setNewTask({ ...newTask, qaRequired: checked })}
-                />
-                <Label htmlFor="qa-required">QA Required</Label>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="agent-ready"
-                  checked={newTask.agentReady}
-                  onCheckedChange={(checked: boolean) => setNewTask({ ...newTask, agentReady: checked })}
-                />
-                <Label htmlFor="agent-ready">Auto-Start Agent</Label>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-actor">Actor (Optional)</Label>
+              <Select
+                value={newTask.actorId}
+                onValueChange={(value) => setNewTask({ ...newTask, actorId: value })}
+              >
+                <SelectTrigger id="task-actor">
+                  <SelectValue placeholder="Select actor (or use default)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Use default actor</SelectItem>
+                  {actors?.map((actor: any) => (
+                    <SelectItem key={actor.id} value={actor.id}>
+                      {actor.name} {actor.isDefault ? "(Default)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
@@ -704,43 +496,26 @@ export function KanbanBoard({ boardId }: KanbanBoardProps) {
             </Button>
             <Button
               onClick={() => {
-                if (newTask.title) {
+                if (newTask.rawTitle && newTask.repoAgentId) {
                   createTask.mutate({
-                    boardId,
-                    title: newTask.title,
-                    bodyMd: newTask.bodyMd || undefined,
-                    status: newTaskColumn as any,
-                    stage: newTask.stage as any,
+                    projectId,
+                    rawTitle: newTask.rawTitle,
+                    rawDescription: newTask.rawDescription || undefined,
                     priority: newTask.priority,
-                    metadata: {
-                      qaRequired: newTask.qaRequired,
-                      agentReady: newTask.agentReady,
-                    },
-                  } as any);
+                    repoAgentId: newTask.repoAgentId,
+                    actorId: newTask.actorId || undefined
+                  });
+                } else {
+                  toast.error("Please fill in title and select a repo agent");
                 }
               }}
-              disabled={!newTask.title || createTask.isPending}
+              disabled={!newTask.rawTitle || !newTask.repoAgentId || createTask.isPending}
             >
               Create Task
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Project Settings Dialog */}
-      {!!projectData && (
-        <ProjectSettings
-          project={{
-            id: (projectData as any).id,
-            name: (projectData as any).name,
-            localRepoPath: (projectData as any).localRepoPath,
-            claudeProjectId: (projectData as any).claudeProjectId,
-          }}
-          open={showProjectSettings}
-          onOpenChange={setShowProjectSettings}
-          onSuccess={refetchProject}
-        />
-      )}
     </div>
   );
 }
