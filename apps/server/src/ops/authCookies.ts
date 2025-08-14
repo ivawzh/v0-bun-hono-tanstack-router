@@ -45,7 +45,7 @@ const COOKIE_OPTIONS = {
 export async function setAuthCookies(context: HonoContext, tokens: AuthTokens) {
   setCookie(context, ACCESS_TOKEN_COOKIE, tokens.accessToken, {
     ...COOKIE_OPTIONS,
-    maxAge: 60 * 15, // 15 minutes
+    maxAge: 60 * 60, // 1 hour
   });
 
   setCookie(context, REFRESH_TOKEN_COOKIE, tokens.refreshToken, {
@@ -127,29 +127,29 @@ export async function refreshAccessToken(refreshToken: string): Promise<Result<A
 export async function resolveAuthCookies(context: HonoContext): Promise<Result<AccessTokenPayload>> {
   const { accessToken, refreshToken } = await getAuthCookies(context);
 
-  if (!accessToken) {
-    return { ok: false, bad: new Error('No access token') };
+  // If we have an access token, try to verify it first
+  if (accessToken) {
+    const verifyResult = await verifyAccessToken(accessToken);
+    if (verifyResult.ok) {
+      return verifyResult;
+    }
+    // fall through to try refresh if we also have a refresh token
   }
 
-  // First try to verify the current access token
-  const verifyResult = await verifyAccessToken(accessToken);
-  if (verifyResult.ok) {
-    return verifyResult;
+  // If access token is missing or invalid/expired, try to refresh using refresh token
+  if (refreshToken) {
+    const refreshResult = await refreshAccessToken(refreshToken);
+    if (!refreshResult.ok) {
+      return { ok: false, bad: refreshResult.bad };
+    }
+
+    // Set the new tokens in cookies
+    await setAuthCookies(context, refreshResult.good);
+
+    // Verify and return the new access token
+    return await verifyAccessToken(refreshResult.good.accessToken);
   }
 
-  // If access token is invalid/expired, try to refresh
-  if (!refreshToken) {
-    return { ok: false, bad: new Error('No refresh token available') };
-  }
-
-  const refreshResult = await refreshAccessToken(refreshToken);
-  if (!refreshResult.ok) {
-    return { ok: false, bad: refreshResult.bad };
-  }
-
-  // Set the new tokens in cookies
-  await setAuthCookies(context, refreshResult.good);
-
-  // Verify and return the new access token
-  return await verifyAccessToken(refreshResult.good.accessToken);
+  // No usable tokens available
+  return { ok: false, bad: new Error('No tokens available') };
 }
