@@ -11,8 +11,7 @@ import { stream } from "hono/streaming";
 import { agentGateway } from "./gateway/agent-gateway";
 import { mcpServer } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
-import { websocketHandler } from "./gateway/websocket-handler";
-import { AgentWebSocketServer } from "./gateway/websocket-server";
+import { simplifiedWebsocketHandler } from "./gateway/simplified-websocket-handler";
 
 const app = new Hono();
 
@@ -86,5 +85,5 @@ export default {
     // Otherwise handle as normal HTTP request
     return app.fetch(request, server);
   },
-  websocket: websocketHandler,
+  websocket: simplifiedWebsocketHandler,
 };
