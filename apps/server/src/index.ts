@@ -72,7 +72,7 @@ const port = process.env.PORT || 8500;
 console.log(`🚀 Solo Unicorn server starting on port ${port}`);
 console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 
-// Initialize Improved Agent Orchestrator
+// Initialize Agent Orchestrator
 let agentOrchestrator: AgentOrchestrator | null = null;
 
 async function initializeAgentOrchestrator() {
@@ -80,7 +80,7 @@ async function initializeAgentOrchestrator() {
     const claudeCodeWebsocketUrl = process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501";
     const agentToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
 
-    console.log("🤖 Initializing Improved Agent Orchestrator...");
+    console.log("🤖 Initializing Agent Orchestrator...");
 
     agentOrchestrator = new AgentOrchestrator({
       claudeCodeUrl: claudeCodeWebsocketUrl,
@@ -95,7 +95,7 @@ async function initializeAgentOrchestrator() {
     // Integrate with MCP server
     setOrchestrator(agentOrchestrator);
 
-    console.log("🤖 Improved Agent Orchestrator initialized successfully");
+    console.log("🤖 Agent Orchestrator initialized successfully");
   } catch (error) {
     console.error("❌ Failed to initialize Agent Orchestrator:", error instanceof Error ? error.message : String(error));
     console.log("ℹ️  Agent Orchestrator will continue trying to connect in the background");

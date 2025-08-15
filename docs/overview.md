@@ -247,8 +247,4 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 
 ## Implementation Notes
 
-- Delete existing migrations and start fresh
-- Unify priority to P1-P5 everywhere
-- Remove Claude project ID requirement
-- Single coding session enforcement via WebSocket coordination
-- Project memory replaces git submodule approach
+- all AI prompts must be stored at `apps/server/src/agents/prompts`
