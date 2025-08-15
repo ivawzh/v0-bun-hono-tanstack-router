@@ -113,7 +113,7 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
   const Icon = column?.icon || Clock;
 
   return (
-    <Card 
+    <Card
       ref={setNodeRef}
       style={style}
       className={cn(
@@ -126,8 +126,8 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
       <CardHeader className="pb-2">
         <div className="kanban-card-header-content">
           <div className="kanban-card-title-wrapper">
-            <CardTitle 
-              className="text-sm font-medium cursor-pointer kanban-card-title" 
+            <CardTitle
+              className="text-sm font-medium cursor-pointer kanban-card-title"
               onClick={(e) => {
                 e.stopPropagation();
                 onTaskClick(task.id);
@@ -140,9 +140,9 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
             {/* Task menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="sm" 
+                <Button
+                  variant="ghost"
+                  size="sm"
                   className="h-6 w-6 p-0"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -276,10 +276,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   );
 
   // Create task mutation
-  const createTaskMutation = useMutation({
-    mutationFn: async (data: any) => {
-      return orpc.tasks.create(data);
-    },
+  const createTaskMutation = useMutation(orpc.tasks.create.mutationOptions({
     onSuccess: () => {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
@@ -295,33 +292,27 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     onError: (error) => {
       toast.error("Failed to create task: " + error.message);
     }
-  });
+  }));
 
   // Toggle ready mutation
-  const toggleReadyMutation = useMutation({
-    mutationFn: async (data: { id: string; ready: boolean }) => {
-      return orpc.tasks.toggleReady(data);
-    },
+  const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
     },
     onError: (error) => {
       toast.error("Failed to update task: " + error.message);
     }
-  });
+  }));
 
   // Update task order mutation
-  const updateOrderMutation = useMutation({
-    mutationFn: async (data: { projectId: string; tasks: Array<{ id: string; columnOrder: string; status?: string }> }) => {
-      return orpc.tasks.updateOrder(data);
-    },
+  const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
     },
     onError: (error) => {
       toast.error("Failed to update task order: " + error.message);
     }
-  });
+  }));
 
   // Group tasks by status and sort them
   const groupedTasks = statusColumns.reduce((acc, column) => {
@@ -332,19 +323,19 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         const priorityOrder = { P5: 1, P4: 2, P3: 3, P2: 4, P1: 5 };
         const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 6;
         const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 6;
-        
+
         if (aPriority !== bPriority) {
           return aPriority - bPriority;
         }
-        
+
         // Then sort by column order (manual drag and drop order)
         const aOrder = parseFloat(a.columnOrder || "1000");
         const bOrder = parseFloat(b.columnOrder || "1000");
-        
+
         if (aOrder !== bOrder) {
           return aOrder - bOrder;
         }
-        
+
         // Finally sort by creation date
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       });
@@ -373,7 +364,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     // Determine target status and position
     let targetStatus = activeTask.status;
     let targetTasks = groupedTasks[targetStatus];
-    
+
     // Check if dropped on a different column
     if (statusColumns.some(col => col.id === overId)) {
       targetStatus = overId;
@@ -391,12 +382,12 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
     // Calculate new positions
     const updates: Array<{ id: string; columnOrder: string; status?: string }> = [];
-    
+
     if (targetStatus !== activeTask.status) {
       // Moving to a different column
       const targetIndex = targetTasks.findIndex((t: any) => t.id === overId);
       const insertIndex = targetIndex >= 0 ? targetIndex : targetTasks.length;
-      
+
       // Calculate new order for the moved task
       let newOrder = "1000";
       if (insertIndex === 0) {
@@ -425,7 +416,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         const nextOrder = parseFloat(nextTask?.columnOrder || "2000");
         newOrder = ((prevOrder + nextOrder) / 2).toString();
       }
-      
+
       updates.push({
         id: activeId,
         columnOrder: newOrder,
@@ -435,28 +426,28 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       // Reordering within the same column
       const activeIndex = targetTasks.findIndex((t: any) => t.id === activeId);
       const overIndex = targetTasks.findIndex((t: any) => t.id === overId);
-      
+
       if (activeIndex !== overIndex && activeIndex >= 0 && overIndex >= 0) {
         // Respect priority - don't allow lower priority to move above higher priority
         const activeTask = targetTasks[activeIndex];
         const overTask = targetTasks[overIndex];
-        
+
         const priorityOrder = { P5: 1, P4: 2, P3: 3, P2: 4, P1: 5 };
         const activePriority = priorityOrder[activeTask.priority as keyof typeof priorityOrder] || 6;
         const overPriority = priorityOrder[overTask.priority as keyof typeof priorityOrder] || 6;
-        
+
         // Only allow reordering within the same priority level
         if (activePriority === overPriority) {
           // Calculate new positions for reordering
           const isMovingDown = overIndex > activeIndex;
-          
+
           if (isMovingDown) {
             // Moving down: insert after the target
             const nextTask = targetTasks[overIndex + 1];
             const overOrder = parseFloat(overTask.columnOrder || "1000");
             const nextOrder = parseFloat(nextTask?.columnOrder || "2000");
             const newOrder = ((overOrder + nextOrder) / 2).toString();
-            
+
             updates.push({
               id: activeId,
               columnOrder: newOrder
@@ -467,7 +458,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
             const prevOrder = parseFloat(prevTask?.columnOrder || "0");
             const overOrder = parseFloat(overTask.columnOrder || "1000");
             const newOrder = ((prevOrder + overOrder) / 2).toString();
-            
+
             updates.push({
               id: activeId,
               columnOrder: newOrder
@@ -485,7 +476,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     if (updates.length > 0) {
       updateOrderMutation.mutate({
         projectId,
-        tasks: updates
+        tasks: updates as Array<{ id: string; columnOrder: string; status?: "todo" | "doing" | "done" }>
       });
     }
   };
@@ -513,8 +504,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       projectId,
       ...newTask,
       // Convert __default__ back to undefined for the API
-      actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      columnOrder: newOrder
+      actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId
     });
   };
 
@@ -710,7 +700,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       {/* Project Settings Dialog */}
       {showProjectSettings && (
         <ProjectSettingsComprehensive
-          projectId={projectId}
+          project={{ id: projectId }}
           open={showProjectSettings}
           onOpenChange={setShowProjectSettings}
         />

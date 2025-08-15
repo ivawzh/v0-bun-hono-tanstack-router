@@ -1,6 +1,7 @@
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { createTanstackQueryUtils } from "@orpc/tanstack-query";
+import { createORPCReactQueryUtils } from '@orpc/react-query'
 import { QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { AppRouter } from "../../../server/src/routers/index";
@@ -83,7 +84,7 @@ export const link = new RPCLink({
           }
         } else {
           toast.error(`Network Error (${response.status}): ${response.statusText}`, {
-            description: `Failed to connect to ${url.pathname || url.toString()}`,
+            description: `Failed to connect to ${url.toString()}`,
           action: {
             label: "View Details",
             onClick: () => console.log('Full error details logged to console')
@@ -127,7 +128,6 @@ export const link = new RPCLink({
   },
 });
 
-// @ts-ignore - Type constraint issue with mixed router structure (individual procedures + nested routers)
-export const client = createORPCClient<AppRouter>(link) as any;
+export const client: RouterClient<AppRouter> = createORPCClient(link);
 
-export const orpc = createTanstackQueryUtils(client) as any;
+export const orpc = createORPCReactQueryUtils(client);
