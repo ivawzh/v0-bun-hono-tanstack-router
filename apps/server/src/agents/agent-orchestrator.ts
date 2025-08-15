@@ -3,7 +3,7 @@ import type { SessionOptions } from './claude-code-client';
 import { PromptTemplateFactory } from './prompts/index';
 import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
-import { tasks, sessions, repoAgents, actors, projects, agents } from '../db/schema';
+import { tasks, sessions, repoAgents, actors, projects, agentClients } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 export interface AgentStatus {
@@ -109,8 +109,8 @@ export class AgentOrchestrator {
 
   private async calculateAgentClientVacancy(agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE'): Promise<AgentClientVacancy> {
     try {
-      // Get agent from database
-      const agentRecords = await db.select().from(agents).where(eq(agents.type, agentType));
+      // Get agent client from database
+      const agentRecords = await db.select().from(agentClients).where(eq(agentClients.type, agentType));
 
       if (agentRecords.length === 0) {
         // No agent record found, consider as Free
@@ -131,8 +131,8 @@ export class AgentOrchestrator {
       }
 
       // Check if we recently pushed a task (must be more than 20 seconds ago to be free)
-      if (agent.lastTaskPushedAt) {
-        const lastPushTime = new Date(agent.lastTaskPushedAt).getTime();
+      if (state.lastTaskPushedAt) {
+        const lastPushTime = new Date(state.lastTaskPushedAt).getTime();
         const timeSinceLastPush = now - lastPushTime;
 
         if (timeSinceLastPush <= 20 * 1000) { // Less than 20 seconds
@@ -196,18 +196,18 @@ export class AgentOrchestrator {
           repoAgent: repoAgents,
           actor: actors,
           project: projects,
-          agentClient: agents
+          agentClient: agentClients
         })
         .from(tasks)
         .innerJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
-        .innerJoin(agents, eq(repoAgents.agentClientId, agents.id))
+        .innerJoin(agentClients, eq(repoAgents.agentClientId, agentClients.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .where(
           and(
             eq(tasks.ready, true),
             eq(tasks.isAiWorking, false),
-            eq(agents.type, targetAgentType)
+            eq(agentClients.type, targetAgentType)
           )
         )
         .orderBy(
@@ -276,18 +276,34 @@ export class AgentOrchestrator {
         const existingStatus = this.agentStatuses.get(agent.id);
         const now = new Date();
 
-        // Determine agent status based on database status and connection
-        let currentStatus: 'idle' | 'active' | 'rate_limited' | 'error' = agent.status as any;
+        // Determine agent status based on agentClient state and connection
+        const agentState = agent.agentClient?.state as any || {};
+        let currentStatus: 'idle' | 'active' | 'rate_limited' | 'error' = 'idle';
 
-        // For Claude Code agents, rely on database status and MCP communication
+        // Check if rate limited
+        if (agentState.rateLimitResetAt) {
+          const resetTime = new Date(agentState.rateLimitResetAt).getTime();
+          if (resetTime > now.getTime()) {
+            currentStatus = 'rate_limited';
+          }
+        }
+
+        // Check if recently active based on last message time
+        if (agentState.lastMessagedAt) {
+          const lastMessageTime = new Date(agentState.lastMessagedAt).getTime();
+          const timeSinceLastMessage = now.getTime() - lastMessageTime;
+          
+          if (timeSinceLastMessage <= 60 * 1000) { // Less than 1 minute
+            currentStatus = 'active';
+          }
+        }
+
+        // For Claude Code agents, rely on agentClient state and MCP communication
         if (agent.agentClient?.type === 'CLAUDE_CODE' && this.isConnected) {
-          // Use the current database status as the source of truth
-          // Agent status will be updated via MCP calls when agents start/complete tasks
-
           // Check if it was recently active and might have just completed
           if (existingStatus?.status === 'active' &&
               now.getTime() - existingStatus.lastHeartbeat.getTime() < 10000) { // 10 seconds
-            this.logger.debug('Agent recently completed work, using database status', { agentId: agent.id, dbStatus: agent.status });
+            this.logger.debug('Agent recently completed work, using state-derived status', { agentId: agent.id, derivedStatus: currentStatus });
           }
         }
 
@@ -305,19 +321,7 @@ export class AgentOrchestrator {
           currentStatus = 'idle';
         }
 
-        // Update agent status in database if it changed
-        if (agent.status !== currentStatus) {
-          await db
-            .update(repoAgents)
-            .set({ status: currentStatus, updatedAt: now })
-            .where(eq(repoAgents.id, agent.id));
-
-          this.logger.debug('Updated agent status in database', {
-            agentId: agent.id,
-            oldStatus: agent.status,
-            newStatus: currentStatus
-          });
-        }
+        // Note: Status is now tracked in memory only, not persisted to database
 
         // Update our tracking
         this.agentStatuses.set(agent.id, {
@@ -438,11 +442,7 @@ export class AgentOrchestrator {
         })
         .where(eq(tasks.id, task.id));
 
-      // Update agent status to active
-      await db
-        .update(repoAgents)
-        .set({ status: 'active', updatedAt: new Date() })
-        .where(eq(repoAgents.id, agentStatus.agentId));
+      // Note: Agent status is now tracked in agentClients.state via MCP calls
 
       // Create task context for prompt generation
       const taskContext: TaskContext = {
@@ -491,11 +491,24 @@ export class AgentOrchestrator {
         startedAt: new Date()
       }).returning();
 
-      // Update agent's lastTaskPushedAt timestamp to prevent duplicate task pushing
-      await db
-        .update(agents)
-        .set({ lastTaskPushedAt: new Date(), updatedAt: new Date() })
-        .where(eq(agents.id, repoAgent.agentClientId));
+      // Update agent client's lastTaskPushedAt timestamp in state to prevent duplicate task pushing
+      const agentClient = await db.query.agentClients.findFirst({
+        where: eq(agentClients.id, repoAgent.agentClientId)
+      });
+      
+      if (agentClient) {
+        const currentState = agentClient.state as any || {};
+        await db
+          .update(agentClients)
+          .set({ 
+            state: { 
+              ...currentState, 
+              lastTaskPushedAt: new Date().toISOString() 
+            }, 
+            updatedAt: new Date() 
+          })
+          .where(eq(agentClients.id, repoAgent.agentClientId));
+      }
 
       // Update agent tracking
       agentStatus.sessionId = sessionId;
@@ -519,11 +532,7 @@ export class AgentOrchestrator {
         .set({ status: 'todo', stage: null, updatedAt: new Date() })
         .where(eq(tasks.id, task.id));
 
-      // Reset agent status
-      await db
-        .update(repoAgents)
-        .set({ status: 'idle', updatedAt: new Date() })
-        .where(eq(repoAgents.id, agentStatus.agentId));
+      // Note: Agent status reset is now handled via MCP calls to agentClients.state
 
       // Clear from tracking
       agentStatus.currentTaskId = undefined;
@@ -558,11 +567,7 @@ export class AgentOrchestrator {
               .where(eq(tasks.id, session.taskId));
           }
 
-          // Reset agent status
-          await db
-            .update(repoAgents)
-            .set({ status: 'idle', updatedAt: now })
-            .where(eq(repoAgents.id, session.repoAgentId));
+          // Note: Agent status reset is now handled via MCP calls to agentClients.state
 
           this.logger.info('Cleaned up stale session', {
             sessionId: session.id,

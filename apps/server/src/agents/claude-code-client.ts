@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { db } from '../db';
-import { agents, tasks, sessions } from '../db/schema';
+import { agentClients, tasks, sessions } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export interface ClaudeCodeSession {
@@ -231,24 +231,24 @@ export class ClaudeCodeClient {
     rateLimitResetAt?: string;
   }) {
     try {
-      // Get or create agent record for CLAUDE_CODE type
-      const existingAgent = await db.select().from(agents).where(eq(agents.type, 'CLAUDE_CODE')).limit(1);
+      // Get or create agent client record for CLAUDE_CODE type
+      const existingAgent = await db.select().from(agentClients).where(eq(agentClients.type, 'CLAUDE_CODE')).limit(1);
 
       if (existingAgent.length > 0) {
-        // Update existing agent state
+        // Update existing agent client state
         const currentState = existingAgent[0].state || {};
         const newState = { ...currentState, ...stateUpdate };
 
-        await db.update(agents)
+        await db.update(agentClients)
           .set({
             state: newState,
             updatedAt: new Date()
           })
-          .where(eq(agents.id, existingAgent[0].id));
+          .where(eq(agentClients.id, existingAgent[0].id));
 
       } else {
-        // Create new agent record
-        await db.insert(agents).values({
+        // Create new agent client record
+        await db.insert(agentClients).values({
           type: 'CLAUDE_CODE',
           state: stateUpdate
         });

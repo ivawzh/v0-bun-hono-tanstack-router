@@ -1,21 +1,21 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, projects, agents } from "../db/schema";
+import { repoAgents, projects, agentClients } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 const clientTypeEnum = v.picklist(["claude_code", "opencode"]);
 const agentClientTypeEnum = v.picklist(["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
-const statusEnum = v.picklist(["idle", "active", "rate_limited", "error"]);
+// Note: Status is now tracked in agentClients.state, not in repoAgents
 
-// Helper function to get or create agent by type
+// Helper function to get or create agent client by type
 async function getOrCreateAgentByType(type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
-  let agent = await db.query.agents.findFirst({
-    where: eq(agents.type, type)
+  let agent = await db.query.agentClients.findFirst({
+    where: eq(agentClients.type, type)
   });
   
   if (!agent) {
-    const [newAgent] = await db.insert(agents).values({
+    const [newAgent] = await db.insert(agentClients).values({
       type,
       state: {}
     }).returning();
@@ -126,8 +126,7 @@ export const repoAgentsRouter = o.router({
           name: input.name,
           repoPath: input.repoPath,
           agentClientId: agentClientId,
-          config: input.config,
-          status: "idle"
+          config: input.config
         })
         .returning();
       
@@ -148,8 +147,8 @@ export const repoAgentsRouter = o.router({
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
       repoPath: v.optional(v.pipe(v.string(), v.minLength(1))),
       clientType: v.optional(clientTypeEnum),
-      config: v.optional(v.any()),
-      status: v.optional(statusEnum)
+      config: v.optional(v.any())
+      // Note: status field removed from repoAgents table
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -182,7 +181,7 @@ export const repoAgentsRouter = o.router({
         updates.agentClientId = await getOrCreateAgentByType(agentType);
       }
       if (input.config !== undefined) updates.config = input.config;
-      if (input.status !== undefined) updates.status = input.status;
+      // Note: status field removed from repoAgents table
       
       await db
         .update(repoAgents)

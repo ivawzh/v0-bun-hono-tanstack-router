@@ -1,17 +1,17 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, actors, sessions, tasks, projects, agents } from "../db/schema";
+import { repoAgents, actors, sessions, tasks, projects, agentClients } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
-// Helper function to get or create agent by type
+// Helper function to get or create agent client by type
 async function getOrCreateAgentByType(type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
-  let agent = await db.query.agents.findFirst({
-    where: eq(agents.type, type)
+  let agent = await db.query.agentClients.findFirst({
+    where: eq(agentClients.type, type)
   });
   
   if (!agent) {
-    const [newAgent] = await db.insert(agents).values({
+    const [newAgent] = await db.insert(agentClients).values({
       type,
       state: {}
     }).returning();
@@ -122,7 +122,7 @@ export const agentsRouter = o.router({
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
       repoPath: v.optional(v.pipe(v.string(), v.minLength(1))),
       clientType: v.optional(v.picklist(["claude_code", "opencode"])),
-      status: v.optional(v.picklist(["idle", "active", "rate_limited", "error"])),
+      // Note: status field removed from repoAgents table
       config: v.optional(v.record(v.string(), v.any()))
     }))
     .handler(async ({ context, input }) => {
@@ -146,7 +146,7 @@ export const agentsRouter = o.router({
         const agentType = mapClientTypeToAgentType(input.clientType);
         updateData.agentClientId = await getOrCreateAgentByType(agentType);
       }
-      if (input.status !== undefined) updateData.status = input.status;
+      // Note: status field removed from repoAgents table
       if (input.config !== undefined) updateData.config = input.config;
 
       updateData.updatedAt = new Date();

@@ -209,10 +209,9 @@ server.registerTool("agent_rateLimit",
         };
       }
 
-      await db
-        .update(repoAgents)
-        .set({ status: "rate_limited", updatedAt: new Date() })
-        .where(eq(repoAgents.id, agentId));
+      // Note: Rate limit status is now tracked in agentClients.state, not repoAgents.status
+      // The rate limit information will be updated via claude-code-client.ts
+      logger.debug('Rate limit info received, will be handled by claude-code-client.ts');
 
       logger.tool("agent_rateLimit", "success", {
         agentId,

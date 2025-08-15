@@ -13,12 +13,11 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
-// Agents table (for tracking agent client states)
-export const agents = pgTable("agents", {
+// Agent Clients table (for tracking agent client states)
+export const agentClients = pgTable("agent_clients", {
   id: uuid("id").primaryKey().defaultRandom(),
   type: agentClientTypeEnum("type").notNull(),
-  state: jsonb("state").default({}).notNull(), // { lastMessagedAt, lastSessionCompletedAt, lastSessionCreatedAt }
-  lastTaskPushedAt: timestamp("last_task_pushed_at"), // Track when we last pushed a task to prevent duplicate pushes
+  state: jsonb("state").default({}).notNull(), // { lastMessagedAt, lastSessionCompletedAt, lastSessionCreatedAt, lastTaskPushedAt }
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -38,11 +37,10 @@ export const projects = pgTable("projects", {
 export const repoAgents = pgTable("repo_agents", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").notNull().references(() => projects.id),
-  agentClientId: uuid("agent_client_id").notNull().references(() => agents.id),
+  agentClientId: uuid("agent_client_id").notNull().references(() => agentClients.id),
   name: text("name").notNull(),
   repoPath: text("repo_path").notNull(), // Local file system path
   config: jsonb("config").default({}), // Client-specific settings
-  status: text("status").notNull().default("idle"), // idle, active, rate_limited, error
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -115,7 +113,7 @@ export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects)
 }));
 
-export const agentsRelations = relations(agents, ({ many }) => ({
+export const agentClientsRelations = relations(agentClients, ({ many }) => ({
   repoAgents: many(repoAgents)
 }));
 
@@ -134,9 +132,9 @@ export const repoAgentsRelations = relations(repoAgents, ({ one, many }) => ({
     fields: [repoAgents.projectId],
     references: [projects.id]
   }),
-  agentClient: one(agents, {
+  agentClient: one(agentClients, {
     fields: [repoAgents.agentClientId],
-    references: [agents.id]
+    references: [agentClients.id]
   }),
   tasks: many(tasks),
   sessions: many(sessions)

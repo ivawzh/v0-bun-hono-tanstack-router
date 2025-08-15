@@ -19,8 +19,8 @@
     {
       "idx": 2,
       "version": "7",
-      "when": 1755270747705,
-      "tag": "0002_special_iron_patriot",
+      "when": 1755271800000,
+      "tag": "0002_rename_agents_remove_status",
       "breakpoints": true
     }
   ]
