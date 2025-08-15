@@ -34,7 +34,12 @@
             "refinedDescription": "string (optional)", 
             "plan": "any type (optional)",
             "status": "enum: todo|doing|done (optional)",
-            "stage": "enum: refine|kickoff|execute (optional)"
+            "stage": "enum: refine|kickoff|execute (optional)",
+            "isAiWorking": "boolean (optional) - set true when starting work, false when finishing"
+          },
+          "workflow": {
+            "start": "Use task.update with isAiWorking=true when beginning stage",
+            "finish": "Use task.update with isAiWorking=false when completing stage"
           }
         },
         "agent.rateLimit": {

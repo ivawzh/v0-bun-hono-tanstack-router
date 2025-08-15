@@ -110,10 +110,11 @@ server.registerTool("task.update",
       plan: z.unknown().optional(),
       status: z.enum(["todo", "doing", "done"]).optional(),
       stage: z.enum(["refine", "kickoff", "execute"]).optional(),
+      isAiWorking: z.boolean().optional(),
     },
   },
-  async ({ taskId, refinedTitle, refinedDescription, plan, status, stage }, { requestInfo }) => {
-    const updates = { refinedTitle, refinedDescription, plan, status, stage };
+  async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, isAiWorking }, { requestInfo }) => {
+    const updates = { refinedTitle, refinedDescription, plan, status, stage, isAiWorking };
     // Filter out undefined values
     const filteredUpdates = Object.fromEntries(
       Object.entries(updates).filter(([_, value]) => value !== undefined)
