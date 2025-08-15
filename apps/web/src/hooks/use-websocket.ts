@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
 
 interface WebSocketMessage {
   type: string;
@@ -27,7 +26,6 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const invalidationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
 
   const connect = useCallback(() => {
@@ -35,24 +33,21 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       return; // Already connected
     }
 
+    // Prevent multiple concurrent connection attempts
+    if (wsRef.current?.readyState === WebSocket.CONNECTING) {
+      return;
+    }
+
     try {
       setConnectionStatus('connecting');
       const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8500';
+      console.log('🔌 Attempting WebSocket connection to:', wsUrl);
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
         console.log('🔌 WebSocket connected');
         setIsConnected(true);
         setConnectionStatus('connected');
-        
-        // Subscribe to project updates if projectId is provided
-        if (projectId) {
-          ws.send(JSON.stringify({
-            type: 'subscribe',
-            data: { projectId },
-            timestamp: new Date().toISOString()
-          }));
-        }
 
         // Clear any pending reconnection attempts
         if (reconnectTimeoutRef.current) {
@@ -66,43 +61,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           const message: WebSocketMessage = JSON.parse(event.data);
           console.log('📨 WebSocket message received:', message);
 
-          // Handle different message types with debounced invalidations
-          switch (message.type) {
-            case 'task.updated':
-            case 'task.created':
-            case 'task.deleted':
-              // Debounce task invalidations to prevent excessive requests
-              if (invalidationTimeoutRef.current) {
-                clearTimeout(invalidationTimeoutRef.current);
-              }
-              invalidationTimeoutRef.current = setTimeout(() => {
-                queryClient.invalidateQueries({ queryKey: ['projects'] });
-                queryClient.invalidateQueries({ queryKey: ['tasks'] });
-              }, 500); // 500ms debounce
-              break;
-              
-            case 'agent.status.changed':
-              // Agent status changes less frequently, invalidate immediately
-              queryClient.invalidateQueries({ queryKey: ['agents'] });
-              queryClient.invalidateQueries({ queryKey: ['repoAgents'] });
-              break;
-              
-            case 'session.started':
-            case 'session.completed':
-            case 'session.failed':
-              // Session events are important, show notification but debounce invalidation
-              toast.info(`Agent session ${message.type.split('.')[1]}`);
-              if (invalidationTimeoutRef.current) {
-                clearTimeout(invalidationTimeoutRef.current);
-              }
-              invalidationTimeoutRef.current = setTimeout(() => {
-                queryClient.invalidateQueries({ queryKey: ['agents'] });
-                queryClient.invalidateQueries({ queryKey: ['tasks'] });
-              }, 500);
-              break;
-              
-            default:
-              console.log('Unhandled WebSocket message type:', message.type);
+          // SIMPLIFIED: Just invalidate all queries on "flush" message
+          if (message.type === 'flush') {
+            console.log('🔄 Flushing React Query cache');
+            queryClient.invalidateQueries();
           }
 
           // Call custom message handler if provided
@@ -115,13 +77,18 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       ws.onclose = (event) => {
-        console.log('🔌 WebSocket disconnected:', event.code, event.reason);
+        console.log('🔌 WebSocket disconnected:', {
+          code: event.code,
+          reason: event.reason,
+          wasClean: event.wasClean,
+          url: wsUrl
+        });
         setIsConnected(false);
         setConnectionStatus('disconnected');
         wsRef.current = null;
 
-        // Attempt to reconnect if enabled
-        if (autoReconnect && !event.wasClean) {
+        // Attempt to reconnect if enabled and not a clean close
+        if (autoReconnect && !event.wasClean && event.code !== 1000) {
           setConnectionStatus('error');
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('🔄 Attempting to reconnect WebSocket...');
@@ -131,7 +98,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       };
 
       ws.onerror = (error) => {
-        console.error('💥 WebSocket error:', error);
+        console.error('💥 WebSocket error:', {
+          error,
+          url: wsUrl,
+          readyState: ws.readyState,
+          readyStateText: ['CONNECTING', 'OPEN', 'CLOSING', 'CLOSED'][ws.readyState]
+        });
         setConnectionStatus('error');
       };
 
@@ -140,17 +112,12 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
       console.error('Failed to create WebSocket connection:', error);
       setConnectionStatus('error');
     }
-  }, [projectId, onMessage, autoReconnect, reconnectInterval, queryClient]);
+  }, [autoReconnect, reconnectInterval, queryClient]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
-    }
-
-    if (invalidationTimeoutRef.current) {
-      clearTimeout(invalidationTimeoutRef.current);
-      invalidationTimeoutRef.current = null;
     }
 
     if (wsRef.current) {
@@ -182,17 +149,20 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     return () => {
       disconnect();
     };
-  }, [connect, disconnect]);
+  }, []); // Empty dependency array to only run on mount/unmount
 
-  // Reconnect when projectId changes
+  // Subscribe to project when projectId changes and we're connected
   useEffect(() => {
-    if (isConnected && projectId && wsRef.current) {
-      sendMessage({
+    if (isConnected && projectId && wsRef.current?.readyState === WebSocket.OPEN) {
+      const message = {
         type: 'subscribe',
-        data: { projectId }
-      });
+        data: { projectId },
+        timestamp: new Date().toISOString()
+      };
+      wsRef.current.send(JSON.stringify(message));
+      console.log('📤 WebSocket message sent:', message);
     }
-  }, [projectId, isConnected, sendMessage]);
+  }, [projectId, isConnected]); // Remove sendMessage dependency
 
   return {
     isConnected,

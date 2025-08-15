@@ -300,7 +300,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         repoAgentId: "",
         actorId: "__default__"
       });
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
     },
     onError: (error) => {
       toast.error("Failed to create task: " + error.message);
@@ -310,7 +310,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   // Toggle ready mutation
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
     },
     onError: (error) => {
       toast.error("Failed to update task: " + error.message);
@@ -321,34 +321,34 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
     onMutate: async (variables) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ 
-        queryKey: orpc.projects.getWithTasks.queryKey({ input: { id: projectId } })
+      await queryClient.cancelQueries({
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }]
       });
 
       // Snapshot the previous value
       const previousData = queryClient.getQueryData(
-        orpc.projects.getWithTasks.queryKey({ input: { id: projectId } })
+        ["projects", "getWithTasks", { input: { id: projectId } }]
       );
 
       // Optimistically update to the new value
       if (previousData) {
         queryClient.setQueryData(
-          orpc.projects.getWithTasks.queryKey({ input: { id: projectId } }), 
+          ["projects", "getWithTasks", { input: { id: projectId } }],
           (old: any) => {
           if (!old?.tasks) return old;
-          
+
           const updatedTasks = old.tasks.map((task: any) => {
             const update = variables.tasks.find((u: any) => u.id === task.id);
             if (update) {
-              return { 
-                ...task, 
+              return {
+                ...task,
                 columnOrder: update.columnOrder,
-                status: update.status || task.status 
+                status: update.status || task.status
               };
             }
             return task;
           });
-          
+
           return { ...old, tasks: updatedTasks };
         });
       }
@@ -360,20 +360,16 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousData) {
         queryClient.setQueryData(
-          orpc.projects.getWithTasks.queryKey({ input: { id: projectId } }), 
+          ["projects", "getWithTasks", { input: { id: projectId } }],
           context.previousData
         );
       }
       toast.error("Failed to update task order: " + error.message);
     },
     onSuccess: () => {
-      // Only invalidate on success - optimistic update should handle the UI
-      // This ensures we sync with server after successful update
-      setTimeout(() => {
-        queryClient.invalidateQueries({ 
-          queryKey: orpc.projects.getWithTasks.queryKey({ input: { id: projectId } })
-        });
-      }, 100); // Small delay to avoid racing with optimistic update
+      // Don't invalidate immediately - let optimistic update persist
+      // Real-time updates via WebSocket will sync if needed
+      console.log('✅ Task order updated successfully');
     }
   }));
 
@@ -779,7 +775,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       {/* Project Settings Dialog */}
       {showProjectSettings && (
         <ProjectSettingsComprehensive
-          project={{ id: projectId }}
+          project={{ id: projectId, name: project?.name || "" }}
           open={showProjectSettings}
           onOpenChange={setShowProjectSettings}
         />

@@ -308,6 +308,9 @@ export const tasksRouter = o.router({
         .where(eq(tasks.id, input.id))
         .returning();
 
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
       return updated[0];
     }),
 
