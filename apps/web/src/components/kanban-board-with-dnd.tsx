@@ -117,28 +117,24 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-pointer hover:shadow-md transition-shadow mb-3",
-        isDragging && "opacity-50"
+        "cursor-grab hover:shadow-md transition-shadow mb-3 kanban-card",
+        isDragging && "opacity-50 cursor-grabbing"
       )}
-      onClick={() => onTaskClick(task.id)}
+      {...attributes}
+      {...listeners}
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm font-medium line-clamp-2 flex-1">
+          <CardTitle 
+            className="text-sm font-medium line-clamp-2 flex-1 cursor-pointer break-all max-w-full overflow-hidden" 
+            onClick={(e) => {
+              e.stopPropagation();
+              onTaskClick(task.id);
+            }}
+          >
             {task.refinedTitle || task.rawTitle}
           </CardTitle>
           <div className="flex items-center gap-1 flex-shrink-0">
-            {/* Drag handle */}
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-6 w-6 p-0 cursor-grab active:cursor-grabbing"
-              {...attributes}
-              {...listeners}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <GripVertical className="h-3 w-3" />
-            </Button>
             {/* Task menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -167,7 +163,7 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
       </CardHeader>
       <CardContent className="pt-0">
         {/* Priority and Status badges */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-1 mb-2 flex-wrap">
           <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
             {task.priority}
           </Badge>
@@ -184,7 +180,7 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
 
         {/* Description preview */}
         {(task.refinedDescription || task.rawDescription) && (
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+          <p className="text-xs text-muted-foreground mb-2 line-clamp-2 break-all max-w-full overflow-hidden">
             {task.refinedDescription || task.rawDescription}
           </p>
         )}
@@ -208,12 +204,12 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
 
         {/* Repo Agent and Actor info */}
         {task.repoAgent && (
-          <div className="text-xs text-muted-foreground mt-1">
+          <div className="text-xs text-muted-foreground mt-1 break-all max-w-full overflow-hidden">
             Repo: {task.repoAgent.name}
           </div>
         )}
         {task.actor && (
-          <div className="text-xs text-muted-foreground">
+          <div className="text-xs text-muted-foreground break-all max-w-full overflow-hidden">
             Actor: {task.actor.name}
           </div>
         )}
@@ -240,7 +236,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     rawDescription: "",
     priority: "P3" as keyof typeof priorityColors,
     repoAgentId: "",
-    actorId: ""
+    actorId: "__default__"
   });
 
   const queryClient = useQueryClient();
@@ -288,7 +284,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         rawDescription: "",
         priority: "P3",
         repoAgentId: "",
-        actorId: ""
+        actorId: "__default__"
       });
       queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
     },
@@ -508,6 +504,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     createTaskMutation.mutate({
       projectId,
       ...newTask,
+      // Convert __default__ back to undefined for the API
+      actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
       columnOrder: newOrder
     });
   };
@@ -547,8 +545,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               const Icon = column.icon;
 
               return (
-                <div key={column.id} className="flex-shrink-0 w-80">
-                  <div className="bg-muted/50 rounded-lg p-4">
+                <div key={column.id} className="flex-shrink-0 kanban-column">
+                  <div className="bg-muted/50 rounded-lg kanban-column-content">
                     {/* Column Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
@@ -680,7 +678,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                   <SelectValue placeholder="Select actor (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None (Use Default)</SelectItem>
+                  <SelectItem value="__default__">None (Use Default)</SelectItem>
                   {actors?.map((actor: any) => (
                     <SelectItem key={actor.id} value={actor.id}>
                       {actor.name}
