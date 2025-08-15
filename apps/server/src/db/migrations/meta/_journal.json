@@ -15,6 +15,13 @@
       "when": 1755252000000,
       "tag": "0001_rename_client_type_to_agent_client_id",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1755270747705,
+      "tag": "0002_special_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

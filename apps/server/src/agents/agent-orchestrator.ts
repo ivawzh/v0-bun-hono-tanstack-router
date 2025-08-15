@@ -130,6 +130,16 @@ export class AgentOrchestrator {
         }
       }
 
+      // Check if we recently pushed a task (must be more than 20 seconds ago to be free)
+      if (agent.lastTaskPushedAt) {
+        const lastPushTime = new Date(agent.lastTaskPushedAt).getTime();
+        const timeSinceLastPush = now - lastPushTime;
+
+        if (timeSinceLastPush <= 20 * 1000) { // Less than 20 seconds
+          return 'Busy';
+        }
+      }
+
       // Check last message time (must be more than 1 minute ago to be free)
       if (state.lastMessagedAt) {
         const lastMessageTime = new Date(state.lastMessagedAt).getTime();
@@ -483,6 +493,12 @@ export class AgentOrchestrator {
         status: 'active',
         startedAt: new Date()
       }).returning();
+
+      // Update agent's lastTaskPushedAt timestamp to prevent duplicate task pushing
+      await db
+        .update(agents)
+        .set({ lastTaskPushedAt: new Date(), updatedAt: new Date() })
+        .where(eq(agents.id, repoAgent.agentClientId));
 
       // Update agent tracking
       agentStatus.sessionId = sessionId;

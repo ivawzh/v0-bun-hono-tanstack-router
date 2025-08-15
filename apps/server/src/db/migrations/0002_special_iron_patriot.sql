@@ -1,0 +1,1 @@
+ALTER TABLE "agents" ADD COLUMN "last_task_pushed_at" timestamp;

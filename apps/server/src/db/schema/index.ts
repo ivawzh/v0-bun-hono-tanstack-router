@@ -18,6 +18,7 @@ export const agents = pgTable("agents", {
   id: uuid("id").primaryKey().defaultRandom(),
   type: agentClientTypeEnum("type").notNull(),
   state: jsonb("state").default({}).notNull(), // { lastMessagedAt, lastSessionCompletedAt, lastSessionCreatedAt }
+  lastTaskPushedAt: timestamp("last_task_pushed_at"), // Track when we last pushed a task to prevent duplicate pushes
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
