@@ -14,7 +14,7 @@ export interface AgentStatus {
   sessionId?: string;
 }
 
-export type AgentClientVacancy = 'Busy' | 'Free';
+export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
 export interface AgentOrchestratorOptions {
   claudeCodeUrl: string;
@@ -65,7 +65,7 @@ export class AgentOrchestrator {
 
     // Start monitoring agents and tasks
     this.startMonitoring();
-    
+
     // Start vacancy logging
     this.startVacancyLogging();
   }
@@ -111,10 +111,10 @@ export class AgentOrchestrator {
     try {
       // Get agent from database
       const agentRecords = await db.select().from(agents).where(eq(agents.type, agentType));
-      
+
       if (agentRecords.length === 0) {
         // No agent record found, consider as Free
-        return 'Free';
+        return null;
       }
 
       const agent = agentRecords[0];
@@ -134,7 +134,7 @@ export class AgentOrchestrator {
       if (state.lastMessagedAt) {
         const lastMessageTime = new Date(state.lastMessagedAt).getTime();
         const timeSinceLastMessage = now - lastMessageTime;
-        
+
         if (timeSinceLastMessage <= 60 * 1000) { // Less than 1 minute
           return 'Busy';
         }
@@ -143,7 +143,7 @@ export class AgentOrchestrator {
         if (state.lastSessionCompletedAt) {
           const sessionCompletedTime = new Date(state.lastSessionCompletedAt).getTime();
           const timeSinceCompletion = now - sessionCompletedTime;
-          
+
           // If session completed at same time as last message (within 1 second tolerance)
           if (Math.abs(sessionCompletedTime - lastMessageTime) <= 1000) {
             if (timeSinceCompletion <= 5 * 1000) { // Less than 5 seconds since completion
@@ -165,13 +165,17 @@ export class AgentOrchestrator {
     const cursorVacancy = await this.calculateAgentClientVacancy('CURSOR_CLI');
     const opencodeVacancy = await this.calculateAgentClientVacancy('OPENCODE');
 
-    console.log(`🤖 Agent Vacancy - Claude: ${claudeVacancy} | Cursor: ${cursorVacancy} | OpenCode: ${opencodeVacancy}`);
+    console.log(`🤖 Agent Vacancy - ${claudeVacancy ? 'Claude: ' + claudeVacancy : ''} | ${cursorVacancy ? 'Cursor: ' + cursorVacancy : ''} | ${opencodeVacancy ? 'OpenCode: ' + opencodeVacancy : ''}`);
   }
 
   private async updateAgentStatuses() {
     try {
-      // Get all repo agents from database
-      const allAgents = await db.query.repoAgents.findMany();
+      // Get all repo agents from database with agent client info
+      const allAgents = await db.query.repoAgents.findMany({
+        with: {
+          agentClient: true
+        }
+      });
 
       for (const agent of allAgents) {
         const existingStatus = this.agentStatuses.get(agent.id);
@@ -181,7 +185,7 @@ export class AgentOrchestrator {
         let currentStatus: 'idle' | 'active' | 'rate_limited' | 'error' = agent.status as any;
 
         // For Claude Code agents, rely on database status and MCP communication
-        if (agent.clientType === 'claude_code' && this.isConnected) {
+        if (agent.agentClient?.type === 'CLAUDE_CODE' && this.isConnected) {
           // Use the current database status as the source of truth
           // Agent status will be updated via MCP calls when agents start/complete tasks
 

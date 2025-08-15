@@ -37,9 +37,9 @@ export const projects = pgTable("projects", {
 export const repoAgents = pgTable("repo_agents", {
   id: uuid("id").primaryKey().defaultRandom(),
   projectId: uuid("project_id").notNull().references(() => projects.id),
+  agentClientId: uuid("agent_client_id").notNull().references(() => agents.id),
   name: text("name").notNull(),
   repoPath: text("repo_path").notNull(), // Local file system path
-  clientType: text("client_type").notNull(), // claude_code, opencode, etc.
   config: jsonb("config").default({}), // Client-specific settings
   status: text("status").notNull().default("idle"), // idle, active, rate_limited, error
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -114,6 +114,10 @@ export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects)
 }));
 
+export const agentsRelations = relations(agents, ({ many }) => ({
+  repoAgents: many(repoAgents)
+}));
+
 export const projectsRelations = relations(projects, ({ one, many }) => ({
   owner: one(users, {
     fields: [projects.ownerId],
@@ -128,6 +132,10 @@ export const repoAgentsRelations = relations(repoAgents, ({ one, many }) => ({
   project: one(projects, {
     fields: [repoAgents.projectId],
     references: [projects.id]
+  }),
+  agentClient: one(agents, {
+    fields: [repoAgents.agentClientId],
+    references: [agents.id]
   }),
   tasks: many(tasks),
   sessions: many(sessions)
