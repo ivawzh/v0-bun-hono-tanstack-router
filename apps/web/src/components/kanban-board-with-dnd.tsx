@@ -48,13 +48,13 @@ import { ProjectSettingsComprehensive } from "@/components/project-settings-comp
 // Drag and drop imports
 import {
   DndContext,
-  DragEndEvent,
-  DragOverEvent,
   DragOverlay,
-  DragStartEvent,
   PointerSensor,
   useSensor,
   useSensors,
+  type DragStartEvent,
+  type DragOverEvent,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   SortableContext,

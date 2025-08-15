@@ -6,17 +6,9 @@ import fs from 'fs';
 function dbMigrationPlugin() {
   return {
     name: 'db-migration',
-    configureServer(server: any) {
-      // Run migrations on server start in dev/test environments
-      const nodeEnv = process.env.NODE_ENV;
-      if (nodeEnv === 'development' || nodeEnv === 'test') {
-        console.log('🔄 Running initial DB migrations on server start...');
-        runMigrations();
-      }
-    },
     handleHotUpdate(ctx: any) {
       const nodeEnv = process.env.NODE_ENV;
-      
+
       // Only run in development or test environments
       if (nodeEnv !== 'development' && nodeEnv !== 'test') {
         return;
@@ -25,12 +17,12 @@ function dbMigrationPlugin() {
       // Check if migration files were updated
       const migrationsPath = path.resolve(process.cwd(), 'src/db/migrations');
       const isMigrationFile = ctx.file.startsWith(migrationsPath);
-      
+
       if (isMigrationFile) {
         console.log('🔄 Migration file changed, running DB migrations...');
         runMigrations();
       }
-      
+
       // Let other hot updates proceed normally
       return;
     }
