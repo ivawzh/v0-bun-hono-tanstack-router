@@ -11,7 +11,7 @@ import { stream } from "hono/streaming";
 import { registerMcpHttp, setOrchestrator } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { ImprovedAgentOrchestrator } from "./agents/improved-agent-orchestrator";
-import { wsManager, handleWebSocketMessage } from "./lib/websocket";
+import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
 
 const app = new Hono();
@@ -42,7 +42,6 @@ app.use("/rpc/*", async (c, next) => {
   await next();
 });
 
-
 app.post("/ai", async (c) => {
   const body = await c.req.json();
   const messages = body.messages || [];
@@ -56,15 +55,18 @@ app.post("/ai", async (c) => {
   return stream(c, (stream) => stream.pipe(result.toDataStream()));
 });
 
-
 app.get("/", (c) => {
   return c.text("OK");
 });
+
 
 // Mount MCP Streamable HTTP endpoint at /mcp
 registerMcpHttp(app, "/mcp");
 
 const port = process.env.PORT || 8500;
+
+console.log(`🚀 Solo Unicorn server starting on port ${port}`);
+console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 
 // Initialize Improved Agent Orchestrator
 let agentOrchestrator: ImprovedAgentOrchestrator | null = null;
@@ -85,10 +87,10 @@ async function initializeAgentOrchestrator() {
     });
 
     await agentOrchestrator.initialize();
-    
+
     // Integrate with MCP server
     setOrchestrator(agentOrchestrator);
-    
+
     console.log("🤖 Improved Agent Orchestrator initialized successfully");
   } catch (error) {
     console.error("❌ Failed to initialize Agent Orchestrator:", error instanceof Error ? error.message : String(error));
@@ -109,6 +111,7 @@ process.on('SIGTERM', () => {
   if (agentOrchestrator) {
     agentOrchestrator.shutdown();
   }
+  wsManager.shutdown();
   process.exit(0);
 });
 
@@ -121,28 +124,48 @@ process.on('SIGINT', () => {
   process.exit(0);
 });
 
-export default {
+type WebSocketData = {
+  clientId: string;
+};
+
+Bun.serve<WebSocketData, {}>({
   port,
-  fetch: app.fetch,
+  fetch(req, server) {
+    // Check if this is a WebSocket upgrade request
+    const upgrade = req.headers.get("upgrade");
+    if (upgrade === "websocket") {
+      const clientId = randomUUID();
+      const success = server.upgrade(req, {
+        data: { clientId }
+      });
+      if (success) {
+        return undefined; // Successfully upgraded
+      }
+    }
+    
+    // Handle regular HTTP requests through Hono
+    return app.fetch(req, server);
+  },
   websocket: {
     message(ws, message) {
-      const clientId = ws.data?.clientId || randomUUID();
-      if (!ws.data?.clientId) {
-        ws.data = { clientId };
-        wsManager.addClient(ws, clientId);
+      const clientId = ws.data?.clientId;
+      if (clientId) {
+        handleWebSocketMessage(ws, clientId, message.toString());
       }
-      handleWebSocketMessage(ws, clientId, message.toString());
     },
     open(ws) {
-      const clientId = randomUUID();
-      ws.data = { clientId };
-      wsManager.addClient(ws, clientId);
+      const clientId = ws.data?.clientId;
+      if (clientId) {
+        wsManager.addClient(ws, clientId);
+        console.log(`🔌 WebSocket connection opened for client: ${clientId}`);
+      }
     },
     close(ws) {
       if (ws.data?.clientId) {
         wsManager.removeClient(ws.data.clientId);
       }
     },
+    // @ts-ignore
     error(ws, error) {
       console.error('WebSocket error:', error);
       if (ws.data?.clientId) {
@@ -150,4 +173,4 @@ export default {
       }
     }
   }
-};
+});

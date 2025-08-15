@@ -1,18 +1,12 @@
 import type { ServerWebSocket } from "bun";
 
-interface WebSocketMessage {
-  type: string;
-  data: any;
-  timestamp: string;
-}
-
 interface ClientSubscription {
   projectId?: string;
   ws: ServerWebSocket<any>;
   lastPing?: number;
 }
 
-class WebSocketManager {
+class WebSocketServer {
   private clients = new Map<string, ClientSubscription>();
   private pingInterval: NodeJS.Timeout | null = null;
 
@@ -26,7 +20,7 @@ class WebSocketManager {
   addClient(ws: ServerWebSocket<any>, clientId: string) {
     console.log(`🔌 WebSocket client connected: ${clientId}`);
     this.clients.set(clientId, { ws, lastPing: Date.now() });
-    
+
     // Send welcome message
     this.sendToClient(clientId, {
       type: 'connection.established',
@@ -44,7 +38,7 @@ class WebSocketManager {
     if (client) {
       client.projectId = projectId;
       console.log(`📡 Client ${clientId} subscribed to project ${projectId}`);
-      
+
       this.sendToClient(clientId, {
         type: 'subscription.confirmed',
         data: { projectId }
@@ -52,61 +46,41 @@ class WebSocketManager {
     }
   }
 
-  broadcastToProject(projectId: string, message: Omit<WebSocketMessage, 'timestamp'>) {
-    const fullMessage: WebSocketMessage = {
-      ...message,
-      timestamp: new Date().toISOString()
+  // SIMPLIFIED: Just broadcast a "flush" message to invalidate all queries
+  broadcastFlush(projectId?: string) {
+    const message = {
+      type: 'flush',
+      data: { projectId, timestamp: new Date().toISOString() }
     };
 
     let sentCount = 0;
     for (const [clientId, client] of this.clients.entries()) {
-      if (client.projectId === projectId) {
+      // If projectId is specified, only send to clients subscribed to that project
+      // If no projectId, send to all clients
+      if (!projectId || client.projectId === projectId) {
         try {
-          client.ws.send(JSON.stringify(fullMessage));
+          client.ws.send(JSON.stringify(message));
           sentCount++;
         } catch (error) {
-          console.error(`Failed to send message to client ${clientId}:`, error);
-          // Remove dead client
+          console.error(`Failed to send flush to client ${clientId}:`, error);
           this.removeClient(clientId);
         }
       }
     }
 
     if (sentCount > 0) {
-      console.log(`📤 Broadcasted ${message.type} to ${sentCount} clients in project ${projectId}`);
+      console.log(`📤 Broadcasted flush to ${sentCount} clients${projectId ? ` in project ${projectId}` : ''}`);
     }
   }
 
-  broadcastToAll(message: Omit<WebSocketMessage, 'timestamp'>) {
-    const fullMessage: WebSocketMessage = {
-      ...message,
-      timestamp: new Date().toISOString()
-    };
-
-    let sentCount = 0;
-    for (const [clientId, client] of this.clients.entries()) {
-      try {
-        client.ws.send(JSON.stringify(fullMessage));
-        sentCount++;
-      } catch (error) {
-        console.error(`Failed to send message to client ${clientId}:`, error);
-        this.removeClient(clientId);
-      }
-    }
-
-    console.log(`📤 Broadcasted ${message.type} to ${sentCount} clients`);
-  }
-
-  sendToClient(clientId: string, message: Omit<WebSocketMessage, 'timestamp'>) {
+  sendToClient(clientId: string, message: any) {
     const client = this.clients.get(clientId);
     if (client) {
-      const fullMessage: WebSocketMessage = {
-        ...message,
-        timestamp: new Date().toISOString()
-      };
-
       try {
-        client.ws.send(JSON.stringify(fullMessage));
+        client.ws.send(JSON.stringify({
+          ...message,
+          timestamp: new Date().toISOString()
+        }));
         console.log(`📤 Sent ${message.type} to client ${clientId}`);
       } catch (error) {
         console.error(`Failed to send message to client ${clientId}:`, error);
@@ -163,12 +137,12 @@ class WebSocketManager {
 }
 
 // Singleton instance
-export const wsManager = new WebSocketManager();
+export const wsManager = new WebSocketServer();
 
 // WebSocket message handlers
 export function handleWebSocketMessage(ws: ServerWebSocket<any>, clientId: string, message: string) {
   try {
-    const parsed: WebSocketMessage = JSON.parse(message);
+    const parsed = JSON.parse(message);
     console.log(`📨 WebSocket message from ${clientId}:`, parsed);
 
     switch (parsed.type) {
@@ -194,24 +168,7 @@ export function handleWebSocketMessage(ws: ServerWebSocket<any>, clientId: strin
   }
 }
 
-// Helper functions for broadcasting specific events
-export function broadcastTaskUpdate(projectId: string, taskId: string, action: 'created' | 'updated' | 'deleted', task?: any) {
-  wsManager.broadcastToProject(projectId, {
-    type: `task.${action}`,
-    data: { taskId, task }
-  });
-}
-
-export function broadcastAgentStatusChange(agentId: string, status: string, details?: any) {
-  wsManager.broadcastToAll({
-    type: 'agent.status.changed',
-    data: { agentId, status, details }
-  });
-}
-
-export function broadcastSessionEvent(projectId: string, sessionId: string, event: 'started' | 'completed' | 'failed', details?: any) {
-  wsManager.broadcastToProject(projectId, {
-    type: `session.${event}`,
-    data: { sessionId, details }
-  });
+// SIMPLIFIED: Single function to broadcast flush after any data change
+export function broadcastFlush(projectId?: string) {
+  wsManager.broadcastFlush(projectId);
 }

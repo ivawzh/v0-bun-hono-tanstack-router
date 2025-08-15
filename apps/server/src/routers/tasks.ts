@@ -3,7 +3,7 @@ import * as v from "valibot";
 import { db } from "../db";
 import { tasks, projects, repoAgents, actors } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
-import { broadcastTaskUpdate } from "../lib/websocket";
+import { broadcastFlush } from "../websocket/websocket-server";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
 const taskStageEnum = v.picklist(["refine", "kickoff", "execute"]);
@@ -174,8 +174,8 @@ export const tasksRouter = o.router({
         })
         .returning();
 
-      // Broadcast task creation to WebSocket clients
-      broadcastTaskUpdate(input.projectId, newTask[0].id, 'created', newTask[0]);
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(input.projectId);
 
       return newTask[0];
     }),
@@ -236,8 +236,8 @@ export const tasksRouter = o.router({
         .where(eq(tasks.id, input.id))
         .returning();
 
-      // Broadcast task update to WebSocket clients
-      broadcastTaskUpdate(task[0].project.id, updated[0].id, 'updated', updated[0]);
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
 
       return updated[0];
     }),
@@ -339,7 +339,7 @@ export const tasksRouter = o.router({
 
       // Update all tasks in a transaction
       const updatedTasks = [];
-      
+
       for (const taskUpdate of input.tasks) {
         // Verify task belongs to project and user
         const task = await db
@@ -379,10 +379,8 @@ export const tasksRouter = o.router({
         updatedTasks.push(updated[0]);
       }
 
-      // Broadcast task order updates to WebSocket clients
-      for (const updatedTask of updatedTasks) {
-        broadcastTaskUpdate(input.projectId, updatedTask.id, 'updated', updatedTask);
-      }
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(input.projectId);
 
       return { success: true, updated: updatedTasks };
     })
