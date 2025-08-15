@@ -75,68 +75,6 @@ function assertBearer(authHeader: string | string[] | undefined) {
 
 // Tools for code agents
 server.tool(
-  "agent.auth",
-  "Validate a code agent by client type and repo path, then mark it active.",
-  {
-    clientType: z.enum(["claude_code", "opencode"]),
-    repoPath: z.string().min(1)
-  },
-  async ({ clientType, repoPath }, { requestInfo }) => {
-    logger.tool("agent.auth", "start", { clientType, repoPath });
-
-    try {
-      assertBearer(requestInfo?.headers?.authorization);
-
-      const repoAgent = await db.query.repoAgents.findFirst({
-        where: and(
-          eq(repoAgents.clientType, clientType),
-          eq(repoAgents.repoPath, repoPath)
-        )
-      });
-
-      if (!repoAgent) {
-        logger.tool("agent.auth", "failed", { reason: "repo_agent_not_found", clientType, repoPath });
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ success: false, message: `No repo agent found for ${clientType} at ${repoPath}` })
-            }
-          ]
-        };
-      }
-
-      await db
-        .update(repoAgents)
-        .set({ status: "active", updatedAt: new Date() })
-        .where(eq(repoAgents.id, repoAgent.id));
-
-      logger.tool("agent.auth", "success", {
-        agentId: repoAgent.id,
-        clientType: repoAgent.clientType,
-        repoPath: repoAgent.repoPath,
-        previousStatus: repoAgent.status
-      });
-
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              success: true,
-              agent: { id: repoAgent.id, clientType: repoAgent.clientType, repoPath: repoAgent.repoPath }
-            })
-          }
-        ]
-      };
-    } catch (error) {
-      logger.error("agent.auth failed", error, { clientType, repoPath });
-      throw error;
-    }
-  }
-);
-
-server.tool(
   "task.start",
   "Start working on a specific task and set its stage. Updates task status and creates session.",
   {
@@ -864,7 +802,7 @@ async function createFreshTransport() {
         logger.debug("Server was not connected or error closing:", e);
       }
     }
-    
+
     // Connect the server to the new transport
     await server.connect(currentTransport);
     logger.debug("Fresh MCP transport created and server connected");
@@ -872,7 +810,7 @@ async function createFreshTransport() {
     logger.error("Error connecting server to fresh transport:", error);
     throw error;
   }
-  
+
   return currentTransport;
 }
 
@@ -931,13 +869,13 @@ export async function startMcpHttpServer(port = 8502) {
           assertBearer(request.headers.authorization);
           logger.auth("HTTP MCP request authenticated successfully");
         } catch (authError) {
-          logger.auth("HTTP MCP request authentication failed", { 
-            url: request.url, 
+          logger.auth("HTTP MCP request authentication failed", {
+            url: request.url,
             hasAuth: !!request.headers.authorization,
             authToken: process.env.AGENT_AUTH_TOKEN?.substring(0, 8) + "..."
           });
           response.writeHead(401, { 'Content-Type': 'application/json' });
-          response.end(JSON.stringify({ 
+          response.end(JSON.stringify({
             jsonrpc: "2.0",
             error: {
               code: -32600,
@@ -973,17 +911,17 @@ export async function startMcpHttpServer(port = 8502) {
       const originalEnd = response.end;
       const originalWrite = response.write;
       let responseBody = '';
-      
+
       response.write = function(chunk: any, encoding?: any, callback?: any) {
         if (chunk) responseBody += chunk.toString();
         return originalWrite.call(this, chunk, encoding, callback);
       };
-      
+
       response.end = function(chunk?: any, encoding?: any, callback?: any) {
         if (chunk) responseBody += chunk.toString();
-        logger.debug("MCP response body", { 
+        logger.debug("MCP response body", {
           bodyPreview: responseBody.substring(0, 500),
-          bodyLength: responseBody.length 
+          bodyLength: responseBody.length
         });
         return originalEnd.call(this, chunk, encoding, callback);
       };
@@ -993,7 +931,7 @@ export async function startMcpHttpServer(port = 8502) {
         logger.debug("No current transport, creating fresh one");
         await createFreshTransport();
       }
-      
+
       await currentTransport.handleRequest(request, response, body);
 
       const duration = Date.now() - startTime;

@@ -37,14 +37,14 @@ export class ClaudeCodeClient {
     return new Promise((resolve, reject) => {
       const wsUrl = `${this.options.claudeCodeUrl}/ws/agent?token=${encodeURIComponent(this.options.agentToken)}`;
       console.log('🤖 Connecting to Claude Code UI WebSocket:', wsUrl);
-      
+
       // Clean up existing connection if any
       if (this.ws) {
         this.ws.removeAllListeners();
         this.ws.close();
         this.ws = null;
       }
-      
+
       this.ws = new WebSocket(wsUrl);
 
       // Set a connection timeout
@@ -116,7 +116,7 @@ export class ClaudeCodeClient {
   }
 
   private handleMessage(message: any) {
-    console.log('📨 Claude Code message:', message.type);
+    console.log('📨 Claude Code UI WS message:', message.type);
 
     switch (message.type) {
       case 'active_sessions':

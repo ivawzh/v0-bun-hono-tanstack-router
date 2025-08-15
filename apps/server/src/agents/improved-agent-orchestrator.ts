@@ -92,25 +92,77 @@ export class ImprovedAgentOrchestrator {
       // Get all repo agents from database
       const allAgents = await db.query.repoAgents.findMany();
       
+      // Get active sessions from Claude Code UI
+      let activeSessions: { claude: string[], cursor: string[] } = { claude: [], cursor: [] };
+      try {
+        if (this.isConnected) {
+          activeSessions = await this.claudeCodeClient.getActiveSessions();
+          this.logger.debug('Active sessions from Claude Code UI', activeSessions);
+        }
+      } catch (error) {
+        this.logger.debug('Failed to get active sessions from Claude Code UI', error);
+      }
+      
       for (const agent of allAgents) {
         const existingStatus = this.agentStatuses.get(agent.id);
         const now = new Date();
         
+        // Check if this agent (client type: claude_code) has any active sessions
+        const hasActiveSessions = agent.clientType === 'claude_code' && activeSessions.claude.length > 0;
+        
+        // Determine agent status based on active sessions and database status
+        let currentStatus: 'idle' | 'active' | 'rate_limited' | 'error' = agent.status as any;
+        
+        if (hasActiveSessions) {
+          // Agent has active sessions, mark as active
+          currentStatus = 'active';
+          this.logger.debug('Agent has active sessions', { 
+            agentId: agent.id, 
+            activeSessions: activeSessions.claude 
+          });
+        } else if (agent.clientType === 'claude_code' && this.isConnected) {
+          // Agent is Claude Code type, we're connected, and no active sessions = idle
+          currentStatus = 'idle';
+          
+          // Check if it was recently active and might have just completed
+          if (existingStatus?.status === 'active' && 
+              now.getTime() - existingStatus.lastHeartbeat.getTime() < 10000) { // 10 seconds
+            this.logger.debug('Agent recently completed work, marking as idle', { agentId: agent.id });
+          }
+        }
+        
         // Check if agent has been inactive for too long
         if (existingStatus && 
-            now.getTime() - existingStatus.lastHeartbeat.getTime() > this.availabilityTimeout) {
-          // Mark as potentially stale
+            now.getTime() - existingStatus.lastHeartbeat.getTime() > this.availabilityTimeout &&
+            currentStatus === 'active') {
+          // Mark as potentially stale only if currently active
           this.logger.debug('Agent potentially stale', { 
             agentId: agent.id, 
             lastHeartbeat: existingStatus.lastHeartbeat,
             timeout: this.availabilityTimeout 
           });
+          // Force to idle if stale
+          currentStatus = 'idle';
         }
 
-        // Update our tracking with database status
+        // Update agent status in database if it changed
+        if (agent.status !== currentStatus) {
+          await db
+            .update(repoAgents)
+            .set({ status: currentStatus, updatedAt: now })
+            .where(eq(repoAgents.id, agent.id));
+          
+          this.logger.debug('Updated agent status in database', {
+            agentId: agent.id,
+            oldStatus: agent.status,
+            newStatus: currentStatus
+          });
+        }
+
+        // Update our tracking
         this.agentStatuses.set(agent.id, {
           agentId: agent.id,
-          status: agent.status as 'idle' | 'active' | 'rate_limited' | 'error',
+          status: currentStatus,
           lastHeartbeat: existingStatus?.lastHeartbeat || now,
           currentTaskId: existingStatus?.currentTaskId,
           sessionId: existingStatus?.sessionId
@@ -123,15 +175,32 @@ export class ImprovedAgentOrchestrator {
 
   private async pushTasksToAvailableAgents() {
     try {
-      // Get available agents (idle status and recent heartbeat)
+      // First, trigger a fresh status update to get latest availability
+      await this.updateAgentStatuses();
+      
+      // Get available agents (idle status and no current task)
       const availableAgents = Array.from(this.agentStatuses.values()).filter(status => {
         const isIdle = status.status === 'idle';
-        const isRecent = Date.now() - status.lastHeartbeat.getTime() < this.availabilityTimeout;
-        return isIdle && isRecent && !status.currentTaskId;
+        const hasNoCurrentTask = !status.currentTaskId;
+        // For Claude Code agents, also check if we're connected to the WebSocket
+        const isConnected = this.isConnected;
+        
+        this.logger.debug('Agent availability check', {
+          agentId: status.agentId,
+          isIdle,
+          hasNoCurrentTask,
+          isConnected,
+          status: status.status
+        });
+        
+        return isIdle && hasNoCurrentTask && isConnected;
       });
 
       if (availableAgents.length === 0) {
-        this.logger.debug('No available agents for task assignment');
+        this.logger.debug('No available agents for task assignment', {
+          totalAgents: this.agentStatuses.size,
+          isConnected: this.isConnected
+        });
         return;
       }
 
@@ -419,6 +488,16 @@ Task ID: ${taskContext.id}
     // Trigger immediate task push check for this agent
     if (this.taskPushEnabled) {
       setTimeout(() => this.pushTasksToAvailableAgents(), 1000);
+    }
+  }
+
+  // Called when a task becomes ready (triggered by toggle ready mutation)
+  async onTaskReady(taskId: string) {
+    this.logger.info('Task marked as ready, checking for available agents', { taskId });
+    
+    // Trigger immediate task assignment check
+    if (this.taskPushEnabled) {
+      setTimeout(() => this.pushTasksToAvailableAgents(), 500);
     }
   }
 
