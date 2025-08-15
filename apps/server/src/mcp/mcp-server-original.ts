@@ -59,6 +59,17 @@ const logger = {
   },
 };
 
+// Initialize simplified MCP server with only essential tools
+const server = new McpServer({
+  name: "solo-unicorn-mcp",
+  version: "1.0.0",
+});
+
+logger.info("Simplified MCP Server initialized", {
+  name: "solo-unicorn-mcp",
+  version: "1.0.0",
+});
+
 // Small helper to enforce bearer auth from headers
 function assertBearer(authHeader: string | string[] | undefined) {
   const expected = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
@@ -88,64 +99,102 @@ function assertBearer(authHeader: string | string[] | undefined) {
   logger.auth("Authentication successful");
 }
 
-// Function to register all MCP tools on a server instance
-function registerMcpTools(server: McpServer) {
-  // Register task_update tool
-  server.registerTool("task_update",
-    {
-      title: "Update a task",
-      description: "Update task fields during workflow stages.",
-      inputSchema: {
-        taskId: z.string().uuid(),
-        refinedTitle: z.string().optional(),
-        refinedDescription: z.string().optional(),
-        plan: z.unknown().optional(),
-        status: z.enum(["todo", "doing", "done"]).optional(),
-        stage: z.enum(["refine", "kickoff", "execute"]).optional().nullable(),
-        isAiWorking: z.boolean().optional(),
-      },
+server.registerTool("task_update",
+  {
+    title: "Update a task",
+    description: "Update task fields during workflow stages.",
+    inputSchema: {
+      taskId: z.string().uuid(),
+      refinedTitle: z.string().optional(),
+      refinedDescription: z.string().optional(),
+      plan: z.unknown().optional(),
+      status: z.enum(["todo", "doing", "done"]).optional(),
+      stage: z.enum(["refine", "kickoff", "execute"]).optional().nullable(),
+      isAiWorking: z.boolean().optional(),
     },
-    async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, isAiWorking }, { requestInfo }) => {
-      logger.info(`RequestInfo: `, requestInfo);
-      const updates = { refinedTitle, refinedDescription, plan, status, stage, isAiWorking };
-      // Filter out undefined values
-      const filteredUpdates = Object.fromEntries(
-        Object.entries(updates).filter(([_, value]) => value !== undefined)
-      );
+  },
+  async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, isAiWorking }, { requestInfo }) => {
+    logger.info(`RequestInfo: `, requestInfo);
+    const updates = { refinedTitle, refinedDescription, plan, status, stage, isAiWorking };
+    // Filter out undefined values
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
 
-      logger.tool("task_update", "start", {
+    logger.tool("task_update", "start", {
+      taskId,
+      updates: filteredUpdates,
+    });
+
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+
+      await db
+        .update(tasks)
+        .set({
+          ...filteredUpdates,
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, taskId));
+
+      logger.tool("task_update", "success", {
+        taskId,
+        updatedFields: Object.keys(filteredUpdates),
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ success: true, taskId, updates: filteredUpdates }),
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error("task_update failed", error, {
         taskId,
         updates: filteredUpdates,
       });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
+      };
+    }
+  }
+);
 
-      try {
-        assertBearer(requestInfo?.headers?.authorization);
 
-        await db
-          .update(tasks)
-          .set({
-            ...filteredUpdates,
-            updatedAt: new Date(),
-          })
-          .where(eq(tasks.id, taskId));
+server.registerTool("agent_rateLimit",
+  {
+    title: "Agent Rate Limit",
+    description: "Mark the agent as rate limited with an optional resolve time.",
+    inputSchema: {
+      sessionId: z.string().uuid(),
+      resolveAt: z.string().datetime(),
+    },
+  },
+  async ({ sessionId, resolveAt }, { requestInfo }) => {
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader)
+      ? agentIdHeader[0]
+      : agentIdHeader;
 
-        logger.tool("task_update", "success", {
-          taskId,
-          updatedFields: Object.keys(filteredUpdates),
-        });
+    logger.tool("agent_rateLimit", "start", { agentId, sessionId, resolveAt });
 
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ success: true, taskId, updates: filteredUpdates }),
-            },
-          ],
-        };
-      } catch (error) {
-        logger.error("task_update failed", error, {
-          taskId,
-          updates: filteredUpdates,
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+
+      if (!agentId) {
+        logger.tool("agent_rateLimit", "failed", {
+          reason: "missing_agent_id",
+          sessionId,
         });
         return {
           content: [
@@ -153,234 +202,164 @@ function registerMcpTools(server: McpServer) {
               type: "text",
               text: JSON.stringify({
                 success: false,
-                error: error instanceof Error ? error.message : String(error),
+                message: "Agent ID header required",
               }),
             },
           ],
         };
       }
+
+      await db
+        .update(repoAgents)
+        .set({ status: "rate_limited", updatedAt: new Date() })
+        .where(eq(repoAgents.id, agentId));
+
+      logger.tool("agent_rateLimit", "success", {
+        agentId,
+        sessionId,
+        resolveAt,
+      });
+
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: true }) }],
+      };
+    } catch (error) {
+      logger.error("agent_rateLimit failed", error, { agentId, sessionId });
+      throw error;
     }
-  );
+  }
+);
 
-  // Register agent_rateLimit tool
-  server.registerTool("agent_rateLimit",
-    {
-      title: "Agent Rate Limit",
-      description: "Mark the agent as rate limited with an optional resolve time.",
-      inputSchema: {
-        sessionId: z.string().uuid(),
-        resolveAt: z.string().datetime(),
-      },
+server.registerTool("project_memory_update",
+  {
+    title: "Update Project Memory",
+    description: "Update project memory with learnings and context.",
+    inputSchema: {
+      projectId: z.string().uuid(),
+      memory: z.string(),
     },
-    async ({ sessionId, resolveAt }, { requestInfo }) => {
-      const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
-      const agentId = Array.isArray(agentIdHeader)
-        ? agentIdHeader[0]
-        : agentIdHeader;
+  },
+  async ({ projectId, memory }, { requestInfo }) => {
+    logger.tool("project_memory_update", "start", {
+      projectId,
+      memoryLength: memory.length,
+    });
 
-      logger.tool("agent_rateLimit", "start", { agentId, sessionId, resolveAt });
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
 
-      try {
-        assertBearer(requestInfo?.headers?.authorization);
+      await db
+        .update(projects)
+        .set({
+          memory,
+          updatedAt: new Date(),
+        })
+        .where(eq(projects.id, projectId));
 
-        if (!agentId) {
-          logger.tool("agent_rateLimit", "failed", {
-            reason: "missing_agent_id",
-            sessionId,
-          });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: false,
-                  message: "Agent ID header required",
-                }),
-              },
-            ],
-          };
-        }
-
-        await db
-          .update(repoAgents)
-          .set({ status: "rate_limited", updatedAt: new Date() })
-          .where(eq(repoAgents.id, agentId));
-
-        logger.tool("agent_rateLimit", "success", {
-          agentId,
-          sessionId,
-          resolveAt,
-        });
-
-        return {
-          content: [{ type: "text", text: JSON.stringify({ success: true }) }],
-        };
-      } catch (error) {
-        logger.error("agent_rateLimit failed", error, { agentId, sessionId });
-        throw error;
-      }
-    }
-  );
-
-  // Register project_memory_update tool
-  server.registerTool("project_memory_update",
-    {
-      title: "Update Project Memory",
-      description: "Update project memory with learnings and context.",
-      inputSchema: {
-        projectId: z.string().uuid(),
-        memory: z.string(),
-      },
-    },
-    async ({ projectId, memory }, { requestInfo }) => {
-      logger.tool("project_memory_update", "start", {
+      logger.tool("project_memory_update", "success", {
         projectId,
         memoryLength: memory.length,
       });
 
-      try {
-        assertBearer(requestInfo?.headers?.authorization);
-
-        await db
-          .update(projects)
-          .set({
-            memory,
-            updatedAt: new Date(),
-          })
-          .where(eq(projects.id, projectId));
-
-        logger.tool("project_memory_update", "success", {
-          projectId,
-          memoryLength: memory.length,
-        });
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({ success: true, projectId }),
-            },
-          ],
-        };
-      } catch (error) {
-        logger.error("project_memory_update failed", error, {
-          projectId,
-          memoryLength: memory.length,
-        });
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                success: false,
-                error: error instanceof Error ? error.message : String(error),
-              }),
-            },
-          ],
-        };
-      }
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ success: true, projectId }),
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error("project_memory_update failed", error, {
+        projectId,
+        memoryLength: memory.length,
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
+      };
     }
-  );
+  }
+);
 
-  // Register project_memory_get tool
-  server.registerTool("project_memory_get",
-    {
-      title: "Get Project Memory",
-      description: "Get project memory and context.",
-      inputSchema: {
-        projectId: z.string().uuid(),
-      },
+server.registerTool("project_memory_get",
+  {
+    title: "Get Project Memory",
+    description: "Get project memory and context.",
+    inputSchema: {
+      projectId: z.string().uuid(),
     },
-    async ({ projectId }, { requestInfo }) => {
-      logger.tool("project_memory_get", "start", { projectId });
+  },
+  async ({ projectId }, { requestInfo }) => {
+    logger.tool("project_memory_get", "start", { projectId });
 
-      try {
-        assertBearer(requestInfo?.headers?.authorization);
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
 
-        const project = await db.query.projects.findFirst({
-          where: eq(projects.id, projectId),
-        });
+      const project = await db.query.projects.findFirst({
+        where: eq(projects.id, projectId),
+      });
 
-        if (!project) {
-          logger.tool("project_memory_get", "not_found", { projectId });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: false,
-                  error: "Project not found",
-                }),
-              },
-            ],
-          };
-        }
-
-        logger.tool("project_memory_get", "success", {
-          projectId,
-          hasMemory: !!project.memory,
-        });
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify({
-                success: true,
-                projectId,
-                memory: project.memory || "",
-                project: {
-                  id: project.id,
-                  name: project.name,
-                  description: project.description,
-                },
-              }),
-            },
-          ],
-        };
-      } catch (error) {
-        logger.error("project_memory_get failed", error, { projectId });
+      if (!project) {
+        logger.tool("project_memory_get", "not_found", { projectId });
         return {
           content: [
             {
               type: "text",
               text: JSON.stringify({
                 success: false,
-                error: error instanceof Error ? error.message : String(error),
+                error: "Project not found",
               }),
             },
           ],
         };
       }
+
+      logger.tool("project_memory_get", "success", {
+        projectId,
+        hasMemory: !!project.memory,
+      });
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              projectId,
+              memory: project.memory || "",
+              project: {
+                id: project.id,
+                name: project.name,
+                description: project.description,
+              },
+            }),
+          },
+        ],
+      };
+    } catch (error) {
+      logger.error("project_memory_get failed", error, { projectId });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
+      };
     }
-  );
-}
-
-// Function to create a fresh MCP server instance with all tools registered
-function createFreshMcpServer() {
-  const server = new McpServer({
-    name: "solo-unicorn-mcp",
-    version: "1.0.0",
-  });
-
-  logger.debug("Fresh MCP Server instance created", {
-    name: "solo-unicorn-mcp",
-    version: "1.0.0",
-  });
-
-  // Register all tools on the fresh server instance
-  registerMcpTools(server);
-
-  return server;
-}
-
-// Global server instance (will be replaced with fresh instances per session)
-let currentServer = createFreshMcpServer();
-
-logger.info("Initial MCP Server initialized", {
-  name: "solo-unicorn-mcp",
-  version: "1.0.0",
-});
+  }
+);
 
 // Import Node.js HTTP module for native server
 import { createServer } from "http";
@@ -404,33 +383,32 @@ async function createFreshTransport() {
     }
   }
 
-  // Close previous server if it exists
-  if (currentServer) {
-    try {
-      await currentServer.close();
-      logger.debug("Previous server instance closed successfully");
-    } catch (e) {
-      logger.debug(
-        "Error closing previous server:",
-        e as Record<string, any>
-      );
-    }
-  }
-
   // Create new transport
   currentTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => Math.random().toString(36).substring(2, 15),
   });
 
-  // Create fresh server instance with all tools registered
-  currentServer = createFreshMcpServer();
-
+  // The key fix: we need to create a new server instance for each session
+  // because MCP servers maintain internal state that prevents re-initialization
   try {
-    // Connect the fresh server to the new transport
-    await currentServer.connect(currentTransport);
-    logger.debug("Fresh MCP server and transport created and connected");
+    // Check if server is already connected, and if so, close it first
+    if (server) {
+      try {
+        await server.close();
+        logger.debug("Previous server connection closed");
+      } catch (e) {
+        logger.debug(
+          "Server was not connected or error closing:",
+          e as Record<string, any>
+        );
+      }
+    }
+
+    // Connect the server to the new transport
+    await server.connect(currentTransport);
+    logger.debug("Fresh MCP transport created and server connected");
   } catch (error) {
-    logger.error("Error connecting fresh server to transport:", error);
+    logger.error("Error connecting server to fresh transport:", error);
     throw error;
   }
 

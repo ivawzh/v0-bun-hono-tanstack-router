@@ -184,6 +184,23 @@ Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Clau
 
 **MCP Server**: Solo Unicorn includes an MCP server consumed by Claude Code UI. To use with other AI tools, provide the `AGENT_AUTH_TOKEN` environment variable.
 
+#### Setup MCP Connection
+
+If Claude Code shows "Failed to connect" when listing MCP servers, or if you encounter "Server already initialized" errors, reconfigure the MCP connection:
+
+```bash
+# Remove existing configuration
+claude mcp remove solo-unicorn
+
+# Add with proper headers and authentication to user scope (apply to all projects)
+claude mcp add-json solo-unicorn '{"type":"http","url":"http://localhost:8502/mcp","headers":{"Authorization":"Bearer <AGENT_AUTH_TOKEN>","Accept":"application/json, text/event-stream"}}' -s user
+
+# Verify connection
+claude mcp list
+```
+
+This ensures Claude Code sends the required `Accept` headers and proper authentication token that Solo Unicorn's MCP server expects.
+
 #### Alternative: Manual Agent Setup
 
 For non-MCP agents or custom integrations:

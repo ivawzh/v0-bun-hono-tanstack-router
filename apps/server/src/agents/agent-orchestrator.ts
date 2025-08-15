@@ -34,8 +34,8 @@ export class AgentOrchestrator {
   private monitoringInterval: NodeJS.Timeout | null = null;
   private taskPushingInterval: NodeJS.Timeout | null = null;
   private logger = {
-    info: (msg: string, context?: any) => console.log(`[ImprovedOrchestrator] ${msg}`, context || ''),
-    error: (msg: string, error?: any, context?: any) => console.error(`[ImprovedOrchestrator] ${msg}`, error?.message || error, context || ''),
+    info: (msg: string, context?: any) => console.log(`[AgentOrchestrator] ${msg}`, context || ''),
+    error: (msg: string, error?: any, context?: any) => console.error(`[AgentOrchestrator] ${msg}`, error?.message || error, context || ''),
     debug: (msg: string, context?: any) => {
       if (process.env.DEBUG_ORCHESTRATOR === 'true') {
         console.log(`[ImprovedOrchestrator-DEBUG] ${msg}`, context || '');
@@ -173,14 +173,14 @@ export class AgentOrchestrator {
   private async checkAndPushTasks() {
     // Check if any targeted agent clients are free and push tasks to them
     const agentTypes: ('CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE')[] = ['CLAUDE_CODE', 'CURSOR_CLI', 'OPENCODE'];
-    
+
     for (const agentType of agentTypes) {
       const vacancy = await this.calculateAgentClientVacancy(agentType);
-      
+
       if (vacancy === 'Free') {
         // Agent is free, try to push tasks to it
-        this.logger.debug(`Agent ${agentType} is free, checking for tasks to push`);
-        
+        this.logger.debug(`[AgentOrchestrator] Agent ${agentType} is free, checking for tasks to push`);
+
         // Trigger task push for this specific agent type
         await this.pushTasksToSpecificAgentType(agentType);
       }
@@ -206,7 +206,6 @@ export class AgentOrchestrator {
         .where(
           and(
             eq(tasks.ready, true),
-            eq(tasks.status, 'todo'),
             eq(tasks.isAiWorking, false),
             eq(agents.type, targetAgentType)
           )
@@ -231,7 +230,7 @@ export class AgentOrchestrator {
       }
 
       const taskData = readyTasks[0];
-      
+
       // Check if we can assign to an available agent
       const availableAgents = Array.from(this.agentStatuses.values()).filter(status => {
         const isIdle = status.status === 'idle';
@@ -244,8 +243,8 @@ export class AgentOrchestrator {
 
       if (availableAgents.length > 0) {
         const availableAgent = availableAgents[0];
-        
-        this.logger.info(`Pushing task to ${targetAgentType} agent`, {
+
+        this.logger.info(`[AgentOrchestrator]Pushing task to ${targetAgentType} agent`, {
           taskId: taskData.task.id,
           taskTitle: taskData.task.rawTitle,
           agentId: availableAgent.agentId,
@@ -260,7 +259,7 @@ export class AgentOrchestrator {
         availableAgent.status = 'active';
       }
     } catch (error) {
-      this.logger.error(`Error pushing tasks to ${targetAgentType}`, error);
+      this.logger.error(`[AgentOrchestrator]Error pushing tasks to ${targetAgentType}`, error);
     }
   }
 
@@ -435,8 +434,6 @@ export class AgentOrchestrator {
       await db
         .update(tasks)
         .set({
-          status: 'doing',
-          stage: 'refine',
           updatedAt: new Date()
         })
         .where(eq(tasks.id, task.id));

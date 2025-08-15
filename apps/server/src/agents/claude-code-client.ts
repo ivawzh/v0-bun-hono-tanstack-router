@@ -119,7 +119,7 @@ export class ClaudeCodeClient {
   }
 
   private handleMessage(message: any) {
-    console.log('📨 Claude Code UI WS message:', message.type);
+    // console.log('📨 Claude Code UI WS message:', message.type);
 
     switch (message.type) {
       case 'session-created':
@@ -147,9 +147,9 @@ export class ClaudeCodeClient {
   private async handleSessionCreated(message: any) {
     // Update session with the actual session ID from Claude
     console.log('📝 Session created:', message.sessionId);
-    
+
     // Update agent state with last session created at
-    await this.updateAgentState({ 
+    await this.updateAgentState({
       lastSessionCreatedAt: new Date().toISOString(),
       lastMessagedAt: new Date().toISOString()
     });
@@ -180,13 +180,13 @@ export class ClaudeCodeClient {
   private async checkForRateLimit(text: string) {
     try {
       if (typeof text !== 'string') return;
-      
+
       // Check for Claude AI usage limit pattern
       const rateLimitMatch = text.match(/Claude AI usage limit reached\|(\d{10,13})/);
       if (rateLimitMatch) {
         const resetTimestamp = parseInt(rateLimitMatch[1], 10);
         let resetDate: Date;
-        
+
         if (resetTimestamp < 1e12) {
           resetDate = new Date(resetTimestamp * 1000); // seconds to ms
         } else {
@@ -194,9 +194,9 @@ export class ClaudeCodeClient {
         }
 
         console.log('🚫 Rate limit detected. Reset time:', resetDate.toISOString());
-        
+
         // Update agent state with rate limit info
-        await this.updateAgentState({ 
+        await this.updateAgentState({
           lastMessagedAt: new Date().toISOString(),
           rateLimitResetAt: resetDate.toISOString()
         });
@@ -212,9 +212,9 @@ export class ClaudeCodeClient {
 
   private async handleSessionComplete(message: any) {
     console.log('✅ Session completed with exit code:', message.exitCode);
-    
+
     // Update agent state with last session completed at
-    await this.updateAgentState({ 
+    await this.updateAgentState({
       lastSessionCompletedAt: new Date().toISOString(),
       lastMessagedAt: new Date().toISOString()
     });
@@ -233,27 +233,26 @@ export class ClaudeCodeClient {
     try {
       // Get or create agent record for CLAUDE_CODE type
       const existingAgent = await db.select().from(agents).where(eq(agents.type, 'CLAUDE_CODE')).limit(1);
-      
+
       if (existingAgent.length > 0) {
         // Update existing agent state
         const currentState = existingAgent[0].state || {};
         const newState = { ...currentState, ...stateUpdate };
-        
+
         await db.update(agents)
-          .set({ 
+          .set({
             state: newState,
             updatedAt: new Date()
           })
           .where(eq(agents.id, existingAgent[0].id));
-          
-        console.log('🔄 Updated agent state:', stateUpdate);
+
       } else {
         // Create new agent record
         await db.insert(agents).values({
           type: 'CLAUDE_CODE',
           state: stateUpdate
         });
-        
+
         console.log('➕ Created new agent with state:', stateUpdate);
       }
     } catch (error) {

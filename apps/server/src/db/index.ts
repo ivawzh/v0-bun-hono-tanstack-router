@@ -9,17 +9,15 @@ let db: NodePgDatabase<typeof schema> | PgliteDatabase<typeof schema>;
 
 if (isProduction) {
   if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL must be set in production");
+    throw new Error("DATABASE_URL must be set");
   }
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   db = drizzlePg(pool, { schema });
-  console.log("DB: Using Postgres via DATABASE_URL (production)");
   // Do NOT auto-run migrations in production
 } else {
   if (process.env.DATABASE_URL) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     db = drizzlePg(pool, { schema });
-    console.log("DB: Using Postgres via DATABASE_URL (dev)");
     // Start migration file watcher for automatic migrations
     const { startMigrationWatcher } = await import('./migration-watcher');
     startMigrationWatcher();

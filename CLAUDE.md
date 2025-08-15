@@ -21,15 +21,11 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 
 ## General Engineering Guidelines
 
-### Code Splitting (Hard Limits)
-
 - **Files**: ~300 lines maximum
 - **Action**: Proactively suggest refactoring when approaching these limits
-
-### Package Management Philosophy
-
 - **Prefer native solutions** over third-party libraries when possible
 - Only suggest external dependencies if they provide significant value
+- Prefer functions over classes
 
 ## Communication Style
 
