@@ -49,8 +49,8 @@ You need to understand and refine this raw task into clear, actionable requireme
 4. Use your MCP tools to update the task with refined information
 
 **MCP Tools Available**:
-- Use \`cards.update\` to update the task with refined title and description
-- Use \`context.read\` to get more project information if needed
+- Use \`task.update\` to update the task with refined title and description
+- Use \`project.memory.get\` to get more project information if needed
 
 Please start by refining this task. Focus on clarity and actionability.`;
   }
@@ -94,9 +94,9 @@ You need to create a detailed implementation plan with solution options.
    - Potential risks and mitigations
 
 **MCP Tools Available**:
-- Use \`cards.update\` to save your plan in the task's plan field
-- Use \`context.read\` to explore the codebase if needed
-- Use \`memory.update\` to update project memory with learnings
+- Use \`task.update\` to save your plan in the task's plan field
+- Use \`project.memory.get\` to explore project context if needed
+- Use \`project.memory.update\` to update project memory with learnings
 
 Please start by creating a comprehensive implementation plan for this task.`;
   }
@@ -148,8 +148,8 @@ Now implement the solution according to the plan created in the kickoff stage.
 
 **MCP Tools Available**:
 - Use standard coding tools (Read, Write, Edit, Bash, etc.)
-- Use \`cards.update\` to update task status when complete
-- Use \`memory.update\` to record any important learnings
+- Use \`task.update\` to update task status when complete
+- Use \`project.memory.update\` to record any important learnings
 
 Please start implementing the solution. Focus on delivering working code that solves the problem effectively.`;
   }
