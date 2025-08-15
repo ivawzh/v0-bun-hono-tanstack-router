@@ -27,6 +27,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const invalidationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const queryClient = useQueryClient();
 
   const connect = useCallback(() => {
@@ -36,7 +37,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
 
     try {
       setConnectionStatus('connecting');
-      const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8500/ws';
+      const wsUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8500';
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -65,18 +66,23 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           const message: WebSocketMessage = JSON.parse(event.data);
           console.log('📨 WebSocket message received:', message);
 
-          // Handle different message types
+          // Handle different message types with debounced invalidations
           switch (message.type) {
             case 'task.updated':
             case 'task.created':
             case 'task.deleted':
-              // Invalidate task-related queries
-              queryClient.invalidateQueries({ queryKey: ['projects', 'getWithTasks'] });
-              queryClient.invalidateQueries({ queryKey: ['tasks'] });
+              // Debounce task invalidations to prevent excessive requests
+              if (invalidationTimeoutRef.current) {
+                clearTimeout(invalidationTimeoutRef.current);
+              }
+              invalidationTimeoutRef.current = setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['projects'] });
+                queryClient.invalidateQueries({ queryKey: ['tasks'] });
+              }, 500); // 500ms debounce
               break;
               
             case 'agent.status.changed':
-              // Invalidate agent-related queries  
+              // Agent status changes less frequently, invalidate immediately
               queryClient.invalidateQueries({ queryKey: ['agents'] });
               queryClient.invalidateQueries({ queryKey: ['repoAgents'] });
               break;
@@ -84,10 +90,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             case 'session.started':
             case 'session.completed':
             case 'session.failed':
-              // Invalidate session-related queries
-              queryClient.invalidateQueries({ queryKey: ['agents'] });
-              queryClient.invalidateQueries({ queryKey: ['tasks'] });
+              // Session events are important, show notification but debounce invalidation
               toast.info(`Agent session ${message.type.split('.')[1]}`);
+              if (invalidationTimeoutRef.current) {
+                clearTimeout(invalidationTimeoutRef.current);
+              }
+              invalidationTimeoutRef.current = setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ['agents'] });
+                queryClient.invalidateQueries({ queryKey: ['tasks'] });
+              }, 500);
               break;
               
             default:
@@ -135,6 +146,11 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
+    }
+
+    if (invalidationTimeoutRef.current) {
+      clearTimeout(invalidationTimeoutRef.current);
+      invalidationTimeoutRef.current = null;
     }
 
     if (wsRef.current) {

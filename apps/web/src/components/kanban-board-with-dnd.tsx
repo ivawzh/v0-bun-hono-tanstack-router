@@ -250,8 +250,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     onMessage: (message) => {
       // Handle specific message types with custom logic if needed
       if (message.type === 'task.order.updated') {
-        // Real-time order updates from other clients
-        queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+        // Log the message, but don't invalidate here - the hook handles it
+        console.log('Real-time order update received:', message);
       }
     }
   });
@@ -321,14 +321,20 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
     onMutate: async (variables) => {
       // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({ queryKey: ["projects", "getWithTasks"] });
+      await queryClient.cancelQueries({ 
+        queryKey: orpc.projects.getWithTasks.queryKey({ input: { id: projectId } })
+      });
 
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData(["projects", "getWithTasks", { input: { id: projectId } }]);
+      const previousData = queryClient.getQueryData(
+        orpc.projects.getWithTasks.queryKey({ input: { id: projectId } })
+      );
 
       // Optimistically update to the new value
       if (previousData) {
-        queryClient.setQueryData(["projects", "getWithTasks", { input: { id: projectId } }], (old: any) => {
+        queryClient.setQueryData(
+          orpc.projects.getWithTasks.queryKey({ input: { id: projectId } }), 
+          (old: any) => {
           if (!old?.tasks) return old;
           
           const updatedTasks = old.tasks.map((task: any) => {
@@ -353,13 +359,21 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     onError: (error, variables, context) => {
       // If the mutation fails, use the context returned from onMutate to roll back
       if (context?.previousData) {
-        queryClient.setQueryData(["projects", "getWithTasks", { input: { id: projectId } }], context.previousData);
+        queryClient.setQueryData(
+          orpc.projects.getWithTasks.queryKey({ input: { id: projectId } }), 
+          context.previousData
+        );
       }
       toast.error("Failed to update task order: " + error.message);
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure we have latest data
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+    onSuccess: () => {
+      // Only invalidate on success - optimistic update should handle the UI
+      // This ensures we sync with server after successful update
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: orpc.projects.getWithTasks.queryKey({ input: { id: projectId } })
+        });
+      }, 100); // Small delay to avoid racing with optimistic update
     }
   }));
 
