@@ -3,7 +3,7 @@ import type { SessionOptions } from './claude-code-client';
 import { PromptTemplateFactory } from './prompts/index';
 import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
-import { tasks, sessions, repoAgents, actors, projects } from '../db/schema';
+import { tasks, sessions, repoAgents, actors, projects, agents } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
 export interface AgentStatus {
@@ -13,6 +13,8 @@ export interface AgentStatus {
   currentTaskId?: string;
   sessionId?: string;
 }
+
+export type AgentClientVacancy = 'Busy' | 'Free';
 
 export interface AgentOrchestratorOptions {
   claudeCodeUrl: string;
@@ -30,6 +32,7 @@ export class AgentOrchestrator {
   private heartbeatInterval: number;
   private availabilityTimeout: number;
   private monitoringInterval: NodeJS.Timeout | null = null;
+  private vacancyLoggingInterval: NodeJS.Timeout | null = null;
   private logger = {
     info: (msg: string, context?: any) => console.log(`[ImprovedOrchestrator] ${msg}`, context || ''),
     error: (msg: string, error?: any, context?: any) => console.error(`[ImprovedOrchestrator] ${msg}`, error?.message || error, context || ''),
@@ -62,6 +65,9 @@ export class AgentOrchestrator {
 
     // Start monitoring agents and tasks
     this.startMonitoring();
+    
+    // Start vacancy logging
+    this.startVacancyLogging();
   }
 
   private startMonitoring() {
@@ -85,6 +91,81 @@ export class AgentOrchestrator {
 
     // Initial run
     setTimeout(() => this.updateAgentStatuses(), 1000);
+  }
+
+  private startVacancyLogging() {
+    if (this.vacancyLoggingInterval) {
+      clearInterval(this.vacancyLoggingInterval);
+    }
+
+    this.vacancyLoggingInterval = setInterval(async () => {
+      try {
+        await this.logAgentVacancy();
+      } catch (error) {
+        this.logger.error('Error logging agent vacancy', error);
+      }
+    }, 1000); // Every 1 second
+  }
+
+  private async calculateAgentClientVacancy(agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE'): Promise<AgentClientVacancy> {
+    try {
+      // Get agent from database
+      const agentRecords = await db.select().from(agents).where(eq(agents.type, agentType));
+      
+      if (agentRecords.length === 0) {
+        // No agent record found, consider as Free
+        return 'Free';
+      }
+
+      const agent = agentRecords[0];
+      const state = agent.state as any || {};
+      const now = new Date().getTime();
+
+      // Check rate limit
+      if (state.rateLimitResetAt) {
+        const resetTime = new Date(state.rateLimitResetAt).getTime();
+        if (resetTime > now) {
+          // Still rate limited
+          return 'Busy';
+        }
+      }
+
+      // Check last message time (must be more than 1 minute ago to be free)
+      if (state.lastMessagedAt) {
+        const lastMessageTime = new Date(state.lastMessagedAt).getTime();
+        const timeSinceLastMessage = now - lastMessageTime;
+        
+        if (timeSinceLastMessage <= 60 * 1000) { // Less than 1 minute
+          return 'Busy';
+        }
+
+        // Check if session completed at same time as last message and more than 5 seconds ago
+        if (state.lastSessionCompletedAt) {
+          const sessionCompletedTime = new Date(state.lastSessionCompletedAt).getTime();
+          const timeSinceCompletion = now - sessionCompletedTime;
+          
+          // If session completed at same time as last message (within 1 second tolerance)
+          if (Math.abs(sessionCompletedTime - lastMessageTime) <= 1000) {
+            if (timeSinceCompletion <= 5 * 1000) { // Less than 5 seconds since completion
+              return 'Busy';
+            }
+          }
+        }
+      }
+
+      return 'Free';
+    } catch (error) {
+      this.logger.error('Error calculating agent vacancy', error);
+      return 'Free'; // Default to free on error
+    }
+  }
+
+  private async logAgentVacancy() {
+    const claudeVacancy = await this.calculateAgentClientVacancy('CLAUDE_CODE');
+    const cursorVacancy = await this.calculateAgentClientVacancy('CURSOR_CLI');
+    const opencodeVacancy = await this.calculateAgentClientVacancy('OPENCODE');
+
+    console.log(`🤖 Agent Vacancy - Claude: ${claudeVacancy} | Cursor: ${cursorVacancy} | OpenCode: ${opencodeVacancy}`);
   }
 
   private async updateAgentStatuses() {
@@ -282,8 +363,8 @@ export class AgentOrchestrator {
         repoPath: repoAgent.repoPath
       };
 
-      // Generate initial prompt with MCP workflow instructions
-      const prompt = this.generateTaskPrompt(taskContext, 'refine');
+      // Generate prompt for refine stage
+      const prompt = PromptTemplateFactory.generatePrompt('refine', taskContext);
 
       // Create session options with MCP tools
       const sessionOptions: SessionOptions = {
@@ -347,70 +428,6 @@ export class AgentOrchestrator {
     }
   }
 
-  private generateTaskPrompt(taskContext: TaskContext, stage: 'refine' | 'kickoff' | 'execute'): string {
-    const basePrompt = PromptTemplateFactory.generatePrompt(stage, taskContext);
-
-    const mcpInstructions = `
-# MCP Workflow Instructions
-
-You are working on a task in Solo Unicorn's agent orchestration system. Follow this workflow:
-
-## Stage Workflow
-
-### 1. Start Stage
-- **FIRST ACTION**: Use \`task.start\` MCP tool to register that you're starting work on this task
-- Include: taskId="${taskContext.id}", stage="${stage}"
-- This updates the task status and creates/updates your session
-
-### 2. Perform Stage Work
-${this.getStageSpecificInstructions(stage)}
-
-### 3. Complete Stage
-- **FINAL ACTION**: Use \`task.complete\` MCP tool to finish the stage
-- Options:
-  - \`markDone: true\` - If task is completely finished (execute stage only)
-  - \`nextStage: "kickoff"\` - If advancing from refine to kickoff
-  - \`nextStage: "execute"\` - If advancing from kickoff to execute
-  - \`stageComplete: true\` - If just completing current stage
-
-### 4. Signal Availability
-- After completing the task or if you encounter errors, use \`agent.setAvailable\` to signal you're ready for new work
-
-## Important Notes
-- Always start with \`task.start\` and end with \`task.complete\`
-- Use \`cards.update\` to save intermediate progress
-- Use \`context.read\` to get additional task/project information if needed
-- Use \`memory.update\` to update project memory with learnings
-
-Current Task: ${taskContext.rawTitle}
-Current Stage: ${stage}
-Task ID: ${taskContext.id}
-`;
-
-    return mcpInstructions + '\n\n' + basePrompt;
-  }
-
-  private getStageSpecificInstructions(stage: string): string {
-    switch (stage) {
-      case 'refine':
-        return `- Understand and clarify the task requirements
-- Update task with refined title and description using \`cards.update\`
-- Gather any needed context with \`context.read\``;
-
-      case 'kickoff':
-        return `- Analyze solution options and select the best approach
-- Create a detailed implementation plan
-- Update task plan using \`cards.update\``;
-
-      case 'execute':
-        return `- Implement the solution according to the plan
-- Make code changes, run tests, commit work
-- Update project memory if needed with \`memory.update\``;
-
-      default:
-        return '- Follow the task requirements';
-    }
-  }
 
   private async cleanupStaleData() {
     const now = new Date();
@@ -517,6 +534,9 @@ Task ID: ${taskContext.id}
   async shutdown() {
     if (this.monitoringInterval) {
       clearInterval(this.monitoringInterval);
+    }
+    if (this.vacancyLoggingInterval) {
+      clearInterval(this.vacancyLoggingInterval);
     }
     this.claudeCodeClient.disconnect();
     this.agentStatuses.clear();

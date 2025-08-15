@@ -24,7 +24,30 @@ export class RefinePrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { rawTitle, rawDescription, actorDescription, projectMemory } = context;
     
-    return `You are working on task refinement for the Solo Unicorn project management system.
+    return `# Solo Unicorn Task Refinement
+
+## MCP Workflow Instructions
+
+You are working on a task in Solo Unicorn's agent orchestration system. Follow this workflow:
+
+### 1. Start Stage
+- **FIRST ACTION**: Use \`task.start\` MCP tool to register that you're starting work on this task
+- Include: taskId="${context.id}", stage="refine"
+- This updates the task status and creates/updates your session
+
+### 2. Perform Refine Work
+- Understand and clarify the task requirements
+- Update task with refined title and description using \`cards.update\`
+- Gather any needed context with \`context.read\`
+
+### 3. Complete Stage
+- **FINAL ACTION**: Use \`task.complete\` MCP tool to finish the stage
+- Use \`nextStage: "kickoff"\` to advance from refine to kickoff stage
+
+### 4. Signal Availability
+- After completing the refinement, use \`agent.setAvailable\` to signal you're ready for new work
+
+## Task Details
 
 **Your Role**: ${actorDescription || 'Full-Stack Engineering Agent focused on working solutions over perfect code'}
 
@@ -32,6 +55,7 @@ export class RefinePrompt implements PromptTemplate {
 ${projectMemory || 'No additional project context provided'}
 
 **Task to Refine**:
+- **Task ID**: ${context.id}
 - **Raw Title**: ${rawTitle}
 - **Raw Description**: ${rawDescription || 'No description provided'}
 - **Priority**: P${context.priority} (1=Lowest, 5=Highest)
@@ -49,10 +73,13 @@ You need to understand and refine this raw task into clear, actionable requireme
 4. Use your MCP tools to update the task with refined information
 
 **MCP Tools Available**:
-- Use \`task.update\` to update the task with refined title and description
-- Use \`project.memory.get\` to get more project information if needed
+- Use \`task.start\` to register starting work (FIRST ACTION)
+- Use \`cards.update\` to update the task with refined title and description
+- Use \`context.read\` to get more project information if needed
+- Use \`task.complete\` to finish the stage (FINAL ACTION)
+- Use \`agent.setAvailable\` to signal availability
 
-Please start by refining this task. Focus on clarity and actionability.`;
+Please start by using \`task.start\`, then refine this task, and finish with \`task.complete\`. Focus on clarity and actionability.`;
   }
 }
 
@@ -62,7 +89,30 @@ export class KickoffPrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { refinedTitle, refinedDescription, actorDescription, projectMemory } = context;
     
-    return `You are working on solution planning for the Solo Unicorn project management system.
+    return `# Solo Unicorn Task Kickoff
+
+## MCP Workflow Instructions
+
+You are working on a task in Solo Unicorn's agent orchestration system. Follow this workflow:
+
+### 1. Start Stage
+- **FIRST ACTION**: Use \`task.start\` MCP tool to register that you're starting work on this task
+- Include: taskId="${context.id}", stage="kickoff"
+- This updates the task status and creates/updates your session
+
+### 2. Perform Kickoff Work
+- Analyze solution options and select the best approach
+- Create a detailed implementation plan
+- Update task plan using \`cards.update\`
+
+### 3. Complete Stage
+- **FINAL ACTION**: Use \`task.complete\` MCP tool to finish the stage
+- Use \`nextStage: "execute"\` to advance from kickoff to execute stage
+
+### 4. Signal Availability
+- After completing the planning, use \`agent.setAvailable\` to signal you're ready for new work
+
+## Task Details
 
 **Your Role**: ${actorDescription || 'Full-Stack Engineering Agent focused on working solutions over perfect code'}
 
@@ -70,6 +120,7 @@ export class KickoffPrompt implements PromptTemplate {
 ${projectMemory || 'No additional project context provided'}
 
 **Task to Plan**:
+- **Task ID**: ${context.id}
 - **Title**: ${refinedTitle || context.rawTitle}
 - **Description**: ${refinedDescription || context.rawDescription || 'No description provided'}
 - **Priority**: P${context.priority} (1=Lowest, 5=Highest)
@@ -94,11 +145,14 @@ You need to create a detailed implementation plan with solution options.
    - Potential risks and mitigations
 
 **MCP Tools Available**:
-- Use \`task.update\` to save your plan in the task's plan field
-- Use \`project.memory.get\` to explore project context if needed
-- Use \`project.memory.update\` to update project memory with learnings
+- Use \`task.start\` to register starting work (FIRST ACTION)
+- Use \`cards.update\` to save your plan in the task's plan field
+- Use \`context.read\` to explore project context if needed
+- Use \`memory.update\` to update project memory with learnings
+- Use \`task.complete\` to finish the stage (FINAL ACTION)
+- Use \`agent.setAvailable\` to signal availability
 
-Please start by creating a comprehensive implementation plan for this task.`;
+Please start by using \`task.start\`, then create a comprehensive implementation plan, and finish with \`task.complete\`.`;
   }
 }
 
@@ -110,7 +164,30 @@ export class ExecutePrompt implements PromptTemplate {
     
     const planSummary = plan ? JSON.stringify(plan, null, 2) : 'No plan available';
     
-    return `You are working on task implementation for the Solo Unicorn project management system.
+    return `# Solo Unicorn Task Execution
+
+## MCP Workflow Instructions
+
+You are working on a task in Solo Unicorn's agent orchestration system. Follow this workflow:
+
+### 1. Start Stage
+- **FIRST ACTION**: Use \`task.start\` MCP tool to register that you're starting work on this task
+- Include: taskId="${context.id}", stage="execute"
+- This updates the task status and creates/updates your session
+
+### 2. Perform Execute Work
+- Implement the solution according to the plan
+- Make code changes, run tests, commit work
+- Update project memory if needed with \`memory.update\`
+
+### 3. Complete Stage
+- **FINAL ACTION**: Use \`task.complete\` MCP tool to finish the stage
+- Use \`markDone: true\` to mark task as completely finished
+
+### 4. Signal Availability
+- After completing the implementation, use \`agent.setAvailable\` to signal you're ready for new work
+
+## Task Details
 
 **Your Role**: ${actorDescription || 'Full-Stack Engineering Agent focused on working solutions over perfect code'}
 
@@ -120,6 +197,7 @@ ${projectMemory || 'No additional project context provided'}
 **Repository Path**: ${repoPath}
 
 **Task to Implement**:
+- **Task ID**: ${context.id}
 - **Title**: ${refinedTitle || context.rawTitle}
 - **Description**: ${refinedDescription || context.rawDescription || 'No description provided'}
 - **Priority**: P${context.priority} (1=Lowest, 5=Highest)
@@ -147,11 +225,14 @@ Now implement the solution according to the plan created in the kickoff stage.
 - Make atomic commits with clear messages
 
 **MCP Tools Available**:
+- Use \`task.start\` to register starting work (FIRST ACTION)
 - Use standard coding tools (Read, Write, Edit, Bash, etc.)
-- Use \`task.update\` to update task status when complete
-- Use \`project.memory.update\` to record any important learnings
+- Use \`cards.update\` to update task status during work
+- Use \`memory.update\` to record any important learnings
+- Use \`task.complete\` with \`markDone: true\` when finished (FINAL ACTION)
+- Use \`agent.setAvailable\` to signal availability
 
-Please start implementing the solution. Focus on delivering working code that solves the problem effectively.`;
+Please start by using \`task.start\`, then implement the solution following the plan, and finish with \`task.complete\`. Focus on delivering working code that solves the problem effectively.`;
   }
 }
 
