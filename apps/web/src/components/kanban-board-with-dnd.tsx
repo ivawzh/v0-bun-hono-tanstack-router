@@ -123,18 +123,20 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
       {...attributes}
       {...listeners}
     >
-      <CardHeader className="pb-2 kanban-card-header">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle 
-            className="text-sm font-medium flex-1 cursor-pointer kanban-card-title" 
-            onClick={(e) => {
-              e.stopPropagation();
-              onTaskClick(task.id);
-            }}
-          >
-            {task.refinedTitle || task.rawTitle}
-          </CardTitle>
-          <div className="flex items-center gap-1 flex-shrink-0">
+      <CardHeader className="pb-2">
+        <div className="kanban-card-header-content">
+          <div className="kanban-card-title-wrapper">
+            <CardTitle 
+              className="text-sm font-medium cursor-pointer kanban-card-title" 
+              onClick={(e) => {
+                e.stopPropagation();
+                onTaskClick(task.id);
+              }}
+            >
+              {task.refinedTitle || task.rawTitle}
+            </CardTitle>
+          </div>
+          <div className="kanban-card-actions">
             {/* Task menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -161,9 +163,9 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 kanban-card-content">
+      <CardContent className="pt-0">
         {/* Priority and Status badges */}
-        <div className="flex items-center gap-1 mb-2 flex-wrap">
+        <div className="kanban-card-badges">
           <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
             {task.priority}
           </Badge>
@@ -186,8 +188,8 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
         )}
 
         {/* Ready toggle */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+        <div className="kanban-card-status">
+          <div className="kanban-card-ready-toggle">
             <Switch
               id={`ready-${task.id}`}
               checked={task.ready}
@@ -569,7 +571,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                     {/* Tasks */}
                     <ScrollArea className="h-[calc(100vh-250px)]">
                       <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                        <div className="space-y-0">
+                        <div className="kanban-tasks-container">
                           {columnTasks.map((task) => (
                             <TaskCard
                               key={task.id}

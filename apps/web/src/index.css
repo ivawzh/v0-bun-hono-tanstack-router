@@ -133,57 +133,91 @@ body {
   }
 }
 
-/* Kanban board specific styles */
+/* Kanban board specific styles - Clean rebuild */
 @layer components {
+  /* Column layout */
   .kanban-column {
     width: 320px;
     min-width: 320px;
     max-width: 320px;
     flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
   }
   
   .kanban-column-content {
     width: 100%;
-    max-width: 100%;
     padding: 1rem;
     box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
   }
   
+  /* Fix ScrollArea layout issues */
+  .kanban-column [data-radix-scroll-area-viewport] {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  .kanban-column [data-radix-scroll-area-viewport] > div {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  
+  /* Card container */
+  .kanban-tasks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  /* Card styling */
   .kanban-card {
-    width: calc(100% - 0.5rem);
-    max-width: calc(100% - 0.5rem);
-    margin-bottom: 0.75rem;
-    margin-left: 0.25rem;
-    margin-right: 0.25rem;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
     box-sizing: border-box;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   
-  /* Override shadcn card header padding */
-  .kanban-card .kanban-card-header {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+  /* Override all shadcn card internal layout */
+  .kanban-card [data-slot="card-header"] {
+    padding: 1rem !important;
+    padding-bottom: 0.5rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
   }
   
-  /* Override shadcn card content padding */
-  .kanban-card .kanban-card-content {
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+  .kanban-card [data-slot="card-content"] {
+    padding: 0 1rem 1rem 1rem !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
   }
   
+  /* Card title and text content */
   .kanban-card-title {
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
-    line-height: 1.3;
+    line-height: 1.4;
     max-width: 100%;
     min-width: 0;
+    white-space: normal;
   }
   
   .kanban-card-text {
@@ -191,6 +225,56 @@ body {
     overflow-wrap: break-word;
     hyphens: auto;
     max-width: 100%;
+    min-width: 0;
+    white-space: normal;
+  }
+  
+  /* Fix header layout */
+  .kanban-card-header-content {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .kanban-card-title-wrapper {
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 2rem);
+  }
+  
+  .kanban-card-actions {
+    flex-shrink: 0;
+    width: 1.5rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  
+  /* Badge container */
+  .kanban-card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin-bottom: 0.5rem;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  /* Status controls */
+  .kanban-card-status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-width: 0;
+  }
+  
+  .kanban-card-ready-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
     min-width: 0;
   }
 }
