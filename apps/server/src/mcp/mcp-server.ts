@@ -99,7 +99,7 @@ function assertBearer(authHeader: string | string[] | undefined) {
   logger.auth("Authentication successful");
 }
 
-server.registerTool("task.update",
+server.registerTool("task_update",
   {
     title: "Update a task",
     description: "Update task fields during workflow stages.",
@@ -120,7 +120,7 @@ server.registerTool("task.update",
       Object.entries(updates).filter(([_, value]) => value !== undefined)
     );
 
-    logger.tool("task.update", "start", {
+    logger.tool("task_update", "start", {
       taskId,
       updates: filteredUpdates,
     });
@@ -136,7 +136,7 @@ server.registerTool("task.update",
         })
         .where(eq(tasks.id, taskId));
 
-      logger.tool("task.update", "success", {
+      logger.tool("task_update", "success", {
         taskId,
         updatedFields: Object.keys(filteredUpdates),
       });
@@ -150,7 +150,7 @@ server.registerTool("task.update",
         ],
       };
     } catch (error) {
-      logger.error("task.update failed", error, {
+      logger.error("task_update failed", error, {
         taskId,
         updates: filteredUpdates,
       });
@@ -170,7 +170,7 @@ server.registerTool("task.update",
 );
 
 
-server.registerTool("agent.rateLimit",
+server.registerTool("agent_rateLimit",
   {
     title: "Agent Rate Limit",
     description: "Mark the agent as rate limited with an optional resolve time.",
@@ -185,13 +185,13 @@ server.registerTool("agent.rateLimit",
       ? agentIdHeader[0]
       : agentIdHeader;
 
-    logger.tool("agent.rateLimit", "start", { agentId, sessionId, resolveAt });
+    logger.tool("agent_rateLimit", "start", { agentId, sessionId, resolveAt });
 
     try {
       assertBearer(requestInfo?.headers?.authorization);
 
       if (!agentId) {
-        logger.tool("agent.rateLimit", "failed", {
+        logger.tool("agent_rateLimit", "failed", {
           reason: "missing_agent_id",
           sessionId,
         });
@@ -213,7 +213,7 @@ server.registerTool("agent.rateLimit",
         .set({ status: "rate_limited", updatedAt: new Date() })
         .where(eq(repoAgents.id, agentId));
 
-      logger.tool("agent.rateLimit", "success", {
+      logger.tool("agent_rateLimit", "success", {
         agentId,
         sessionId,
         resolveAt,
@@ -223,13 +223,13 @@ server.registerTool("agent.rateLimit",
         content: [{ type: "text", text: JSON.stringify({ success: true }) }],
       };
     } catch (error) {
-      logger.error("agent.rateLimit failed", error, { agentId, sessionId });
+      logger.error("agent_rateLimit failed", error, { agentId, sessionId });
       throw error;
     }
   }
 );
 
-server.registerTool("project.memory.update",
+server.registerTool("project_memory_update",
   {
     title: "Update Project Memory",
     description: "Update project memory with learnings and context.",
@@ -239,7 +239,7 @@ server.registerTool("project.memory.update",
     },
   },
   async ({ projectId, memory }, { requestInfo }) => {
-    logger.tool("project.memory.update", "start", {
+    logger.tool("project_memory_update", "start", {
       projectId,
       memoryLength: memory.length,
     });
@@ -255,7 +255,7 @@ server.registerTool("project.memory.update",
         })
         .where(eq(projects.id, projectId));
 
-      logger.tool("project.memory.update", "success", {
+      logger.tool("project_memory_update", "success", {
         projectId,
         memoryLength: memory.length,
       });
@@ -269,7 +269,7 @@ server.registerTool("project.memory.update",
         ],
       };
     } catch (error) {
-      logger.error("project.memory.update failed", error, {
+      logger.error("project_memory_update failed", error, {
         projectId,
         memoryLength: memory.length,
       });
@@ -288,7 +288,7 @@ server.registerTool("project.memory.update",
   }
 );
 
-server.registerTool("project.memory.get",
+server.registerTool("project_memory_get",
   {
     title: "Get Project Memory",
     description: "Get project memory and context.",
@@ -297,7 +297,7 @@ server.registerTool("project.memory.get",
     },
   },
   async ({ projectId }, { requestInfo }) => {
-    logger.tool("project.memory.get", "start", { projectId });
+    logger.tool("project_memory_get", "start", { projectId });
 
     try {
       assertBearer(requestInfo?.headers?.authorization);
@@ -307,7 +307,7 @@ server.registerTool("project.memory.get",
       });
 
       if (!project) {
-        logger.tool("project.memory.get", "not_found", { projectId });
+        logger.tool("project_memory_get", "not_found", { projectId });
         return {
           content: [
             {
@@ -321,7 +321,7 @@ server.registerTool("project.memory.get",
         };
       }
 
-      logger.tool("project.memory.get", "success", {
+      logger.tool("project_memory_get", "success", {
         projectId,
         hasMemory: !!project.memory,
       });
@@ -344,7 +344,7 @@ server.registerTool("project.memory.get",
         ],
       };
     } catch (error) {
-      logger.error("project.memory.get failed", error, { projectId });
+      logger.error("project_memory_get failed", error, { projectId });
       return {
         content: [
           {

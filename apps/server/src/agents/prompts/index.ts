@@ -28,9 +28,9 @@ export class RefinePrompt implements PromptTemplate {
 
 ## Workflow
 
-**START**: Use \`task.update\` with taskId="${context.id}", status="doing", stage="refine", isAiWorking=true
-**WORK**: Refine the task title and description, update with \`task.update\`
-**FINISH**: Use \`task.update\` with taskId="${context.id}", stage="kickoff", isAiWorking=false
+**START**: Use \`task_update\` with taskId="${context.id}", status="doing", stage="refine", isAiWorking=true
+**WORK**: Refine the task title and description, update with \`task_update\`
+**FINISH**: Use \`task_update\` with taskId="${context.id}", stage="kickoff", isAiWorking=false
 
 ## Task Details
 
@@ -71,9 +71,9 @@ export class KickoffPrompt implements PromptTemplate {
 
 ## Workflow
 
-**START**: Use \`task.update\` with taskId="${context.id}", status="doing", stage="kickoff", isAiWorking=true
-**WORK**: Create implementation plan and update with \`task.update\`
-**FINISH**: Use \`task.update\` with taskId="${context.id}", stage="execute", isAiWorking=false
+**START**: Use \`task_update\` with taskId="${context.id}", status="doing", stage="kickoff", isAiWorking=true
+**WORK**: Create implementation plan and update with \`task_update\`
+**FINISH**: Use \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false
 
 ## Task Details
 
@@ -123,9 +123,9 @@ export class ExecutePrompt implements PromptTemplate {
 
 ## Workflow
 
-**START**: Use \`task.update\` with taskId="${context.id}", status="doing", stage="execute", isAiWorking=true
+**START**: Use \`task_update\` with taskId="${context.id}", status="doing", stage="execute", isAiWorking=true
 **WORK**: Implement the solution, run tests, commit changes
-**FINISH**: Use \`task.update\` with taskId="${context.id}", status="done", isAiWorking=false
+**FINISH**: Use \`task_update\` with taskId="${context.id}", status="done", isAiWorking=false
 
 ## Task Details
 
