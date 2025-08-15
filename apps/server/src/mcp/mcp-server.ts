@@ -76,7 +76,13 @@ server.tool(
   "Update task fields during workflow stages.",
   {
     taskId: z.string().uuid(),
-    updates: z.record(z.string(), z.unknown())
+    updates: z.object({
+      refinedTitle: z.string().optional(),
+      refinedDescription: z.string().optional(),
+      plan: z.unknown().optional(),
+      status: z.enum(["todo", "doing", "done"]).optional(),
+      stage: z.enum(["refine", "kickoff", "execute"]).optional(),
+    })
   },
   async ({ taskId, updates }, { requestInfo }) => {
     logger.tool("task.update", "start", { taskId, updates: updates as Record<string, any> });
@@ -84,40 +90,20 @@ server.tool(
     try {
       assertBearer(requestInfo?.headers?.authorization);
 
-      // Validate and filter allowed fields
-      const allowedFields = ['refinedTitle', 'refinedDescription', 'plan', 'status', 'stage'];
-      const filteredUpdates: any = {};
-      
-      for (const [key, value] of Object.entries(updates)) {
-        if (allowedFields.includes(key)) {
-          // Validate specific field types
-          if (key === 'status' && value && !['todo', 'doing', 'done'].includes(value as string)) {
-            throw new Error(`Invalid status: ${value}. Must be todo, doing, or done`);
-          }
-          if (key === 'stage' && value && !['refine', 'kickoff', 'execute'].includes(value as string)) {
-            throw new Error(`Invalid stage: ${value}. Must be refine, kickoff, or execute`);
-          }
-          if ((key === 'refinedTitle' || key === 'refinedDescription') && value && typeof value !== 'string') {
-            throw new Error(`${key} must be a string`);
-          }
-          filteredUpdates[key] = value;
-        }
-      }
-
       await db
         .update(tasks)
         .set({
-          ...filteredUpdates,
+          ...updates,
           updatedAt: new Date()
         })
         .where(eq(tasks.id, taskId));
 
-      logger.tool("task.update", "success", { taskId, updatedFields: Object.keys(filteredUpdates) });
+      logger.tool("task.update", "success", { taskId, updatedFields: Object.keys(updates) });
 
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({ success: true, taskId, updates: filteredUpdates })
+          text: JSON.stringify({ success: true, taskId, updates })
         }]
       };
     } catch (error) {
