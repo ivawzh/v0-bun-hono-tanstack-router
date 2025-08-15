@@ -20,17 +20,21 @@ if (isProduction) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     db = drizzlePg(pool, { schema });
     console.log("DB: Using Postgres via DATABASE_URL (dev)");
-    // Migrations are now handled by Vite hotUpdate hook or migration utility
+    // Start migration file watcher for automatic migrations
+    const { startMigrationWatcher } = await import('./migration-watcher');
+    startMigrationWatcher();
   } else {
     try {
       const { PGlite } = await import("@electric-sql/pglite");
       const client = new PGlite("./pgdata");
       db = drizzlePgLite(client, { schema });
       console.log("DB: Using PGlite (dev) with persistence at ./pgdata");
+      // Start migration file watcher for automatic migrations
+      const { startMigrationWatcher } = await import('./migration-watcher');
+      startMigrationWatcher();
     } catch {
       throw new Error("PGlite not available and DATABASE_URL not set. Set DATABASE_URL or add pglite.");
     }
-    // Migrations are now handled by Vite hotUpdate hook or migration utility
   }
 }
 
