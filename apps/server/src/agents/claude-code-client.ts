@@ -1,4 +1,7 @@
 import { WebSocket } from 'ws';
+import { db } from '../db';
+import { agents, tasks, sessions } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export interface ClaudeCodeSession {
   id: string;
@@ -119,9 +122,6 @@ export class ClaudeCodeClient {
     console.log('📨 Claude Code UI WS message:', message.type);
 
     switch (message.type) {
-      case 'active_sessions':
-        // Handle active sessions response
-        break;
       case 'session-created':
         // Handle new session created
         this.handleSessionCreated(message);
@@ -144,12 +144,18 @@ export class ClaudeCodeClient {
     }
   }
 
-  private handleSessionCreated(message: any) {
+  private async handleSessionCreated(message: any) {
     // Update session with the actual session ID from Claude
     console.log('📝 Session created:', message.sessionId);
+    
+    // Update agent state with last session created at
+    await this.updateAgentState({ 
+      lastSessionCreatedAt: new Date().toISOString(),
+      lastMessagedAt: new Date().toISOString()
+    });
   }
 
-  private handleClaudeResponse(message: any) {
+  private async handleClaudeResponse(message: any) {
     // Handle streaming response from Claude
     if (message.data?.type === 'content_block_delta') {
       const text = message.data.delta?.text;
@@ -157,14 +163,102 @@ export class ClaudeCodeClient {
         console.log('💬 Claude response chunk:', text.substring(0, 100) + '...');
       }
     }
+
+    // Check for rate limit detection
+    if (Array.isArray(message.data?.content)) {
+      for (const part of message.data.content) {
+        if (part.type === 'text' && part.text?.trim()) {
+          await this.checkForRateLimit(part.text);
+        }
+      }
+    }
+
+    // Update agent state with last messaged at
+    await this.updateAgentState({ lastMessagedAt: new Date().toISOString() });
   }
 
-  private handleSessionComplete(message: any) {
+  private async checkForRateLimit(text: string) {
+    try {
+      if (typeof text !== 'string') return;
+      
+      // Check for Claude AI usage limit pattern
+      const rateLimitMatch = text.match(/Claude AI usage limit reached\|(\d{10,13})/);
+      if (rateLimitMatch) {
+        const resetTimestamp = parseInt(rateLimitMatch[1], 10);
+        let resetDate: Date;
+        
+        if (resetTimestamp < 1e12) {
+          resetDate = new Date(resetTimestamp * 1000); // seconds to ms
+        } else {
+          resetDate = new Date(resetTimestamp); // already in ms
+        }
+
+        console.log('🚫 Rate limit detected. Reset time:', resetDate.toISOString());
+        
+        // Update agent state with rate limit info
+        await this.updateAgentState({ 
+          lastMessagedAt: new Date().toISOString(),
+          rateLimitResetAt: resetDate.toISOString()
+        });
+
+        // TODO: Update repo agent status to rate_limited
+        // This would require knowing which repo agent this session belongs to
+        console.log('💡 TODO: Update repo agent status to rate_limited');
+      }
+    } catch (error) {
+      console.error('Error checking for rate limit:', error);
+    }
+  }
+
+  private async handleSessionComplete(message: any) {
     console.log('✅ Session completed with exit code:', message.exitCode);
+    
+    // Update agent state with last session completed at
+    await this.updateAgentState({ 
+      lastSessionCompletedAt: new Date().toISOString(),
+      lastMessagedAt: new Date().toISOString()
+    });
   }
 
   private handleError(message: any) {
     console.error('❌ Claude Code error:', message.error);
+  }
+
+  private async updateAgentState(stateUpdate: {
+    lastMessagedAt?: string;
+    lastSessionCreatedAt?: string;
+    lastSessionCompletedAt?: string;
+    rateLimitResetAt?: string;
+  }) {
+    try {
+      // Get or create agent record for CLAUDE_CODE type
+      const existingAgent = await db.select().from(agents).where(eq(agents.type, 'CLAUDE_CODE')).limit(1);
+      
+      if (existingAgent.length > 0) {
+        // Update existing agent state
+        const currentState = existingAgent[0].state || {};
+        const newState = { ...currentState, ...stateUpdate };
+        
+        await db.update(agents)
+          .set({ 
+            state: newState,
+            updatedAt: new Date()
+          })
+          .where(eq(agents.id, existingAgent[0].id));
+          
+        console.log('🔄 Updated agent state:', stateUpdate);
+      } else {
+        // Create new agent record
+        await db.insert(agents).values({
+          type: 'CLAUDE_CODE',
+          state: stateUpdate
+        });
+        
+        console.log('➕ Created new agent with state:', stateUpdate);
+      }
+    } catch (error) {
+      console.error('❌ Error updating agent state:', error);
+    }
   }
 
   async startSession(command: string, options: SessionOptions): Promise<string> {
@@ -200,36 +294,6 @@ export class ClaudeCodeClient {
     return true;
   }
 
-  async getActiveSessions(): Promise<{ claude: string[], cursor: string[] }> {
-    if (!this.isConnected || !this.ws) {
-      throw new Error('Not connected to Claude Code UI');
-    }
-
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Timeout waiting for active sessions'));
-      }, 5000);
-
-      const messageHandler = (data: Buffer) => {
-        try {
-          const message = JSON.parse(data.toString());
-          if (message.type === 'active_sessions') {
-            clearTimeout(timeout);
-            this.ws!.off('message', messageHandler);
-            resolve(message.data);
-          }
-        } catch (error) {
-          // Ignore parsing errors for other messages
-        }
-      };
-
-      this.ws?.on('message', messageHandler);
-
-      this.ws?.send(JSON.stringify({
-        type: 'get_active_sessions'
-      }));
-    });
-  }
 
   // Method to check if connected
   get connected(): boolean {

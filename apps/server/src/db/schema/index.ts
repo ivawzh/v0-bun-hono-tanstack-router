@@ -1,11 +1,23 @@
-import { pgTable, text, uuid, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, jsonb, boolean, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+
+// Enum for agent client types
+export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
 
 // User table (minimal for single user)
 export const users = pgTable("users", {
   id: uuid("id").primaryKey().defaultRandom(),
   email: text("email").notNull().unique(),
   displayName: text("display_name").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+});
+
+// Agents table (for tracking agent client states)
+export const agents = pgTable("agents", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  type: agentClientTypeEnum("type").notNull(),
+  state: jsonb("state").default({}).notNull(), // { lastMessagedAt, lastSessionCompletedAt, lastSessionCreatedAt }
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -76,6 +88,9 @@ export const tasks = pgTable("tasks", {
   // Ready flag (replaces auto-start)
   ready: boolean("ready").default(false),
   
+  // AI working flag
+  isAiWorking: boolean("is_ai_working").default(false),
+  
   // Attachments
   attachments: jsonb("attachments").default([]), // Array of attachment objects
   
@@ -86,8 +101,8 @@ export const tasks = pgTable("tasks", {
 // Sessions table (for tracking agent work sessions)
 export const sessions = pgTable("sessions", {
   id: uuid("id").primaryKey().defaultRandom(),
-  claudeSessionId: text("claude_session_id"), // ID from Claude Code UI
-  taskId: uuid("task_id").notNull().references(() => tasks.id),
+  agentSessionId: text("agent_session_id"), // ID from agent client (Claude Code UI, etc.)
+  taskId: uuid("task_id").references(() => tasks.id), // Made nullable
   repoAgentId: uuid("repo_agent_id").notNull().references(() => repoAgents.id),
   status: text("status").notNull().default("starting"), // starting, active, completed, failed
   startedAt: timestamp("started_at").defaultNow().notNull(),
