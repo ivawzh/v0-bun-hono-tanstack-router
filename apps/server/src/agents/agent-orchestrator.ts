@@ -77,20 +77,13 @@ export class AgentOrchestrator {
 
     this.monitoringInterval = setInterval(async () => {
       try {
-        await this.updateAgentStatuses();
-
         if (this.taskPushEnabled) {
           await this.pushTasksToAvailableAgents();
         }
-
-        await this.cleanupStaleData();
       } catch (error) {
         this.logger.error('Error in monitoring cycle', error);
       }
     }, this.heartbeatInterval);
-
-    // Initial run
-    setTimeout(() => this.updateAgentStatuses(), 1000);
   }
 
   private startTaskPushing() {
@@ -269,85 +262,8 @@ export class AgentOrchestrator {
     }
   }
 
-  private async updateAgentStatuses() {
-    try {
-      // Get all repo agents from database with agent client info
-      const allAgents = await db.query.repoAgents.findMany({
-        with: {
-          agentClient: true
-        }
-      });
-
-      for (const agent of allAgents) {
-        const existingStatus = this.agentStatuses.get(agent.id);
-        const now = new Date();
-
-        // Determine agent status based on agentClient state and connection
-        const agentState = agent.agentClient?.state as any || {};
-        let currentStatus: 'idle' | 'active' | 'rate_limited' | 'error' = 'idle';
-
-        // Check if rate limited
-        if (agentState.rateLimitResetAt) {
-          const resetTime = new Date(agentState.rateLimitResetAt).getTime();
-          if (resetTime > now.getTime()) {
-            currentStatus = 'rate_limited';
-          }
-        }
-
-        // Check if recently active based on last message time
-        if (agentState.lastMessagedAt) {
-          const lastMessageTime = new Date(agentState.lastMessagedAt).getTime();
-          const timeSinceLastMessage = now.getTime() - lastMessageTime;
-          
-          if (timeSinceLastMessage <= 60 * 1000) { // Less than 1 minute
-            currentStatus = 'active';
-          }
-        }
-
-        // For Claude Code agents, rely on agentClient state and MCP communication
-        if (agent.agentClient?.type === 'CLAUDE_CODE' && this.isConnected) {
-          // Check if it was recently active and might have just completed
-          if (existingStatus?.status === 'active' &&
-              now.getTime() - existingStatus.lastHeartbeat.getTime() < 10000) { // 10 seconds
-            this.logger.debug('Agent recently completed work, using state-derived status', { agentId: agent.id, derivedStatus: currentStatus });
-          }
-        }
-
-        // Check if agent has been inactive for too long
-        if (existingStatus &&
-            now.getTime() - existingStatus.lastHeartbeat.getTime() > this.availabilityTimeout &&
-            currentStatus === 'active') {
-          // Mark as potentially stale only if currently active
-          this.logger.debug('Agent potentially stale', {
-            agentId: agent.id,
-            lastHeartbeat: existingStatus.lastHeartbeat,
-            timeout: this.availabilityTimeout
-          });
-          // Force to idle if stale
-          currentStatus = 'idle';
-        }
-
-        // Note: Status is now tracked in memory only, not persisted to database
-
-        // Update our tracking
-        this.agentStatuses.set(agent.id, {
-          agentId: agent.id,
-          status: currentStatus,
-          lastHeartbeat: existingStatus?.lastHeartbeat || now,
-          currentTaskId: existingStatus?.currentTaskId,
-          sessionId: existingStatus?.sessionId
-        });
-      }
-    } catch (error) {
-      this.logger.error('Error updating agent statuses', error);
-    }
-  }
-
   private async pushTasksToAvailableAgents() {
     try {
-      // First, trigger a fresh status update to get latest availability
-      await this.updateAgentStatuses();
-
       // Get available agents (idle status and no current task)
       const availableAgents = Array.from(this.agentStatuses.values()).filter(status => {
         const isIdle = status.status === 'idle';
@@ -543,47 +459,6 @@ export class AgentOrchestrator {
       // Clear from tracking
       agentStatus.currentTaskId = undefined;
       agentStatus.status = 'idle';
-    }
-  }
-
-
-  private async cleanupStaleData() {
-    const now = new Date();
-    const staleTimeout = 30 * 60 * 1000; // 30 minutes
-
-    try {
-      // Clean up stale sessions
-      const staleSessions = await db.query.sessions.findMany({
-        where: eq(sessions.status, 'active')
-      });
-
-      for (const session of staleSessions) {
-        const sessionAge = now.getTime() - session.startedAt.getTime();
-        if (sessionAge > staleTimeout) {
-          await db
-            .update(sessions)
-            .set({ status: 'failed', completedAt: now })
-            .where(eq(sessions.id, session.id));
-
-          // Reset associated task if it exists
-          if (session.taskId) {
-            await db
-              .update(tasks)
-              .set({ status: 'todo', stage: null, ready: false, updatedAt: now })
-              .where(eq(tasks.id, session.taskId));
-          }
-
-          // Note: Agent status reset is now handled via MCP calls to agentClients.state
-
-          this.logger.info('Cleaned up stale session', {
-            sessionId: session.id,
-            taskId: session.taskId,
-            ageMinutes: Math.round(sessionAge / 60000)
-          });
-        }
-      }
-    } catch (error) {
-      this.logger.error('Error cleaning up stale data', error);
     }
   }
 
