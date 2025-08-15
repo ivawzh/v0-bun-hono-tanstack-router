@@ -39,21 +39,25 @@ Build a minimal, local-first task management system for dispatching coding tasks
 ## Core Entities
 
 ### Project
+
 - Single board per project (no separate board entity)
 - Project memory stored in database (viewable/editable by human)
 - Contains configured repo agents and actors
 
 ### Repo Agent
+
 - Combination of repository path + coding client (e.g., Claude Code, OpenCode)
 - Examples: `/home/repos/todo` + Claude Code, `/home/repos/calendar` + Claude Code
 - Only one active session per coding client type (rate limit enforcement)
 
 ### Actor
+
 - Describes agent mindset, principles, focus, methodology, values
 - Not bound to repo agent - assigned per card
 - Default Actor for unspecified tasks
 
 ### Task (Card)
+
 - Simple lifecycle: Todo → Doing → Done
 - Doing has 3 stages: Refine → Kickoff → Execute
 - Must have repo agent assigned
@@ -65,6 +69,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 **Role**: Full-Stack Engineering Agent
 **Mindset**: Pragmatic problem-solver focused on working solutions over perfect code
 **Principles**:
+
 - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
 **Focus**: Deliver functional features that solve real user problems
 **Methodology**: Refine → Plan → Execute with clear documentation of decisions
@@ -89,6 +94,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 ## Task Workflow
 
 ### Human Creates Card
+
 - Write raw title and optional raw description
 - Add optional attachments
 - Select repo agent (mandatory - limit 1 per card)
@@ -96,15 +102,18 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - Tick "Ready" checkbox when ready for AI pickup
 
 ### Agent Picks Up Card
+
 Agents automatically pick up ready cards in priority order (5-1, then card order within column).
 
 **Stage 1: Refine**
+
 - Agent understands and refines the raw title/description
 - Updates card with refined title and refined description
 - Raw versions remain for reference
 - Uses MCP to update card
 
 **Stage 2: Kickoff**
+
 - List solution options and rank them
 - Select final solution approach
 - Write spec if needed
@@ -113,11 +122,13 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - Interaction via MCP
 
 **Stage 3: Execute**
+
 - Real implementation using refined title, description, attachments, plan, actor, and project memory
 - Make commits and push as needed
 - Move to Done when complete
 
 ### Removed Features
+
 - "Ask Human" button
 - "Start Agent" button
 - Separate boards (1 project = 1 board)
@@ -153,11 +164,13 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 ## Simplified Data Model
 
 ### Projects
+
 - `id`, `name`, `description`
 - `memory` (jsonb) - project context for agents
 - `created_at`, `updated_at`
 
 ### Repo Agents
+
 - `id`, `project_id`, `name`
 - `repo_path` (local file system path)
 - `client_type` (enum: claude_code, opencode, etc.)
@@ -165,11 +178,13 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - `status` (enum: idle, active, rate_limited, error)
 
 ### Actors
+
 - `id`, `project_id`, `name`
 - `description` (agent personality/methodology)
 - `is_default` (boolean)
 
 ### Tasks
+
 - `id`, `project_id`, `repo_agent_id`, `actor_id`
 - `raw_title`, `raw_description`
 - `refined_title`, `refined_description`
@@ -182,28 +197,34 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - `created_at`, `updated_at`
 
 ### Sessions
+
 - `id`, `task_id`, `repo_agent_id`
 - `status` (enum: starting, active, completed, failed)
 - `started_at`, `completed_at`
 
-## Code Agent Communication Architecture
+## Code Agent Management
 
 ### Claude Code UI WebSocket Server
-- CCU originally uses WebSocket to communicate with both code agent shell, server and UI.
-- Now we modify and add basic auth via env var `AGENT_AUTH_TOKEN` to its websocket server.
-- Solo Unicorn server will connect to CCU websocket to get code agent information.
+
+- CCU originally uses its WebSocket server to communicate with code agent shell, server and UI.
+- Now we modified and added basic auth via env var `AGENT_AUTH_TOKEN` to its websocket server.
+- Solo Unicorn server will connect to CCU websocket.
+- Solo Unicorn will monitor code agent vacancy and automatically push tasks to it (create session).
 
 ### Solo Unicorn MCP Server
+
 - Solo Unicorn provides MCP server for code agents to push information to.
 - Usage includes:
   - Update task status, stage, refined title, refined description, plan, code agent session id, etc.
   - Update code agent client type status (e.g. rate limit and rate limit reset time)
+  - Create tasks.
 
 ## API Endpoints
 
 **Authentication**: All routes protected by Monster Auth
 
 ### Core Routes
+
 - `GET/POST /api/projects` - Project CRUD
 - `GET/POST /api/projects/:id/repo-agents` - Repo agent management
 - `GET/POST /api/projects/:id/actors` - Actor management
@@ -212,6 +233,7 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - `GET /api/tasks/:id/attachments` - File management
 
 ### MCP Integration
+
 - `context.read` - Fetch project/task/memory
 - `cards.update` - Update task fields during workflow
 - `memory.update` - Modify project memory

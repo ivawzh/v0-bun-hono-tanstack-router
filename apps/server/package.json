@@ -54,7 +54,7 @@
     "pg": "^8.14.1",
     "valibot": "^1.1.0",
     "ws": "^8.18.3",
-    "zod": "^4.0.2"
+    "zod": "^3.23.8"
   },
   "trustedDependencies": [
     "supabase"
