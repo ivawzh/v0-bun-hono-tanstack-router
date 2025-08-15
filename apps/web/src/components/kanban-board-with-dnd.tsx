@@ -44,6 +44,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
+import { useWebSocket } from "@/hooks/use-websocket";
 
 // Drag and drop imports
 import {
@@ -242,6 +243,18 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   });
 
   const queryClient = useQueryClient();
+
+  // WebSocket connection for real-time updates
+  const { isConnected: wsConnected, connectionStatus } = useWebSocket({
+    projectId,
+    onMessage: (message) => {
+      // Handle specific message types with custom logic if needed
+      if (message.type === 'task.order.updated') {
+        // Real-time order updates from other clients
+        queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+      }
+    }
+  });
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -554,7 +567,23 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">{project?.name}</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold">{project?.name}</h1>
+          {/* WebSocket connection status */}
+          <div className="flex items-center gap-1 text-xs">
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              connectionStatus === 'connected' ? "bg-green-500" :
+              connectionStatus === 'connecting' ? "bg-yellow-500" :
+              connectionStatus === 'error' ? "bg-red-500" : "bg-gray-500"
+            )} />
+            <span className="text-muted-foreground">
+              {connectionStatus === 'connected' ? 'Live' :
+               connectionStatus === 'connecting' ? 'Connecting...' :
+               connectionStatus === 'error' ? 'Connection Error' : 'Offline'}
+            </span>
+          </div>
+        </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowProjectSettings(true)} variant="outline" size="sm">
             <Settings className="h-4 w-4 mr-2" />

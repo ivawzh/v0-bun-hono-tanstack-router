@@ -3,7 +3,7 @@ import * as v from "valibot";
 import { db } from "../db";
 import { tasks, projects, repoAgents, actors } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
-// WebSocket notification removed - agents now use HTTP polling
+import { broadcastTaskUpdate } from "../lib/websocket";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
 const taskStageEnum = v.picklist(["refine", "kickoff", "execute"]);
@@ -174,6 +174,9 @@ export const tasksRouter = o.router({
         })
         .returning();
 
+      // Broadcast task creation to WebSocket clients
+      broadcastTaskUpdate(input.projectId, newTask[0].id, 'created', newTask[0]);
+
       return newTask[0];
     }),
 
@@ -232,6 +235,9 @@ export const tasksRouter = o.router({
         .set(updates)
         .where(eq(tasks.id, input.id))
         .returning();
+
+      // Broadcast task update to WebSocket clients
+      broadcastTaskUpdate(task[0].project.id, updated[0].id, 'updated', updated[0]);
 
       return updated[0];
     }),
@@ -371,6 +377,11 @@ export const tasksRouter = o.router({
           .returning();
 
         updatedTasks.push(updated[0]);
+      }
+
+      // Broadcast task order updates to WebSocket clients
+      for (const updatedTask of updatedTasks) {
+        broadcastTaskUpdate(input.projectId, updatedTask.id, 'updated', updatedTask);
       }
 
       return { success: true, updated: updatedTasks };

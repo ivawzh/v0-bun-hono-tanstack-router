@@ -11,6 +11,8 @@ import { stream } from "hono/streaming";
 import { registerMcpHttp, setOrchestrator } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { ImprovedAgentOrchestrator } from "./agents/improved-agent-orchestrator";
+import { wsManager, handleWebSocketMessage } from "./lib/websocket";
+import { randomUUID } from "crypto";
 
 const app = new Hono();
 
@@ -115,10 +117,37 @@ process.on('SIGINT', () => {
   if (agentOrchestrator) {
     agentOrchestrator.shutdown();
   }
+  wsManager.shutdown();
   process.exit(0);
 });
 
 export default {
   port,
   fetch: app.fetch,
+  websocket: {
+    message(ws, message) {
+      const clientId = ws.data?.clientId || randomUUID();
+      if (!ws.data?.clientId) {
+        ws.data = { clientId };
+        wsManager.addClient(ws, clientId);
+      }
+      handleWebSocketMessage(ws, clientId, message.toString());
+    },
+    open(ws) {
+      const clientId = randomUUID();
+      ws.data = { clientId };
+      wsManager.addClient(ws, clientId);
+    },
+    close(ws) {
+      if (ws.data?.clientId) {
+        wsManager.removeClient(ws.data.clientId);
+      }
+    },
+    error(ws, error) {
+      console.error('WebSocket error:', error);
+      if (ws.data?.clientId) {
+        wsManager.removeClient(ws.data.clientId);
+      }
+    }
+  }
 };
