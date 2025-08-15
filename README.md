@@ -182,7 +182,7 @@ Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Clau
      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"server.health","arguments":{}}}'
    ```
 
-**📖 For detailed MCP setup instructions, see [MCP_SETUP.md](MCP_SETUP.md)**
+**MCP Server**: Solo Unicorn includes an MCP server consumed by Claude Code UI. To use with other AI tools, provide the `AGENT_AUTH_TOKEN` environment variable.
 
 #### Alternative: Manual Agent Setup
 
