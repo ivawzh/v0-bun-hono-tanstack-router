@@ -105,19 +105,23 @@ server.registerTool("task.update",
     description: "Update task fields during workflow stages.",
     inputSchema: {
       taskId: z.string().uuid(),
-      updates: z.object({
-        refinedTitle: z.string().optional(),
-        refinedDescription: z.string().optional(),
-        plan: z.unknown().optional(),
-        status: z.enum(["todo", "doing", "done"]).optional(),
-        stage: z.enum(["refine", "kickoff", "execute"]).optional(),
-      }),
+      refinedTitle: z.string().optional(),
+      refinedDescription: z.string().optional(),
+      plan: z.unknown().optional(),
+      status: z.enum(["todo", "doing", "done"]).optional(),
+      stage: z.enum(["refine", "kickoff", "execute"]).optional(),
     },
   },
-  async ({ taskId, updates }, { requestInfo }) => {
+  async ({ taskId, refinedTitle, refinedDescription, plan, status, stage }, { requestInfo }) => {
+    const updates = { refinedTitle, refinedDescription, plan, status, stage };
+    // Filter out undefined values
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, value]) => value !== undefined)
+    );
+
     logger.tool("task.update", "start", {
       taskId,
-      updates: updates as Record<string, any>,
+      updates: filteredUpdates,
     });
 
     try {
@@ -126,28 +130,28 @@ server.registerTool("task.update",
       await db
         .update(tasks)
         .set({
-          ...updates,
+          ...filteredUpdates,
           updatedAt: new Date(),
         })
         .where(eq(tasks.id, taskId));
 
       logger.tool("task.update", "success", {
         taskId,
-        updatedFields: Object.keys(updates),
+        updatedFields: Object.keys(filteredUpdates),
       });
 
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ success: true, taskId, updates }),
+            text: JSON.stringify({ success: true, taskId, updates: filteredUpdates }),
           },
         ],
       };
     } catch (error) {
       logger.error("task.update failed", error, {
         taskId,
-        updates: updates as Record<string, any>,
+        updates: filteredUpdates,
       });
       return {
         content: [

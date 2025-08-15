@@ -29,8 +29,12 @@
         "task.update": {
           "description": "Update task fields during workflow stages",
           "parameters": {
-            "taskId": "uuid",
-            "updates": "object with optional refinedTitle (string), refinedDescription (string), plan (string|object|array), status (todo|doing|done), stage (refine|kickoff|execute)"
+            "taskId": "uuid (required)",
+            "refinedTitle": "string (optional)",
+            "refinedDescription": "string (optional)", 
+            "plan": "any type (optional)",
+            "status": "enum: todo|doing|done (optional)",
+            "stage": "enum: refine|kickoff|execute (optional)"
           }
         },
         "agent.rateLimit": {
