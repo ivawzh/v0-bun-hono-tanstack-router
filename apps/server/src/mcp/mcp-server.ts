@@ -14,6 +14,11 @@ export function setOrchestrator(orch: any) {
   logger.info("MCP server integrated with improved orchestrator");
 }
 
+// Function to get orchestrator instance
+export function getOrchestrator() {
+  return orchestrator;
+}
+
 // Logging utilities for debug and history tracing
 const logger = {
   info: (message: string, context?: Record<string, any>) => {
@@ -45,6 +50,7 @@ const server = new McpServer({
 
 logger.info("MCP Server initialized", { name: "solo-unicorn-mcp", version: "1.0.0" });
 
+
 // Small helper to enforce bearer auth from headers
 function assertBearer(authHeader: string | string[] | undefined) {
   const expected = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
@@ -63,7 +69,7 @@ function assertBearer(authHeader: string | string[] | undefined) {
     logger.auth("Authentication failed: invalid token", { tokenLength: token.length });
     throw new Error("unauthorized: invalid token");
   }
-  
+
   logger.auth("Authentication successful");
 }
 
@@ -77,7 +83,7 @@ server.tool(
   },
   async ({ clientType, repoPath }, { requestInfo }) => {
     logger.tool("agent.auth", "start", { clientType, repoPath });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
 
@@ -105,9 +111,9 @@ server.tool(
         .set({ status: "active", updatedAt: new Date() })
         .where(eq(repoAgents.id, repoAgent.id));
 
-      logger.tool("agent.auth", "success", { 
-        agentId: repoAgent.id, 
-        clientType: repoAgent.clientType, 
+      logger.tool("agent.auth", "success", {
+        agentId: repoAgent.id,
+        clientType: repoAgent.clientType,
         repoPath: repoAgent.repoPath,
         previousStatus: repoAgent.status
       });
@@ -140,12 +146,12 @@ server.tool(
   async ({ taskId, stage }, { requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("task.start", "start", { agentId, taskId, stage });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("task.start", "failed", { reason: "missing_agent_id", taskId, stage });
         return {
@@ -216,15 +222,15 @@ server.tool(
       }
 
       return {
-        content: [{ 
-          type: "text", 
-          text: JSON.stringify({ 
-            success: true, 
-            task, 
+        content: [{
+          type: "text",
+          text: JSON.stringify({
+            success: true,
+            task,
             sessionId: session.id,
             stage,
             message: `Started ${stage} stage for task: ${task.refinedTitle || task.rawTitle}`
-          }) 
+          })
         }]
       };
     } catch (error) {
@@ -246,12 +252,12 @@ server.tool(
   async ({ taskId, stageComplete, nextStage, markDone }, { requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("task.complete", "start", { agentId, taskId, stageComplete, nextStage, markDone });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("task.complete", "failed", { reason: "missing_agent_id", taskId });
         return {
@@ -299,13 +305,13 @@ server.tool(
         }
 
         return {
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({ 
-              success: true, 
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
               taskComplete: true,
               message: `Task ${taskId} marked as done`
-            }) 
+            })
           }]
         };
       } else if (nextStage) {
@@ -318,14 +324,14 @@ server.tool(
         logger.tool("task.complete", "stage_advanced", { agentId, taskId, nextStage, sessionId: session.id });
 
         return {
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({ 
-              success: true, 
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
               stageAdvanced: true,
               nextStage,
               message: `Task ${taskId} advanced to ${nextStage} stage`
-            }) 
+            })
           }]
         };
       } else {
@@ -333,13 +339,13 @@ server.tool(
         logger.tool("task.complete", "stage_completed", { agentId, taskId, sessionId: session.id });
 
         return {
-          content: [{ 
-            type: "text", 
-            text: JSON.stringify({ 
-              success: true, 
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              success: true,
               stageComplete: true,
               message: `Current stage completed for task ${taskId}`
-            }) 
+            })
           }]
         };
       }
@@ -356,12 +362,12 @@ server.tool(
   async ({ requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("agent.requestTask", "start", { agentId });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("agent.requestTask", "failed", { reason: "missing_agent_id" });
         return {
@@ -423,8 +429,8 @@ server.tool(
         .set({ status: "doing", stage: "refine", updatedAt: new Date() })
         .where(eq(tasks.id, availableTask.id));
 
-      logger.tool("agent.requestTask", "success", { 
-        agentId, 
+      logger.tool("agent.requestTask", "success", {
+        agentId,
         taskId: availableTask.id,
         taskTitle: availableTask.rawTitle,
         taskPriority: availableTask.priority,
@@ -443,17 +449,17 @@ server.tool(
 );
 
 server.tool(
-  "agent.setAvailable", 
+  "agent.setAvailable",
   "Mark agent as available and ready for new tasks. Clears any stale sessions.",
   async ({ requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("agent.setAvailable", "start", { agentId });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("agent.setAvailable", "failed", { reason: "missing_agent_id" });
         return {
@@ -471,7 +477,7 @@ server.tool(
           .update(sessions)
           .set({ status: "completed", completedAt: new Date() })
           .where(and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active")));
-        
+
         logger.tool("agent.setAvailable", "cleared_stale_sessions", { agentId, count: staleSessions.length });
       }
 
@@ -507,12 +513,12 @@ server.tool(
   async ({ status }, { requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("agent.health", "start", { agentId, status });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("agent.health", "failed", { reason: "missing_agent_id", status });
         return {
@@ -533,9 +539,9 @@ server.tool(
       }
 
       await db.update(repoAgents).set({ status: nextStatus, updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
-      
+
       logger.tool("agent.health", "success", { agentId, previousStatus: status, newStatus: nextStatus });
-      
+
       return {
         content: [{ type: "text", text: JSON.stringify({ success: true, status }) }]
       };
@@ -556,12 +562,12 @@ server.tool(
   async ({ sessionId, resolveAt }, { requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("agent.rateLimit", "start", { agentId, sessionId, resolveAt });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("agent.rateLimit", "failed", { reason: "missing_agent_id", sessionId });
         return {
@@ -570,9 +576,9 @@ server.tool(
       }
 
       await db.update(repoAgents).set({ status: "rate_limited", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
-      
+
       logger.tool("agent.rateLimit", "success", { agentId, sessionId, resolveAt });
-      
+
       // Future: persist rate limit metadata
       return {
         content: [{ type: "text", text: JSON.stringify({ success: true }) }]
@@ -595,12 +601,12 @@ server.tool(
   async ({ sessionId, success, error }, { requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    
+
     logger.tool("agent.sessionComplete", "start", { agentId, sessionId, success, hasError: !!error });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       if (!agentId) {
         logger.tool("agent.sessionComplete", "failed", { reason: "missing_agent_id", sessionId });
         return {
@@ -636,9 +642,9 @@ server.tool(
       }
 
       await db.update(repoAgents).set({ status: "idle", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
-      
+
       logger.tool("agent.sessionComplete", "success", { agentId, sessionId, taskId: session.task.id, success });
-      
+
       return {
         content: [{ type: "text", text: JSON.stringify({ success: true }) }]
       };
@@ -660,10 +666,10 @@ server.tool(
   },
   async ({ taskId, projectId }, { requestInfo }) => {
     logger.tool("context.read", "start", { taskId, projectId });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       let result: any = {};
 
       if (taskId) {
@@ -703,7 +709,7 @@ server.tool(
       }
 
       logger.tool("context.read", "success", { taskId, projectId, hasResult: Object.keys(result).length > 0 });
-      
+
       return {
         content: [{
           type: "text",
@@ -737,10 +743,10 @@ server.tool(
   },
   async ({ taskId, updates }, { requestInfo }) => {
     logger.tool("cards.update", "start", { taskId, updates });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       await db
         .update(tasks)
         .set({
@@ -750,7 +756,7 @@ server.tool(
         .where(eq(tasks.id, taskId));
 
       logger.tool("cards.update", "success", { taskId, updatedFields: Object.keys(updates) });
-      
+
       return {
         content: [{
           type: "text",
@@ -778,10 +784,10 @@ server.tool(
   },
   async ({ projectId, memory }, { requestInfo }) => {
     logger.tool("memory.update", "start", { projectId, memoryLength: memory.length });
-    
+
     try {
       assertBearer(requestInfo?.headers?.authorization);
-      
+
       await db
         .update(projects)
         .set({
@@ -791,7 +797,7 @@ server.tool(
         .where(eq(projects.id, projectId));
 
       logger.tool("memory.update", "success", { projectId, memoryLength: memory.length });
-      
+
       return {
         content: [{
           type: "text",
@@ -822,78 +828,225 @@ server.tool(
   }
 );
 
-// Expose a function to register the HTTP transport handlers on a Hono app
-export async function registerMcpHttp(app: any, basePath = "/mcp") {
-  logger.info("Registering MCP HTTP transport", { basePath });
-  
-  const transport = new StreamableHTTPServerTransport({
+// Import Node.js HTTP module for native server
+import { createServer } from 'http';
+
+// Global MCP HTTP server instance
+let mcpHttpServer: any = null;
+let currentTransport: any = null;
+
+// Function to create a fresh transport and connect server
+async function createFreshTransport() {
+  // Disconnect previous transport if it exists
+  if (currentTransport) {
+    try {
+      await currentTransport.close();
+      logger.debug("Previous transport closed successfully");
+    } catch (e) {
+      logger.debug("Error closing previous transport:", e);
+    }
+  }
+
+  // Create new transport
+  currentTransport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => Math.random().toString(36).substring(2, 15)
   });
 
-  // Connect the server to the transport
-  await server.connect(transport);
+  // The key fix: we need to create a new server instance for each session
+  // because MCP servers maintain internal state that prevents re-initialization
+  try {
+    // Check if server is already connected, and if so, close it first
+    if (server) {
+      try {
+        await server.close();
+        logger.debug("Previous server connection closed");
+      } catch (e) {
+        logger.debug("Server was not connected or error closing:", e);
+      }
+    }
+    
+    // Connect the server to the new transport
+    await server.connect(currentTransport);
+    logger.debug("Fresh MCP transport created and server connected");
+  } catch (error) {
+    logger.error("Error connecting server to fresh transport:", error);
+    throw error;
+  }
+  
+  return currentTransport;
+}
+
+// Expose a function to start a native HTTP server for MCP
+export async function startMcpHttpServer(port = 8502) {
+  logger.info("Starting native MCP HTTP server", { port });
+
+  // Create initial transport
+  await createFreshTransport();
   logger.info("MCP server connected to HTTP transport");
 
-  // Streamable HTTP uses a single endpoint that handles all MCP messages
-  app.all(basePath, async (c: any) => {
+  // Create native HTTP server following the example pattern
+  mcpHttpServer = createServer(async (request, response) => {
     const startTime = Date.now();
-    const method = c.req.method;
-    const url = c.req.url;
-    
-    logger.debug("MCP HTTP request received", { method, url });
-    
+
+    logger.debug("MCP HTTP request received", {
+      method: request.method,
+      url: request.url,
+      headers: request.headers
+    });
+
+    // Only handle requests to /mcp path (MCP Inspector expects this)
+    if (!request.url?.startsWith('/mcp')) {
+      response.writeHead(404, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: "Not found - use /mcp endpoint" }));
+      return;
+    }
+
+    // Handle DELETE requests as session cleanup/reset
+    if (request.method === "DELETE") {
+      logger.debug("MCP session cleanup requested - creating fresh transport");
+      try {
+        // Create fresh transport for new session
+        const freshTransport = await createFreshTransport();
+        logger.debug("Fresh transport created successfully for new session");
+      } catch (error) {
+        logger.error("Failed to create fresh transport:", error);
+      }
+      response.writeHead(200, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ success: true, message: "Session cleaned up and fresh transport created" }));
+      return;
+    }
+
+    // Only handle POST requests for MCP protocol
+    if (request.method !== "POST") {
+      response.writeHead(405, { 'Content-Type': 'application/json' });
+      response.end(JSON.stringify({ error: "Method not allowed" }));
+      return;
+    }
+
     try {
-      // Extract body for POST requests
-      let body;
-      if (c.req.method === 'POST') {
-        body = await c.req.json();
-        logger.debug("MCP request body", { 
-          method: body?.method, 
-          id: body?.id,
-          hasParams: !!body?.params 
-        });
+      // Check authentication before processing request (if auth is enabled)
+      const authRequired = process.env.AGENT_AUTH_TOKEN && process.env.AGENT_AUTH_TOKEN !== 'disabled';
+      if (authRequired) {
+        try {
+          assertBearer(request.headers.authorization);
+          logger.auth("HTTP MCP request authenticated successfully");
+        } catch (authError) {
+          logger.auth("HTTP MCP request authentication failed", { 
+            url: request.url, 
+            hasAuth: !!request.headers.authorization,
+            authToken: process.env.AGENT_AUTH_TOKEN?.substring(0, 8) + "..."
+          });
+          response.writeHead(401, { 'Content-Type': 'application/json' });
+          response.end(JSON.stringify({ 
+            jsonrpc: "2.0",
+            error: {
+              code: -32600,
+              message: "Unauthorized: " + (authError instanceof Error ? authError.message : String(authError))
+            },
+            id: null
+          }));
+          return;
+        }
+      } else {
+        logger.auth("HTTP MCP request - authentication disabled");
       }
 
-      // Convert Hono's context to Node.js IncomingMessage/ServerResponse style
-      // This is a simplified approach - for production you might need a proper adapter
-      const nodeReq = c.req.raw as any;
+      // Collect request body chunks
+      const chunks: Buffer[] = [];
+      for await (const chunk of request) {
+        chunks.push(chunk);
+      }
 
-      // Create a mock response object that collects the response
-      let statusCode = 200;
-      let responseHeaders: Record<string, string> = {};
-      let responseBody = '';
+      // Parse JSON body
+      const bodyBuffer = Buffer.concat(chunks);
+      const body = JSON.parse(bodyBuffer.toString());
 
-      const mockRes = {
-        statusCode,
-        setHeader: (name: string, value: string) => { responseHeaders[name] = value; },
-        writeHead: (code: number, headers?: Record<string, string>) => {
-          statusCode = code;
-          if (headers) Object.assign(responseHeaders, headers);
-        },
-        write: (chunk: any) => { responseBody += chunk; },
-        end: (chunk?: any) => {
-          if (chunk) responseBody += chunk;
-        },
-      } as any;
-
-      await transport.handleRequest(nodeReq, mockRes, body);
-
-      const duration = Date.now() - startTime;
-      logger.debug("MCP HTTP request completed", { 
-        method, 
-        statusCode, 
-        duration,
-        responseSize: responseBody.length,
-        mcpMethod: body?.method
+      logger.debug("MCP request body", {
+        method: body?.method,
+        id: body?.id,
+        hasParams: !!body?.params
       });
 
-      return c.text(responseBody, statusCode, responseHeaders);
-    } catch (err) {
+      // Let the MCP transport handle all requests including initialization
+
+      // Intercept response to log what's being sent
+      const originalEnd = response.end;
+      const originalWrite = response.write;
+      let responseBody = '';
+      
+      response.write = function(chunk: any, encoding?: any, callback?: any) {
+        if (chunk) responseBody += chunk.toString();
+        return originalWrite.call(this, chunk, encoding, callback);
+      };
+      
+      response.end = function(chunk?: any, encoding?: any, callback?: any) {
+        if (chunk) responseBody += chunk.toString();
+        logger.debug("MCP response body", { 
+          bodyPreview: responseBody.substring(0, 500),
+          bodyLength: responseBody.length 
+        });
+        return originalEnd.call(this, chunk, encoding, callback);
+      };
+
+      // Handle the request using MCP transport
+      if (!currentTransport) {
+        logger.debug("No current transport, creating fresh one");
+        await createFreshTransport();
+      }
+      
+      await currentTransport.handleRequest(request, response, body);
+
       const duration = Date.now() - startTime;
-      logger.error("MCP HTTP request failed", err, { method, url, duration });
-      return c.json({ error: "MCP server error" }, 500);
+      logger.debug("MCP HTTP request completed", {
+        method: request.method,
+        duration,
+        mcpMethod: body?.method,
+        responseHeaders: response.getHeaders(),
+        responseStatusCode: response.statusCode
+      });
+
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      logger.error("MCP HTTP request failed", error, {
+        method: request.method,
+        url: request.url,
+        duration
+      });
+
+      if (!response.headersSent) {
+        response.writeHead(500, { 'Content-Type': 'application/json' });
+        response.end(JSON.stringify({ error: "MCP server error" }));
+      }
     }
   });
-  
-  logger.info("MCP HTTP transport registered successfully", { basePath });
+
+  // Start listening
+  mcpHttpServer.listen(port, () => {
+    logger.info(`MCP HTTP server listening on http://localhost:${port}`);
+  });
+
+  return mcpHttpServer;
+}
+
+// Function to stop the MCP server
+export function stopMcpHttpServer() {
+  if (mcpHttpServer) {
+    mcpHttpServer.close();
+    mcpHttpServer = null;
+    logger.info("MCP HTTP server stopped");
+  }
+}
+
+// Legacy function for Hono integration (now redirects to native server)
+export async function registerMcpHttp(app: any, basePath = "/mcp") {
+  logger.info("MCP HTTP registered via redirect", { basePath });
+
+  // Add a route that redirects to the native MCP server
+  app.all(basePath, async (c: any) => {
+    return c.json({
+      error: "MCP endpoint moved",
+      message: `Please use the native MCP server at http://localhost:${process.env.MCP_PORT || 8502}/mcp`,
+      redirect: `http://localhost:${process.env.MCP_PORT || 8502}/mcp`
+    }, 301);
+  });
 }
