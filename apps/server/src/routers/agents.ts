@@ -1,8 +1,37 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, actors, sessions, tasks, projects } from "../db/schema";
+import { repoAgents, actors, sessions, tasks, projects, agents } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+
+// Helper function to get or create agent by type
+async function getOrCreateAgentByType(type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
+  let agent = await db.query.agents.findFirst({
+    where: eq(agents.type, type)
+  });
+  
+  if (!agent) {
+    const [newAgent] = await db.insert(agents).values({
+      type,
+      state: {}
+    }).returning();
+    agent = newAgent;
+  }
+  
+  return agent.id;
+}
+
+// Helper function to map old client type to new agent type
+function mapClientTypeToAgentType(clientType: "claude_code" | "opencode"): "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE" {
+  switch (clientType) {
+    case "claude_code":
+      return "CLAUDE_CODE";
+    case "opencode":
+      return "OPENCODE";
+    default:
+      throw new Error(`Unknown client type: ${clientType}`);
+  }
+}
 
 export const agentsRouter = o.router({
   // Compatibility method for old frontend calls
@@ -33,6 +62,9 @@ export const agentsRouter = o.router({
 
       return await db.query.repoAgents.findMany({
         where: eq(repoAgents.projectId, input.projectId),
+        with: {
+          agentClient: true
+        },
         orderBy: desc(repoAgents.createdAt)
       });
     }),
@@ -58,18 +90,30 @@ export const agentsRouter = o.router({
         throw new Error("Project not found or unauthorized");
       }
 
+      // Map client type to agent type and get/create agent
+      const agentType = mapClientTypeToAgentType(input.clientType);
+      const agentClientId = await getOrCreateAgentByType(agentType);
+
       const [newRepoAgent] = await db
         .insert(repoAgents)
         .values({
           projectId: input.projectId,
           name: input.name,
           repoPath: input.repoPath,
-          clientType: input.clientType,
+          agentClientId: agentClientId,
           config: input.config || {}
         })
         .returning();
 
-      return newRepoAgent;
+      // Return with agent client info
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, newRepoAgent.id),
+        with: {
+          agentClient: true
+        }
+      });
+
+      return result;
     }),
 
   updateRepoAgent: protectedProcedure
@@ -97,19 +141,30 @@ export const agentsRouter = o.router({
       const updateData: any = {};
       if (input.name !== undefined) updateData.name = input.name;
       if (input.repoPath !== undefined) updateData.repoPath = input.repoPath;
-      if (input.clientType !== undefined) updateData.clientType = input.clientType;
+      if (input.clientType !== undefined) {
+        // Map client type to agent and get/create agent
+        const agentType = mapClientTypeToAgentType(input.clientType);
+        updateData.agentClientId = await getOrCreateAgentByType(agentType);
+      }
       if (input.status !== undefined) updateData.status = input.status;
       if (input.config !== undefined) updateData.config = input.config;
 
       updateData.updatedAt = new Date();
 
-      const [updated] = await db
+      await db
         .update(repoAgents)
         .set(updateData)
-        .where(eq(repoAgents.id, input.id))
-        .returning();
+        .where(eq(repoAgents.id, input.id));
 
-      return updated;
+      // Return with agent client info
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, input.id),
+        with: {
+          agentClient: true
+        }
+      });
+
+      return result;
     }),
 
   deleteRepoAgent: protectedProcedure

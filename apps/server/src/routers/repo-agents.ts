@@ -1,11 +1,41 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, projects } from "../db/schema";
+import { repoAgents, projects, agents } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 const clientTypeEnum = v.picklist(["claude_code", "opencode"]);
+const agentClientTypeEnum = v.picklist(["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
 const statusEnum = v.picklist(["idle", "active", "rate_limited", "error"]);
+
+// Helper function to get or create agent by type
+async function getOrCreateAgentByType(type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
+  let agent = await db.query.agents.findFirst({
+    where: eq(agents.type, type)
+  });
+  
+  if (!agent) {
+    const [newAgent] = await db.insert(agents).values({
+      type,
+      state: {}
+    }).returning();
+    agent = newAgent;
+  }
+  
+  return agent.id;
+}
+
+// Helper function to map old client type to new agent type
+function mapClientTypeToAgentType(clientType: "claude_code" | "opencode"): "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE" {
+  switch (clientType) {
+    case "claude_code":
+      return "CLAUDE_CODE";
+    case "opencode":
+      return "OPENCODE";
+    default:
+      throw new Error(`Unknown client type: ${clientType}`);
+  }
+}
 
 export const repoAgentsRouter = o.router({
   list: protectedProcedure
@@ -29,11 +59,13 @@ export const repoAgentsRouter = o.router({
         throw new Error("Project not found or unauthorized");
       }
       
-      const results = await db
-        .select()
-        .from(repoAgents)
-        .where(eq(repoAgents.projectId, input.projectId))
-        .orderBy(desc(repoAgents.createdAt));
+      const results = await db.query.repoAgents.findMany({
+        where: eq(repoAgents.projectId, input.projectId),
+        with: {
+          agentClient: true
+        },
+        orderBy: desc(repoAgents.createdAt)
+      });
       
       return results;
     }),
@@ -43,26 +75,19 @@ export const repoAgentsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      const result = await db
-        .select({
-          repoAgent: repoAgents,
-          project: projects
-        })
-        .from(repoAgents)
-        .innerJoin(projects, eq(repoAgents.projectId, projects.id))
-        .where(
-          and(
-            eq(repoAgents.id, input.id),
-            eq(projects.ownerId, context.user.id)
-          )
-        )
-        .limit(1);
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, input.id),
+        with: {
+          agentClient: true,
+          project: true
+        }
+      });
       
-      if (result.length === 0) {
+      if (!result || result.project.ownerId !== context.user.id) {
         throw new Error("Repo agent not found or unauthorized");
       }
       
-      return result[0].repoAgent;
+      return result;
     }),
   
   create: protectedProcedure
@@ -90,19 +115,31 @@ export const repoAgentsRouter = o.router({
         throw new Error("Project not found or unauthorized");
       }
       
+      // Map client type to agent type and get/create agent
+      const agentType = mapClientTypeToAgentType(input.clientType);
+      const agentClientId = await getOrCreateAgentByType(agentType);
+      
       const newRepoAgent = await db
         .insert(repoAgents)
         .values({
           projectId: input.projectId,
           name: input.name,
           repoPath: input.repoPath,
-          clientType: input.clientType,
+          agentClientId: agentClientId,
           config: input.config,
           status: "idle"
         })
         .returning();
       
-      return newRepoAgent[0];
+      // Return with agent client info
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, newRepoAgent[0].id),
+        with: {
+          agentClient: true
+        }
+      });
+      
+      return result;
     }),
   
   update: protectedProcedure
@@ -139,17 +176,28 @@ export const repoAgentsRouter = o.router({
       
       if (input.name !== undefined) updates.name = input.name;
       if (input.repoPath !== undefined) updates.repoPath = input.repoPath;
-      if (input.clientType !== undefined) updates.clientType = input.clientType;
+      if (input.clientType !== undefined) {
+        // Map client type to agent and get/create agent
+        const agentType = mapClientTypeToAgentType(input.clientType);
+        updates.agentClientId = await getOrCreateAgentByType(agentType);
+      }
       if (input.config !== undefined) updates.config = input.config;
       if (input.status !== undefined) updates.status = input.status;
       
-      const updated = await db
+      await db
         .update(repoAgents)
         .set(updates)
-        .where(eq(repoAgents.id, input.id))
-        .returning();
+        .where(eq(repoAgents.id, input.id));
       
-      return updated[0];
+      // Return with agent client info
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, input.id),
+        with: {
+          agentClient: true
+        }
+      });
+      
+      return result;
     }),
   
   delete: protectedProcedure
