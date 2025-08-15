@@ -5,6 +5,27 @@ import { db } from "../db";
 import { projects, tasks, repoAgents, actors, sessions } from "../db/schema/simplified";
 import { and, desc, eq, sql } from "drizzle-orm";
 
+// Logging utilities for debug and history tracing
+const logger = {
+  info: (message: string, context?: Record<string, any>) => {
+    console.log(`[MCP-INFO] ${new Date().toISOString()} ${message}`, context ? JSON.stringify(context) : '');
+  },
+  error: (message: string, error?: any, context?: Record<string, any>) => {
+    console.error(`[MCP-ERROR] ${new Date().toISOString()} ${message}`, error?.message || error, context ? JSON.stringify(context) : '');
+  },
+  debug: (message: string, context?: Record<string, any>) => {
+    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_MCP === 'true') {
+      console.log(`[MCP-DEBUG] ${new Date().toISOString()} ${message}`, context ? JSON.stringify(context) : '');
+    }
+  },
+  auth: (message: string, context?: Record<string, any>) => {
+    console.log(`[MCP-AUTH] ${new Date().toISOString()} ${message}`, context ? JSON.stringify(context) : '');
+  },
+  tool: (toolName: string, action: string, context?: Record<string, any>) => {
+    console.log(`[MCP-TOOL] ${new Date().toISOString()} ${toolName}.${action}`, context ? JSON.stringify(context) : '');
+  }
+};
+
 // Remove unused types - now using Zod schemas directly
 
 // Initialize MCP server with only the tools we need
@@ -13,6 +34,8 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
+logger.info("MCP Server initialized", { name: "solo-unicorn-mcp", version: "1.0.0" });
+
 // Small helper to enforce bearer auth from headers
 function assertBearer(authHeader: string | string[] | undefined) {
   const expected = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
@@ -20,13 +43,19 @@ function assertBearer(authHeader: string | string[] | undefined) {
   // Handle both string and string[] cases
   const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
+  logger.debug("Authentication attempt", { hasAuthHeader: !!headerValue, startsWithBearer: headerValue?.startsWith("Bearer ") });
+
   if (!headerValue || !headerValue.startsWith("Bearer ")) {
+    logger.auth("Authentication failed: missing or invalid token format", { headerValue: headerValue?.substring(0, 20) + "..." });
     throw new Error("unauthorized: missing token");
   }
   const token = headerValue.slice(7);
   if (token !== expected) {
+    logger.auth("Authentication failed: invalid token", { tokenLength: token.length });
     throw new Error("unauthorized: invalid token");
   }
+  
+  logger.auth("Authentication successful");
 }
 
 // Tools for code agents
@@ -38,42 +67,57 @@ server.tool(
     repoPath: z.string().min(1)
   },
   async ({ clientType, repoPath }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
+    logger.tool("agent.auth", "start", { clientType, repoPath });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
 
-    const repoAgent = await db.query.repoAgents.findFirst({
-      where: and(
-        eq(repoAgents.clientType, clientType),
-        eq(repoAgents.repoPath, repoPath)
-      )
-    });
+      const repoAgent = await db.query.repoAgents.findFirst({
+        where: and(
+          eq(repoAgents.clientType, clientType),
+          eq(repoAgents.repoPath, repoPath)
+        )
+      });
 
-    if (!repoAgent) {
+      if (!repoAgent) {
+        logger.tool("agent.auth", "failed", { reason: "repo_agent_not_found", clientType, repoPath });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ success: false, message: `No repo agent found for ${clientType} at ${repoPath}` })
+            }
+          ]
+        };
+      }
+
+      await db
+        .update(repoAgents)
+        .set({ status: "active", updatedAt: new Date() })
+        .where(eq(repoAgents.id, repoAgent.id));
+
+      logger.tool("agent.auth", "success", { 
+        agentId: repoAgent.id, 
+        clientType: repoAgent.clientType, 
+        repoPath: repoAgent.repoPath,
+        previousStatus: repoAgent.status
+      });
+
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ success: false, message: `No repo agent found for ${clientType} at ${repoPath}` })
+            text: JSON.stringify({
+              success: true,
+              agent: { id: repoAgent.id, clientType: repoAgent.clientType, repoPath: repoAgent.repoPath }
+            })
           }
         ]
       };
+    } catch (error) {
+      logger.error("agent.auth failed", error, { clientType, repoPath });
+      throw error;
     }
-
-    await db
-      .update(repoAgents)
-      .set({ status: "active", updatedAt: new Date() })
-      .where(eq(repoAgents.id, repoAgent.id));
-
-    return {
-      content: [
-        {
-          type: "text",
-          text: JSON.stringify({
-            success: true,
-            agent: { id: repoAgent.id, clientType: repoAgent.clientType, repoPath: repoAgent.repoPath }
-          })
-        }
-      ]
-    };
   }
 );
 
@@ -81,69 +125,91 @@ server.tool(
   "agent.requestTask",
   "Assign the highest-priority ready task for this agent. Requires x-agent-id header.",
   async ({ requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    if (!agentId) {
+    
+    logger.tool("agent.requestTask", "start", { agentId });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("agent.requestTask", "failed", { reason: "missing_agent_id" });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
+
+      const repoAgent = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, agentId),
+        with: { project: true }
+      });
+      if (!repoAgent) {
+        logger.tool("agent.requestTask", "failed", { reason: "repo_agent_not_found", agentId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Repo agent not found" }) }]
+        };
+      }
+
+      const activeSession = await db.query.sessions.findFirst({
+        where: and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active"))
+      });
+      if (activeSession) {
+        logger.tool("agent.requestTask", "failed", { reason: "active_session_exists", agentId, sessionId: activeSession.id });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent already has an active session" }) }]
+        };
+      }
+
+      const availableTask = await db.query.tasks.findFirst({
+        where: and(eq(tasks.ready, true), eq(tasks.status, "todo"), eq(tasks.repoAgentId, repoAgent.id)),
+        orderBy: [
+          sql`CASE ${tasks.priority}
+              WHEN 'P1' THEN 1
+              WHEN 'P2' THEN 2
+              WHEN 'P3' THEN 3
+              WHEN 'P4' THEN 4
+              WHEN 'P5' THEN 5
+              ELSE 6
+            END`,
+          tasks.createdAt
+        ],
+        with: { project: true, repoAgent: true, actor: true }
+      });
+
+      if (!availableTask) {
+        logger.tool("agent.requestTask", "no_tasks", { agentId, projectId: repoAgent.projectId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "No tasks available" }) }]
+        };
+      }
+
+      const [session] = await db
+        .insert(sessions)
+        .values({ taskId: availableTask.id, repoAgentId: repoAgent.id, status: "active" })
+        .returning();
+
+      await db
+        .update(tasks)
+        .set({ status: "doing", stage: "refine", updatedAt: new Date() })
+        .where(eq(tasks.id, availableTask.id));
+
+      logger.tool("agent.requestTask", "success", { 
+        agentId, 
+        taskId: availableTask.id,
+        taskTitle: availableTask.rawTitle,
+        taskPriority: availableTask.priority,
+        sessionId: session.id,
+        projectId: repoAgent.projectId
+      });
+
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        content: [{ type: "text", text: JSON.stringify({ success: true, task: availableTask, sessionId: session.id }) }]
       };
+    } catch (error) {
+      logger.error("agent.requestTask failed", error, { agentId });
+      throw error;
     }
-
-    const repoAgent = await db.query.repoAgents.findFirst({
-      where: eq(repoAgents.id, agentId),
-      with: { project: true }
-    });
-    if (!repoAgent) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Repo agent not found" }) }]
-      };
-    }
-
-    const activeSession = await db.query.sessions.findFirst({
-      where: and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active"))
-    });
-    if (activeSession) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent already has an active session" }) }]
-      };
-    }
-
-    const availableTask = await db.query.tasks.findFirst({
-      where: and(eq(tasks.ready, true), eq(tasks.status, "todo"), eq(tasks.repoAgentId, repoAgent.id)),
-      orderBy: [
-        sql`CASE ${tasks.priority}
-            WHEN 'P1' THEN 1
-            WHEN 'P2' THEN 2
-            WHEN 'P3' THEN 3
-            WHEN 'P4' THEN 4
-            WHEN 'P5' THEN 5
-            ELSE 6
-          END`,
-        tasks.createdAt
-      ],
-      with: { project: true, repoAgent: true, actor: true }
-    });
-
-    if (!availableTask) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "No tasks available" }) }]
-      };
-    }
-
-    const [session] = await db
-      .insert(sessions)
-      .values({ taskId: availableTask.id, repoAgentId: repoAgent.id, status: "active" })
-      .returning();
-
-    await db
-      .update(tasks)
-      .set({ status: "doing", stage: "refine", updatedAt: new Date() })
-      .where(eq(tasks.id, availableTask.id));
-
-    return {
-      content: [{ type: "text", text: JSON.stringify({ success: true, task: availableTask, sessionId: session.id }) }]
-    };
   }
 );
 
@@ -154,31 +220,44 @@ server.tool(
     status: z.enum(["available", "busy", "rate_limited", "error"])
   },
   async ({ status }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    if (!agentId) {
+    
+    logger.tool("agent.health", "start", { agentId, status });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("agent.health", "failed", { reason: "missing_agent_id", status });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
+
+      let nextStatus: "idle" | "active" | "rate_limited" | "error" = "idle";
+      switch (status) {
+        case "available":
+          nextStatus = "idle"; break;
+        case "busy":
+          nextStatus = "active"; break;
+        case "rate_limited":
+          nextStatus = "rate_limited"; break;
+        case "error":
+          nextStatus = "error"; break;
+      }
+
+      await db.update(repoAgents).set({ status: nextStatus, updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+      
+      logger.tool("agent.health", "success", { agentId, previousStatus: status, newStatus: nextStatus });
+      
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        content: [{ type: "text", text: JSON.stringify({ success: true, status }) }]
       };
+    } catch (error) {
+      logger.error("agent.health failed", error, { agentId, status });
+      throw error;
     }
-
-    let nextStatus: "idle" | "active" | "rate_limited" | "error" = "idle";
-    switch (status) {
-      case "available":
-        nextStatus = "idle"; break;
-      case "busy":
-        nextStatus = "active"; break;
-      case "rate_limited":
-        nextStatus = "rate_limited"; break;
-      case "error":
-        nextStatus = "error"; break;
-    }
-
-    await db.update(repoAgents).set({ status: nextStatus, updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
-    return {
-      content: [{ type: "text", text: JSON.stringify({ success: true, status }) }]
-    };
   }
 );
 
@@ -190,20 +269,33 @@ server.tool(
     resolveAt: z.string().datetime()
   },
   async ({ sessionId, resolveAt }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    if (!agentId) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
-      };
-    }
+    
+    logger.tool("agent.rateLimit", "start", { agentId, sessionId, resolveAt });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("agent.rateLimit", "failed", { reason: "missing_agent_id", sessionId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
 
-    await db.update(repoAgents).set({ status: "rate_limited", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
-    // Future: persist rate limit metadata
-    return {
-      content: [{ type: "text", text: JSON.stringify({ success: true }) }]
-    };
+      await db.update(repoAgents).set({ status: "rate_limited", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+      
+      logger.tool("agent.rateLimit", "success", { agentId, sessionId, resolveAt });
+      
+      // Future: persist rate limit metadata
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: true }) }]
+      };
+    } catch (error) {
+      logger.error("agent.rateLimit failed", error, { agentId, sessionId });
+      throw error;
+    }
   }
 );
 
@@ -216,43 +308,59 @@ server.tool(
     error: z.string().optional()
   },
   async ({ sessionId, success, error }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
-    if (!agentId) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
-      };
-    }
+    
+    logger.tool("agent.sessionComplete", "start", { agentId, sessionId, success, hasError: !!error });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("agent.sessionComplete", "failed", { reason: "missing_agent_id", sessionId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
 
-    const session = await db.query.sessions.findFirst({
-      where: and(eq(sessions.id, sessionId), eq(sessions.repoAgentId, agentId)),
-      with: { task: true }
-    });
-    if (!session) {
-      return {
-        content: [{ type: "text", text: JSON.stringify({ success: false, message: "Session not found" }) }]
-      };
-    }
+      const session = await db.query.sessions.findFirst({
+        where: and(eq(sessions.id, sessionId), eq(sessions.repoAgentId, agentId)),
+        with: { task: true }
+      });
+      if (!session) {
+        logger.tool("agent.sessionComplete", "failed", { reason: "session_not_found", agentId, sessionId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Session not found" }) }]
+        };
+      }
 
-    await db
-      .update(sessions)
-      .set({ status: success ? "completed" : "failed", completedAt: new Date() })
-      .where(eq(sessions.id, sessionId));
-
-    if (success) {
-      await db.update(tasks).set({ status: "done", stage: null, updatedAt: new Date() }).where(eq(tasks.id, session.task.id));
-    } else {
       await db
-        .update(tasks)
-        .set({ status: "todo", stage: null, ready: false, updatedAt: new Date() })
-        .where(eq(tasks.id, session.task.id));
-    }
+        .update(sessions)
+        .set({ status: success ? "completed" : "failed", completedAt: new Date() })
+        .where(eq(sessions.id, sessionId));
 
-    await db.update(repoAgents).set({ status: "idle", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
-    return {
-      content: [{ type: "text", text: JSON.stringify({ success: true }) }]
-    };
+      if (success) {
+        await db.update(tasks).set({ status: "done", stage: null, updatedAt: new Date() }).where(eq(tasks.id, session.task.id));
+        logger.tool("agent.sessionComplete", "task_completed", { taskId: session.task.id, sessionId });
+      } else {
+        await db
+          .update(tasks)
+          .set({ status: "todo", stage: null, ready: false, updatedAt: new Date() })
+          .where(eq(tasks.id, session.task.id));
+        logger.tool("agent.sessionComplete", "task_failed", { taskId: session.task.id, sessionId, error });
+      }
+
+      await db.update(repoAgents).set({ status: "idle", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+      
+      logger.tool("agent.sessionComplete", "success", { agentId, sessionId, taskId: session.task.id, success });
+      
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: true }) }]
+      };
+    } catch (dbError) {
+      logger.error("agent.sessionComplete failed", dbError, { agentId, sessionId, success });
+      throw dbError;
+    }
   }
 );
 
@@ -266,9 +374,11 @@ server.tool(
     projectId: z.string().uuid().optional()
   },
   async ({ taskId, projectId }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
-
+    logger.tool("context.read", "start", { taskId, projectId });
+    
     try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
       let result: any = {};
 
       if (taskId) {
@@ -286,6 +396,9 @@ server.tool(
           result.project = task.project;
           result.repoAgent = task.repoAgent;
           result.actor = task.actor;
+          logger.tool("context.read", "task_found", { taskId, projectId: task.projectId });
+        } else {
+          logger.tool("context.read", "task_not_found", { taskId });
         }
       } else if (projectId) {
         const project = await db.query.projects.findFirst({
@@ -298,9 +411,14 @@ server.tool(
 
         if (project) {
           result.project = project;
+          logger.tool("context.read", "project_found", { projectId, repoAgentsCount: project.repoAgents.length });
+        } else {
+          logger.tool("context.read", "project_not_found", { projectId });
         }
       }
 
+      logger.tool("context.read", "success", { taskId, projectId, hasResult: Object.keys(result).length > 0 });
+      
       return {
         content: [{
           type: "text",
@@ -308,10 +426,11 @@ server.tool(
         }]
       };
     } catch (error) {
+      logger.error("context.read failed", error, { taskId, projectId });
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({ success: false, error: error.message })
+          text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) })
         }]
       };
     }
@@ -332,9 +451,11 @@ server.tool(
     })
   },
   async ({ taskId, updates }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
-
+    logger.tool("cards.update", "start", { taskId, updates });
+    
     try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
       await db
         .update(tasks)
         .set({
@@ -343,6 +464,8 @@ server.tool(
         })
         .where(eq(tasks.id, taskId));
 
+      logger.tool("cards.update", "success", { taskId, updatedFields: Object.keys(updates) });
+      
       return {
         content: [{
           type: "text",
@@ -350,10 +473,11 @@ server.tool(
         }]
       };
     } catch (error) {
+      logger.error("cards.update failed", error, { taskId, updates });
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({ success: false, error: error.message })
+          text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) })
         }]
       };
     }
@@ -368,9 +492,11 @@ server.tool(
     memory: z.string()
   },
   async ({ projectId, memory }, { requestInfo }) => {
-    assertBearer(requestInfo?.headers?.authorization);
-
+    logger.tool("memory.update", "start", { projectId, memoryLength: memory.length });
+    
     try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
       await db
         .update(projects)
         .set({
@@ -379,6 +505,8 @@ server.tool(
         })
         .where(eq(projects.id, projectId));
 
+      logger.tool("memory.update", "success", { projectId, memoryLength: memory.length });
+      
       return {
         content: [{
           type: "text",
@@ -386,10 +514,11 @@ server.tool(
         }]
       };
     } catch (error) {
+      logger.error("memory.update failed", error, { projectId, memoryLength: memory.length });
       return {
         content: [{
           type: "text",
-          text: JSON.stringify({ success: false, error: error.message })
+          text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) })
         }]
       };
     }
@@ -400,27 +529,44 @@ server.tool(
 server.tool(
   "server.health",
   "Return MCP server status.",
-  async () => ({
-    content: [{ type: "text", text: JSON.stringify({ status: "ok", service: "Solo Unicorn MCP Server" }) }]
-  })
+  async () => {
+    logger.tool("server.health", "check");
+    return {
+      content: [{ type: "text", text: JSON.stringify({ status: "ok", service: "Solo Unicorn MCP Server" }) }]
+    };
+  }
 );
 
 // Expose a function to register the HTTP transport handlers on a Hono app
 export async function registerMcpHttp(app: any, basePath = "/mcp") {
+  logger.info("Registering MCP HTTP transport", { basePath });
+  
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => Math.random().toString(36).substring(2, 15)
   });
 
   // Connect the server to the transport
   await server.connect(transport);
+  logger.info("MCP server connected to HTTP transport");
 
   // Streamable HTTP uses a single endpoint that handles all MCP messages
   app.all(basePath, async (c: any) => {
+    const startTime = Date.now();
+    const method = c.req.method;
+    const url = c.req.url;
+    
+    logger.debug("MCP HTTP request received", { method, url });
+    
     try {
       // Extract body for POST requests
       let body;
       if (c.req.method === 'POST') {
         body = await c.req.json();
+        logger.debug("MCP request body", { 
+          method: body?.method, 
+          id: body?.id,
+          hasParams: !!body?.params 
+        });
       }
 
       // Convert Hono's context to Node.js IncomingMessage/ServerResponse style
@@ -447,9 +593,22 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
 
       await transport.handleRequest(nodeReq, mockRes, body);
 
+      const duration = Date.now() - startTime;
+      logger.debug("MCP HTTP request completed", { 
+        method, 
+        statusCode, 
+        duration,
+        responseSize: responseBody.length,
+        mcpMethod: body?.method
+      });
+
       return c.text(responseBody, statusCode, responseHeaders);
     } catch (err) {
+      const duration = Date.now() - startTime;
+      logger.error("MCP HTTP request failed", err, { method, url, duration });
       return c.json({ error: "MCP server error" }, 500);
     }
   });
+  
+  logger.info("MCP HTTP transport registered successfully", { basePath });
 }
