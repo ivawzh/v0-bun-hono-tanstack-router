@@ -277,7 +277,9 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
   // Create task mutation
   const createTaskMutation = useMutation({
-    mutationFn: orpc.tasks.create,
+    mutationFn: async (data: any) => {
+      return orpc.tasks.create(data);
+    },
     onSuccess: () => {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
@@ -297,7 +299,9 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
   // Toggle ready mutation
   const toggleReadyMutation = useMutation({
-    mutationFn: orpc.tasks.toggleReady,
+    mutationFn: async (data: { id: string; ready: boolean }) => {
+      return orpc.tasks.toggleReady(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
     },
@@ -308,7 +312,9 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
   // Update task order mutation
   const updateOrderMutation = useMutation({
-    mutationFn: orpc.tasks.updateOrder,
+    mutationFn: async (data: { projectId: string; tasks: Array<{ id: string; columnOrder: string; status?: string }> }) => {
+      return orpc.tasks.updateOrder(data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
     },
