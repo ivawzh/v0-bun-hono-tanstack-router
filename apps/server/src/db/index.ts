@@ -20,15 +20,7 @@ if (isProduction) {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL });
     db = drizzlePg(pool, { schema });
     console.log("DB: Using Postgres via DATABASE_URL (dev)");
-    // Optionally run migrations in development
-    try {
-      const { migrate } = await import("drizzle-orm/node-postgres/migrator");
-      // @ts-ignore
-      await migrate(db, { migrationsFolder: "./src/db/migrations" });
-      console.log("DB: Migrations applied (Postgres, dev)");
-    } catch (err) {
-      console.warn("DB: Skipped applying migrations for Postgres (dev):", err);
-    }
+    // Migrations are now handled by Vite hotUpdate hook or migration utility
   } else {
     try {
       const { PGlite } = await import("@electric-sql/pglite");
@@ -38,15 +30,7 @@ if (isProduction) {
     } catch {
       throw new Error("PGlite not available and DATABASE_URL not set. Set DATABASE_URL or add pglite.");
     }
-    // Attempt to auto-apply migrations for PGlite in dev
-    try {
-      const { migrate } = await import("drizzle-orm/pglite/migrator");
-      // @ts-ignore
-      await migrate(db, { migrationsFolder: "./src/db/migrations" });
-      console.log("DB: Migrations applied (PGlite, dev)");
-    } catch (err) {
-      console.warn("DB: Skipped applying migrations for PGlite (dev):", err);
-    }
+    // Migrations are now handled by Vite hotUpdate hook or migration utility
   }
 }
 

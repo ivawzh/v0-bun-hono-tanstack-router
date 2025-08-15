@@ -89,7 +89,7 @@ async function initializeAgentOrchestrator() {
     
     console.log("🤖 Improved Agent Orchestrator initialized successfully");
   } catch (error) {
-    console.error("❌ Failed to initialize Agent Orchestrator:", error.message);
+    console.error("❌ Failed to initialize Agent Orchestrator:", error instanceof Error ? error.message : String(error));
     console.log("ℹ️  Agent Orchestrator will continue trying to connect in the background");
     console.log("ℹ️  Make sure Claude Code UI is running on", process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501");
 

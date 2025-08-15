@@ -63,7 +63,7 @@ export class ClaudeCodeClient {
         resolve();
       });
 
-      this.ws.on('message', (data) => {
+      this.ws.on('message', (data: Buffer) => {
         try {
           const message = JSON.parse(data.toString());
           this.handleMessage(message);
@@ -72,14 +72,14 @@ export class ClaudeCodeClient {
         }
       });
 
-      this.ws.on('close', (code, reason) => {
+      this.ws.on('close', (code: number, reason: Buffer) => {
         clearTimeout(connectionTimeout);
-        console.log(`🔌 Disconnected from Claude Code UI (code: ${code}, reason: ${reason})`);
+        console.log(`🔌 Disconnected from Claude Code UI (code: ${code}, reason: ${reason.toString()})`);
         this.isConnected = false;
         this.scheduleReconnect();
       });
 
-      this.ws.on('error', (error) => {
+      this.ws.on('error', (error: Error) => {
         clearTimeout(connectionTimeout);
         console.error('Claude Code WebSocket error:', error);
         this.isConnected = false;
@@ -109,7 +109,7 @@ export class ClaudeCodeClient {
       try {
         await this.connect();
       } catch (error) {
-        console.error(`❌ Reconnect attempt ${this.reconnectAttempts} failed:`, error.message);
+        console.error(`❌ Reconnect attempt ${this.reconnectAttempts} failed:`, error instanceof Error ? error.message : String(error));
         this.scheduleReconnect();
       }
     }, delay);
@@ -223,9 +223,9 @@ export class ClaudeCodeClient {
         }
       };
 
-      this.ws.on('message', messageHandler);
+      this.ws?.on('message', messageHandler);
 
-      this.ws.send(JSON.stringify({
+      this.ws?.send(JSON.stringify({
         type: 'get_active_sessions'
       }));
     });
@@ -249,7 +249,7 @@ export class ClaudeCodeClient {
       await this.connect();
       return true;
     } catch (error) {
-      console.error('❌ Manual retry failed:', error.message);
+      console.error('❌ Manual retry failed:', error instanceof Error ? error.message : String(error));
       return false;
     }
   }

@@ -6,7 +6,7 @@ export interface TaskContext {
   refinedTitle?: string;
   refinedDescription?: string;
   plan?: any;
-  priority: number;
+  priority: string;
   attachments?: any[];
   actorDescription?: string;
   projectMemory?: string;

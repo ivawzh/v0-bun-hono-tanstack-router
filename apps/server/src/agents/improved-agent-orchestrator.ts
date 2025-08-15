@@ -1,5 +1,7 @@
-import { ClaudeCodeClient, ClaudeCodeSession, SessionOptions } from './claude-code-client';
-import { PromptTemplateFactory, TaskContext } from './prompts/index';
+import { ClaudeCodeClient } from './claude-code-client';
+import type { ClaudeCodeSession, SessionOptions } from './claude-code-client';
+import { PromptTemplateFactory } from './prompts/index';
+import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
@@ -108,7 +110,7 @@ export class ImprovedAgentOrchestrator {
         // Update our tracking with database status
         this.agentStatuses.set(agent.id, {
           agentId: agent.id,
-          status: agent.status,
+          status: agent.status as 'idle' | 'active' | 'rate_limited' | 'error',
           lastHeartbeat: existingStatus?.lastHeartbeat || now,
           currentTaskId: existingStatus?.currentTaskId,
           sessionId: existingStatus?.sessionId

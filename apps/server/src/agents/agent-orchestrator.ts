@@ -1,5 +1,7 @@
-import { ClaudeCodeClient, ClaudeCodeSession, SessionOptions } from './claude-code-client';
-import { PromptTemplateFactory, TaskContext } from './prompts/index';
+import { ClaudeCodeClient } from './claude-code-client';
+import type { ClaudeCodeSession, SessionOptions } from './claude-code-client';
+import { PromptTemplateFactory } from './prompts/index';
+import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -35,7 +37,7 @@ export class AgentOrchestrator {
       this.isConnected = true;
       console.log('🤖 Agent Orchestrator initialized');
     } catch (error) {
-      console.error('❌ Failed to connect to Claude Code UI:', error.message);
+      console.error('❌ Failed to connect to Claude Code UI:', error instanceof Error ? error.message : String(error));
       this.isConnected = false;
       // Continue without connection - will retry automatically
     }
@@ -140,14 +142,14 @@ export class AgentOrchestrator {
         id: task.id,
         projectId: task.projectId,
         rawTitle: task.rawTitle,
-        rawDescription: task.rawDescription,
-        refinedTitle: task.refinedTitle,
-        refinedDescription: task.refinedDescription,
-        plan: task.plan,
+        rawDescription: task.rawDescription ?? undefined,
+        refinedTitle: task.refinedTitle ?? undefined,
+        refinedDescription: task.refinedDescription ?? undefined,
+        plan: task.plan ?? undefined,
         priority: task.priority,
-        attachments: task.attachments,
+        attachments: Array.isArray(task.attachments) ? task.attachments : [],
         actorDescription: actor?.description,
-        projectMemory: project.memory,
+        projectMemory: typeof project.memory === 'string' ? project.memory : JSON.stringify(project.memory || {}),
         repoPath: repoAgent.repoPath
       };
 
@@ -262,14 +264,14 @@ export class AgentOrchestrator {
         id: task.id,
         projectId: task.projectId,
         rawTitle: task.rawTitle,
-        rawDescription: task.rawDescription,
-        refinedTitle: task.refinedTitle,
-        refinedDescription: task.refinedDescription,
-        plan: task.plan,
+        rawDescription: task.rawDescription ?? undefined,
+        refinedTitle: task.refinedTitle ?? undefined,
+        refinedDescription: task.refinedDescription ?? undefined,
+        plan: task.plan ?? undefined,
         priority: task.priority,
-        attachments: task.attachments,
+        attachments: Array.isArray(task.attachments) ? task.attachments : [],
         actorDescription: actor?.description,
-        projectMemory: project.memory,
+        projectMemory: typeof project.memory === 'string' ? project.memory : JSON.stringify(project.memory || {}),
         repoPath: repoAgent.repoPath
       };
 
