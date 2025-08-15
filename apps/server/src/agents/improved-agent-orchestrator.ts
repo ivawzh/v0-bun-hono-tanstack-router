@@ -160,6 +160,7 @@ export class ImprovedAgentOrchestrator {
               WHEN 'P1' THEN 5
               ELSE 6
             END`,
+          sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
           tasks.createdAt
         );
 

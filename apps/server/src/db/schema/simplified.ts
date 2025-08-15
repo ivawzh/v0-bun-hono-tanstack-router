@@ -70,6 +70,9 @@ export const tasks = pgTable("tasks", {
   // Priority (unified P1-P5)
   priority: text("priority").notNull().default("P3"), // P1, P2, P3, P4, P5
   
+  // Manual order within status column (for drag & drop)
+  columnOrder: text("column_order").notNull().default("1000"), // Decimal string for ordering within status
+  
   // Ready flag (replaces auto-start)
   ready: boolean("ready").default(false),
   

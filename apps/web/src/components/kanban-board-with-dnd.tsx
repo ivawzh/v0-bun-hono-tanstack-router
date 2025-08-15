@@ -1,0 +1,714 @@
+import { useState, useEffect } from "react";
+import {
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { orpc } from "@/utils/orpc";
+import { toast } from "sonner";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
+
+// Drag and drop imports
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+
+interface KanbanBoardProps {
+  projectId: string;
+}
+
+// Simplified 3-column structure
+const statusColumns = [
+  { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
+  { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
+  { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
+];
+
+const stageColors = {
+  refine: "bg-purple-100 text-purple-800 border-purple-200",
+  kickoff: "bg-pink-100 text-pink-800 border-pink-200",
+  execute: "bg-blue-100 text-blue-800 border-blue-200",
+};
+
+const priorityColors = {
+  P1: "bg-red-100 text-red-800 border-red-200",
+  P2: "bg-orange-100 text-orange-800 border-orange-200",
+  P3: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  P4: "bg-blue-100 text-blue-800 border-blue-200",
+  P5: "bg-gray-100 text-gray-800 border-gray-200",
+};
+
+interface TaskCardProps {
+  task: any;
+  onTaskClick: (taskId: string) => void;
+  onToggleReady: (taskId: string, ready: boolean) => void;
+}
+
+function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const column = statusColumns.find(col => col.id === task.status);
+  const Icon = column?.icon || Clock;
+
+  return (
+    <Card 
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "cursor-pointer hover:shadow-md transition-shadow mb-3",
+        isDragging && "opacity-50"
+      )}
+      onClick={() => onTaskClick(task.id)}
+    >
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-2">
+          <CardTitle className="text-sm font-medium line-clamp-2 flex-1">
+            {task.refinedTitle || task.rawTitle}
+          </CardTitle>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            {/* Drag handle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0 cursor-grab active:cursor-grabbing"
+              {...attributes}
+              {...listeners}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <GripVertical className="h-3 w-3" />
+            </Button>
+            {/* Task menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="h-6 w-6 p-0"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <MoreHorizontal className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                <DropdownMenuItem onClick={() => onTaskClick(task.id)}>
+                  View Details
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-red-600">
+                  Delete Task
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-0">
+        {/* Priority and Status badges */}
+        <div className="flex items-center gap-2 mb-2">
+          <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
+            {task.priority}
+          </Badge>
+          <Badge variant="outline" className={cn("flex items-center gap-1", column?.color, "text-white")}>
+            <Icon className="h-3 w-3" />
+            {column?.label}
+          </Badge>
+          {task.stage && (
+            <Badge variant="outline" className={stageColors[task.stage as keyof typeof stageColors]}>
+              {task.stage}
+            </Badge>
+          )}
+        </div>
+
+        {/* Description preview */}
+        {(task.refinedDescription || task.rawDescription) && (
+          <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
+            {task.refinedDescription || task.rawDescription}
+          </p>
+        )}
+
+        {/* Ready toggle */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Switch
+              id={`ready-${task.id}`}
+              checked={task.ready}
+              onCheckedChange={(checked) => {
+                onToggleReady(task.id, checked);
+              }}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <span className="text-xs text-muted-foreground">
+              {task.ready ? "Ready" : "Not Ready"}
+            </span>
+          </div>
+        </div>
+
+        {/* Repo Agent and Actor info */}
+        {task.repoAgent && (
+          <div className="text-xs text-muted-foreground mt-1">
+            Repo: {task.repoAgent.name}
+          </div>
+        )}
+        {task.actor && (
+          <div className="text-xs text-muted-foreground">
+            Actor: {task.actor.name}
+          </div>
+        )}
+
+        {/* Attachments count */}
+        {task.attachments && task.attachments.length > 0 && (
+          <div className="text-xs text-muted-foreground mt-1">
+            {task.attachments.length} attachment(s)
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
+  const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
+  const [showProjectSettings, setShowProjectSettings] = useState(false);
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [newTask, setNewTask] = useState({
+    rawTitle: "",
+    rawDescription: "",
+    priority: "P3" as keyof typeof priorityColors,
+    repoAgentId: "",
+    actorId: ""
+  });
+
+  const queryClient = useQueryClient();
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
+
+  // Fetch project with tasks
+  const { data: project, isLoading, refetch } = useQuery(
+    orpc.projects.getWithTasks.queryOptions({
+      input: { id: projectId },
+    })
+  );
+
+  // Fetch repo agents for this project
+  const { data: repoAgents } = useQuery(
+    orpc.repoAgents.list.queryOptions({
+      input: { projectId },
+      enabled: !!projectId
+    })
+  );
+
+  // Fetch actors for this project
+  const { data: actors } = useQuery(
+    orpc.actors.list.queryOptions({
+      input: { projectId },
+      enabled: !!projectId
+    })
+  );
+
+  // Create task mutation
+  const createTaskMutation = useMutation({
+    mutationFn: orpc.tasks.create.mutate,
+    onSuccess: () => {
+      toast.success("Task created successfully");
+      setShowNewTaskDialog(false);
+      setNewTask({
+        rawTitle: "",
+        rawDescription: "",
+        priority: "P3",
+        repoAgentId: "",
+        actorId: ""
+      });
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to create task: " + error.message);
+    }
+  });
+
+  // Toggle ready mutation
+  const toggleReadyMutation = useMutation({
+    mutationFn: orpc.tasks.toggleReady.mutate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update task: " + error.message);
+    }
+  });
+
+  // Update task order mutation
+  const updateOrderMutation = useMutation({
+    mutationFn: orpc.tasks.updateOrder.mutate,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update task order: " + error.message);
+    }
+  });
+
+  // Group tasks by status and sort them
+  const groupedTasks = statusColumns.reduce((acc, column) => {
+    const columnTasks = (project?.tasks || [])
+      .filter((task: any) => task.status === column.id)
+      .sort((a: any, b: any) => {
+        // First sort by priority (P5 > P4 > P3 > P2 > P1)
+        const priorityOrder = { P5: 1, P4: 2, P3: 3, P2: 4, P1: 5 };
+        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 6;
+        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 6;
+        
+        if (aPriority !== bPriority) {
+          return aPriority - bPriority;
+        }
+        
+        // Then sort by column order (manual drag and drop order)
+        const aOrder = parseFloat(a.columnOrder || "1000");
+        const bOrder = parseFloat(b.columnOrder || "1000");
+        
+        if (aOrder !== bOrder) {
+          return aOrder - bOrder;
+        }
+        
+        // Finally sort by creation date
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+
+    acc[column.id] = columnTasks;
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
+
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    // Find the active task
+    const activeTask = project?.tasks?.find((t: any) => t.id === activeId);
+    if (!activeTask) return;
+
+    // Determine target status and position
+    let targetStatus = activeTask.status;
+    let targetTasks = groupedTasks[targetStatus];
+    
+    // Check if dropped on a different column
+    if (statusColumns.some(col => col.id === overId)) {
+      targetStatus = overId;
+      targetTasks = groupedTasks[targetStatus];
+    } else {
+      // Find which column the target task belongs to
+      for (const column of statusColumns) {
+        if (groupedTasks[column.id].some((t: any) => t.id === overId)) {
+          targetStatus = column.id;
+          targetTasks = groupedTasks[column.id];
+          break;
+        }
+      }
+    }
+
+    // Calculate new positions
+    const updates: Array<{ id: string; columnOrder: string; status?: string }> = [];
+    
+    if (targetStatus !== activeTask.status) {
+      // Moving to a different column
+      const targetIndex = targetTasks.findIndex((t: any) => t.id === overId);
+      const insertIndex = targetIndex >= 0 ? targetIndex : targetTasks.length;
+      
+      // Calculate new order for the moved task
+      let newOrder = "1000";
+      if (insertIndex === 0) {
+        // Insert at beginning
+        const firstTask = targetTasks[0];
+        if (firstTask) {
+          const firstOrder = parseFloat(firstTask.columnOrder || "1000");
+          newOrder = Math.max(firstOrder - 100, 1).toString();
+        } else {
+          newOrder = "1000";
+        }
+      } else if (insertIndex >= targetTasks.length) {
+        // Insert at end
+        const lastTask = targetTasks[targetTasks.length - 1];
+        if (lastTask) {
+          const lastOrder = parseFloat(lastTask.columnOrder || "1000");
+          newOrder = (lastOrder + 100).toString();
+        } else {
+          newOrder = "1000";
+        }
+      } else {
+        // Insert between tasks
+        const prevTask = targetTasks[insertIndex - 1];
+        const nextTask = targetTasks[insertIndex];
+        const prevOrder = parseFloat(prevTask?.columnOrder || "0");
+        const nextOrder = parseFloat(nextTask?.columnOrder || "2000");
+        newOrder = ((prevOrder + nextOrder) / 2).toString();
+      }
+      
+      updates.push({
+        id: activeId,
+        columnOrder: newOrder,
+        status: targetStatus
+      });
+    } else {
+      // Reordering within the same column
+      const activeIndex = targetTasks.findIndex((t: any) => t.id === activeId);
+      const overIndex = targetTasks.findIndex((t: any) => t.id === overId);
+      
+      if (activeIndex !== overIndex && activeIndex >= 0 && overIndex >= 0) {
+        // Respect priority - don't allow lower priority to move above higher priority
+        const activeTask = targetTasks[activeIndex];
+        const overTask = targetTasks[overIndex];
+        
+        const priorityOrder = { P5: 1, P4: 2, P3: 3, P2: 4, P1: 5 };
+        const activePriority = priorityOrder[activeTask.priority as keyof typeof priorityOrder] || 6;
+        const overPriority = priorityOrder[overTask.priority as keyof typeof priorityOrder] || 6;
+        
+        // Only allow reordering within the same priority level
+        if (activePriority === overPriority) {
+          // Calculate new positions for reordering
+          const isMovingDown = overIndex > activeIndex;
+          
+          if (isMovingDown) {
+            // Moving down: insert after the target
+            const nextTask = targetTasks[overIndex + 1];
+            const overOrder = parseFloat(overTask.columnOrder || "1000");
+            const nextOrder = parseFloat(nextTask?.columnOrder || "2000");
+            const newOrder = ((overOrder + nextOrder) / 2).toString();
+            
+            updates.push({
+              id: activeId,
+              columnOrder: newOrder
+            });
+          } else {
+            // Moving up: insert before the target
+            const prevTask = targetTasks[overIndex - 1];
+            const prevOrder = parseFloat(prevTask?.columnOrder || "0");
+            const overOrder = parseFloat(overTask.columnOrder || "1000");
+            const newOrder = ((prevOrder + overOrder) / 2).toString();
+            
+            updates.push({
+              id: activeId,
+              columnOrder: newOrder
+            });
+          }
+        } else {
+          // Show message that you can't reorder across priorities
+          toast.info("Tasks can only be reordered within the same priority level");
+          return;
+        }
+      }
+    }
+
+    // Apply updates
+    if (updates.length > 0) {
+      updateOrderMutation.mutate({
+        projectId,
+        tasks: updates
+      });
+    }
+  };
+
+  const handleTaskClick = (taskId: string) => {
+    setSelectedTaskId(taskId);
+  };
+
+  const handleToggleReady = (taskId: string, ready: boolean) => {
+    toggleReadyMutation.mutate({ id: taskId, ready });
+  };
+
+  const handleCreateTask = () => {
+    if (!newTask.rawTitle || !newTask.repoAgentId) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+
+    // Calculate columnOrder for new task (place at end of column)
+    const columnTasks = groupedTasks[newTaskColumn] || [];
+    const lastTask = columnTasks[columnTasks.length - 1];
+    const newOrder = lastTask ? (parseFloat(lastTask.columnOrder || "1000") + 100).toString() : "1000";
+
+    createTaskMutation.mutate({
+      projectId,
+      ...newTask,
+      columnOrder: newOrder
+    });
+  };
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
+
+  const activeTask = activeId ? project?.tasks?.find((t: any) => t.id === activeId) : null;
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">{project?.name}</h1>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => setShowProjectSettings(true)} variant="outline" size="sm">
+            <Settings className="h-4 w-4 mr-2" />
+            Settings
+          </Button>
+          <Button onClick={() => refetch()} variant="outline" size="sm">
+            Refresh
+          </Button>
+        </div>
+      </div>
+
+      {/* Kanban Board with Drag and Drop */}
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-4 pb-4">
+            {statusColumns.map((column) => {
+              const columnTasks = groupedTasks[column.id] || [];
+              const Icon = column.icon;
+
+              return (
+                <div key={column.id} className="flex-shrink-0 w-80">
+                  <div className="bg-muted/50 rounded-lg p-4">
+                    {/* Column Header */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className={cn("w-3 h-3 rounded-full", column.color)} />
+                        <h3 className="font-semibold">{column.label}</h3>
+                        <Badge variant="secondary">{columnTasks.length}</Badge>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setNewTaskColumn(column.id);
+                          setShowNewTaskDialog(true);
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+
+                    {/* Tasks */}
+                    <ScrollArea className="h-[calc(100vh-250px)]">
+                      <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                        <div className="space-y-0">
+                          {columnTasks.map((task) => (
+                            <TaskCard
+                              key={task.id}
+                              task={task}
+                              onTaskClick={handleTaskClick}
+                              onToggleReady={handleToggleReady}
+                            />
+                          ))}
+                        </div>
+                      </SortableContext>
+                    </ScrollArea>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+
+        {/* Drag Overlay */}
+        <DragOverlay>
+          {activeTask ? (
+            <TaskCard
+              task={activeTask}
+              onTaskClick={() => {}}
+              onToggleReady={() => {}}
+            />
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+
+      {/* New Task Dialog */}
+      <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+            <DialogDescription>
+              Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Title</Label>
+              <Input
+                id="task-title"
+                placeholder="Task title"
+                value={newTask.rawTitle}
+                onChange={(e) => setNewTask({ ...newTask, rawTitle: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-description">Description</Label>
+              <Textarea
+                id="task-description"
+                placeholder="Task description (optional)"
+                value={newTask.rawDescription}
+                onChange={(e) => setNewTask({ ...newTask, rawDescription: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="task-priority">Priority</Label>
+                <Select
+                  value={newTask.priority}
+                  onValueChange={(value) => setNewTask({ ...newTask, priority: value as any })}
+                >
+                  <SelectTrigger id="task-priority">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="P5">P5 - Highest</SelectItem>
+                    <SelectItem value="P4">P4 - High</SelectItem>
+                    <SelectItem value="P3">P3 - Medium</SelectItem>
+                    <SelectItem value="P2">P2 - Low</SelectItem>
+                    <SelectItem value="P1">P1 - Lowest</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="task-repo-agent">Repo Agent</Label>
+                <Select
+                  value={newTask.repoAgentId}
+                  onValueChange={(value) => setNewTask({ ...newTask, repoAgentId: value })}
+                >
+                  <SelectTrigger id="task-repo-agent">
+                    <SelectValue placeholder="Select repo agent" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {repoAgents?.map((agent: any) => (
+                      <SelectItem key={agent.id} value={agent.id}>
+                        {agent.name} ({agent.clientType})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-actor">Actor (Optional)</Label>
+              <Select
+                value={newTask.actorId}
+                onValueChange={(value) => setNewTask({ ...newTask, actorId: value })}
+              >
+                <SelectTrigger id="task-actor">
+                  <SelectValue placeholder="Select actor (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">None (Use Default)</SelectItem>
+                  {actors?.map((actor: any) => (
+                    <SelectItem key={actor.id} value={actor.id}>
+                      {actor.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewTaskDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
+              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Project Settings Dialog */}
+      {showProjectSettings && (
+        <ProjectSettingsComprehensive
+          projectId={projectId}
+          open={showProjectSettings}
+          onOpenChange={setShowProjectSettings}
+        />
+      )}
+    </div>
+  );
+}

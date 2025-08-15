@@ -2,7 +2,7 @@ import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { tasks, projects, repoAgents, actors } from "../db/schema/simplified";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 // WebSocket notification removed - agents now use HTTP polling
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
@@ -41,7 +41,19 @@ export const tasksRouter = o.router({
         .leftJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .where(eq(tasks.projectId, input.projectId))
-        .orderBy(tasks.priority, desc(tasks.createdAt));
+        .orderBy(
+          tasks.status,
+          sql`CASE ${tasks.priority}
+              WHEN 'P5' THEN 1
+              WHEN 'P4' THEN 2
+              WHEN 'P3' THEN 3
+              WHEN 'P2' THEN 4
+              WHEN 'P1' THEN 5
+              ELSE 6
+            END`,
+          sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
+          desc(tasks.createdAt)
+        );
 
       return results.map(r => ({
         ...r.task,
@@ -177,7 +189,8 @@ export const tasksRouter = o.router({
       stage: v.optional(taskStageEnum),
       priority: v.optional(priorityEnum),
       ready: v.optional(v.boolean()),
-      attachments: v.optional(v.array(v.any()))
+      attachments: v.optional(v.array(v.any())),
+      columnOrder: v.optional(v.string())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
@@ -212,6 +225,7 @@ export const tasksRouter = o.router({
       if (input.priority !== undefined) updates.priority = input.priority;
       if (input.ready !== undefined) updates.ready = input.ready;
       if (input.attachments !== undefined) updates.attachments = input.attachments;
+      if (input.columnOrder !== undefined) updates.columnOrder = input.columnOrder;
 
       const updated = await db
         .update(tasks)
@@ -289,5 +303,76 @@ export const tasksRouter = o.router({
         .returning();
 
       return updated[0];
+    }),
+
+  updateOrder: protectedProcedure
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid()),
+      tasks: v.array(v.object({
+        id: v.pipe(v.string(), v.uuid()),
+        columnOrder: v.string(),
+        status: v.optional(taskStatusEnum) // Allow moving between columns
+      }))
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify project ownership
+      const project = await db
+        .select()
+        .from(projects)
+        .where(
+          and(
+            eq(projects.id, input.projectId),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (project.length === 0) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      // Update all tasks in a transaction
+      const updatedTasks = [];
+      
+      for (const taskUpdate of input.tasks) {
+        // Verify task belongs to project and user
+        const task = await db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.id, taskUpdate.id),
+              eq(tasks.projectId, input.projectId)
+            )
+          )
+          .limit(1);
+
+        if (task.length === 0) {
+          throw new Error(`Task ${taskUpdate.id} not found or unauthorized`);
+        }
+
+        const updates: any = {
+          columnOrder: taskUpdate.columnOrder,
+          updatedAt: new Date()
+        };
+
+        if (taskUpdate.status !== undefined) {
+          updates.status = taskUpdate.status;
+          // Clear stage when moving to todo or done
+          if (taskUpdate.status === 'todo' || taskUpdate.status === 'done') {
+            updates.stage = null;
+          }
+        }
+
+        const updated = await db
+          .update(tasks)
+          .set(updates)
+          .where(eq(tasks.id, taskUpdate.id))
+          .returning();
+
+        updatedTasks.push(updated[0]);
+      }
+
+      return { success: true, updated: updatedTasks };
     })
 });
