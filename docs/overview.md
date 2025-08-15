@@ -96,7 +96,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - Tick "Ready" checkbox when ready for AI pickup
 
 ### Agent Picks Up Card
-Agents automatically pick up ready cards in priority order (P1-P5, then card order within column).
+Agents automatically pick up ready cards in priority order (5-1, then card order within column).
 
 **Stage 1: Refine**
 - Agent understands and refines the raw title/description
@@ -134,7 +134,7 @@ Agents automatically pick up ready cards in priority order (P1-P5, then card ord
 - **Agent Automation**: Autonomous pickup and execution
 - **Project Memory**: Database-stored context for agents
 - **Task Attachments**: File/image support
-- **Priority System**: Unified P1-P5 priority
+- **Priority System**: Unified 1-5 priority
 - **WebSocket Communication**: Real-time agent coordination
 - **Single Active Session**: One coding session per client type
 - **Authentication**: Monster Auth for single owner

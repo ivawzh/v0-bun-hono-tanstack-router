@@ -15,21 +15,19 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 
 ### Technical Features
 
-- **Local-first Development**: Uses PGlite (embedded PostgreSQL) - no external database needed for development
 - **Day-1 Security**: All endpoints protected with authentication from the start
-- **Agent Gateway**: Secure HTTPS/WebSocket gateway for Windows PC agents
-- **MCP Protocol**: Model Context Protocol servers for standardized AI agent communication
-- **Multi-model Support**: Agents can use different AI models (OpenAI, OpenRouter, Anthropic, etc.)
-- **Webhook Notifications**: Support for both in-app and webhook notifications
+- **Agent Orchestration**: Secure WebSocket connection for agent-to-server communication
+- **MCP Server**: Model Context Protocol servers for standardized AI agent communication
+- **Multi-model Support**: multiple code agents, supporting Claude Code, Cursor CLI, etc.
 
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 18 + TypeScript + TanStack Router + TailwindCSS + shadcn/ui
 - **Backend**: Hono + oRPC + Drizzle ORM
-- **Database**: PGlite (dev) / PostgreSQL (production)
+- **Database**: PostgreSQL
 - **Runtime**: Bun
 - **Auth**: Monster Auth with Google OAuth
-- **AI**: OpenAI API (voice), configurable LLM providers for agents
+- **AI**: Claude Code, Cursor CLI
 
 ## 📋 Prerequisites
 
@@ -147,32 +145,64 @@ The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Cla
 - Ask questions and receive answers
 - Update task status
 
-#### Setting Up Agent Authentication
+#### Setting Up Claude Code with MCP (Recommended)
 
-1. **Generate a Secure Token** (if you haven't already):
+Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Claude Code connectivity:
 
+1. **Generate Authentication Token**:
    ```bash
    openssl rand -hex 32
    ```
 
-2. **Add to Server Environment**:
-   - Add the token to `apps/server/.env` as `AGENT_AUTH_TOKEN`
+2. **Configure Server** (add to `apps/server/.env`):
+   ```bash
+   AGENT_AUTH_TOKEN=your-generated-token-here
+   ```
 
-3. **Configure Your AI Agent**:
-   - **For Claude Code**: Add to your project's `.claudecode/config.json` or as an environment variable
-   - **For Windsurf/Cursor**: Set in the extension settings
-   - **For Custom Agents**: Include in the `Authorization` header as `Bearer <token>`
+3. **Configure Claude Code Environment**:
+   ```bash
+   # Add to your shell profile (~/.bashrc, ~/.zshrc)
+   export AGENT_AUTH_TOKEN="your-generated-token-here"
+   ```
 
-4. **Create an Agent in Solo Unicorn**:
+4. **Verify MCP Configuration**:
+   - The `.mcp.json` file in the repository root is pre-configured
+   - Start Claude Code from the Solo Unicorn repository directory
+   - Claude Code will automatically connect to Solo Unicorn's MCP server
+
+5. **Test the Connection**:
+   ```bash
+   # Start Solo Unicorn server
+   cd apps/server && bun dev
+
+   # Test MCP health check
+   curl -X POST http://localhost:8500/mcp \
+     -H "Authorization: Bearer $AGENT_AUTH_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"server.health","arguments":{}}}'
+   ```
+
+**📖 For detailed MCP setup instructions, see [MCP_SETUP.md](MCP_SETUP.md)**
+
+#### Alternative: Manual Agent Setup
+
+For non-MCP agents or custom integrations:
+
+1. **Create an Agent in Solo Unicorn**:
    - Go to Agents page and create a new agent
    - Choose role (PM, Designer, Architect, Engineer, QA)
    - Select runtime (Windows Runner or Cloud)
    - Note the Agent ID for configuration
 
-5. **Agent API Endpoints**:
+2. **Agent API Endpoints**:
    - Agent Gateway: `http://localhost:8500/agent/*`
    - MCP Server: `http://localhost:8500/mcp/*`
    - WebSocket: `ws://localhost:8500/agent/ws` (for real-time updates)
+
+3. **Configure Your AI Agent**:
+   - **For Claude Code**: Add to your project's `.claudecode/config.json` or as an environment variable
+   - **For Windsurf/Cursor**: Set in the extension settings
+   - **For Custom Agents**: Include in the `Authorization` header as `Bearer <token>`
 
 ### Voice Input
 
@@ -445,31 +475,6 @@ test('should do something', async ({ page }) => {
 });
 ```
 
-## 🐛 Troubleshooting
-
-### Port Already in Use
-
-```bash
-# Kill all development processes
-pkill -f bun
-pkill -f vite
-
-# Restart
-bun dev
-```
-
-### Database Connection Issues
-
-- For development: No configuration needed (PGlite)
-- For production: Verify `DATABASE_URL` is correct
-- Check PostgreSQL is running and accessible
-
-### Voice Input Not Working
-
-1. Check browser microphone permissions
-2. Verify `OPENAI_API_KEY` is set
-3. Ensure HTTPS in production (required for getUserMedia)
-
 ## 📝 Development
 
 ### Project Structure
@@ -481,7 +486,7 @@ solo-unicorn/
 │   │   ├── src/
 │   │   │   ├── db/       # Database schema & migrations
 │   │   │   ├── routers/  # API endpoints
-│   │   │   ├── gateway/  # Agent gateway
+│   │   │   ├── agents/  # Agent management
 │   │   │   ├── mcp/      # MCP protocol servers
 │   │   │   └── lib/      # Utilities & auth
 │   │   └── package.json
@@ -558,98 +563,6 @@ We use `@drepkovsky/drizzle-migrations` to add up/down rollback support on top o
 References:
 
 - Drizzle migrations tool: [drepkovsky/drizzle-migrations](https://github.com/drepkovsky/drizzle-migrations)
-
-## 🚢 Deployment
-
-### Environment Configuration
-
-Solo Unicorn supports multiple environments:
-
-- **dev** - Local development (default)
-- **test** - Test environment for E2E tests
-- **alpha** - Staging/pre-production environment
-- **production** - Production environment
-
-### Database URLs by Environment
-
-Set these environment variables based on your deployment:
-
-```bash
-# Development (local)
-DATABASE_URL=postgresql://username@localhost:5432/solo_unicorn_dev
-
-# Test (local)
-DATABASE_TEST_URL=postgresql://username@localhost:5432/solo_unicorn_test
-
-# Alpha/Staging
-DATABASE_ALPHA_URL=postgresql://user:pass@staging-host:5432/solo_unicorn_alpha
-
-# Production
-DATABASE_PROD_URL=postgresql://user:pass@prod-host:5432/solo_unicorn_prod
-```
-
-### Vercel Deployment
-
-1. **Connect Repository**: Link your GitHub repository to Vercel
-
-2. **Set Environment Variables** in Vercel dashboard:
-   ```
-   NODE_ENV=production
-   DATABASE_URL=your_production_database_url
-   MONSTER_AUTH_URL=https://auth.monstermake.limited
-   CORS_ORIGIN=https://your-domain.vercel.app
-   AGENT_AUTH_TOKEN=your_secure_token
-   OPENAI_API_KEY=your_openai_key
-   ```
-
-3. **Automatic Migrations**: Migrations run automatically after build via `postbuild` hook
-
-4. **Build Settings** (automatically configured via vercel.json):
-   - Build Command: `bun install && bun run build`
-   - Output Directory: `apps/web/dist`
-   - Install Command: Uses Bun runtime
-
-### Docker Deployment
-
-```dockerfile
-# Dockerfile example
-FROM oven/bun:1.0
-WORKDIR /app
-COPY . .
-RUN bun install
-RUN bun build
-EXPOSE 3000
-CMD ["bun", "run", "start"]
-```
-
-## 🤝 Contributing
-
-This is a solo project optimized for single-user usage, but contributions are welcome!
-
-1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Open a Pull Request
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) file for details
-
-## 🆘 Support
-
-- Check the [requirements.md](docs/requirements.md) for detailed specifications
-- Open an issue on GitHub for bugs or feature requests
-- Review the codebase - it's self-documenting with TypeScript
-
-## 🎯 Roadmap
-
-- [ ] Multiple concurrent agents
-- [ ] Advanced Git integration
-- [ ] CI/CD pipeline orchestration
-- [ ] Vector search for requirements
-- [ ] Mobile app (React Native)
-- [ ] Multi-user support (post-MVP)
 
 ---
 

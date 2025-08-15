@@ -1,0 +1,91 @@
+{
+  "$schema": "https://schemas.anthropic.com/mcp/v1.0.0/config.json",
+  "description": "MCP configuration for Solo Unicorn project management system",
+  "mcpServers": {
+    "solo-unicorn": {
+      "command": "node",
+      "args": ["-e", "console.log('Solo Unicorn MCP server accessible via HTTP at localhost:8500/mcp')"],
+      "env": {
+        "SOLO_UNICORN_URL": "http://localhost:8500",
+        "AGENT_AUTH_TOKEN": "${AGENT_AUTH_TOKEN}"
+      },
+      "description": "Solo Unicorn task management and agent coordination via HTTP"
+    }
+  },
+  "mcpHttpServers": {
+    "solo-unicorn": {
+      "url": "http://localhost:8500/mcp",
+      "headers": {
+        "Authorization": "Bearer ${AGENT_AUTH_TOKEN}",
+        "Content-Type": "application/json"
+      },
+      "description": "Solo Unicorn task management and agent coordination tools",
+      "capabilities": {
+        "tools": true,
+        "resources": false,
+        "prompts": false
+      },
+      "tools": {
+        "agent.auth": {
+          "description": "Validate a code agent by client type and repo path, then mark it active",
+          "parameters": {
+            "clientType": "enum: claude_code, opencode",
+            "repoPath": "string: local repository path"
+          }
+        },
+        "agent.requestTask": {
+          "description": "Assign the highest-priority ready task for this agent",
+          "requires": "x-agent-id header"
+        },
+        "agent.health": {
+          "description": "Report runtime status for the agent",
+          "parameters": {
+            "status": "enum: available, busy, rate_limited, error"
+          },
+          "requires": "x-agent-id header"
+        },
+        "agent.rateLimit": {
+          "description": "Mark the agent as rate limited with optional resolve time",
+          "parameters": {
+            "sessionId": "uuid",
+            "resolveAt": "datetime"
+          },
+          "requires": "x-agent-id header"
+        },
+        "agent.sessionComplete": {
+          "description": "Mark a session completed or failed and update task state",
+          "parameters": {
+            "sessionId": "uuid",
+            "success": "boolean",
+            "error": "string (optional)"
+          },
+          "requires": "x-agent-id header"
+        },
+        "context.read": {
+          "description": "Read project and task context for the current session",
+          "parameters": {
+            "taskId": "uuid (optional)",
+            "projectId": "uuid (optional)"
+          }
+        },
+        "cards.update": {
+          "description": "Update task fields during workflow stages",
+          "parameters": {
+            "taskId": "uuid",
+            "updates": "object with refinedTitle, refinedDescription, plan, status, stage"
+          }
+        },
+        "memory.update": {
+          "description": "Update project memory with learnings and context",
+          "parameters": {
+            "projectId": "uuid",
+            "memory": "string"
+          }
+        },
+        "server.health": {
+          "description": "Return MCP server status"
+        }
+      }
+    }
+  }
+}
