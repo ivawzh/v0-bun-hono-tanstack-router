@@ -117,16 +117,16 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-grab hover:shadow-md transition-shadow mb-3 kanban-card",
+        "cursor-grab hover:shadow-md transition-shadow kanban-card",
         isDragging && "opacity-50 cursor-grabbing"
       )}
       {...attributes}
       {...listeners}
     >
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-2 kanban-card-header">
         <div className="flex items-start justify-between gap-2">
           <CardTitle 
-            className="text-sm font-medium line-clamp-2 flex-1 cursor-pointer break-all max-w-full overflow-hidden" 
+            className="text-sm font-medium flex-1 cursor-pointer kanban-card-title" 
             onClick={(e) => {
               e.stopPropagation();
               onTaskClick(task.id);
@@ -161,7 +161,7 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 kanban-card-content">
         {/* Priority and Status badges */}
         <div className="flex items-center gap-1 mb-2 flex-wrap">
           <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
@@ -180,7 +180,7 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
 
         {/* Description preview */}
         {(task.refinedDescription || task.rawDescription) && (
-          <p className="text-xs text-muted-foreground mb-2 line-clamp-2 break-all max-w-full overflow-hidden">
+          <p className="text-xs text-muted-foreground mb-2 kanban-card-text">
             {task.refinedDescription || task.rawDescription}
           </p>
         )}
@@ -204,12 +204,12 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
 
         {/* Repo Agent and Actor info */}
         {task.repoAgent && (
-          <div className="text-xs text-muted-foreground mt-1 break-all max-w-full overflow-hidden">
+          <div className="text-xs text-muted-foreground mt-1 kanban-card-text">
             Repo: {task.repoAgent.name}
           </div>
         )}
         {task.actor && (
-          <div className="text-xs text-muted-foreground break-all max-w-full overflow-hidden">
+          <div className="text-xs text-muted-foreground kanban-card-text">
             Actor: {task.actor.name}
           </div>
         )}
@@ -545,7 +545,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               const Icon = column.icon;
 
               return (
-                <div key={column.id} className="flex-shrink-0 kanban-column">
+                <div key={column.id} className="kanban-column">
                   <div className="bg-muted/50 rounded-lg kanban-column-content">
                     {/* Column Header */}
                     <div className="flex items-center justify-between mb-4">
