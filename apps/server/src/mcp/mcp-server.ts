@@ -22,31 +22,53 @@ export function getOrchestrator() {
 // Logging utilities for debug and history tracing
 const logger = {
   info: (message: string, context?: Record<string, any>) => {
-    console.log(`[MCP-INFO] ${new Date().toISOString()} ${message}`, context ? JSON.stringify(context) : '');
+    console.log(
+      `[MCP-INFO] ${new Date().toISOString()} ${message}`,
+      context ? JSON.stringify(context) : ""
+    );
   },
   error: (message: string, error?: any, context?: Record<string, any>) => {
-    console.error(`[MCP-ERROR] ${new Date().toISOString()} ${message}`, error?.message || error, context ? JSON.stringify(context) : '');
+    console.error(
+      `[MCP-ERROR] ${new Date().toISOString()} ${message}`,
+      error?.message || error,
+      context ? JSON.stringify(context) : ""
+    );
   },
   debug: (message: string, context?: Record<string, any>) => {
-    if (process.env.NODE_ENV === 'development' || process.env.DEBUG_MCP === 'true') {
-      console.log(`[MCP-DEBUG] ${new Date().toISOString()} ${message}`, context ? JSON.stringify(context) : '');
+    if (
+      process.env.NODE_ENV === "development" ||
+      process.env.DEBUG_MCP === "true"
+    ) {
+      console.log(
+        `[MCP-DEBUG] ${new Date().toISOString()} ${message}`,
+        context ? JSON.stringify(context) : ""
+      );
     }
   },
   auth: (message: string, context?: Record<string, any>) => {
-    console.log(`[MCP-AUTH] ${new Date().toISOString()} ${message}`, context ? JSON.stringify(context) : '');
+    console.log(
+      `[MCP-AUTH] ${new Date().toISOString()} ${message}`,
+      context ? JSON.stringify(context) : ""
+    );
   },
   tool: (toolName: string, action: string, context?: Record<string, any>) => {
-    console.log(`[MCP-TOOL] ${new Date().toISOString()} ${toolName}.${action}`, context ? JSON.stringify(context) : '');
-  }
+    console.log(
+      `[MCP-TOOL] ${new Date().toISOString()} ${toolName}.${action}`,
+      context ? JSON.stringify(context) : ""
+    );
+  },
 };
 
 // Initialize simplified MCP server with only essential tools
 const server = new McpServer({
   name: "solo-unicorn-mcp",
-  version: "1.0.0"
+  version: "1.0.0",
 });
 
-logger.info("Simplified MCP Server initialized", { name: "solo-unicorn-mcp", version: "1.0.0" });
+logger.info("Simplified MCP Server initialized", {
+  name: "solo-unicorn-mcp",
+  version: "1.0.0",
+});
 
 // Small helper to enforce bearer auth from headers
 function assertBearer(authHeader: string | string[] | undefined) {
@@ -55,37 +77,48 @@ function assertBearer(authHeader: string | string[] | undefined) {
   // Handle both string and string[] cases
   const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
-  logger.debug("Authentication attempt", { hasAuthHeader: !!headerValue, startsWithBearer: headerValue?.startsWith("Bearer ") });
+  logger.debug("Authentication attempt", {
+    hasAuthHeader: !!headerValue,
+    startsWithBearer: headerValue?.startsWith("Bearer "),
+  });
 
   if (!headerValue || !headerValue.startsWith("Bearer ")) {
-    logger.auth("Authentication failed: missing or invalid token format", { headerValue: headerValue?.substring(0, 20) + "..." });
+    logger.auth("Authentication failed: missing or invalid token format", {
+      headerValue: headerValue?.substring(0, 20) + "...",
+    });
     throw new Error("unauthorized: missing token");
   }
   const token = headerValue.slice(7);
   if (token !== expected) {
-    logger.auth("Authentication failed: invalid token", { tokenLength: token.length });
+    logger.auth("Authentication failed: invalid token", {
+      tokenLength: token.length,
+    });
     throw new Error("unauthorized: invalid token");
   }
 
   logger.auth("Authentication successful");
 }
 
-// Essential tool 1: task.update
-server.tool(
-  "task.update",
-  "Update task fields during workflow stages.",
+server.registerTool("task.update",
   {
-    taskId: z.string().uuid(),
-    updates: z.object({
-      refinedTitle: z.string().optional(),
-      refinedDescription: z.string().optional(),
-      plan: z.unknown().optional(),
-      status: z.enum(["todo", "doing", "done"]).optional(),
-      stage: z.enum(["refine", "kickoff", "execute"]).optional(),
-    })
+    title: "Update a task",
+    description: "Update task fields during workflow stages.",
+    inputSchema: {
+      taskId: z.string().uuid(),
+      updates: z.object({
+        refinedTitle: z.string().optional(),
+        refinedDescription: z.string().optional(),
+        plan: z.unknown().optional(),
+        status: z.enum(["todo", "doing", "done"]).optional(),
+        stage: z.enum(["refine", "kickoff", "execute"]).optional(),
+      }),
+    },
   },
   async ({ taskId, updates }, { requestInfo }) => {
-    logger.tool("task.update", "start", { taskId, updates: updates as Record<string, any> });
+    logger.tool("task.update", "start", {
+      taskId,
+      updates: updates as Record<string, any>,
+    });
 
     try {
       assertBearer(requestInfo?.headers?.authorization);
@@ -94,41 +127,58 @@ server.tool(
         .update(tasks)
         .set({
           ...updates,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
         .where(eq(tasks.id, taskId));
 
-      logger.tool("task.update", "success", { taskId, updatedFields: Object.keys(updates) });
+      logger.tool("task.update", "success", {
+        taskId,
+        updatedFields: Object.keys(updates),
+      });
 
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: true, taskId, updates })
-        }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ success: true, taskId, updates }),
+          },
+        ],
       };
     } catch (error) {
-      logger.error("task.update failed", error, { taskId, updates: updates as Record<string, any> });
+      logger.error("task.update failed", error, {
+        taskId,
+        updates: updates as Record<string, any>,
+      });
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) })
-        }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
       };
     }
   }
 );
 
-// Essential tool 2: agent.rateLimit
-server.tool(
-  "agent.rateLimit",
-  "Mark the agent as rate limited with an optional resolve time.",
+
+server.registerTool("agent.rateLimit",
   {
-    sessionId: z.string().uuid(),
-    resolveAt: z.string().datetime()
+    title: "Agent Rate Limit",
+    description: "Mark the agent as rate limited with an optional resolve time.",
+    inputSchema: {
+      sessionId: z.string().uuid(),
+      resolveAt: z.string().datetime(),
+    },
   },
   async ({ sessionId, resolveAt }, { requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
-    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    const agentId = Array.isArray(agentIdHeader)
+      ? agentIdHeader[0]
+      : agentIdHeader;
 
     logger.tool("agent.rateLimit", "start", { agentId, sessionId, resolveAt });
 
@@ -136,18 +186,36 @@ server.tool(
       assertBearer(requestInfo?.headers?.authorization);
 
       if (!agentId) {
-        logger.tool("agent.rateLimit", "failed", { reason: "missing_agent_id", sessionId });
+        logger.tool("agent.rateLimit", "failed", {
+          reason: "missing_agent_id",
+          sessionId,
+        });
         return {
-          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: false,
+                message: "Agent ID header required",
+              }),
+            },
+          ],
         };
       }
 
-      await db.update(repoAgents).set({ status: "rate_limited", updatedAt: new Date() }).where(eq(repoAgents.id, agentId));
+      await db
+        .update(repoAgents)
+        .set({ status: "rate_limited", updatedAt: new Date() })
+        .where(eq(repoAgents.id, agentId));
 
-      logger.tool("agent.rateLimit", "success", { agentId, sessionId, resolveAt });
+      logger.tool("agent.rateLimit", "success", {
+        agentId,
+        sessionId,
+        resolveAt,
+      });
 
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true }) }]
+        content: [{ type: "text", text: JSON.stringify({ success: true }) }],
       };
     } catch (error) {
       logger.error("agent.rateLimit failed", error, { agentId, sessionId });
@@ -156,16 +224,20 @@ server.tool(
   }
 );
 
-// Essential tool 3: project.memory.update
-server.tool(
-  "project.memory.update",
-  "Update project memory with learnings and context.",
+server.registerTool("project.memory.update",
   {
-    projectId: z.string().uuid(),
-    memory: z.string()
+    title: "Update Project Memory",
+    description: "Update project memory with learnings and context.",
+    inputSchema: {
+      projectId: z.string().uuid(),
+      memory: z.string(),
+    },
   },
   async ({ projectId, memory }, { requestInfo }) => {
-    logger.tool("project.memory.update", "start", { projectId, memoryLength: memory.length });
+    logger.tool("project.memory.update", "start", {
+      projectId,
+      memoryLength: memory.length,
+    });
 
     try {
       assertBearer(requestInfo?.headers?.authorization);
@@ -174,36 +246,50 @@ server.tool(
         .update(projects)
         .set({
           memory,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
         .where(eq(projects.id, projectId));
 
-      logger.tool("project.memory.update", "success", { projectId, memoryLength: memory.length });
+      logger.tool("project.memory.update", "success", {
+        projectId,
+        memoryLength: memory.length,
+      });
 
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: true, projectId })
-        }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({ success: true, projectId }),
+          },
+        ],
       };
     } catch (error) {
-      logger.error("project.memory.update failed", error, { projectId, memoryLength: memory.length });
+      logger.error("project.memory.update failed", error, {
+        projectId,
+        memoryLength: memory.length,
+      });
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) })
-        }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
       };
     }
   }
 );
 
-// Essential tool 4: project.memory.get
-server.tool(
-  "project.memory.get",
-  "Get project memory and context.",
+server.registerTool("project.memory.get",
   {
-    projectId: z.string().uuid()
+    title: "Get Project Memory",
+    description: "Get project memory and context.",
+    inputSchema: {
+      projectId: z.string().uuid(),
+    },
   },
   async ({ projectId }, { requestInfo }) => {
     logger.tool("project.memory.get", "start", { projectId });
@@ -212,50 +298,65 @@ server.tool(
       assertBearer(requestInfo?.headers?.authorization);
 
       const project = await db.query.projects.findFirst({
-        where: eq(projects.id, projectId)
+        where: eq(projects.id, projectId),
       });
 
       if (!project) {
         logger.tool("project.memory.get", "not_found", { projectId });
         return {
-          content: [{
-            type: "text",
-            text: JSON.stringify({ success: false, error: "Project not found" })
-          }]
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: false,
+                error: "Project not found",
+              }),
+            },
+          ],
         };
       }
 
-      logger.tool("project.memory.get", "success", { projectId, hasMemory: !!project.memory });
+      logger.tool("project.memory.get", "success", {
+        projectId,
+        hasMemory: !!project.memory,
+      });
 
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ 
-            success: true, 
-            projectId,
-            memory: project.memory || "",
-            project: {
-              id: project.id,
-              name: project.name,
-              description: project.description
-            }
-          })
-        }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: true,
+              projectId,
+              memory: project.memory || "",
+              project: {
+                id: project.id,
+                name: project.name,
+                description: project.description,
+              },
+            }),
+          },
+        ],
       };
     } catch (error) {
       logger.error("project.memory.get failed", error, { projectId });
       return {
-        content: [{
-          type: "text",
-          text: JSON.stringify({ success: false, error: error instanceof Error ? error.message : String(error) })
-        }]
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              success: false,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          },
+        ],
       };
     }
   }
 );
 
 // Import Node.js HTTP module for native server
-import { createServer } from 'http';
+import { createServer } from "http";
 
 // Global MCP HTTP server instance
 let mcpHttpServer: any = null;
@@ -269,13 +370,16 @@ async function createFreshTransport() {
       await currentTransport.close();
       logger.debug("Previous transport closed successfully");
     } catch (e) {
-      logger.debug("Error closing previous transport:", e as Record<string, any>);
+      logger.debug(
+        "Error closing previous transport:",
+        e as Record<string, any>
+      );
     }
   }
 
   // Create new transport
   currentTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => Math.random().toString(36).substring(2, 15)
+    sessionIdGenerator: () => Math.random().toString(36).substring(2, 15),
   });
 
   // The key fix: we need to create a new server instance for each session
@@ -287,10 +391,13 @@ async function createFreshTransport() {
         await server.close();
         logger.debug("Previous server connection closed");
       } catch (e) {
-        logger.debug("Server was not connected or error closing:", e as Record<string, any>);
+        logger.debug(
+          "Server was not connected or error closing:",
+          e as Record<string, any>
+        );
       }
     }
-    
+
     // Connect the server to the new transport
     await server.connect(currentTransport);
     logger.debug("Fresh MCP transport created and server connected");
@@ -298,7 +405,7 @@ async function createFreshTransport() {
     logger.error("Error connecting server to fresh transport:", error);
     throw error;
   }
-  
+
   return currentTransport;
 }
 
@@ -317,12 +424,12 @@ export async function startMcpHttpServer(port = 8502) {
     logger.debug("MCP HTTP request received", {
       method: request.method,
       url: request.url,
-      headers: request.headers
+      headers: request.headers,
     });
 
     // Only handle requests to /mcp path (MCP Inspector expects this)
-    if (!request.url?.startsWith('/mcp')) {
-      response.writeHead(404, { 'Content-Type': 'application/json' });
+    if (!request.url?.startsWith("/mcp")) {
+      response.writeHead(404, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ error: "Not found - use /mcp endpoint" }));
       return;
     }
@@ -337,40 +444,53 @@ export async function startMcpHttpServer(port = 8502) {
       } catch (error) {
         logger.error("Failed to create fresh transport:", error);
       }
-      response.writeHead(200, { 'Content-Type': 'application/json' });
-      response.end(JSON.stringify({ success: true, message: "Session cleaned up and fresh transport created" }));
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.end(
+        JSON.stringify({
+          success: true,
+          message: "Session cleaned up and fresh transport created",
+        })
+      );
       return;
     }
 
     // Only handle POST requests for MCP protocol
     if (request.method !== "POST") {
-      response.writeHead(405, { 'Content-Type': 'application/json' });
+      response.writeHead(405, { "Content-Type": "application/json" });
       response.end(JSON.stringify({ error: "Method not allowed" }));
       return;
     }
 
     try {
       // Check authentication before processing request (if auth is enabled)
-      const authRequired = process.env.AGENT_AUTH_TOKEN && process.env.AGENT_AUTH_TOKEN !== 'disabled';
+      const authRequired =
+        process.env.AGENT_AUTH_TOKEN &&
+        process.env.AGENT_AUTH_TOKEN !== "disabled";
       if (authRequired) {
         try {
           assertBearer(request.headers.authorization);
           logger.auth("HTTP MCP request authenticated successfully");
         } catch (authError) {
-          logger.auth("HTTP MCP request authentication failed", { 
-            url: request.url, 
+          logger.auth("HTTP MCP request authentication failed", {
+            url: request.url,
             hasAuth: !!request.headers.authorization,
-            authToken: process.env.AGENT_AUTH_TOKEN?.substring(0, 8) + "..."
+            authToken: process.env.AGENT_AUTH_TOKEN?.substring(0, 8) + "...",
           });
-          response.writeHead(401, { 'Content-Type': 'application/json' });
-          response.end(JSON.stringify({ 
-            jsonrpc: "2.0",
-            error: {
-              code: -32600,
-              message: "Unauthorized: " + (authError instanceof Error ? authError.message : String(authError))
-            },
-            id: null
-          }));
+          response.writeHead(401, { "Content-Type": "application/json" });
+          response.end(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              error: {
+                code: -32600,
+                message:
+                  "Unauthorized: " +
+                  (authError instanceof Error
+                    ? authError.message
+                    : String(authError)),
+              },
+              id: null,
+            })
+          );
           return;
         }
       } else {
@@ -390,7 +510,7 @@ export async function startMcpHttpServer(port = 8502) {
       logger.debug("MCP request body", {
         method: body?.method,
         id: body?.id,
-        hasParams: !!body?.params
+        hasParams: !!body?.params,
       });
 
       // Handle the request using MCP transport
@@ -398,7 +518,7 @@ export async function startMcpHttpServer(port = 8502) {
         logger.debug("No current transport, creating fresh one");
         await createFreshTransport();
       }
-      
+
       await currentTransport.handleRequest(request, response, body);
 
       const duration = Date.now() - startTime;
@@ -407,19 +527,18 @@ export async function startMcpHttpServer(port = 8502) {
         duration,
         mcpMethod: body?.method,
         responseHeaders: response.getHeaders(),
-        responseStatusCode: response.statusCode
+        responseStatusCode: response.statusCode,
       });
-
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error("MCP HTTP request failed", error, {
         method: request.method,
         url: request.url,
-        duration
+        duration,
       });
 
       if (!response.headersSent) {
-        response.writeHead(500, { 'Content-Type': 'application/json' });
+        response.writeHead(500, { "Content-Type": "application/json" });
         response.end(JSON.stringify({ error: "MCP server error" }));
       }
     }
@@ -427,7 +546,9 @@ export async function startMcpHttpServer(port = 8502) {
 
   // Start listening
   mcpHttpServer.listen(port, () => {
-    logger.info(`Simplified MCP HTTP server listening on http://localhost:${port}`);
+    logger.info(
+      `Simplified MCP HTTP server listening on http://localhost:${port}`
+    );
   });
 
   return mcpHttpServer;
@@ -448,10 +569,13 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
 
   // Add a route that redirects to the native MCP server
   app.all(basePath, async (c: any) => {
-    return c.json({
-      error: "MCP endpoint moved",
-      message: `Please use the native MCP server at http://localhost:${process.env.MCP_PORT || 8502}/mcp`,
-      redirect: `http://localhost:${process.env.MCP_PORT || 8502}/mcp`
-    }, 301);
+    return c.json(
+      {
+        error: "MCP endpoint moved",
+        message: `Please use the native MCP server at http://localhost:${process.env.MCP_PORT || 8502}/mcp`,
+        redirect: `http://localhost:${process.env.MCP_PORT || 8502}/mcp`,
+      },
+      301
+    );
   });
 }
