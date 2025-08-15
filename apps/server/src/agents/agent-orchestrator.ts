@@ -1,94 +1,190 @@
 import { ClaudeCodeClient } from './claude-code-client';
-import type { ClaudeCodeSession, SessionOptions } from './claude-code-client';
+import type { SessionOptions } from './claude-code-client';
 import { PromptTemplateFactory } from './prompts/index';
 import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
+
+export interface AgentStatus {
+  agentId: string;
+  status: 'idle' | 'active' | 'rate_limited' | 'error';
+  lastHeartbeat: Date;
+  currentTaskId?: string;
+  sessionId?: string;
+}
 
 export interface AgentOrchestratorOptions {
   claudeCodeUrl: string;
   agentToken: string;
+  taskPushEnabled?: boolean;
+  heartbeatInterval?: number;
+  availabilityTimeout?: number;
 }
 
 export class AgentOrchestrator {
   private claudeCodeClient: ClaudeCodeClient;
   private isConnected = false;
-  private lastReconnectAttempt = 0;
-  private lastMemoryLog = 0;
-  private activeSessions = new Map<string, {
-    taskId: string;
-    repoAgentId: string;
-    stage: 'refine' | 'kickoff' | 'execute';
-    sessionId?: string;
-    startTime: Date;
-  }>();
+  private agentStatuses = new Map<string, AgentStatus>();
+  private taskPushEnabled: boolean;
+  private heartbeatInterval: number;
+  private availabilityTimeout: number;
+  private monitoringInterval: NodeJS.Timeout | null = null;
+  private logger = {
+    info: (msg: string, context?: any) => console.log(`[ImprovedOrchestrator] ${msg}`, context || ''),
+    error: (msg: string, error?: any, context?: any) => console.error(`[ImprovedOrchestrator] ${msg}`, error?.message || error, context || ''),
+    debug: (msg: string, context?: any) => {
+      if (process.env.DEBUG_ORCHESTRATOR === 'true') {
+        console.log(`[ImprovedOrchestrator-DEBUG] ${msg}`, context || '');
+      }
+    }
+  };
 
   constructor(options: AgentOrchestratorOptions) {
     this.claudeCodeClient = new ClaudeCodeClient({
       claudeCodeUrl: options.claudeCodeUrl,
       agentToken: options.agentToken
     });
+    this.taskPushEnabled = options.taskPushEnabled ?? true;
+    this.heartbeatInterval = options.heartbeatInterval ?? 30000; // 30 seconds
+    this.availabilityTimeout = options.availabilityTimeout ?? 10000; // 10 seconds
   }
 
   async initialize() {
     try {
       await this.claudeCodeClient.connect();
       this.isConnected = true;
-      console.log('🤖 Agent Orchestrator initialized');
+      this.logger.info('Agent Orchestrator initialized with push-based task assignment');
     } catch (error) {
-      console.error('❌ Failed to connect to Claude Code UI:', error instanceof Error ? error.message : String(error));
+      this.logger.error('Failed to connect to Claude Code UI', error);
       this.isConnected = false;
-      // Continue without connection - will retry automatically
     }
-    
-    // Start monitoring for ready tasks regardless of connection status
-    this.startTaskMonitoring();
+
+    // Start monitoring agents and tasks
+    this.startMonitoring();
   }
 
-  private async startTaskMonitoring() {
-    // Poll for ready tasks every 10 seconds
-    setInterval(async () => {
+  private startMonitoring() {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+    }
+
+    this.monitoringInterval = setInterval(async () => {
       try {
-        // Try to reconnect if not connected (every 30 seconds)
-        if (!this.isConnected) {
-          const now = Date.now();
-          if (now - this.lastReconnectAttempt > 30000) { // Only try every 30 seconds
-            this.lastReconnectAttempt = now;
-            const success = await this.claudeCodeClient.retryConnection();
-            if (success) {
-              this.isConnected = true;
-              console.log('🔄 Reconnected to Claude Code UI - task processing resumed');
-            }
+        await this.updateAgentStatuses();
+
+        if (this.taskPushEnabled) {
+          await this.pushTasksToAvailableAgents();
+        }
+
+        await this.cleanupStaleData();
+      } catch (error) {
+        this.logger.error('Error in monitoring cycle', error);
+      }
+    }, this.heartbeatInterval);
+
+    // Initial run
+    setTimeout(() => this.updateAgentStatuses(), 1000);
+  }
+
+  private async updateAgentStatuses() {
+    try {
+      // Get all repo agents from database
+      const allAgents = await db.query.repoAgents.findMany();
+
+      for (const agent of allAgents) {
+        const existingStatus = this.agentStatuses.get(agent.id);
+        const now = new Date();
+
+        // Determine agent status based on database status and connection
+        let currentStatus: 'idle' | 'active' | 'rate_limited' | 'error' = agent.status as any;
+
+        // For Claude Code agents, rely on database status and MCP communication
+        if (agent.clientType === 'claude_code' && this.isConnected) {
+          // Use the current database status as the source of truth
+          // Agent status will be updated via MCP calls when agents start/complete tasks
+
+          // Check if it was recently active and might have just completed
+          if (existingStatus?.status === 'active' &&
+              now.getTime() - existingStatus.lastHeartbeat.getTime() < 10000) { // 10 seconds
+            this.logger.debug('Agent recently completed work, using database status', { agentId: agent.id, dbStatus: agent.status });
           }
         }
-        
-        await this.processReadyTasks();
-        await this.cleanupStaleSessions();
-        
-        // Log memory usage every 5 minutes
-        const now = Date.now();
-        if (!this.lastMemoryLog || now - this.lastMemoryLog > 5 * 60 * 1000) {
-          this.logMemoryUsage();
-          this.lastMemoryLog = now;
-        }
-      } catch (error) {
-        console.error('Error processing ready tasks:', error);
-      }
-    }, 10000);
 
-    // Process immediately on startup
-    setTimeout(() => this.processReadyTasks(), 1000);
+        // Check if agent has been inactive for too long
+        if (existingStatus &&
+            now.getTime() - existingStatus.lastHeartbeat.getTime() > this.availabilityTimeout &&
+            currentStatus === 'active') {
+          // Mark as potentially stale only if currently active
+          this.logger.debug('Agent potentially stale', {
+            agentId: agent.id,
+            lastHeartbeat: existingStatus.lastHeartbeat,
+            timeout: this.availabilityTimeout
+          });
+          // Force to idle if stale
+          currentStatus = 'idle';
+        }
+
+        // Update agent status in database if it changed
+        if (agent.status !== currentStatus) {
+          await db
+            .update(repoAgents)
+            .set({ status: currentStatus, updatedAt: now })
+            .where(eq(repoAgents.id, agent.id));
+
+          this.logger.debug('Updated agent status in database', {
+            agentId: agent.id,
+            oldStatus: agent.status,
+            newStatus: currentStatus
+          });
+        }
+
+        // Update our tracking
+        this.agentStatuses.set(agent.id, {
+          agentId: agent.id,
+          status: currentStatus,
+          lastHeartbeat: existingStatus?.lastHeartbeat || now,
+          currentTaskId: existingStatus?.currentTaskId,
+          sessionId: existingStatus?.sessionId
+        });
+      }
+    } catch (error) {
+      this.logger.error('Error updating agent statuses', error);
+    }
   }
 
-  private async processReadyTasks() {
-    // Skip processing if not connected to Claude Code UI
-    if (!this.isConnected) {
-      return;
-    }
-    
+  private async pushTasksToAvailableAgents() {
     try {
-      // Get ready tasks that are not currently being processed
+      // First, trigger a fresh status update to get latest availability
+      await this.updateAgentStatuses();
+
+      // Get available agents (idle status and no current task)
+      const availableAgents = Array.from(this.agentStatuses.values()).filter(status => {
+        const isIdle = status.status === 'idle';
+        const hasNoCurrentTask = !status.currentTaskId;
+        // For Claude Code agents, also check if we're connected to the WebSocket
+        const isConnected = this.isConnected;
+
+        this.logger.debug('Agent availability check', {
+          agentId: status.agentId,
+          isIdle,
+          hasNoCurrentTask,
+          isConnected,
+          status: status.status
+        });
+
+        return isIdle && hasNoCurrentTask && isConnected;
+      });
+
+      if (availableAgents.length === 0) {
+        this.logger.debug('No available agents for task assignment', {
+          totalAgents: this.agentStatuses.size,
+          isConnected: this.isConnected
+        });
+        return;
+      }
+
+      // Get ready tasks ordered by priority
       const readyTasks = await db
         .select({
           task: tasks,
@@ -103,65 +199,102 @@ export class AgentOrchestrator {
         .where(
           and(
             eq(tasks.ready, true),
-            eq(tasks.status, 'todo')
+            eq(tasks.status, 'todo'),
+            eq(tasks.isAiWorking, false)
           )
         )
-        .orderBy(tasks.priority, tasks.createdAt);
+        .orderBy(
+          sql`CASE ${tasks.priority}
+              WHEN 'P5' THEN 1
+              WHEN 'P4' THEN 2
+              WHEN 'P3' THEN 3
+              WHEN 'P2' THEN 4
+              WHEN 'P1' THEN 5
+              ELSE 6
+            END`,
+          sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
+          tasks.createdAt
+        );
 
-      for (const readyTask of readyTasks) {
-        // Check if this task is already being processed
-        const isActive = Array.from(this.activeSessions.values())
-          .some(session => session.taskId === readyTask.task.id);
+      // Assign tasks to available agents
+      for (const taskData of readyTasks) {
+        const { task, repoAgent } = taskData;
 
-        if (!isActive) {
-          await this.startTaskProcessing(readyTask);
+        // Find available agent for this repo
+        const availableAgent = availableAgents.find(agent =>
+          agent.agentId === repoAgent.id && !agent.currentTaskId
+        );
+
+        if (availableAgent) {
+          this.logger.info('Pushing task to available agent', {
+            taskId: task.id,
+            taskTitle: task.rawTitle,
+            agentId: availableAgent.agentId,
+            priority: task.priority
+          });
+
+          // Start the task assignment process
+          await this.assignTaskToAgent(taskData, availableAgent);
+
+          // Mark agent as busy in our tracking
+          availableAgent.currentTaskId = task.id;
+          availableAgent.status = 'active';
         }
       }
     } catch (error) {
-      console.error('Error fetching ready tasks:', error);
+      this.logger.error('Error pushing tasks to agents', error);
     }
   }
 
-  private async startTaskProcessing(taskData: any) {
+  private async assignTaskToAgent(taskData: any, agentStatus: AgentStatus) {
     const { task, repoAgent, actor, project } = taskData;
 
-    console.log(`🚀 Starting task processing: ${task.refinedTitle || task.rawTitle}`);
-
     try {
-      // Update task status to doing
+      // Update task status to doing with refine stage
       await db
         .update(tasks)
         .set({
           status: 'doing',
-          stage: 'refine'
+          stage: 'refine',
+          updatedAt: new Date()
         })
         .where(eq(tasks.id, task.id));
+
+      // Update agent status to active
+      await db
+        .update(repoAgents)
+        .set({ status: 'active', updatedAt: new Date() })
+        .where(eq(repoAgents.id, agentStatus.agentId));
 
       // Create task context for prompt generation
       const taskContext: TaskContext = {
         id: task.id,
         projectId: task.projectId,
         rawTitle: task.rawTitle,
-        rawDescription: task.rawDescription ?? undefined,
-        refinedTitle: task.refinedTitle ?? undefined,
-        refinedDescription: task.refinedDescription ?? undefined,
-        plan: task.plan ?? undefined,
+        rawDescription: task.rawDescription,
+        refinedTitle: task.refinedTitle,
+        refinedDescription: task.refinedDescription,
+        plan: task.plan,
         priority: task.priority,
-        attachments: Array.isArray(task.attachments) ? task.attachments : [],
+        attachments: task.attachments,
         actorDescription: actor?.description,
-        projectMemory: typeof project.memory === 'string' ? project.memory : JSON.stringify(project.memory || {}),
+        projectMemory: project.memory,
         repoPath: repoAgent.repoPath
       };
 
-      // Generate prompt for refine stage
-      const prompt = PromptTemplateFactory.generatePrompt('refine', taskContext);
+      // Generate initial prompt with MCP workflow instructions
+      const prompt = this.generateTaskPrompt(taskContext, 'refine');
 
-      // Create session options
+      // Create session options with MCP tools
       const sessionOptions: SessionOptions = {
         projectPath: repoAgent.repoPath,
         cwd: repoAgent.repoPath,
         toolsSettings: {
-          allowedTools: ['Read', 'Task', 'TodoWrite', 'cards.update', 'context.read', 'memory.update'],
+          allowedTools: [
+            'Read', 'Task', 'TodoWrite', 'Glob', 'Grep',
+            'task.start', 'task.complete', 'cards.update',
+            'context.read', 'memory.update', 'agent.setAvailable'
+          ],
           disallowedTools: [],
           skipPermissions: false
         },
@@ -171,243 +304,221 @@ export class AgentOrchestrator {
       // Start Claude session
       const sessionId = await this.claudeCodeClient.startSession(prompt, sessionOptions);
 
-      // Track the session
-      this.activeSessions.set(sessionId, {
-        taskId: task.id,
-        repoAgentId: repoAgent.id,
-        stage: 'refine',
-        sessionId,
-        startTime: new Date()
-      });
-
       // Create session record in database
-      await db.insert(sessions).values({
-        claudeSessionId: sessionId,
+      const [session] = await db.insert(sessions).values({
+        agentSessionId: sessionId,
         taskId: task.id,
         repoAgentId: repoAgent.id,
-        status: 'starting',
+        status: 'active',
         startedAt: new Date()
-      });
+      }).returning();
 
-      console.log(`📝 Started refine session for task: ${task.rawTitle}`);
+      // Update agent tracking
+      agentStatus.sessionId = sessionId;
+
+      this.logger.info('Task successfully assigned to agent', {
+        taskId: task.id,
+        agentId: agentStatus.agentId,
+        sessionId,
+        stage: 'refine'
+      });
 
     } catch (error) {
-      console.error(`❌ Failed to start task processing for ${task.rawTitle}:`, error);
-      
+      this.logger.error('Failed to assign task to agent', error, {
+        taskId: task.id,
+        agentId: agentStatus.agentId
+      });
+
       // Reset task status on error
       await db
         .update(tasks)
-        .set({
-          status: 'todo',
-          stage: null
-        })
+        .set({ status: 'todo', stage: null, updatedAt: new Date() })
         .where(eq(tasks.id, task.id));
-    }
-  }
 
-  async advanceTaskStage(taskId: string, currentStage: 'refine' | 'kickoff' | 'execute') {
-    try {
-      let nextStage: 'kickoff' | 'execute' | null = null;
-      
-      switch (currentStage) {
-        case 'refine':
-          nextStage = 'kickoff';
-          break;
-        case 'kickoff':
-          nextStage = 'execute';
-          break;
-        case 'execute':
-          // Task is complete
-          await this.completeTask(taskId);
-          return;
-      }
-
-      if (nextStage) {
-        await this.startStage(taskId, nextStage);
-      }
-    } catch (error) {
-      console.error(`Error advancing task ${taskId} from ${currentStage}:`, error);
-    }
-  }
-
-  private async startStage(taskId: string, stage: 'kickoff' | 'execute') {
-    try {
-      // Get task data
-      const taskData = await db
-        .select({
-          task: tasks,
-          repoAgent: repoAgents,
-          actor: actors,
-          project: projects
-        })
-        .from(tasks)
-        .innerJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
-        .leftJoin(actors, eq(tasks.actorId, actors.id))
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .where(eq(tasks.id, taskId))
-        .limit(1);
-
-      if (taskData.length === 0) {
-        throw new Error(`Task ${taskId} not found`);
-      }
-
-      const { task, repoAgent, actor, project } = taskData[0];
-
-      // Update task stage
+      // Reset agent status
       await db
-        .update(tasks)
-        .set({ stage })
-        .where(eq(tasks.id, taskId));
+        .update(repoAgents)
+        .set({ status: 'idle', updatedAt: new Date() })
+        .where(eq(repoAgents.id, agentStatus.agentId));
 
-      // Create task context
-      const taskContext: TaskContext = {
-        id: task.id,
-        projectId: task.projectId,
-        rawTitle: task.rawTitle,
-        rawDescription: task.rawDescription ?? undefined,
-        refinedTitle: task.refinedTitle ?? undefined,
-        refinedDescription: task.refinedDescription ?? undefined,
-        plan: task.plan ?? undefined,
-        priority: task.priority,
-        attachments: Array.isArray(task.attachments) ? task.attachments : [],
-        actorDescription: actor?.description,
-        projectMemory: typeof project.memory === 'string' ? project.memory : JSON.stringify(project.memory || {}),
-        repoPath: repoAgent.repoPath
-      };
+      // Clear from tracking
+      agentStatus.currentTaskId = undefined;
+      agentStatus.status = 'idle';
+    }
+  }
 
-      // Generate prompt for the new stage
-      const prompt = PromptTemplateFactory.generatePrompt(stage, taskContext);
+  private generateTaskPrompt(taskContext: TaskContext, stage: 'refine' | 'kickoff' | 'execute'): string {
+    const basePrompt = PromptTemplateFactory.generatePrompt(stage, taskContext);
 
-      // Create session options
-      const sessionOptions: SessionOptions = {
-        projectPath: repoAgent.repoPath,
-        cwd: repoAgent.repoPath,
-        toolsSettings: {
-          allowedTools: stage === 'execute' 
-            ? ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep', 'cards.update', 'memory.update']
-            : ['Read', 'Task', 'TodoWrite', 'cards.update', 'context.read', 'memory.update'],
-          disallowedTools: [],
-          skipPermissions: false
-        },
-        permissionMode: 'default'
-      };
+    const mcpInstructions = `
+# MCP Workflow Instructions
 
-      // Start new Claude session for this stage
-      const sessionId = await this.claudeCodeClient.startSession(prompt, sessionOptions);
+You are working on a task in Solo Unicorn's agent orchestration system. Follow this workflow:
 
-      // Update session tracking
-      this.activeSessions.set(sessionId, {
-        taskId,
-        repoAgentId: repoAgent.id,
-        stage,
-        sessionId,
-        startTime: new Date()
+## Stage Workflow
+
+### 1. Start Stage
+- **FIRST ACTION**: Use \`task.start\` MCP tool to register that you're starting work on this task
+- Include: taskId="${taskContext.id}", stage="${stage}"
+- This updates the task status and creates/updates your session
+
+### 2. Perform Stage Work
+${this.getStageSpecificInstructions(stage)}
+
+### 3. Complete Stage
+- **FINAL ACTION**: Use \`task.complete\` MCP tool to finish the stage
+- Options:
+  - \`markDone: true\` - If task is completely finished (execute stage only)
+  - \`nextStage: "kickoff"\` - If advancing from refine to kickoff
+  - \`nextStage: "execute"\` - If advancing from kickoff to execute
+  - \`stageComplete: true\` - If just completing current stage
+
+### 4. Signal Availability
+- After completing the task or if you encounter errors, use \`agent.setAvailable\` to signal you're ready for new work
+
+## Important Notes
+- Always start with \`task.start\` and end with \`task.complete\`
+- Use \`cards.update\` to save intermediate progress
+- Use \`context.read\` to get additional task/project information if needed
+- Use \`memory.update\` to update project memory with learnings
+
+Current Task: ${taskContext.rawTitle}
+Current Stage: ${stage}
+Task ID: ${taskContext.id}
+`;
+
+    return mcpInstructions + '\n\n' + basePrompt;
+  }
+
+  private getStageSpecificInstructions(stage: string): string {
+    switch (stage) {
+      case 'refine':
+        return `- Understand and clarify the task requirements
+- Update task with refined title and description using \`cards.update\`
+- Gather any needed context with \`context.read\``;
+
+      case 'kickoff':
+        return `- Analyze solution options and select the best approach
+- Create a detailed implementation plan
+- Update task plan using \`cards.update\``;
+
+      case 'execute':
+        return `- Implement the solution according to the plan
+- Make code changes, run tests, commit work
+- Update project memory if needed with \`memory.update\``;
+
+      default:
+        return '- Follow the task requirements';
+    }
+  }
+
+  private async cleanupStaleData() {
+    const now = new Date();
+    const staleTimeout = 30 * 60 * 1000; // 30 minutes
+
+    try {
+      // Clean up stale sessions
+      const staleSessions = await db.query.sessions.findMany({
+        where: eq(sessions.status, 'active')
       });
 
-      console.log(`📝 Started ${stage} session for task: ${task.refinedTitle || task.rawTitle}`);
-
-    } catch (error) {
-      console.error(`Error starting ${stage} stage for task ${taskId}:`, error);
-    }
-  }
-
-  private async completeTask(taskId: string) {
-    try {
-      // Update task status to done
-      await db
-        .update(tasks)
-        .set({
-          status: 'done',
-          stage: null
-        })
-        .where(eq(tasks.id, taskId));
-
-      // Remove from active sessions
-      for (const [sessionId, session] of this.activeSessions) {
-        if (session.taskId === taskId) {
-          this.activeSessions.delete(sessionId);
-        }
-      }
-
-      console.log(`✅ Task ${taskId} completed`);
-
-    } catch (error) {
-      console.error(`Error completing task ${taskId}:`, error);
-    }
-  }
-
-  // Method to be called by MCP server when agent updates task
-  async onTaskUpdated(taskId: string, updates: any) {
-    console.log(`📝 Task ${taskId} updated:`, updates);
-
-    // Check if this update indicates stage completion
-    const activeSession = Array.from(this.activeSessions.values())
-      .find(session => session.taskId === taskId);
-
-    if (activeSession) {
-      // Logic to determine if stage is complete based on updates
-      // This would need to be implemented based on specific update patterns
-      
-      // For now, we'll advance stage when certain fields are updated
-      if (updates.refinedTitle && updates.refinedDescription && activeSession.stage === 'refine') {
-        await this.advanceTaskStage(taskId, 'refine');
-      } else if (updates.plan && activeSession.stage === 'kickoff') {
-        await this.advanceTaskStage(taskId, 'kickoff');
-      }
-    }
-  }
-
-  private logMemoryUsage() {
-    const memUsage = process.memoryUsage();
-    const activeSessions = this.activeSessions.size;
-    console.log(`📊 Memory: RSS=${Math.round(memUsage.rss / 1024 / 1024)}MB, Heap=${Math.round(memUsage.heapUsed / 1024 / 1024)}MB, Active Sessions=${activeSessions}`);
-  }
-
-  private async cleanupStaleSessions() {
-    const now = new Date();
-    const staleSessionTimeout = 30 * 60 * 1000; // 30 minutes
-
-    for (const [sessionId, session] of this.activeSessions) {
-      const sessionAge = now.getTime() - session.startTime.getTime();
-      
-      if (sessionAge > staleSessionTimeout) {
-        console.log(`🧹 Cleaning up stale session: ${sessionId} (age: ${Math.round(sessionAge / 60000)}min)`);
-        
-        try {
-          // Abort the Claude session
-          await this.claudeCodeClient.abortSession(sessionId);
-          
-          // Reset the task to todo status
-          await db
-            .update(tasks)
-            .set({
-              status: 'todo',
-              stage: null,
-              ready: false
-            })
-            .where(eq(tasks.id, session.taskId));
-
-          // Update database session status
+      for (const session of staleSessions) {
+        const sessionAge = now.getTime() - session.startedAt.getTime();
+        if (sessionAge > staleTimeout) {
           await db
             .update(sessions)
-            .set({
-              status: 'failed',
-              completedAt: now
-            })
-            .where(eq(sessions.claudeSessionId, sessionId));
+            .set({ status: 'failed', completedAt: now })
+            .where(eq(sessions.id, session.id));
 
-        } catch (error) {
-          console.error(`Error cleaning up stale session ${sessionId}:`, error);
+          // Reset associated task if it exists
+          if (session.taskId) {
+            await db
+              .update(tasks)
+              .set({ status: 'todo', stage: null, ready: false, updatedAt: now })
+              .where(eq(tasks.id, session.taskId));
+          }
+
+          // Reset agent status
+          await db
+            .update(repoAgents)
+            .set({ status: 'idle', updatedAt: now })
+            .where(eq(repoAgents.id, session.repoAgentId));
+
+          this.logger.info('Cleaned up stale session', {
+            sessionId: session.id,
+            taskId: session.taskId,
+            ageMinutes: Math.round(sessionAge / 60000)
+          });
         }
-        
-        // Remove from active sessions
-        this.activeSessions.delete(sessionId);
+      }
+    } catch (error) {
+      this.logger.error('Error cleaning up stale data', error);
+    }
+  }
+
+  // Called by MCP server when agent reports availability
+  async onAgentAvailable(agentId: string) {
+    this.logger.debug('Agent reported available', { agentId });
+
+    const agentStatus = this.agentStatuses.get(agentId);
+    if (agentStatus) {
+      agentStatus.status = 'idle';
+      agentStatus.lastHeartbeat = new Date();
+      agentStatus.currentTaskId = undefined;
+      agentStatus.sessionId = undefined;
+    }
+
+    // Trigger immediate task push check for this agent
+    if (this.taskPushEnabled) {
+      setTimeout(() => this.pushTasksToAvailableAgents(), 1000);
+    }
+  }
+
+  // Called when a task becomes ready (triggered by toggle ready mutation)
+  async onTaskReady(taskId: string) {
+    this.logger.info('Task marked as ready, checking for available agents', { taskId });
+
+    // Trigger immediate task assignment check
+    if (this.taskPushEnabled) {
+      setTimeout(() => this.pushTasksToAvailableAgents(), 500);
+    }
+  }
+
+  // Called by MCP server when task is started
+  async onTaskStarted(agentId: string, taskId: string, sessionId?: string) {
+    this.logger.debug('Task started by agent', { agentId, taskId, sessionId });
+
+    const agentStatus = this.agentStatuses.get(agentId);
+    if (agentStatus) {
+      agentStatus.status = 'active';
+      agentStatus.currentTaskId = taskId;
+      agentStatus.sessionId = sessionId;
+      agentStatus.lastHeartbeat = new Date();
+    }
+  }
+
+  // Called by MCP server when task is completed
+  async onTaskCompleted(agentId: string, taskId: string, success: boolean) {
+    this.logger.debug('Task completed by agent', { agentId, taskId, success });
+
+    const agentStatus = this.agentStatuses.get(agentId);
+    if (agentStatus) {
+      agentStatus.currentTaskId = undefined;
+      agentStatus.sessionId = undefined;
+      agentStatus.lastHeartbeat = new Date();
+
+      // Agent will explicitly call setAvailable, but we can mark as idle here too
+      if (success) {
+        agentStatus.status = 'idle';
       }
     }
   }
 
   async shutdown() {
+    if (this.monitoringInterval) {
+      clearInterval(this.monitoringInterval);
+    }
     this.claudeCodeClient.disconnect();
-    this.activeSessions.clear();
+    this.agentStatuses.clear();
   }
 }
