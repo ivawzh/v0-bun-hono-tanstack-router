@@ -5,6 +5,15 @@ import { db } from "../db";
 import { projects, tasks, repoAgents, actors, sessions } from "../db/schema/simplified";
 import { and, desc, eq, sql } from "drizzle-orm";
 
+// Import the improved orchestrator for integration
+let orchestrator: any = null;
+
+// Function to set orchestrator instance (called from main app)
+export function setOrchestrator(orch: any) {
+  orchestrator = orch;
+  logger.info("MCP server integrated with improved orchestrator");
+}
+
 // Logging utilities for debug and history tracing
 const logger = {
   info: (message: string, context?: Record<string, any>) => {
@@ -122,8 +131,228 @@ server.tool(
 );
 
 server.tool(
+  "task.start",
+  "Start working on a specific task and set its stage. Updates task status and creates session.",
+  {
+    taskId: z.string().uuid(),
+    stage: z.enum(["refine", "kickoff", "execute"])
+  },
+  async ({ taskId, stage }, { requestInfo }) => {
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    
+    logger.tool("task.start", "start", { agentId, taskId, stage });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("task.start", "failed", { reason: "missing_agent_id", taskId, stage });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
+
+      // Check if task exists and is available
+      const task = await db.query.tasks.findFirst({
+        where: eq(tasks.id, taskId),
+        with: { project: true, repoAgent: true, actor: true }
+      });
+
+      if (!task) {
+        logger.tool("task.start", "failed", { reason: "task_not_found", agentId, taskId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Task not found" }) }]
+        };
+      }
+
+      if (task.repoAgentId !== agentId) {
+        logger.tool("task.start", "failed", { reason: "wrong_agent", agentId, taskId, expectedAgent: task.repoAgentId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Task not assigned to this agent" }) }]
+        };
+      }
+
+      // Check for existing active session
+      const activeSession = await db.query.sessions.findFirst({
+        where: and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active"))
+      });
+
+      if (activeSession && activeSession.taskId !== taskId) {
+        logger.tool("task.start", "failed", { reason: "agent_busy", agentId, activeTaskId: activeSession.taskId, requestedTaskId: taskId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent is busy with another task" }) }]
+        };
+      }
+
+      // Create or update session
+      let session;
+      if (activeSession) {
+        session = activeSession;
+      } else {
+        [session] = await db
+          .insert(sessions)
+          .values({ taskId, repoAgentId: agentId, status: "active" })
+          .returning();
+      }
+
+      // Update task status and stage
+      await db
+        .update(tasks)
+        .set({ status: "doing", stage, updatedAt: new Date() })
+        .where(eq(tasks.id, taskId));
+
+      // Update agent status
+      await db
+        .update(repoAgents)
+        .set({ status: "active", updatedAt: new Date() })
+        .where(eq(repoAgents.id, agentId));
+
+      logger.tool("task.start", "success", { agentId, taskId, stage, sessionId: session.id });
+
+      // Notify orchestrator
+      if (orchestrator) {
+        orchestrator.onTaskStarted(agentId, taskId, session.id);
+      }
+
+      return {
+        content: [{ 
+          type: "text", 
+          text: JSON.stringify({ 
+            success: true, 
+            task, 
+            sessionId: session.id,
+            stage,
+            message: `Started ${stage} stage for task: ${task.refinedTitle || task.rawTitle}`
+          }) 
+        }]
+      };
+    } catch (error) {
+      logger.error("task.start failed", error, { agentId, taskId, stage });
+      throw error;
+    }
+  }
+);
+
+server.tool(
+  "task.complete",
+  "Complete current stage and optionally advance to next stage or mark task as done.",
+  {
+    taskId: z.string().uuid(),
+    stageComplete: z.boolean(),
+    nextStage: z.enum(["refine", "kickoff", "execute"]).optional(),
+    markDone: z.boolean().optional()
+  },
+  async ({ taskId, stageComplete, nextStage, markDone }, { requestInfo }) => {
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    
+    logger.tool("task.complete", "start", { agentId, taskId, stageComplete, nextStage, markDone });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("task.complete", "failed", { reason: "missing_agent_id", taskId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
+
+      // Verify session exists and agent owns the task
+      const session = await db.query.sessions.findFirst({
+        where: and(eq(sessions.taskId, taskId), eq(sessions.repoAgentId, agentId), eq(sessions.status, "active")),
+        with: { task: true }
+      });
+
+      if (!session) {
+        logger.tool("task.complete", "failed", { reason: "no_active_session", agentId, taskId });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "No active session found for this task" }) }]
+        };
+      }
+
+      if (markDone) {
+        // Mark task as done
+        await db
+          .update(tasks)
+          .set({ status: "done", stage: null, updatedAt: new Date() })
+          .where(eq(tasks.id, taskId));
+
+        // Complete the session
+        await db
+          .update(sessions)
+          .set({ status: "completed", completedAt: new Date() })
+          .where(eq(sessions.id, session.id));
+
+        // Set agent to idle
+        await db
+          .update(repoAgents)
+          .set({ status: "idle", updatedAt: new Date() })
+          .where(eq(repoAgents.id, agentId));
+
+        logger.tool("task.complete", "task_done", { agentId, taskId, sessionId: session.id });
+
+        // Notify orchestrator
+        if (orchestrator) {
+          orchestrator.onTaskCompleted(agentId, taskId, true);
+        }
+
+        return {
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify({ 
+              success: true, 
+              taskComplete: true,
+              message: `Task ${taskId} marked as done`
+            }) 
+          }]
+        };
+      } else if (nextStage) {
+        // Advance to next stage
+        await db
+          .update(tasks)
+          .set({ stage: nextStage, updatedAt: new Date() })
+          .where(eq(tasks.id, taskId));
+
+        logger.tool("task.complete", "stage_advanced", { agentId, taskId, nextStage, sessionId: session.id });
+
+        return {
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify({ 
+              success: true, 
+              stageAdvanced: true,
+              nextStage,
+              message: `Task ${taskId} advanced to ${nextStage} stage`
+            }) 
+          }]
+        };
+      } else {
+        // Just complete current stage without advancing
+        logger.tool("task.complete", "stage_completed", { agentId, taskId, sessionId: session.id });
+
+        return {
+          content: [{ 
+            type: "text", 
+            text: JSON.stringify({ 
+              success: true, 
+              stageComplete: true,
+              message: `Current stage completed for task ${taskId}`
+            }) 
+          }]
+        };
+      }
+    } catch (error) {
+      logger.error("task.complete failed", error, { agentId, taskId });
+      throw error;
+    }
+  }
+);
+
+server.tool(
   "agent.requestTask",
-  "Assign the highest-priority ready task for this agent. Requires x-agent-id header.",
+  "Request the highest-priority ready task for this agent. Requires x-agent-id header.",
   async ({ requestInfo }) => {
     const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
     const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
@@ -208,6 +437,62 @@ server.tool(
       };
     } catch (error) {
       logger.error("agent.requestTask failed", error, { agentId });
+      throw error;
+    }
+  }
+);
+
+server.tool(
+  "agent.setAvailable", 
+  "Mark agent as available and ready for new tasks. Clears any stale sessions.",
+  async ({ requestInfo }) => {
+    const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
+    const agentId = Array.isArray(agentIdHeader) ? agentIdHeader[0] : agentIdHeader;
+    
+    logger.tool("agent.setAvailable", "start", { agentId });
+    
+    try {
+      assertBearer(requestInfo?.headers?.authorization);
+      
+      if (!agentId) {
+        logger.tool("agent.setAvailable", "failed", { reason: "missing_agent_id" });
+        return {
+          content: [{ type: "text", text: JSON.stringify({ success: false, message: "Agent ID header required" }) }]
+        };
+      }
+
+      // Clear any stale active sessions for this agent
+      const staleSessions = await db.query.sessions.findMany({
+        where: and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active"))
+      });
+
+      if (staleSessions.length > 0) {
+        await db
+          .update(sessions)
+          .set({ status: "completed", completedAt: new Date() })
+          .where(and(eq(sessions.repoAgentId, agentId), eq(sessions.status, "active")));
+        
+        logger.tool("agent.setAvailable", "cleared_stale_sessions", { agentId, count: staleSessions.length });
+      }
+
+      // Update agent status to idle (available)
+      await db
+        .update(repoAgents)
+        .set({ status: "idle", updatedAt: new Date() })
+        .where(eq(repoAgents.id, agentId));
+
+      logger.tool("agent.setAvailable", "success", { agentId });
+
+      // Notify orchestrator
+      if (orchestrator) {
+        orchestrator.onAgentAvailable(agentId);
+      }
+
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: true, status: "available" }) }]
+      };
+    } catch (error) {
+      logger.error("agent.setAvailable failed", error, { agentId });
       throw error;
     }
   }

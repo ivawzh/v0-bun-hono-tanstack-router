@@ -8,9 +8,9 @@ import { logger } from "hono/logger";
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
-import { registerMcpHttp } from "./mcp/mcp-server";
+import { registerMcpHttp, setOrchestrator } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
-import { AgentOrchestrator } from "./agents/agent-orchestrator";
+import { ImprovedAgentOrchestrator } from "./agents/improved-agent-orchestrator";
 
 const app = new Hono();
 
@@ -64,23 +64,30 @@ registerMcpHttp(app, "/mcp");
 
 const port = process.env.PORT || 8500;
 
-// Initialize Agent Orchestrator
-let agentOrchestrator: AgentOrchestrator | null = null;
+// Initialize Improved Agent Orchestrator
+let agentOrchestrator: ImprovedAgentOrchestrator | null = null;
 
 async function initializeAgentOrchestrator() {
   try {
     const claudeCodeWebsocketUrl = process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501";
     const agentToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
 
-    console.log("🤖 Initializing Agent Orchestrator...");
+    console.log("🤖 Initializing Improved Agent Orchestrator...");
 
-    agentOrchestrator = new AgentOrchestrator({
+    agentOrchestrator = new ImprovedAgentOrchestrator({
       claudeCodeUrl: claudeCodeWebsocketUrl,
-      agentToken
+      agentToken,
+      taskPushEnabled: true,
+      heartbeatInterval: 30000, // 30 seconds
+      availabilityTimeout: 10000 // 10 seconds
     });
 
     await agentOrchestrator.initialize();
-    console.log("🤖 Agent Orchestrator initialized successfully");
+    
+    // Integrate with MCP server
+    setOrchestrator(agentOrchestrator);
+    
+    console.log("🤖 Improved Agent Orchestrator initialized successfully");
   } catch (error) {
     console.error("❌ Failed to initialize Agent Orchestrator:", error.message);
     console.log("ℹ️  Agent Orchestrator will continue trying to connect in the background");
