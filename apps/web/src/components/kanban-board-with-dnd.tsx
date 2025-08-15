@@ -306,11 +306,47 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
   // Update task order mutation
   const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+    onMutate: async (variables) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({ queryKey: ["projects", "getWithTasks"] });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData(["projects", "getWithTasks", { input: { id: projectId } }]);
+
+      // Optimistically update to the new value
+      if (previousData) {
+        queryClient.setQueryData(["projects", "getWithTasks", { input: { id: projectId } }], (old: any) => {
+          if (!old?.tasks) return old;
+          
+          const updatedTasks = old.tasks.map((task: any) => {
+            const update = variables.tasks.find((u: any) => u.id === task.id);
+            if (update) {
+              return { 
+                ...task, 
+                columnOrder: update.columnOrder,
+                status: update.status || task.status 
+              };
+            }
+            return task;
+          });
+          
+          return { ...old, tasks: updatedTasks };
+        });
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousData };
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousData) {
+        queryClient.setQueryData(["projects", "getWithTasks", { input: { id: projectId } }], context.previousData);
+      }
       toast.error("Failed to update task order: " + error.message);
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure we have latest data
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
     }
   }));
 
