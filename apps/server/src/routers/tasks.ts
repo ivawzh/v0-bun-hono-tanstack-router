@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repoAgents, actors } from "../db/schema/simplified";
+import { tasks, projects, repoAgents, actors } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 // WebSocket notification removed - agents now use HTTP polling
 

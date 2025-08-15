@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, actors, sessions, tasks, projects } from "../db/schema/simplified";
+import { repoAgents, actors, sessions, tasks, projects } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 export const agentsRouter = o.router({

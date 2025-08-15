@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, projects } from "../db/schema/simplified";
+import { repoAgents, projects } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 const clientTypeEnum = v.picklist(["claude_code", "opencode"]);

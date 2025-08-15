@@ -1,7 +1,7 @@
 import { ClaudeCodeClient, ClaudeCodeSession, SessionOptions } from './claude-code-client';
 import { PromptTemplateFactory, TaskContext } from './prompts/index';
 import { db } from '../db/index';
-import { tasks, sessions, repoAgents, actors, projects } from '../db/schema/simplified';
+import { tasks, sessions, repoAgents, actors, projects } from '../db/schema';
 import { eq, and } from 'drizzle-orm';
 
 export interface AgentOrchestratorOptions {

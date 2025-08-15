@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { actors, projects } from "../db/schema/simplified";
+import { actors, projects } from "../db/schema";
 import { eq, and, desc, ne } from "drizzle-orm";
 
 export const actorsRouter = o.router({

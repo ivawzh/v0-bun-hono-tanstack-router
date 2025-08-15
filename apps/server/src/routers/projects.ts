@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { db } from "../db";
-import { projects, repoAgents, actors, tasks } from "../db/schema/simplified";
+import { projects, repoAgents, actors, tasks } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { protectedProcedure, o } from "../lib/orpc";
 

@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { db } from "../db";
-import { projects, tasks, repoAgents, actors, sessions } from "../db/schema/simplified";
+import { projects, tasks, repoAgents, actors, sessions } from "../db/schema";
 import { and, desc, eq, sql } from "drizzle-orm";
 
 // Import the improved orchestrator for integration

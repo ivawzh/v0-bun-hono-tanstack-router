@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { openauth } from '../lib/openauth';
 import { setAuthCookies } from '../ops/authCookies';
 import { db } from '../db';
-import { users } from '../db/schema/simplified';
+import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { jwtDecode } from '../ops/authCookies';
 import type { AccessTokenPayload } from '../ops/authCookies';
