@@ -171,10 +171,16 @@ export class AgentOrchestrator {
   }
 
   private async checkAndPushTasks() {
-    // Check if any targeted agent clients are free and push tasks to them
-    const agentTypes: ('CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE')[] = ['CLAUDE_CODE', 'CURSOR_CLI', 'OPENCODE'];
+    // Get agent types that actually have repo agents assigned to them
+    const agentTypesInUse = await db
+      .select({ agentType: agentClients.type })
+      .from(agentClients)
+      .innerJoin(repoAgents, eq(repoAgents.agentClientId, agentClients.id))
+      .groupBy(agentClients.type);
 
-    for (const agentType of agentTypes) {
+    const activeAgentTypes = agentTypesInUse.map(row => row.agentType);
+
+    for (const agentType of activeAgentTypes) {
       const vacancy = await this.calculateAgentClientVacancy(agentType);
 
       if (vacancy === 'Free') {
