@@ -10,7 +10,7 @@ import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
 import { registerMcpHttp, setOrchestrator, startMcpHttpServer, stopMcpHttpServer } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
-import { ImprovedAgentOrchestrator } from "./agents/improved-agent-orchestrator";
+import { AgentOrchestrator } from "./agents/agent-orchestrator";
 import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
 
@@ -73,7 +73,7 @@ console.log(`🚀 Solo Unicorn server starting on port ${port}`);
 console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 
 // Initialize Improved Agent Orchestrator
-let agentOrchestrator: ImprovedAgentOrchestrator | null = null;
+let agentOrchestrator: AgentOrchestrator | null = null;
 
 async function initializeAgentOrchestrator() {
   try {
@@ -82,7 +82,7 @@ async function initializeAgentOrchestrator() {
 
     console.log("🤖 Initializing Improved Agent Orchestrator...");
 
-    agentOrchestrator = new ImprovedAgentOrchestrator({
+    agentOrchestrator = new AgentOrchestrator({
       claudeCodeUrl: claudeCodeWebsocketUrl,
       agentToken,
       taskPushEnabled: true,
@@ -148,7 +148,7 @@ Bun.serve<WebSocketData, {}>({
         return undefined; // Successfully upgraded
       }
     }
-    
+
     // Handle regular HTTP requests through Hono
     return app.fetch(req, server);
   },
