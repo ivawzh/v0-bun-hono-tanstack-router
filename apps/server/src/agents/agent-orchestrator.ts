@@ -106,7 +106,6 @@ export class AgentOrchestrator {
       const agentRecords = await db.select().from(agentClients).where(eq(agentClients.type, agentType));
 
       if (agentRecords.length === 0) {
-        // No agent record found, consider as Free
         return null;
       }
 
@@ -159,7 +158,7 @@ export class AgentOrchestrator {
       return 'Free';
     } catch (error) {
       this.logger.error('Error calculating agent vacancy', error);
-      return 'Free'; // Default to free on error
+      return null;
     }
   }
 
@@ -417,17 +416,17 @@ export class AgentOrchestrator {
       const agentClient = await db.query.agentClients.findFirst({
         where: eq(agentClients.id, repoAgent.agentClientId)
       });
-      
+
       if (agentClient) {
         const currentState = agentClient.state as any || {};
         await db
           .update(agentClients)
-          .set({ 
-            state: { 
-              ...currentState, 
-              lastTaskPushedAt: new Date().toISOString() 
-            }, 
-            updatedAt: new Date() 
+          .set({
+            state: {
+              ...currentState,
+              lastTaskPushedAt: new Date().toISOString()
+            },
+            updatedAt: new Date()
           })
           .where(eq(agentClients.id, repoAgent.agentClientId));
       }

@@ -8,7 +8,7 @@ import { logger } from "hono/logger";
 import { streamText } from "ai";
 import { google } from "@ai-sdk/google";
 import { stream } from "hono/streaming";
-import { registerMcpHttp, setOrchestrator, startMcpHttpServer, stopMcpHttpServer } from "./mcp/mcp-server";
+import { registerMcpHttp, setOrchestrator } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { AgentOrchestrator } from "./agents/agent-orchestrator";
 import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
@@ -60,12 +60,16 @@ app.get("/", (c) => {
 });
 
 
-// Mount MCP Streamable HTTP endpoint at /mcp (legacy redirect)
-registerMcpHttp(app, "/mcp");
-
-// Start native MCP HTTP server on a different port to avoid conflict with Claude Code UI
-const mcpPort = process.env.MCP_PORT || 8502;
-startMcpHttpServer(Number(mcpPort));
+// Mount MCP Streamable HTTP endpoint at /mcp (stateless integration)
+async function initializeMcp() {
+  try {
+    await registerMcpHttp(app, "/mcp");
+    console.log("🔌 Stateless MCP server integrated on port", process.env.PORT || 8500);
+  } catch (error) {
+    console.error("❌ Failed to initialize MCP server:", error);
+  }
+}
+initializeMcp();
 
 const port = process.env.PORT || 8500;
 
@@ -116,7 +120,6 @@ process.on('SIGTERM', () => {
     agentOrchestrator.shutdown();
   }
   wsManager.shutdown();
-  stopMcpHttpServer();
   process.exit(0);
 });
 
@@ -126,7 +129,6 @@ process.on('SIGINT', () => {
     agentOrchestrator.shutdown();
   }
   wsManager.shutdown();
-  stopMcpHttpServer();
   process.exit(0);
 });
 

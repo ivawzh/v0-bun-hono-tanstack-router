@@ -17,7 +17,7 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 
 - **Day-1 Security**: All endpoints protected with authentication from the start
 - **Agent Orchestration**: Secure WebSocket connection for agent-to-server communication
-- **MCP Server**: Model Context Protocol servers for standardized AI agent communication
+- **MCP Stateless Server**: Model Context Protocol servers for standardized AI agent communication
 - **Multi-model Support**: multiple code agents, supporting Claude Code, Cursor CLI, etc.
 
 ## 🛠️ Tech Stack
@@ -28,6 +28,15 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 - **Runtime**: Bun
 - **Auth**: Monster Auth with Google OAuth
 - **AI**: Claude Code, Cursor CLI
+
+## Dev URLs
+
+1. Solo Unicorn web: <http://localhost:8302>
+1. Claude Code UI web: <http://localhost:8303>
+1. Solo Unicorn API: <http://localhost:8500>
+1. Claude Code UI WS (for AI to server comm): <ws://localhost:8501>
+1. Solo Unicorn WS (for server to frontend realtime comm): <ws://localhost:8500>
+1. Solo Unicorn stateless MCP (for AI to server comm): <http://localhost:8500/mcp>
 
 ## 📋 Prerequisites
 
@@ -145,120 +154,31 @@ The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Cla
 - Ask questions and receive answers
 - Update task status
 
-#### Setting Up Claude Code with MCP (Recommended)
+#### Setting Up Claude Code with MCP
 
 Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Claude Code connectivity:
 
-1. **Generate Authentication Token**:
-   ```bash
-   openssl rand -hex 32
-   ```
+1. **Configure Server**
+   Copy env var from `apps/server/.env`
 
-2. **Configure Server** (add to `apps/server/.env`):
    ```bash
    AGENT_AUTH_TOKEN=your-generated-token-here
    ```
 
-3. **Configure Claude Code Environment**:
+2. **Add MCP Server to Claude Code**
+
    ```bash
-   # Add to your shell profile (~/.bashrc, ~/.zshrc)
-   export AGENT_AUTH_TOKEN="your-generated-token-here"
+   # Remove existing configuration
+   claude mcp remove solo-unicorn
+
+   # Add with proper headers and authentication to user scope (apply to all projects)
+   claude mcp add-json solo-unicorn '{"type":"http","url":"http://localhost:8500/mcp","headers":{"Authorization":"Bearer <AGENT_AUTH_TOKEN>","Accept":"application/json, text/event-stream"}}' -s user
+
+   # Verify connection
+   claude mcp list
    ```
-
-4. **Verify MCP Configuration**:
-   - The `.mcp.json` file in the repository root is pre-configured
-   - Start Claude Code from the Solo Unicorn repository directory
-   - Claude Code will automatically connect to Solo Unicorn's MCP server
-
-5. **Test the Connection**:
-   ```bash
-   # Start Solo Unicorn server
-   cd apps/server && bun dev
-
-   # Test MCP health check
-   curl -X POST http://localhost:8500/mcp \
-     -H "Authorization: Bearer $AGENT_AUTH_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"server.health","arguments":{}}}'
-   ```
-
-**MCP Server**: Solo Unicorn includes an MCP server consumed by Claude Code UI. To use with other AI tools, provide the `AGENT_AUTH_TOKEN` environment variable.
-
-#### Setup MCP Connection
-
-If Claude Code shows "Failed to connect" when listing MCP servers, or if you encounter "Server already initialized" errors, reconfigure the MCP connection:
-
-```bash
-# Remove existing configuration
-claude mcp remove solo-unicorn
-
-# Add with proper headers and authentication to user scope (apply to all projects)
-claude mcp add-json solo-unicorn '{"type":"http","url":"http://localhost:8502/mcp","headers":{"Authorization":"Bearer <AGENT_AUTH_TOKEN>","Accept":"application/json, text/event-stream"}}' -s user
-
-# Verify connection
-claude mcp list
-```
 
 This ensures Claude Code sends the required `Accept` headers and proper authentication token that Solo Unicorn's MCP server expects.
-
-#### Alternative: Manual Agent Setup
-
-For non-MCP agents or custom integrations:
-
-1. **Create an Agent in Solo Unicorn**:
-   - Go to Agents page and create a new agent
-   - Choose role (PM, Designer, Architect, Engineer, QA)
-   - Select runtime (Windows Runner or Cloud)
-   - Note the Agent ID for configuration
-
-2. **Agent API Endpoints**:
-   - Agent Gateway: `http://localhost:8500/agent/*`
-   - MCP Server: `http://localhost:8500/mcp/*`
-   - WebSocket: `ws://localhost:8500/agent/ws` (for real-time updates)
-
-3. **Configure Your AI Agent**:
-   - **For Claude Code**: Add to your project's `.claudecode/config.json` or as an environment variable
-   - **For Windsurf/Cursor**: Set in the extension settings
-   - **For Custom Agents**: Include in the `Authorization` header as `Bearer <token>`
-
-### Voice Input
-
-Voice input is available on:
-
-- Task description fields
-- Message inputs
-- Any textarea with the microphone icon
-
-Requirements:
-
-- Microphone permissions in browser
-- OpenAI API key configured
-
-## 🔒 Security Best Practices
-
-### Environment Variables
-
-1. **Never commit `.env` files to version control**
-   - Add `.env` to your `.gitignore`
-   - Use `.env.example` for templates
-
-2. **Use Strong Secrets**:
-
-   ```bash
-   # Generate strong AGENT_AUTH_TOKEN
-   openssl rand -hex 32
-   ```
-
-3. **Rotate Tokens Regularly**:
-   - Change `AGENT_AUTH_TOKEN` if compromised
-   - Update all connected agents with new token
-   - Consider using different tokens for different environments
-
-4. **Secure Your Deployment**:
-   - Always use HTTPS in production
-   - Set appropriate CORS origins
-   - Use environment-specific configurations
-   - Enable rate limiting for API endpoints
 
 ## 🔧 Configuration
 
@@ -269,6 +189,7 @@ Requirements:
 Due to stability issues with PGlite, we recommend using local PostgreSQL for development:
 
 1. **Install PostgreSQL** (if not already installed):
+
    ```bash
    # Ubuntu/Debian
    sudo apt-get install postgresql
@@ -281,6 +202,7 @@ Due to stability issues with PGlite, we recommend using local PostgreSQL for dev
    ```
 
 2. **Create Development Database**:
+
    ```bash
    # Create development database
    bun run --filter server db:create
@@ -289,11 +211,13 @@ Due to stability issues with PGlite, we recommend using local PostgreSQL for dev
    ```
 
 3. **Set Database URL** in `apps/server/.env`:
+
    ```bash
    DATABASE_URL=postgresql://your_username@localhost:5432/solo_unicorn_dev
    ```
 
 4. **Push Schema to Database**:
+
    ```bash
    bun run --filter server db:push
    ```
@@ -423,17 +347,20 @@ Solo Unicorn includes comprehensive end-to-end tests using Playwright.
 #### Setup
 
 1. **Install Playwright browsers**:
+
    ```bash
    bun test:install
    ```
 
 2. **Create test database**:
+
    ```bash
    bun run --filter server db:create:test
    bun run --filter server db:push:test
    ```
 
 3. **Verify test database connection**:
+
    ```bash
    # Test database uses: postgresql://$USER@localhost:5432/solo_unicorn_test
    # Override if needed by setting DATABASE_TEST_URL environment variable
@@ -464,6 +391,7 @@ bun test:e2e --project=chromium
 #### Test Coverage
 
 E2E tests cover:
+
 - **Authentication**: Login flow, OAuth callback, protected routes
 - **Projects**: CRUD operations, navigation
 - **Tasks**: Board management, drag-and-drop, task updates

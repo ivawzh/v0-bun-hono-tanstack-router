@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 import { db } from "../db";
 import { projects, tasks, repoAgents } from "../db/schema";
@@ -355,138 +356,41 @@ function registerMcpTools(server: McpServer) {
   );
 }
 
-// Function to create a fresh MCP server instance with all tools registered
-function createFreshMcpServer() {
+logger.info("MCP Server module initialized", {
+  name: "solo-unicorn-mcp",
+  version: "1.0.0",
+});
+
+// Function to create a fresh stateless MCP server for each request
+function createStatelessMcpServer() {
   const server = new McpServer({
     name: "solo-unicorn-mcp",
     version: "1.0.0",
   });
 
-  logger.debug("Fresh MCP Server instance created", {
+  logger.debug("Stateless MCP Server instance created", {
     name: "solo-unicorn-mcp",
     version: "1.0.0",
   });
 
-  // Register all tools on the fresh server instance
+  // Register all tools on the server instance
   registerMcpTools(server);
 
   return server;
 }
 
-// Global server instance (will be replaced with fresh instances per session)
-let currentServer = createFreshMcpServer();
+// Function for Hono integration using the mcp-hono-stateless approach
+export async function registerMcpHttp(app: any, basePath = "/mcp") {
+  logger.info("MCP HTTP registered on Hono server (stateless)", { basePath });
 
-logger.info("Initial MCP Server initialized", {
-  name: "solo-unicorn-mcp",
-  version: "1.0.0",
-});
-
-// Import Node.js HTTP module for native server
-import { createServer } from "http";
-
-// Global MCP HTTP server instance
-let mcpHttpServer: any = null;
-let currentTransport: any = null;
-
-// Function to create a fresh transport and connect server
-async function createFreshTransport() {
-  // Disconnect previous transport if it exists
-  if (currentTransport) {
-    try {
-      await currentTransport.close();
-      logger.debug("Previous transport closed successfully");
-    } catch (e) {
-      logger.debug(
-        "Error closing previous transport:",
-        e as Record<string, any>
-      );
-    }
-  }
-
-  // Close previous server if it exists
-  if (currentServer) {
-    try {
-      await currentServer.close();
-      logger.debug("Previous server instance closed successfully");
-    } catch (e) {
-      logger.debug(
-        "Error closing previous server:",
-        e as Record<string, any>
-      );
-    }
-  }
-
-  // Create new transport
-  currentTransport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => Math.random().toString(36).substring(2, 15),
-  });
-
-  // Create fresh server instance with all tools registered
-  currentServer = createFreshMcpServer();
-
-  try {
-    // Connect the fresh server to the new transport
-    await currentServer.connect(currentTransport);
-    logger.debug("Fresh MCP server and transport created and connected");
-  } catch (error) {
-    logger.error("Error connecting fresh server to transport:", error);
-    throw error;
-  }
-
-  return currentTransport;
-}
-
-// Expose a function to start a native HTTP server for MCP
-export async function startMcpHttpServer(port = 8502) {
-  logger.info("Starting simplified native MCP HTTP server", { port });
-
-  // Create initial transport
-  await createFreshTransport();
-  logger.info("Simplified MCP server connected to HTTP transport");
-
-  // Create native HTTP server following the example pattern
-  mcpHttpServer = createServer(async (request, response) => {
+  app.post(basePath, async (c: any) => {
     const startTime = Date.now();
 
     logger.debug("MCP HTTP request received", {
-      method: request.method,
-      url: request.url,
-      headers: request.headers,
+      method: c.req.method,
+      url: c.req.url,
+      headers: c.req.header(),
     });
-
-    // Only handle requests to /mcp path (MCP Inspector expects this)
-    if (!request.url?.startsWith("/mcp")) {
-      response.writeHead(404, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ error: "Not found - use /mcp endpoint" }));
-      return;
-    }
-
-    // Handle DELETE requests as session cleanup/reset
-    if (request.method === "DELETE") {
-      logger.debug("MCP session cleanup requested - creating fresh transport");
-      try {
-        // Create fresh transport for new session
-        const freshTransport = await createFreshTransport();
-        logger.debug("Fresh transport created successfully for new session");
-      } catch (error) {
-        logger.error("Failed to create fresh transport:", error);
-      }
-      response.writeHead(200, { "Content-Type": "application/json" });
-      response.end(
-        JSON.stringify({
-          success: true,
-          message: "Session cleaned up and fresh transport created",
-        })
-      );
-      return;
-    }
-
-    // Only handle POST requests for MCP protocol
-    if (request.method !== "POST") {
-      response.writeHead(405, { "Content-Type": "application/json" });
-      response.end(JSON.stringify({ error: "Method not allowed" }));
-      return;
-    }
 
     try {
       // Check authentication before processing request (if auth is enabled)
@@ -495,17 +399,16 @@ export async function startMcpHttpServer(port = 8502) {
         process.env.AGENT_AUTH_TOKEN !== "disabled";
       if (authRequired) {
         try {
-          assertBearer(request.headers.authorization);
-          logger.auth("HTTP MCP request authenticated successfully");
+          assertBearer(c.req.header("authorization"));
+          logger.auth("MCP request authenticated successfully");
         } catch (authError) {
-          logger.auth("HTTP MCP request authentication failed", {
-            url: request.url,
-            hasAuth: !!request.headers.authorization,
+          logger.auth("MCP request authentication failed", {
+            url: c.req.url,
+            hasAuth: !!c.req.header("authorization"),
             authToken: process.env.AGENT_AUTH_TOKEN?.substring(0, 8) + "...",
           });
-          response.writeHead(401, { "Content-Type": "application/json" });
-          response.end(
-            JSON.stringify({
+          return c.json(
+            {
               jsonrpc: "2.0",
               error: {
                 code: -32600,
@@ -516,93 +419,75 @@ export async function startMcpHttpServer(port = 8502) {
                     : String(authError)),
               },
               id: null,
-            })
+            },
+            401
           );
-          return;
         }
       } else {
-        logger.auth("HTTP MCP request - authentication disabled");
+        logger.auth("MCP request - authentication disabled");
       }
 
-      // Collect request body chunks
-      const chunks: Buffer[] = [];
-      for await (const chunk of request) {
-        chunks.push(chunk);
+      // Convert Hono request to Node.js request/response using fetch-to-node
+      const { req, res } = toReqRes(c.req.raw);
+
+      // Create a fresh MCP server instance for this request (stateless)
+      const server = createStatelessMcpServer();
+      
+      try {
+        // Create a fresh transport for this request
+        const transport = new StreamableHTTPServerTransport({
+          // This is a stateless MCP server, so we don't need to keep track of sessions
+          sessionIdGenerator: undefined,
+          // Enable JSON responses
+          enableJsonResponse: true,
+        });
+
+        // Connect the server to the transport
+        await server.connect(transport);
+        
+        // Handle the request
+        await transport.handleRequest(req, res, await c.req.json());
+
+        // Clean up on response close
+        res.on('close', () => {
+          transport.close();
+          server.close();
+        });
+
+        const duration = Date.now() - startTime;
+        logger.debug("MCP HTTP request completed", {
+          method: c.req.method,
+          duration,
+        });
+
+        // Convert Node.js response back to Fetch API response
+        return toFetchResponse(res);
+      } catch (error) {
+        logger.error("MCP server error", error);
+        
+        // Clean up on error
+        try {
+          server.close();
+        } catch (closeError) {
+          logger.debug("Error closing server:", closeError as Record<string, any>);
+        }
+        
+        throw error;
       }
-
-      // Parse JSON body
-      const bodyBuffer = Buffer.concat(chunks);
-      const body = JSON.parse(bodyBuffer.toString());
-
-      logger.debug("MCP request body", {
-        method: body?.method,
-        id: body?.id,
-        hasParams: !!body?.params,
-      });
-
-      // Handle the request using MCP transport
-      if (!currentTransport) {
-        logger.debug("No current transport, creating fresh one");
-        await createFreshTransport();
-      }
-
-      await currentTransport.handleRequest(request, response, body);
-
-      const duration = Date.now() - startTime;
-      logger.debug("MCP HTTP request completed", {
-        method: request.method,
-        duration,
-        mcpMethod: body?.method,
-        responseHeaders: response.getHeaders(),
-        responseStatusCode: response.statusCode,
-      });
     } catch (error) {
       const duration = Date.now() - startTime;
       logger.error("MCP HTTP request failed", error, {
-        method: request.method,
-        url: request.url,
+        method: c.req.method,
+        url: c.req.url,
         duration,
       });
 
-      if (!response.headersSent) {
-        response.writeHead(500, { "Content-Type": "application/json" });
-        response.end(JSON.stringify({ error: "MCP server error" }));
-      }
+      return c.json({ error: "MCP server error" }, 500);
     }
   });
 
-  // Start listening
-  mcpHttpServer.listen(port, () => {
-    logger.info(
-      `MCP HTTP server listening on http://localhost:${port}`
-    );
-  });
-
-  return mcpHttpServer;
-}
-
-// Function to stop the MCP server
-export function stopMcpHttpServer() {
-  if (mcpHttpServer) {
-    mcpHttpServer.close();
-    mcpHttpServer = null;
-    logger.info("MCP HTTP server stopped");
-  }
-}
-
-// Legacy function for Hono integration (now redirects to native server)
-export async function registerMcpHttp(app: any, basePath = "/mcp") {
-  logger.info("MCP HTTP registered via redirect", { basePath });
-
-  // Add a route that redirects to the native MCP server
-  app.all(basePath, async (c: any) => {
-    return c.json(
-      {
-        error: "MCP endpoint moved",
-        message: `Please use the native MCP server at http://localhost:${process.env.MCP_PORT || 8502}/mcp`,
-        redirect: `http://localhost:${process.env.MCP_PORT || 8502}/mcp`,
-      },
-      301
-    );
+  // Add OPTIONS route for CORS
+  app.options(basePath, async (c: any) => {
+    return new Response(null, { status: 200 });
   });
 }
