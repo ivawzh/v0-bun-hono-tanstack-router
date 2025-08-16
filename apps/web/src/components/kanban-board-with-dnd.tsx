@@ -505,28 +505,48 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     }
   }));
 
-  // Group tasks by status and sort them
+  // Group tasks by status and sort them with proper columnOrder initialization
   const groupedTasks = statusColumns.reduce((acc, column) => {
-    const columnTasks = (project?.tasks || [])
-      .filter((task: any) => task.status === column.id)
-      .sort((a: any, b: any) => {
-        // Sort by priority (higher numbers = higher priority: 5 > 4 > 3 > 2 > 1)
-        const priorityComparison = comparePriority(a.priority, b.priority);
-        if (priorityComparison !== 0) {
-          return priorityComparison;
-        }
+    let columnTasks = (project?.tasks || [])
+      .filter((task: any) => task.status === column.id);
 
-        // Then sort by column order (manual drag and drop order)
-        const aOrder = parseFloat(a.columnOrder || "1000");
-        const bOrder = parseFloat(b.columnOrder || "1000");
+    // First sort by priority and creation date to establish proper initial order
+    columnTasks = columnTasks.sort((a: any, b: any) => {
+      // Sort by priority first (higher numbers = higher priority: 5 > 4 > 3 > 2 > 1)
+      const priorityComparison = comparePriority(a.priority, b.priority);
+      if (priorityComparison !== 0) {
+        return priorityComparison;
+      }
 
-        if (aOrder !== bOrder) {
-          return aOrder - bOrder;
-        }
+      // Then by creation date (newer first within same priority)
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
-        // Finally sort by creation date
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
+    // Ensure all tasks have proper columnOrder values based on their sorted position
+    columnTasks = columnTasks.map((task: any, index: number) => {
+      // Only reassign columnOrder if it's missing or has the problematic default value
+      if (!task.columnOrder || task.columnOrder === "1000") {
+        return {
+          ...task,
+          columnOrder: ((index + 1) * 1000).toString()
+        };
+      }
+      return task;
+    });
+
+    // Final sort by columnOrder now that all tasks have proper values
+    columnTasks = columnTasks.sort((a: any, b: any) => {
+      // Sort by priority first
+      const priorityComparison = comparePriority(a.priority, b.priority);
+      if (priorityComparison !== 0) {
+        return priorityComparison;
+      }
+
+      // Then sort by column order
+      const aOrder = parseFloat(a.columnOrder);
+      const bOrder = parseFloat(b.columnOrder);
+      return aOrder - bOrder;
+    });
 
     acc[column.id] = columnTasks;
     return acc;
@@ -577,31 +597,27 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       const insertIndex = targetIndex >= 0 ? targetIndex : targetTasks.length;
 
       // Calculate new order for the moved task
-      let newOrder = "1000";
-      if (insertIndex === 0) {
+      let newOrder: string;
+      
+      if (targetTasks.length === 0) {
+        // Empty column
+        newOrder = "1000";
+      } else if (insertIndex === 0) {
         // Insert at beginning
         const firstTask = targetTasks[0];
-        if (firstTask) {
-          const firstOrder = parseFloat(firstTask.columnOrder || "1000");
-          newOrder = Math.max(firstOrder - 100, 1).toString();
-        } else {
-          newOrder = "1000";
-        }
+        const firstOrder = parseFloat(firstTask.columnOrder);
+        newOrder = Math.max(firstOrder - 1000, 100).toString();
       } else if (insertIndex >= targetTasks.length) {
         // Insert at end
         const lastTask = targetTasks[targetTasks.length - 1];
-        if (lastTask) {
-          const lastOrder = parseFloat(lastTask.columnOrder || "1000");
-          newOrder = (lastOrder + 100).toString();
-        } else {
-          newOrder = "1000";
-        }
+        const lastOrder = parseFloat(lastTask.columnOrder);
+        newOrder = (lastOrder + 1000).toString();
       } else {
         // Insert between tasks
         const prevTask = targetTasks[insertIndex - 1];
         const nextTask = targetTasks[insertIndex];
-        const prevOrder = parseFloat(prevTask?.columnOrder || "0");
-        const nextOrder = parseFloat(nextTask?.columnOrder || "2000");
+        const prevOrder = parseFloat(prevTask.columnOrder);
+        const nextOrder = parseFloat(nextTask.columnOrder);
         newOrder = ((prevOrder + nextOrder) / 2).toString();
       }
 
@@ -624,30 +640,38 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         if (activeTask.priority === overTask.priority) {
           // Calculate new positions for reordering
           const isMovingDown = overIndex > activeIndex;
+          let newOrder: string;
 
           if (isMovingDown) {
             // Moving down: insert after the target
             const nextTask = targetTasks[overIndex + 1];
-            const overOrder = parseFloat(overTask.columnOrder || "1000");
-            const nextOrder = parseFloat(nextTask?.columnOrder || "2000");
-            const newOrder = ((overOrder + nextOrder) / 2).toString();
-
-            updates.push({
-              id: activeId,
-              columnOrder: newOrder
-            });
+            const overOrder = parseFloat(overTask.columnOrder);
+            
+            if (nextTask) {
+              const nextOrder = parseFloat(nextTask.columnOrder);
+              newOrder = ((overOrder + nextOrder) / 2).toString();
+            } else {
+              // Moving to the end of the list
+              newOrder = (overOrder + 1000).toString();
+            }
           } else {
             // Moving up: insert before the target
             const prevTask = targetTasks[overIndex - 1];
-            const prevOrder = parseFloat(prevTask?.columnOrder || "0");
-            const overOrder = parseFloat(overTask.columnOrder || "1000");
-            const newOrder = ((prevOrder + overOrder) / 2).toString();
-
-            updates.push({
-              id: activeId,
-              columnOrder: newOrder
-            });
+            const overOrder = parseFloat(overTask.columnOrder);
+            
+            if (prevTask) {
+              const prevOrder = parseFloat(prevTask.columnOrder);
+              newOrder = ((prevOrder + overOrder) / 2).toString();
+            } else {
+              // Moving to the beginning of the list
+              newOrder = Math.max(overOrder - 1000, 100).toString();
+            }
           }
+
+          updates.push({
+            id: activeId,
+            columnOrder: newOrder
+          });
         } else {
           // Show message that you can't reorder across priorities
           toast.info("Tasks can only be reordered within the same priority level");
@@ -707,8 +731,9 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
     // Calculate columnOrder for new task (place at end of column)
     const columnTasks = groupedTasks[newTaskColumn] || [];
-    const lastTask = columnTasks[columnTasks.length - 1];
-    const newOrder = lastTask ? (parseFloat(lastTask.columnOrder || "1000") + 100).toString() : "1000";
+    const newOrder = columnTasks.length > 0 
+      ? (parseFloat(columnTasks[columnTasks.length - 1].columnOrder) + 1000).toString()
+      : "1000";
 
     // For now, create task without attachments - will be implemented in next step
     createTaskMutation.mutate({
