@@ -48,6 +48,7 @@ import { TaskDrawer } from "@/components/task-drawer";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { useWebSocket } from "@/hooks/use-websocket";
+import { useTaskDraft } from "@/hooks/use-task-draft";
 
 // Drag and drop imports
 import {
@@ -254,13 +255,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [newTask, setNewTask] = useState({
-    rawTitle: "",
-    rawDescription: "",
-    priority: "P3" as keyof typeof priorityColors,
-    repoAgentId: "",
-    actorId: "__default__"
-  });
+  // Use task draft hook for auto-save functionality
+  const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft();
 
   const queryClient = useQueryClient();
 
@@ -313,13 +309,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     onSuccess: () => {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
-      setNewTask({
-        rawTitle: "",
-        rawDescription: "",
-        priority: "P3",
-        repoAgentId: "",
-        actorId: "__default__"
-      });
+      clearDraft(); // Clear the auto-saved draft
       queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
     },
     onError: (error) => {
@@ -711,12 +701,23 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       </DndContext>
 
       {/* New Task Dialog */}
-      <Dialog open={showNewTaskDialog} onOpenChange={setShowNewTaskDialog}>
+      <Dialog 
+        open={showNewTaskDialog} 
+        onOpenChange={(open) => {
+          setShowNewTaskDialog(open);
+          // Don't clear draft when closing - preserve for later
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
               Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
+              {hasDraft && (
+                <span className="text-xs text-muted-foreground block mt-1">
+                  📝 Draft restored from previous session
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -726,7 +727,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 id="task-title"
                 placeholder="Task title"
                 value={newTask.rawTitle}
-                onChange={(e) => setNewTask({ ...newTask, rawTitle: e.target.value })}
+                onChange={(e) => updateDraft({ rawTitle: e.target.value })}
               />
             </div>
             <div className="space-y-2">
@@ -735,7 +736,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 id="task-description"
                 placeholder="Task description (optional)"
                 value={newTask.rawDescription}
-                onChange={(e) => setNewTask({ ...newTask, rawDescription: e.target.value })}
+                onChange={(e) => updateDraft({ rawDescription: e.target.value })}
                 rows={3}
               />
             </div>
@@ -744,7 +745,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 <Label htmlFor="task-priority">Priority</Label>
                 <Select
                   value={newTask.priority}
-                  onValueChange={(value) => setNewTask({ ...newTask, priority: value as any })}
+                  onValueChange={(value) => updateDraft({ priority: value as 'P1' | 'P2' | 'P3' | 'P4' | 'P5' })}
                 >
                   <SelectTrigger id="task-priority">
                     <SelectValue />
@@ -762,7 +763,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 <Label htmlFor="task-repo-agent">Repo Agent</Label>
                 <Select
                   value={newTask.repoAgentId}
-                  onValueChange={(value) => setNewTask({ ...newTask, repoAgentId: value })}
+                  onValueChange={(value) => updateDraft({ repoAgentId: value })}
                 >
                   <SelectTrigger id="task-repo-agent">
                     <SelectValue placeholder="Select repo agent" />
@@ -781,7 +782,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               <Label htmlFor="task-actor">Actor (Optional)</Label>
               <Select
                 value={newTask.actorId}
-                onValueChange={(value) => setNewTask({ ...newTask, actorId: value })}
+                onValueChange={(value) => updateDraft({ actorId: value })}
               >
                 <SelectTrigger id="task-actor">
                   <SelectValue placeholder="Select actor (optional)" />
@@ -798,7 +799,13 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowNewTaskDialog(false)}>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setShowNewTaskDialog(false);
+                // Don't clear draft on cancel - let user return to their work later
+              }}
+            >
               Cancel
             </Button>
             <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
