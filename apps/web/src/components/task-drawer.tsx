@@ -307,11 +307,14 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                 <TabsTrigger value="plan">Plan</TabsTrigger>
                 <TabsTrigger value="attachments">
                   Attachments
-                  {task.attachments && Array.isArray(task.attachments) && task.attachments.length > 0 ? (
-                    <Badge variant="secondary" className="ml-2">
-                      {task.attachments.length}
-                    </Badge>
-                  ) : null}
+                  {(() => {
+                    const attachments = task.attachments as any[];
+                    return attachments && Array.isArray(attachments) && attachments.length > 0 ? (
+                      <Badge variant="secondary" className="ml-2">
+                        {attachments.length}
+                      </Badge>
+                    ) : null;
+                  })()}
                 </TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
               </TabsList>

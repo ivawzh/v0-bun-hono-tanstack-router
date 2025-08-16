@@ -43,7 +43,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
+import { ProjectSettings } from "@/components/project-settings";
 import { TaskDrawer } from "@/components/task-drawer";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
@@ -908,9 +908,9 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       />
 
       {/* Project Settings Dialog */}
-      {showProjectSettings && (
-        <ProjectSettingsComprehensive
-          project={{ id: projectId, name: project?.name || "" }}
+      {showProjectSettings && project && (
+        <ProjectSettings
+          project={project}
           open={showProjectSettings}
           onOpenChange={setShowProjectSettings}
         />

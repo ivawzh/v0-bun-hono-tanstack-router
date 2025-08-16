@@ -15,13 +15,13 @@ function SearchPage() {
       <div className="space-y-6">
         <div className="space-y-2">
           <h1 className="text-2xl font-bold">Search</h1>
-          <p className="text-muted-foreground">Search across all tasks, comments, and attachments</p>
+          <p className="text-muted-foreground">Search across all tasks and attachments</p>
         </div>
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
-            placeholder="Search tasks, comments, files..."
+            placeholder="Search tasks, attachments..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="pl-10 text-base"

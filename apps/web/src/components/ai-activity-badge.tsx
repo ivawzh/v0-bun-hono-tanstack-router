@@ -31,8 +31,8 @@ export function AIActivityBadge({ ready, isAiWorking, status, className }: AIAct
     );
   }
 
-  // AI Ready state - only for todo tasks that are ready but AI not working
-  if (status === "todo" && ready === true && !isAiWorking) {
+  // AI Ready state - only for todo tasks that are ready but AI not working  
+  if (status === "todo" && ready === true && (isAiWorking === false || isAiWorking === null)) {
     return (
       <Badge
         variant="outline"
