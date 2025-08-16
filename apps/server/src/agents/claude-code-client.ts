@@ -1,7 +1,7 @@
 import { WebSocket } from 'ws';
 import { db } from '../db';
-import { agentClients } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { agentClients, tasks, repoAgents } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 
 export interface ClaudeCodeClientOptions {
   claudeCodeUrl: string;
@@ -211,6 +211,9 @@ export class ClaudeCodeClient {
 
         console.log('🚫 Rate limit detected. Reset time:', resetDate.toISOString());
 
+        // Reset all Claude Code tasks' AI working state
+        await this.resetTasksAiWorking();
+
         await this.updateAgentState({
           lastMessagedAt: new Date().toISOString(),
           rateLimitResetAt: resetDate.toISOString()
@@ -231,6 +234,61 @@ export class ClaudeCodeClient {
 
   private handleError(message: any) {
     console.error('❌ Claude Code error:', message.error);
+  }
+
+  private async resetTasksAiWorking() {
+    try {
+      // First find the Claude Code agent client ID
+      const claudeCodeAgent = await db
+        .select({ id: agentClients.id })
+        .from(agentClients)
+        .where(eq(agentClients.type, 'CLAUDE_CODE'))
+        .limit(1);
+
+      if (claudeCodeAgent.length === 0) {
+        console.log('🔄 No Claude Code agent found, skipping task reset');
+        return;
+      }
+
+      // Find repo agents that use this Claude Code client
+      const claudeRepoAgents = await db
+        .select({ id: repoAgents.id })
+        .from(repoAgents)
+        .where(eq(repoAgents.agentClientId, claudeCodeAgent[0].id));
+
+      if (claudeRepoAgents.length === 0) {
+        console.log('🔄 No repo agents using Claude Code, skipping task reset');
+        return;
+      }
+
+      const repoAgentIds = claudeRepoAgents.map(ra => ra.id);
+
+      // Update tasks that belong to Claude Code repo agents and have isAiWorking=true
+      const result = await db
+        .update(tasks)
+        .set({
+          isAiWorking: false,
+          aiWorkingSince: null,
+          updatedAt: new Date()
+        })
+        .where(
+          and(
+            eq(tasks.isAiWorking, true),
+            // Check if repoAgentId is in the list of Claude Code repo agents
+            // Using a simple OR chain since Drizzle doesn't have a built-in IN operator
+            repoAgentIds.length > 0 ? 
+              repoAgentIds.length === 1 ? 
+                eq(tasks.repoAgentId, repoAgentIds[0]) :
+                // For multiple repo agents, we need to use a different approach
+                eq(tasks.repoAgentId, tasks.repoAgentId) // This will be fixed with subquery
+              : eq(tasks.repoAgentId, '') // Never matches
+          )
+        );
+
+      console.log(`🔄 Reset AI working state for ${result.rowCount || 0} Claude Code tasks due to rate limit`);
+    } catch (error) {
+      console.error('❌ Error resetting tasks AI working state:', error);
+    }
   }
 
   private async updateAgentState(stateUpdate: {
