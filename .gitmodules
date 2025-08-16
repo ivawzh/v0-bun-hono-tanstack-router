@@ -1,3 +1,6 @@
 [submodule "apps/claudecode-ui"]
 	path = apps/claudecode-ui
 	url = https://github.com/siteboon/claudecodeui.git
+[submodule ".ai/rules/shared"]
+	path = .ai/rules/shared
+	url = git@github.com:ivawzh/cursor-settings.git

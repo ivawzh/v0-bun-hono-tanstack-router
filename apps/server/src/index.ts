@@ -89,9 +89,7 @@ async function initializeAgentOrchestrator() {
     agentOrchestrator = new AgentOrchestrator({
       claudeCodeUrl: claudeCodeWebsocketUrl,
       agentToken,
-      taskPushEnabled: true,
-      heartbeatInterval: 30000, // 30 seconds
-      availabilityTimeout: 10000 // 10 seconds
+      taskPushEnabled: true
     });
 
     await agentOrchestrator.initialize();

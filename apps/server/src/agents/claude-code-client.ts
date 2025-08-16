@@ -1,20 +1,11 @@
 import { WebSocket } from 'ws';
 import { db } from '../db';
-import { agentClients, tasks, sessions } from '../db/schema';
-import { eq, and } from 'drizzle-orm';
-
-export interface ClaudeCodeSession {
-  id: string;
-  taskId: string;
-  repoAgentId: string;
-  status: 'starting' | 'active' | 'completed' | 'failed';
-  startedAt: Date;
-  completedAt?: Date;
-}
+import { agentClients } from '../db/schema';
+import { eq } from 'drizzle-orm';
 
 export interface ClaudeCodeClientOptions {
-  claudeCodeUrl: string; // e.g. 'ws://localhost:8501'
-  agentToken: string; // AGENT_AUTH_TOKEN
+  claudeCodeUrl: string;
+  agentToken: string;
 }
 
 export interface SessionOptions {
@@ -30,7 +21,6 @@ export class ClaudeCodeClient {
   private ws: WebSocket | null = null;
   private isConnected = false;
   private reconnectTimeout: NodeJS.Timeout | null = null;
-  private activeSessions = new Map<string, ClaudeCodeSession>();
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
 
@@ -119,36 +109,26 @@ export class ClaudeCodeClient {
   }
 
   private handleMessage(message: any) {
-    // console.log('📨 Claude Code UI WS message:', message.type);
-
     switch (message.type) {
       case 'session-created':
-        // Handle new session created
         this.handleSessionCreated(message);
         break;
       case 'claude-response':
-        // Handle Claude response
         this.handleClaudeResponse(message);
         break;
       case 'claude-complete':
-        // Handle session completion
         this.handleSessionComplete(message);
         break;
       case 'claude-error':
-        // Handle errors
         this.handleError(message);
         break;
       case 'session_aborted':
-        // Handle session abortion confirmation
         break;
     }
   }
 
   private async handleSessionCreated(message: any) {
-    // Update session with the actual session ID from Claude
     console.log('📝 Session created:', message.sessionId);
-
-    // Update agent state with last session created at
     await this.updateAgentState({
       lastSessionCreatedAt: new Date().toISOString(),
       lastMessagedAt: new Date().toISOString()
@@ -156,15 +136,6 @@ export class ClaudeCodeClient {
   }
 
   private async handleClaudeResponse(message: any) {
-    // Handle streaming response from Claude
-    if (message.data?.type === 'content_block_delta') {
-      const text = message.data.delta?.text;
-      if (text) {
-        console.log('💬 Claude response chunk:', text.substring(0, 100) + '...');
-      }
-    }
-
-    // Check for rate limit detection
     if (Array.isArray(message.data?.content)) {
       for (const part of message.data.content) {
         if (part.type === 'text' && part.text?.trim()) {
@@ -173,7 +144,6 @@ export class ClaudeCodeClient {
       }
     }
 
-    // Update agent state with last messaged at
     await this.updateAgentState({ lastMessagedAt: new Date().toISOString() });
   }
 
@@ -181,29 +151,19 @@ export class ClaudeCodeClient {
     try {
       if (typeof text !== 'string') return;
 
-      // Check for Claude AI usage limit pattern
       const rateLimitMatch = text.match(/Claude AI usage limit reached\|(\d{10,13})/);
       if (rateLimitMatch) {
         const resetTimestamp = parseInt(rateLimitMatch[1], 10);
-        let resetDate: Date;
-
-        if (resetTimestamp < 1e12) {
-          resetDate = new Date(resetTimestamp * 1000); // seconds to ms
-        } else {
-          resetDate = new Date(resetTimestamp); // already in ms
-        }
+        const resetDate = resetTimestamp < 1e12
+          ? new Date(resetTimestamp * 1000)
+          : new Date(resetTimestamp);
 
         console.log('🚫 Rate limit detected. Reset time:', resetDate.toISOString());
 
-        // Update agent state with rate limit info
         await this.updateAgentState({
           lastMessagedAt: new Date().toISOString(),
           rateLimitResetAt: resetDate.toISOString()
         });
-
-        // TODO: Update repo agent status to rate_limited
-        // This would require knowing which repo agent this session belongs to
-        console.log('💡 TODO: Update repo agent status to rate_limited');
       }
     } catch (error) {
       console.error('Error checking for rate limit:', error);
@@ -212,8 +172,6 @@ export class ClaudeCodeClient {
 
   private async handleSessionComplete(message: any) {
     console.log('✅ Session completed with exit code:', message.exitCode);
-
-    // Update agent state with last session completed at
     await this.updateAgentState({
       lastSessionCompletedAt: new Date().toISOString(),
       lastMessagedAt: new Date().toISOString()
@@ -231,11 +189,9 @@ export class ClaudeCodeClient {
     rateLimitResetAt?: string;
   }) {
     try {
-      // Get or create agent client record for CLAUDE_CODE type
       const existingAgent = await db.select().from(agentClients).where(eq(agentClients.type, 'CLAUDE_CODE')).limit(1);
 
       if (existingAgent.length > 0) {
-        // Update existing agent client state
         const currentState = existingAgent[0].state || {};
         const newState = { ...currentState, ...stateUpdate };
 
@@ -245,14 +201,11 @@ export class ClaudeCodeClient {
             updatedAt: new Date()
           })
           .where(eq(agentClients.id, existingAgent[0].id));
-
       } else {
-        // Create new agent client record
         await db.insert(agentClients).values({
           type: 'CLAUDE_CODE',
           state: stateUpdate
         });
-
         console.log('➕ Created new agent with state:', stateUpdate);
       }
     } catch (error) {
@@ -265,16 +218,14 @@ export class ClaudeCodeClient {
       throw new Error('Not connected to Claude Code UI');
     }
 
-    const sessionMessage = {
+    this.ws.send(JSON.stringify({
       type: 'start_session',
       sessionType: 'claude',
       command,
       options
-    };
+    }));
 
-    this.ws.send(JSON.stringify(sessionMessage));
-
-    // Return a temporary session ID (will be updated when session is created)
+    // TODO: this is wrong. This function should not return anything. Currently this is mistakenly used as agent session ID. Agent session ID to task ID binding should be provided via modifying Claude Code UI WS handling.
     return Date.now().toString();
   }
 
@@ -283,29 +234,23 @@ export class ClaudeCodeClient {
       throw new Error('Not connected to Claude Code UI');
     }
 
-    const abortMessage = {
+    this.ws.send(JSON.stringify({
       type: 'abort_session',
       sessionType: 'claude',
       sessionId
-    };
-
-    this.ws.send(JSON.stringify(abortMessage));
+    }));
     return true;
   }
 
-
-  // Method to check if connected
   get connected(): boolean {
     return this.isConnected;
   }
 
-  // Method to retry connection (resets attempt counter)
   async retryConnection(): Promise<boolean> {
     if (this.isConnected) {
       return true;
     }
 
-    // Reset attempt counter to allow new connection attempts
     this.reconnectAttempts = 0;
 
     try {
@@ -332,6 +277,5 @@ export class ClaudeCodeClient {
     }
 
     this.isConnected = false;
-    this.activeSessions.clear();
   }
 }

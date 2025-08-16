@@ -14,26 +14,11 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 
 ## Key Development Guidelines
 
-1. **Code Style**: Follow existing patterns in the codebase
-2. **Testing**: Run tests before committing changes
-3. **Documentation**: Update relevant documentation when making significant changes
-4. **Security**: Never commit sensitive data or credentials
-
-## General Engineering Guidelines
-
-- **Files**: ~300 lines maximum
-- **Action**: Proactively suggest refactoring when approaching these limits
-- **Prefer native solutions** over third-party libraries when possible
-- Only suggest external dependencies if they provide significant value
-- Prefer functions over classes
+@.ai/rules/shared/rules/js-rules.mdc
 
 ## Communication Style
 
-- Be direct and actionable in suggestions
-- Explain the "why" behind recommendations
-- Act as a knowledgeable owner, not just an assistant
-- Proactively address potential UX issues
-- Keep explanations concise but thorough
+@.ai/rules/shared/rules/communication.mdc
 
 ## Quick Commands
 

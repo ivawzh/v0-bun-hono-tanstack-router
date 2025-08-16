@@ -6,39 +6,25 @@ import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects, agentClients } from '../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
-export interface AgentStatus {
-  agentId: string;
-  status: 'idle' | 'active' | 'rate_limited' | 'error';
-  lastHeartbeat: Date;
-  currentTaskId?: string;
-  sessionId?: string;
-}
-
 export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
 export interface AgentOrchestratorOptions {
   claudeCodeUrl: string;
   agentToken: string;
   taskPushEnabled?: boolean;
-  heartbeatInterval?: number;
-  availabilityTimeout?: number;
 }
 
 export class AgentOrchestrator {
   private claudeCodeClient: ClaudeCodeClient;
   private isConnected = false;
-  private agentStatuses = new Map<string, AgentStatus>();
   private taskPushEnabled: boolean;
-  private heartbeatInterval: number;
-  private availabilityTimeout: number;
-  private monitoringInterval: NodeJS.Timeout | null = null;
   private taskPushingInterval: NodeJS.Timeout | null = null;
   private logger = {
     info: (msg: string, context?: any) => console.log(`[AgentOrchestrator] ${msg}`, context || ''),
     error: (msg: string, error?: any, context?: any) => console.error(`[AgentOrchestrator] ${msg}`, error?.message || error, context || ''),
     debug: (msg: string, context?: any) => {
       if (process.env.DEBUG_ORCHESTRATOR === 'true') {
-        console.log(`[ImprovedOrchestrator-DEBUG] ${msg}`, context || '');
+        console.log(`[AgentOrchestrator-DEBUG] ${msg}`, context || '');
       }
     }
   };
@@ -49,8 +35,6 @@ export class AgentOrchestrator {
       agentToken: options.agentToken
     });
     this.taskPushEnabled = options.taskPushEnabled ?? true;
-    this.heartbeatInterval = options.heartbeatInterval ?? 30000; // 30 seconds
-    this.availabilityTimeout = options.availabilityTimeout ?? 10000; // 10 seconds
   }
 
   async initialize() {
@@ -63,27 +47,8 @@ export class AgentOrchestrator {
       this.isConnected = false;
     }
 
-    // Start monitoring agents and tasks
-    this.startMonitoring();
-
-    // Start task pushing
+    // Start task pushing every second
     this.startTaskPushing();
-  }
-
-  private startMonitoring() {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-    }
-
-    this.monitoringInterval = setInterval(async () => {
-      try {
-        if (this.taskPushEnabled) {
-          await this.pushTasksToAvailableAgents();
-        }
-      } catch (error) {
-        this.logger.error('Error in monitoring cycle', error);
-      }
-    }, this.heartbeatInterval);
   }
 
   private startTaskPushing() {
@@ -93,7 +58,9 @@ export class AgentOrchestrator {
 
     this.taskPushingInterval = setInterval(async () => {
       try {
-        await this.checkAndPushTasks();
+        if (this.taskPushEnabled) {
+          await this.checkAndPushTasks();
+        }
       } catch (error) {
         this.logger.error('Error checking and pushing tasks', error);
       }
@@ -176,18 +143,16 @@ export class AgentOrchestrator {
       const vacancy = await this.calculateAgentClientVacancy(agentType);
 
       if (vacancy === 'Free') {
-        // Agent is free, try to push tasks to it
-        this.logger.debug(`[AgentOrchestrator] Agent ${agentType} is free, checking for tasks to push`);
-
-        // Trigger task push for this specific agent type
-        await this.pushTasksToSpecificAgentType(agentType);
+        // Agent is free, find and assign the top priority task for this agent type
+        this.logger.debug(`Agent ${agentType} is free, checking for tasks to push`);
+        await this.assignTopTaskToAgentType(agentType);
       }
     }
   }
 
-  private async pushTasksToSpecificAgentType(targetAgentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE') {
+  private async assignTopTaskToAgentType(targetAgentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE') {
     try {
-      // Get ready tasks ordered by priority for the specific agent type
+      // Get the highest priority ready task for the specific agent type
       const readyTasks = await db
         .select({
           task: tasks,
@@ -229,142 +194,25 @@ export class AgentOrchestrator {
 
       const taskData = readyTasks[0];
 
-      // Check if we can assign to an available agent
-      const availableAgents = Array.from(this.agentStatuses.values()).filter(status => {
-        const isIdle = status.status === 'idle';
-        const hasNoCurrentTask = !status.currentTaskId;
-        const isTargetAgent = status.agentId === taskData.repoAgent.id;
-        const isConnected = this.isConnected;
-
-        return isIdle && hasNoCurrentTask && isTargetAgent && isConnected;
-      });
-
-      if (availableAgents.length > 0) {
-        const availableAgent = availableAgents[0];
-
-        this.logger.info(`[AgentOrchestrator]Pushing task to ${targetAgentType} agent`, {
+      if (this.isConnected) {
+        this.logger.info(`Assigning task to ${targetAgentType} agent`, {
           taskId: taskData.task.id,
           taskTitle: taskData.task.rawTitle,
-          agentId: availableAgent.agentId,
           priority: taskData.task.priority
         });
 
-        // Assign the task to the available agent
-        await this.assignTaskToAgent(taskData, availableAgent);
-
-        // Mark agent as busy in our tracking
-        availableAgent.currentTaskId = taskData.task.id;
-        availableAgent.status = 'active';
+        // Assign the task to the agent
+        await this.assignTaskToAgent(taskData);
       }
     } catch (error) {
-      this.logger.error(`[AgentOrchestrator]Error pushing tasks to ${targetAgentType}`, error);
+      this.logger.error(`Error assigning task to ${targetAgentType}`, error);
     }
   }
 
-  private async pushTasksToAvailableAgents() {
-    try {
-      // Get available agents (idle status and no current task)
-      const availableAgents = Array.from(this.agentStatuses.values()).filter(status => {
-        const isIdle = status.status === 'idle';
-        const hasNoCurrentTask = !status.currentTaskId;
-        // For Claude Code agents, also check if we're connected to the WebSocket
-        const isConnected = this.isConnected;
-
-        this.logger.debug('Agent availability check', {
-          agentId: status.agentId,
-          isIdle,
-          hasNoCurrentTask,
-          isConnected,
-          status: status.status
-        });
-
-        return isIdle && hasNoCurrentTask && isConnected;
-      });
-
-      if (availableAgents.length === 0) {
-        this.logger.debug('No available agents for task assignment', {
-          totalAgents: this.agentStatuses.size,
-          isConnected: this.isConnected
-        });
-        return;
-      }
-
-      // Get ready tasks ordered by priority
-      const readyTasks = await db
-        .select({
-          task: tasks,
-          repoAgent: repoAgents,
-          actor: actors,
-          project: projects
-        })
-        .from(tasks)
-        .innerJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
-        .leftJoin(actors, eq(tasks.actorId, actors.id))
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .where(
-          and(
-            eq(tasks.ready, true),
-            eq(tasks.status, 'todo'),
-            eq(tasks.isAiWorking, false)
-          )
-        )
-        .orderBy(
-          sql`CASE ${tasks.priority}
-              WHEN 'P5' THEN 1
-              WHEN 'P4' THEN 2
-              WHEN 'P3' THEN 3
-              WHEN 'P2' THEN 4
-              WHEN 'P1' THEN 5
-              ELSE 6
-            END`,
-          sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
-          tasks.createdAt
-        );
-
-      // Assign tasks to available agents
-      for (const taskData of readyTasks) {
-        const { task, repoAgent } = taskData;
-
-        // Find available agent for this repo
-        const availableAgent = availableAgents.find(agent =>
-          agent.agentId === repoAgent.id && !agent.currentTaskId
-        );
-
-        if (availableAgent) {
-          this.logger.info('Pushing task to available agent', {
-            taskId: task.id,
-            taskTitle: task.rawTitle,
-            agentId: availableAgent.agentId,
-            priority: task.priority
-          });
-
-          // Start the task assignment process
-          await this.assignTaskToAgent(taskData, availableAgent);
-
-          // Mark agent as busy in our tracking
-          availableAgent.currentTaskId = task.id;
-          availableAgent.status = 'active';
-        }
-      }
-    } catch (error) {
-      this.logger.error('Error pushing tasks to agents', error);
-    }
-  }
-
-  private async assignTaskToAgent(taskData: any, agentStatus: AgentStatus) {
+  private async assignTaskToAgent(taskData: any) {
     const { task, repoAgent, actor, project } = taskData;
 
     try {
-      // Update task status to doing with refine stage
-      await db
-        .update(tasks)
-        .set({
-          updatedAt: new Date()
-        })
-        .where(eq(tasks.id, task.id));
-
-      // Note: Agent status is now tracked in agentClients.state via MCP calls
-
       // Create task context for prompt generation
       const taskContext: TaskContext = {
         id: task.id,
@@ -404,15 +252,15 @@ export class AgentOrchestrator {
       const sessionId = await this.claudeCodeClient.startSession(prompt, sessionOptions);
 
       // Create session record in database
-      const [session] = await db.insert(sessions).values({
+      await db.insert(sessions).values({
         agentSessionId: sessionId,
         taskId: task.id,
         repoAgentId: repoAgent.id,
         status: 'active',
         startedAt: new Date()
-      }).returning();
+      });
 
-      // Update agent client's lastTaskPushedAt timestamp in state to prevent duplicate task pushing
+      // Update agent client's lastTaskPushedAt timestamp to prevent duplicate task pushing
       const agentClient = await db.query.agentClients.findFirst({
         where: eq(agentClients.id, repoAgent.agentClientId)
       });
@@ -431,20 +279,15 @@ export class AgentOrchestrator {
           .where(eq(agentClients.id, repoAgent.agentClientId));
       }
 
-      // Update agent tracking
-      agentStatus.sessionId = sessionId;
-
       this.logger.info('Task successfully assigned to agent', {
         taskId: task.id,
-        agentId: agentStatus.agentId,
         sessionId,
         stage: 'refine'
       });
 
     } catch (error) {
       this.logger.error('Failed to assign task to agent', error, {
-        taskId: task.id,
-        agentId: agentStatus.agentId
+        taskId: task.id
       });
 
       // Reset task status on error
@@ -452,33 +295,13 @@ export class AgentOrchestrator {
         .update(tasks)
         .set({ status: 'todo', stage: null, updatedAt: new Date() })
         .where(eq(tasks.id, task.id));
-
-      // Note: Agent status reset is now handled via MCP calls to agentClients.state
-
-      // Clear from tracking
-      agentStatus.currentTaskId = undefined;
-      agentStatus.status = 'idle';
-    }
-  }
-
-  // Called when a task becomes ready (triggered by toggle ready mutation)
-  async onTaskReady(taskId: string) {
-    this.logger.info('Task marked as ready, checking for available agents', { taskId });
-
-    // Trigger immediate task assignment check
-    if (this.taskPushEnabled) {
-      setTimeout(() => this.pushTasksToAvailableAgents(), 500);
     }
   }
 
   async shutdown() {
-    if (this.monitoringInterval) {
-      clearInterval(this.monitoringInterval);
-    }
     if (this.taskPushingInterval) {
       clearInterval(this.taskPushingInterval);
     }
     this.claudeCodeClient.disconnect();
-    this.agentStatuses.clear();
   }
 }

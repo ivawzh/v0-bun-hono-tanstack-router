@@ -311,20 +311,6 @@ export const tasksRouter = o.router({
       // Broadcast flush to invalidate all queries for this project
       broadcastFlush(task[0].project.id);
 
-      // If task was marked as ready, trigger agent orchestrator
-      if (input.ready) {
-        try {
-          // Get orchestrator instance and trigger task ready check
-          const { getOrchestrator } = await import('../mcp/mcp-server');
-          const orchestrator = getOrchestrator();
-          if (orchestrator) {
-            await orchestrator.onTaskReady(input.id);
-          }
-        } catch (error) {
-          console.error('Failed to notify orchestrator of ready task:', error);
-        }
-      }
-
       return updated[0];
     }),
 
