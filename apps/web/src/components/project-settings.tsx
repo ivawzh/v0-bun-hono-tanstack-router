@@ -58,13 +58,7 @@ export function ProjectSettings({
   const [isValidatingPath, setIsValidatingPath] = useState(false);
   const [pathValidation, setPathValidation] = useState<any>(null);
 
-  // Discover Claude projects
-  const { data: claudeProjects, isLoading: isDiscovering } = useQuery(
-    orpc.claudeProjects.discover.queryOptions({
-      input: {},
-      enabled: open, // Only fetch when dialog is open
-    })
-  );
+  // Simplified - no automatic Claude Code project detection
 
   // Generate suggested Claude Project ID from repo path
   const suggestedProjectId = localRepoPath
@@ -98,15 +92,7 @@ export function ProjectSettings({
     }
   }, [localRepoPath]);
 
-  // When a Claude project is selected from dropdown, set the path for display
-  useEffect(() => {
-    if (claudeProjectId && claudeProjects?.projects) {
-      const selectedProject = claudeProjects.projects.find(p => p.id === claudeProjectId);
-      if (selectedProject) {
-        setLocalRepoPath(selectedProject.path);
-      }
-    }
-  }, [claudeProjectId, claudeProjects]);
+  // Simplified - manual path entry only
 
   const updateProject = useMutation(
     orpc.projects.update.mutationOptions({
@@ -159,12 +145,12 @@ export function ProjectSettings({
               </TooltipProvider>
             </Label>
 
-            {isDiscovering ? (
+            {false ? ( // isDiscovering disabled in simplified architecture
               <div className="flex items-center justify-center h-10 border rounded-md">
                 <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                 <span className="ml-2 text-sm text-muted-foreground">Discovering Claude projects...</span>
               </div>
-            ) : claudeProjects?.projects && claudeProjects.projects.length > 0 ? (
+            ) : false ? ( // claudeProjects discovery disabled
               <Select value={claudeProjectId || "manual"} onValueChange={(value) => {
                 setClaudeProjectId(value === "manual" ? "" : value);
               }}>

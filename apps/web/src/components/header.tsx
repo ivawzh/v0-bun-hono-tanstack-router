@@ -41,47 +41,7 @@ export default function Header() {
 
         <div className="flex items-center gap-4">
 
-          {/* Agent Status - only show when in project context */}
-          {projectId && (
-            <div className="flex items-center gap-3 text-sm">
-              {/* Agent health chip per requirements */}
-              {Array.isArray(agents) && agents.some((a: any) => a.state === 'rate_limited') ? (
-                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-100 text-yellow-900 border border-yellow-300">
-                  <AlertTriangle className="h-4 w-4" />
-                  Agent rate limited
-                  {(() => {
-                    const rlAgent = (agents as any).find((a: any) => a.state === 'rate_limited');
-                    const eta = rlAgent?.nextRetryAt ? new Date(rlAgent.nextRetryAt) : null;
-                    if (eta) {
-                      const mins = Math.max(1, Math.ceil((eta.getTime() - Date.now()) / 60000));
-                      return <span className="ml-1">• auto-resumes in {mins}m</span>;
-                    }
-                    return null;
-                  })()}
-                </span>
-              ) : (
-                <span className="text-muted-foreground">
-                  Agents: <span className="text-foreground">2 online</span> • Running <span className="text-foreground">1</span>
-                </span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-2"
-                onClick={() => {
-                  if (project) {
-                    updateProject.mutate({ id: projectId as string, agentPaused: !(project as any).agentPaused } as any);
-                  }
-                }}
-              >
-                {(project as any)?.agentPaused ? (
-                  <><Play className="h-4 w-4" /> Resume All</>
-                ) : (
-                  <><Pause className="h-4 w-4" /> Pause All Agents</>
-                )}
-              </Button>
-            </div>
-          )}
+          {/* Agent controls removed from simplified architecture */}
 
           {/* Navigation */}
           <nav className="flex gap-4">

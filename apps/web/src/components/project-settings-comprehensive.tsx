@@ -106,13 +106,7 @@ export function ProjectSettingsComprehensive({
     })
   );
 
-  // Claude Code projects detection
-  const { data: claudeProjects } = useQuery(
-    orpc.repoAgents.detectClaudeProjects.queryOptions({
-      input: {},
-      enabled: open && repoAgentForm.clientType === "claude_code"
-    })
-  );
+  // Simplified - no automatic Claude Code project detection
 
   // Repo Agent mutations
   const createRepoAgent = useMutation(
@@ -153,18 +147,7 @@ export function ProjectSettingsComprehensive({
     })
   );
 
-  const toggleRepoAgentPause = useMutation(
-    orpc.repoAgents.togglePause.mutationOptions({
-      onSuccess: (data, variables) => {
-        const action = variables.isPaused ? "paused" : "resumed";
-        toast.success(`Repo agent ${action} successfully`);
-        queryClient.invalidateQueries({ queryKey: ["repoAgents"] });
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to toggle repo agent pause: ${error.message}`);
-      },
-    })
-  );
+  // Pause functionality removed from simplified architecture
 
   // Actor mutations
   const createActor = useMutation(
@@ -405,20 +388,9 @@ export function ProjectSettingsComprehensive({
                           <SelectValue placeholder="Select a Claude Code project" />
                         </SelectTrigger>
                         <SelectContent>
-                          {claudeProjects?.length ? (
-                            claudeProjects.map((project: any) => (
-                              <SelectItem key={project.id} value={project.id}>
-                                <div className="flex flex-col">
-                                  <span className="font-medium">{project.name}</span>
-                                  <span className="text-xs text-muted-foreground">{project.path}</span>
-                                </div>
-                              </SelectItem>
-                            ))
-                          ) : (
-                            <SelectItem value="no-projects" disabled>
-                              No Claude Code projects found
-                            </SelectItem>
-                          )}
+                          <SelectItem value="no-projects" disabled>
+                            Enter repository path manually below
+                          </SelectItem>
                         </SelectContent>
                       </Select>
                       {repoAgentForm.selectedClaudeProject && (
@@ -504,24 +476,7 @@ export function ProjectSettingsComprehensive({
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            toggleRepoAgentPause.mutate({
-                              id: agent.id,
-                              isPaused: !agent.isPaused
-                            });
-                          }}
-                          disabled={toggleRepoAgentPause.isPending}
-                          title={agent.isPaused ? "Resume agent" : "Pause agent"}
-                        >
-                          {agent.isPaused ? (
-                            <Play className="h-4 w-4" />
-                          ) : (
-                            <Pause className="h-4 w-4" />
-                          )}
-                        </Button>
+                        {/* Pause functionality removed from simplified architecture */}
                         <Button
                           variant="ghost"
                           size="sm"
