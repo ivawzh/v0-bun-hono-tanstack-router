@@ -102,7 +102,22 @@ function registerMcpTools(server: McpServer) {
     },
     async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, isAiWorking }, { requestInfo }) => {
       logger.info(`RequestInfo: `, requestInfo);
-      const updates = { refinedTitle, refinedDescription, plan, status, stage, isAiWorking };
+      
+      // Prepare initial updates
+      const updates: any = { refinedTitle, refinedDescription, plan, status, stage };
+      
+      // Handle isAiWorking with timestamp tracking
+      if (isAiWorking !== undefined) {
+        updates.isAiWorking = isAiWorking;
+        if (isAiWorking === true) {
+          // Set timestamp when AI starts working
+          updates.aiWorkingSince = new Date();
+        } else if (isAiWorking === false) {
+          // Clear timestamp when AI stops working
+          updates.aiWorkingSince = null;
+        }
+      }
+      
       // Filter out undefined values
       const filteredUpdates = Object.fromEntries(
         Object.entries(updates).filter(([_, value]) => value !== undefined)

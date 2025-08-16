@@ -91,6 +91,9 @@ export const tasks = pgTable("tasks", {
   // AI working flag
   isAiWorking: boolean("is_ai_working").default(false),
   
+  // AI working timestamp (when isAiWorking was set to true)
+  aiWorkingSince: timestamp("ai_working_since"),
+  
   // Task authorship (human or ai)
   author: text("author").notNull().default("human"), // human, ai
   

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,7 @@ import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
 import { DeleteTaskDialog } from "@/components/delete-task-dialog";
+import { ResetAgentModal } from "@/components/reset-agent-modal";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
@@ -91,15 +92,29 @@ const stageColors = {
 
 // Priority colors are now handled by the priority utility
 
+// Helper function to check if task is stuck (5+ minutes of AI working)
+function isTaskStuck(task: any): boolean {
+  if (!task.isAiWorking || !task.aiWorkingSince) {
+    return false;
+  }
+  
+  const workingSince = new Date(task.aiWorkingSince);
+  const now = new Date();
+  const minutesWorking = (now.getTime() - workingSince.getTime()) / (1000 * 60);
+  
+  return minutesWorking >= 5;
+}
+
 interface TaskCardProps {
   task: any;
   onTaskClick: (taskId: string) => void;
   onToggleReady: (taskId: string, ready: boolean) => void;
   onStageChange: (taskId: string, stage: string | null) => void;
   onDeleteTask: (task: any) => void;
+  onResetAgent: (task: any) => void;
 }
 
-function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTask }: TaskCardProps) {
+function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTask, onResetAgent }: TaskCardProps) {
   const [showMore, setShowMore] = useState(false);
   const {
     attributes,
@@ -175,6 +190,18 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />
                     Open in Claude Code
+                  </DropdownMenuItem>
+                )}
+                {isTaskStuck(task) && (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResetAgent(task);
+                    }}
+                    className="text-orange-600"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset Agent
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
@@ -303,6 +330,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
+  const [resetTaskId, setResetTaskId] = useState<string | null>(null);
+  const [taskToReset, setTaskToReset] = useState<any>(null);
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft();
 
@@ -395,6 +424,19 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     },
     onError: (error) => {
       toast.error("Failed to delete task: " + error.message);
+    }
+  }));
+
+  // Reset agent mutation
+  const resetAgentMutation = useMutation(orpc.tasks.resetAgent.mutationOptions({
+    onSuccess: () => {
+      toast.success("AI agent status reset successfully");
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      setResetTaskId(null);
+      setTaskToReset(null);
+    },
+    onError: (error) => {
+      toast.error("Failed to reset agent: " + error.message);
     }
   }));
 
@@ -637,6 +679,17 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     }
   };
 
+  const handleResetAgent = (task: any) => {
+    setTaskToReset(task);
+    setResetTaskId(task.id);
+  };
+
+  const handleConfirmReset = () => {
+    if (resetTaskId) {
+      resetAgentMutation.mutate({ id: resetTaskId });
+    }
+  };
+
   const handleCreateTask = async () => {
     if (!newTask.rawTitle || !newTask.repoAgentId) {
       toast.error("Please fill in all required fields");
@@ -742,6 +795,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                               onToggleReady={handleToggleReady}
                               onStageChange={handleStageChange}
                               onDeleteTask={handleDeleteTask}
+                              onResetAgent={handleResetAgent}
                             />
                           ))}
                         </div>
@@ -764,6 +818,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               onToggleReady={() => {}}
               onStageChange={() => {}}
               onDeleteTask={() => {}}
+              onResetAgent={() => {}}
             />
           ) : null}
         </DragOverlay>
@@ -928,6 +983,20 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         taskTitle={taskToDelete?.refinedTitle || taskToDelete?.rawTitle || ""}
         onConfirm={handleConfirmDelete}
         loading={deleteTaskMutation.isPending}
+      />
+
+      {/* Reset Agent Modal */}
+      <ResetAgentModal
+        open={!!resetTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setResetTaskId(null);
+            setTaskToReset(null);
+          }
+        }}
+        taskTitle={taskToReset?.refinedTitle || taskToReset?.rawTitle || ""}
+        onConfirm={handleConfirmReset}
+        loading={resetAgentMutation.isPending}
       />
     </div>
   );

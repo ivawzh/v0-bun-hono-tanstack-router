@@ -600,5 +600,47 @@ export const tasksRouter = o.router({
         buffer,
         metadata: attachment
       };
+    }),
+
+  resetAgent: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Reset AI working status and clear timestamp
+      const updated = await db
+        .update(tasks)
+        .set({
+          isAiWorking: false,
+          aiWorkingSince: null,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, input.id))
+        .returning();
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return updated[0];
     })
 });
