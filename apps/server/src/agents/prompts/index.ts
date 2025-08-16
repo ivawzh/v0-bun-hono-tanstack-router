@@ -29,7 +29,7 @@ export class RefinePrompt implements PromptTemplate {
     return `Refine this raw task. Do not write any code.
 
 **Steps**:
-1. **START**: Use \`task_update\` with taskId="${context.id}", status="doing", stage="refine", isAiWorking=true
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="refine", isAiWorking=true
 2. Analyze the raw title and raw description to understand the user's intent. Focus on UX improvements and Customer Obsession.
 3. Create a refined title that is clear and specific.
 4. Write a detailed refined description that includes:
@@ -37,7 +37,7 @@ export class RefinePrompt implements PromptTemplate {
    - Key requirements and goals
    - Expected outcome
    - Out-of-scope items if any
-5. **FINISH**: Use \`task_update\` with taskId="${context.id}", stage="kickoff", isAiWorking=false, refinedTitle=[from above], refinedDescription=[from above]
+5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="kickoff", isAiWorking=false, refinedTitle=[from above], refinedDescription=[from above]
 
 **Your Role**: ${actorDescription || defaultActorDescription}
 ${projectMemory ? '**Project Context**: ' + projectMemory : ''}
@@ -57,7 +57,7 @@ export class KickoffPrompt implements PromptTemplate {
     return `Kickoff a task - create a comprehensive implementation plan and detailed specification. Do not write any code.
 
 **Steps**:
-1. **START**: Use \`task_update\` with taskId="${context.id}", status="doing", stage="kickoff", isAiWorking=true
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="kickoff", isAiWorking=true
 2. **List Solution Options**: List viable potential solution options
 3. **Evaluate and Rank**: Compare the options considering in order of importance:
    - Most importantly - UX
@@ -70,7 +70,7 @@ export class KickoffPrompt implements PromptTemplate {
    - Spec
    - Implementation steps
    - Potential risks and mitigations (only if necessary)
-7. **FINISH**: Use \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false, plan=[from above]
+7. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false, plan=[from above]
 
 **Your Role**: ${actorDescription || defaultActorDescription}
 ${projectMemory ? '**Project Context**: ' + projectMemory : ''}
@@ -92,10 +92,10 @@ export class ExecutePrompt implements PromptTemplate {
     return `Implement the solution following the plan below. Do not write any code.
 
 **Steps**:
-1. **START**: Use \`task_update\` with taskId="${context.id}", status="doing", stage="execute", isAiWorking=true
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="execute", isAiWorking=true
 2. **Follow the Plan**: Implement the solution as specified in the plan above
 3. **Commit Changes**: Make appropriate git commits when needed
-4. **FINISH**: Use \`task_update\` with taskId="${context.id}", status="done", stage=null, isAiWorking=false
+4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="done", stage=null, isAiWorking=false
 
 **Your Role**: ${actorDescription || defaultActorDescription}
 ${projectMemory ? '**Project Context**: ' + projectMemory : ''}

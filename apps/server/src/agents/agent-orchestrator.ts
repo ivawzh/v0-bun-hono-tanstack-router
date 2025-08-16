@@ -276,10 +276,15 @@ export class AgentOrchestrator {
             "WebSearch",
             "WebFetch",
             "TodoRead",
-            "TodoWrite"
+            "TodoWrite",
+            // Solo Unicorn MCP tools
+            "mcp__solo-unicorn__task_update",
+            "mcp__solo-unicorn__agent_rateLimit",
+            "mcp__solo-unicorn__project_memory_update",
+            "mcp__solo-unicorn__project_memory_get"
           ],
           disallowedTools: [],
-          skipPermissions: false
+          skipPermissions: true
         },
         permissionMode: 'default'
       };

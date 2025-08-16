@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
 import { TaskDrawer } from "@/components/task-drawer";
+import { TaskStageSelector } from "@/components/task-stage-selector";
 import { useWebSocket } from "@/hooks/use-websocket";
 
 // Drag and drop imports
@@ -94,9 +95,10 @@ interface TaskCardProps {
   task: any;
   onTaskClick: (taskId: string) => void;
   onToggleReady: (taskId: string, ready: boolean) => void;
+  onStageChange: (taskId: string, stage: string | null) => void;
 }
 
-function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
+function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -177,11 +179,12 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
             <Icon className="h-3 w-3" />
             {column?.label}
           </Badge>
-          {task.stage && (
-            <Badge variant="outline" className={stageColors[task.stage as keyof typeof stageColors]}>
-              {task.stage}
-            </Badge>
-          )}
+          <TaskStageSelector
+            stage={task.stage}
+            status={task.status}
+            onStageChange={(stage) => onStageChange(task.id, stage)}
+            size="sm"
+          />
         </div>
 
         {/* Description preview */}
@@ -317,6 +320,16 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     },
     onError: (error) => {
       toast.error("Failed to update task: " + error.message);
+    }
+  }));
+
+  // Update stage mutation
+  const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update task stage: " + error.message);
     }
   }));
 
@@ -551,6 +564,10 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     toggleReadyMutation.mutate({ id: taskId, ready });
   };
 
+  const handleStageChange = (taskId: string, stage: string | null) => {
+    updateStageMutation.mutate({ id: taskId, stage });
+  };
+
   const handleCreateTask = () => {
     if (!newTask.rawTitle || !newTask.repoAgentId) {
       toast.error("Please fill in all required fields");
@@ -652,6 +669,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                               task={task}
                               onTaskClick={handleTaskClick}
                               onToggleReady={handleToggleReady}
+                              onStageChange={handleStageChange}
                             />
                           ))}
                         </div>
@@ -672,6 +690,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               task={activeTask}
               onTaskClick={() => {}}
               onToggleReady={() => {}}
+              onStageChange={() => {}}
             />
           ) : null}
         </DragOverlay>

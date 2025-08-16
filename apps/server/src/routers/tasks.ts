@@ -6,7 +6,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
-const taskStageEnum = v.picklist(["refine", "kickoff", "execute"]);
+const taskStageEnum = v.nullable(v.picklist(["refine", "kickoff", "execute"]));
 const priorityEnum = v.picklist(["P1", "P2", "P3", "P4", "P5"]);
 
 export const tasksRouter = o.router({
@@ -386,5 +386,46 @@ export const tasksRouter = o.router({
       broadcastFlush(input.projectId);
 
       return { success: true, updated: updatedTasks };
+    }),
+
+  updateStage: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      stage: taskStageEnum
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      const updated = await db
+        .update(tasks)
+        .set({
+          stage: input.stage,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, input.id))
+        .returning();
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return updated[0];
     })
 });
