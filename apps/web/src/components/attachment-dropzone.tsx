@@ -128,7 +128,7 @@ export function AttachmentDropzone({
       <div
         {...getRootProps()}
         className={cn(
-          'border-2 border-dashed rounded-lg p-6 cursor-pointer transition-colors',
+          'border-2 border-dashed rounded-lg p-4 cursor-pointer transition-colors',
           isDragActive 
             ? 'border-primary bg-primary/5' 
             : 'border-muted-foreground/25 hover:border-muted-foreground/50',
@@ -136,9 +136,9 @@ export function AttachmentDropzone({
         )}
       >
         <input {...getInputProps()} />
-        <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex flex-col items-center gap-1 text-center">
           <Upload className={cn(
-            'h-8 w-8',
+            'h-6 w-6',
             isDragActive ? 'text-primary' : 'text-muted-foreground'
           )} />
           <div className="text-sm">
@@ -152,7 +152,7 @@ export function AttachmentDropzone({
             )}
           </div>
           <div className="text-xs text-muted-foreground">
-            Max {formatFileSize(maxSize)} per file, {formatFileSize(MAX_TOTAL_SIZE)} total
+            Max {formatFileSize(maxSize)} per file
           </div>
         </div>
       </div>

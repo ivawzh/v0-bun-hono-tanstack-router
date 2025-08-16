@@ -26,7 +26,7 @@ export class RefinePrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { rawTitle, rawDescription, actorDescription, projectMemory } = context;
 
-    return `[${this.stage}] ${context.rawTitle}
+    return `[${this.stage}] ${context.rawTitle || context.refinedTitle}
 **Do not write any code!**
 Refine this raw task.
 
@@ -56,7 +56,7 @@ export class PlanPrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { refinedTitle, refinedDescription, actorDescription, projectMemory } = context;
 
-    return `[${this.stage}] ${context.rawTitle}
+    return `[${this.stage}] ${context.rawTitle || context.refinedTitle}
 **Do not write any code!**
 Plan a task - create a comprehensive implementation plan and detailed specification.
 
@@ -89,8 +89,8 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
        - priority=same as current task
        - stage="execute" (skip refine/plan)
        - dependsOn=[previous split task IDs for dependency chain]
-     * Update current task to become a coordination task with updated plan
-7. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false, plan=[from above]
+     * If splitting cards, mark the current task as done via Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="done", isAiWorking=false, plan=[from above]
+7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false, plan=[from above]
 
 **Your Role**: ${actorDescription || defaultActorDescription}
 ${projectMemory ? '**Project Context**: ' + projectMemory : ''}
@@ -109,7 +109,7 @@ export class ExecutePrompt implements PromptTemplate {
 
     const planSummary = plan ? JSON.stringify(plan) : 'No plan available';
 
-    return `[${this.stage}] ${context.rawTitle}
+    return `[${this.stage}] ${context.rawTitle || context.refinedTitle}
 Implement the solution following the plan below.
 
 **Steps**:

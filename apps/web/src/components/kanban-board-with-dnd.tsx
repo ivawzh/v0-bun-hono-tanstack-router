@@ -841,7 +841,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent className="h-[80vh] max-h-[80vh] flex flex-col">
+        <DialogContent className="max-w-[700px] w-[95vw] h-[85vh] max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
@@ -853,8 +853,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 min-h-0 px-1">
-            <div className="space-y-4 py-4 px-5">
+          <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
+            <div className="space-y-4 p-6">
             <div className="space-y-2">
               <Label htmlFor="task-title">Title</Label>
               <Input
@@ -952,7 +952,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
             </div>
             </div>
           </ScrollArea>
-          <DialogFooter className="flex-shrink-0 mt-4">
+          <DialogFooter className="flex-shrink-0 p-6 pt-0 border-t bg-background">
             <Button 
               variant="outline" 
               onClick={() => {

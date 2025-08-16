@@ -102,10 +102,10 @@ function registerMcpTools(server: McpServer) {
     },
     async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, isAiWorking }, { requestInfo }) => {
       logger.info(`RequestInfo: `, requestInfo);
-      
+
       // Prepare initial updates
       const updates: any = { refinedTitle, refinedDescription, plan, status, stage };
-      
+
       // Handle isAiWorking with timestamp tracking
       if (isAiWorking !== undefined) {
         updates.isAiWorking = isAiWorking;
@@ -117,7 +117,7 @@ function registerMcpTools(server: McpServer) {
           updates.aiWorkingSince = null;
         }
       }
-      
+
       // Filter out undefined values
       const filteredUpdates = Object.fromEntries(
         Object.entries(updates).filter(([_, value]) => value !== undefined)
@@ -392,7 +392,7 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_create",
     {
       title: "Create a new task",
-      description: "Create a new task with optional stage targeting (plan/execute) and dependency specification.",
+      description: "Create a new task and return the created task information including its task ID.",
       inputSchema: {
         projectId: z.string().uuid(),
         repoAgentId: z.string().uuid(),
@@ -548,7 +548,7 @@ function registerMcpTools(server: McpServer) {
         // Determine task status and stage
         let taskStatus = "todo";
         let taskStage = null;
-        
+
         if (stage) {
           taskStatus = "doing";
           taskStage = stage;
@@ -561,7 +561,7 @@ function registerMcpTools(server: McpServer) {
             projectId,
             repoAgentId,
             actorId,
-            rawTitle: rawTitle || refinedTitle || "AI-created task",
+            rawTitle: rawTitle || refinedTitle || "",
             rawDescription,
             refinedTitle,
             refinedDescription,
@@ -584,7 +584,7 @@ function registerMcpTools(server: McpServer) {
           }));
 
           await db.insert(taskDependencies).values(dependencyInserts);
-          
+
           logger.debug("Task dependencies created", {
             taskId,
             dependsOn,
@@ -606,9 +606,9 @@ function registerMcpTools(server: McpServer) {
           content: [
             {
               type: "text",
-              text: JSON.stringify({ 
-                success: true, 
-                taskId, 
+              text: JSON.stringify({
+                success: true,
+                taskId,
                 task: newTask[0],
               }),
             },
