@@ -168,7 +168,7 @@ export class AgentOrchestrator {
 
       if (vacancy === 'Free') {
         // Agent is free, find and assign the top priority task for this agent type
-        this.logger.debug(`Agent ${agentType} is free, checking for tasks to push`);
+        this.logger.info(`Agent ${agentType} is free, checking for tasks to push`);
         await this.assignTopTaskToAgentType(agentType);
       }
     }
