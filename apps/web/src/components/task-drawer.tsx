@@ -55,6 +55,7 @@ import { cn } from "@/lib/utils";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentList } from "@/components/attachment-list";
+import { EditableField } from "@/components/editable-field";
 
 interface TaskDrawerProps {
   taskId: string | null;
@@ -183,6 +184,51 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
     if (window.confirm("Are you sure you want to delete this task?")) {
       deleteTaskMutation.mutate({ id: taskId! });
     }
+  };
+
+  const handleSaveRefinedTitle = async (newValue: string) => {
+    return new Promise<void>((resolve, reject) => {
+      updateTaskMutation.mutate({
+        id: taskId!,
+        refinedTitle: newValue
+      }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      });
+    });
+  };
+
+  const handleSaveRefinedDescription = async (newValue: string) => {
+    return new Promise<void>((resolve, reject) => {
+      updateTaskMutation.mutate({
+        id: taskId!,
+        refinedDescription: newValue
+      }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      });
+    });
+  };
+
+  const handleSavePlan = async (newValue: string) => {
+    return new Promise<void>((resolve, reject) => {
+      let planValue;
+      try {
+        // Try to parse as JSON first
+        planValue = JSON.parse(newValue);
+      } catch {
+        // If not valid JSON, store as string
+        planValue = newValue;
+      }
+      
+      updateTaskMutation.mutate({
+        id: taskId!,
+        plan: planValue
+      }, {
+        onSuccess: () => resolve(),
+        onError: (error) => reject(error)
+      });
+    });
   };
 
   if (!taskId) return null;
@@ -369,28 +415,32 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                         )}
                       </div>
 
-                      {/* Refined Information (if available) */}
-                      {(task.refinedTitle || task.refinedDescription) && (
-                        <div>
-                          <Label>Refined by AI</Label>
-                          <Card className="mt-2">
-                            <CardContent className="p-4">
-                              {task.refinedTitle && task.refinedTitle !== task.rawTitle && (
-                                <div className="mb-2">
-                                  <Label className="text-xs text-muted-foreground">Refined Title</Label>
-                                  <p className="font-medium">{task.refinedTitle}</p>
-                                </div>
-                              )}
-                              {task.refinedDescription && (
-                                <div>
-                                  <Label className="text-xs text-muted-foreground">Refined Description</Label>
-                                  <p className="text-sm whitespace-pre-wrap">{task.refinedDescription}</p>
-                                </div>
-                              )}
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
+                      {/* Refined Information */}
+                      <div>
+                        <Label>Refined by AI</Label>
+                        <Card className="mt-2">
+                          <CardContent className="p-4 space-y-4">
+                            <EditableField
+                              type="input"
+                              value={task.refinedTitle || ""}
+                              onSave={handleSaveRefinedTitle}
+                              label="Refined Title"
+                              placeholder="AI will generate a refined title"
+                              emptyText="Click to add a refined title"
+                              maxLength={255}
+                            />
+                            <EditableField
+                              type="textarea"
+                              value={task.refinedDescription || ""}
+                              onSave={handleSaveRefinedDescription}
+                              label="Refined Description"
+                              placeholder="AI will generate a refined description"
+                              emptyText="Click to add a refined description"
+                              rows={6}
+                            />
+                          </CardContent>
+                        </Card>
+                      </div>
 
                       {/* Creation Date */}
                       <div>
@@ -405,24 +455,22 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                   {/* Plan Tab */}
                   <TabsContent value="plan" className="mt-0">
                     <div className="space-y-4">
-                      {task.plan && Object.keys(task.plan).length > 0 ? (
-                        <div>
-                          <Label>Agent Plan</Label>
-                          <Card className="mt-2">
-                            <CardContent className="p-4">
-                              <pre className="text-sm whitespace-pre-wrap font-mono">
-                                {JSON.stringify(task.plan, null, 2)}
-                              </pre>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      ) : (
-                        <div className="text-center text-muted-foreground py-8">
-                          <Bot className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No plan available yet</p>
-                          <p className="text-xs mt-1">Plan will be generated when the AI agent picks up this task</p>
-                        </div>
-                      )}
+                      <EditableField
+                        type="textarea"
+                        value={(() => {
+                          if (!task.plan) return "";
+                          if (typeof task.plan === 'string') return task.plan;
+                          if (typeof task.plan === 'object') return JSON.stringify(task.plan, null, 2);
+                          return String(task.plan);
+                        })()}
+                        onSave={handleSavePlan}
+                        label="Agent Plan"
+                        placeholder="AI will generate a plan when the task is picked up"
+                        emptyText="Click to add a plan"
+                        rows={12}
+                        displayClassName="font-mono text-sm bg-muted/50"
+                        editClassName="font-mono text-sm"
+                      />
                     </div>
                   </TabsContent>
 
