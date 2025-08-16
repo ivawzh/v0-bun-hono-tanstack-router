@@ -4,7 +4,7 @@ import { PromptTemplateFactory } from './prompts/index';
 import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects, agentClients } from '../db/schema';
-import { eq, and, sql, ne } from 'drizzle-orm';
+import { eq, and, sql, ne, desc } from 'drizzle-orm';
 
 export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
@@ -25,7 +25,7 @@ export interface AgentOrchestratorOptions {
  *
  * Task selection criteria:
  * - status != 'done', ready=true and isAiWorking=false
- * - Ordered by priority (P5 highest to P1 lowest), then column order, then creation time
+ * - Ordered by priority (5 highest to 1 lowest), then column order, then creation time
  * - Must be assigned to the specific free agent client type
  *
  * Agent vacancy determination:
@@ -198,14 +198,7 @@ export class AgentOrchestrator {
           )
         )
         .orderBy(
-          sql`CASE ${tasks.priority}
-              WHEN 'P5' THEN 1
-              WHEN 'P4' THEN 2
-              WHEN 'P3' THEN 3
-              WHEN 'P2' THEN 4
-              WHEN 'P1' THEN 5
-              ELSE 6
-            END`,
+          desc(tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
           sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
           tasks.createdAt
         )
