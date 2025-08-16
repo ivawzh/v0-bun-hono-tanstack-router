@@ -271,22 +271,24 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           </div>
         )}
 
-        {/* Ready toggle */}
-        <div className="kanban-card-status">
-          <div className="kanban-card-ready-toggle">
-            <Switch
-              id={`ready-${task.id}`}
-              checked={task.ready}
-              onCheckedChange={(checked) => {
-                onToggleReady(task.id, checked);
-              }}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <span className="text-xs text-muted-foreground">
-              {task.ready ? "Ready" : "Not Ready"}
-            </span>
+        {/* Ready toggle - only show for non-completed tasks */}
+        {task.status !== 'done' && (
+          <div className="kanban-card-status">
+            <div className="kanban-card-ready-toggle">
+              <Switch
+                id={`ready-${task.id}`}
+                checked={task.ready}
+                onCheckedChange={(checked) => {
+                  onToggleReady(task.id, checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+              />
+              <span className="text-xs text-muted-foreground">
+                {task.ready ? "Ready" : "Not Ready"}
+              </span>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Repo Agent and Actor info */}
         {task.repoAgent && (
