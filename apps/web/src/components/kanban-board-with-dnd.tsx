@@ -97,11 +97,11 @@ function isTaskStuck(task: any): boolean {
   if (!task.isAiWorking || !task.aiWorkingSince) {
     return false;
   }
-  
+
   const workingSince = new Date(task.aiWorkingSince);
   const now = new Date();
   const minutesWorking = (now.getTime() - workingSince.getTime()) / (1000 * 60);
-  
+
   return minutesWorking >= 5;
 }
 
@@ -132,7 +132,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
 
   const column = statusColumns.find(col => col.id === task.status);
   const Icon = column?.icon || Clock;
-  
+
   const description = task.refinedDescription || task.rawDescription;
   const shouldTruncate = description && description.length > 150;
 
@@ -181,7 +181,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   View Details
                 </DropdownMenuItem>
                 {(task as any)?.agentSessionId && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
                       const base = 'http://localhost:8303';
@@ -193,7 +193,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   </DropdownMenuItem>
                 )}
                 {isTaskStuck(task) && (
-                  <DropdownMenuItem 
+                  <DropdownMenuItem
                     onClick={(e) => {
                       e.stopPropagation();
                       onResetAgent(task);
@@ -205,7 +205,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem 
+                <DropdownMenuItem
                   className="text-red-600"
                   onClick={(e) => {
                     e.stopPropagation();
@@ -598,7 +598,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
       // Calculate new order for the moved task
       let newOrder: string;
-      
+
       if (targetTasks.length === 0) {
         // Empty column
         newOrder = "1000";
@@ -646,7 +646,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
             // Moving down: insert after the target
             const nextTask = targetTasks[overIndex + 1];
             const overOrder = parseFloat(overTask.columnOrder);
-            
+
             if (nextTask) {
               const nextOrder = parseFloat(nextTask.columnOrder);
               newOrder = ((overOrder + nextOrder) / 2).toString();
@@ -658,7 +658,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
             // Moving up: insert before the target
             const prevTask = targetTasks[overIndex - 1];
             const overOrder = parseFloat(overTask.columnOrder);
-            
+
             if (prevTask) {
               const prevOrder = parseFloat(prevTask.columnOrder);
               newOrder = ((prevOrder + overOrder) / 2).toString();
@@ -731,7 +731,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
 
     // Calculate columnOrder for new task (place at end of column)
     const columnTasks = groupedTasks[newTaskColumn] || [];
-    const newOrder = columnTasks.length > 0 
+    const newOrder = columnTasks.length > 0
       ? (parseFloat(columnTasks[columnTasks.length - 1].columnOrder) + 1000).toString()
       : "1000";
 
@@ -859,14 +859,14 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
       </DndContext>
 
       {/* New Task Dialog */}
-      <Dialog 
-        open={showNewTaskDialog} 
+      <Dialog
+        open={showNewTaskDialog}
         onOpenChange={(open) => {
           setShowNewTaskDialog(open);
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent className="max-w-[700px] w-[95vw] max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0 pb-4">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
@@ -878,7 +878,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6">
+          <div className="flex-1 overflow-y-auto px-6 min-h-0">
             <div className="space-y-4 pb-4">
             <div className="space-y-2">
               <Label htmlFor="task-title">Title</Label>
@@ -965,7 +965,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 </SelectContent>
               </Select>
             </div>
-            
+
             {/* File Attachments */}
             <div className="space-y-2">
               <Label>Attachments (Optional)</Label>
@@ -978,8 +978,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
             </div>
           </div>
           <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t bg-background/50">
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               onClick={() => {
                 setShowNewTaskDialog(false);
                 // Don't clear draft on cancel - let user return to their work later

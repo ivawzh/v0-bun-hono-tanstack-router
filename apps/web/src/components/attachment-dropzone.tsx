@@ -128,7 +128,7 @@ export function AttachmentDropzone({
       <div
         {...getRootProps()}
         className={cn(
-          'border-2 border-dashed rounded-lg p-3 cursor-pointer transition-colors min-h-[80px]',
+          'border-2 border-dashed rounded-lg p-2 cursor-pointer transition-colors min-h-[60px]',
           isDragActive 
             ? 'border-primary bg-primary/5' 
             : 'border-muted-foreground/25 hover:border-muted-foreground/50',
@@ -136,7 +136,7 @@ export function AttachmentDropzone({
         )}
       >
         <input {...getInputProps()} />
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <Upload className={cn(
             'h-5 w-5 flex-shrink-0',
             isDragActive ? 'text-primary' : 'text-muted-foreground'
