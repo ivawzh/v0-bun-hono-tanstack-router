@@ -130,19 +130,19 @@ export class ClaudeCodeClient {
 
   private async handleSessionCreated(message: any) {
     console.log('📝 Session created:', message.sessionId);
-    
+
     // Create or update session in database if soloUnicornTaskId is provided
     if (message.soloUnicornTaskId) {
       try {
         const { db } = await import('../db/index');
         const { sessions, repoAgents } = await import('../db/schema');
         const { eq } = await import('drizzle-orm');
-        
+
         // Check if session already exists (for resume case)
         const existingSession = await db.query.sessions.findFirst({
           where: eq(sessions.taskId, message.soloUnicornTaskId)
         });
-        
+
         if (existingSession) {
           // Update existing session with real session ID
           await db
@@ -161,7 +161,7 @@ export class ClaudeCodeClient {
             where: eq(tasks.id, message.soloUnicornTaskId),
             with: { repoAgent: true }
           });
-          
+
           if (task?.repoAgent) {
             await db.insert(sessions).values({
               agentSessionId: message.sessionId,
@@ -179,7 +179,7 @@ export class ClaudeCodeClient {
         console.error('❌ Failed to handle session creation:', error);
       }
     }
-    
+
     await this.updateAgentState({
       lastSessionCreatedAt: new Date().toISOString(),
       lastMessagedAt: new Date().toISOString()
@@ -307,14 +307,23 @@ export class ClaudeCodeClient {
       throw new Error('Not connected to Claude Code UI');
     }
 
-    this.ws.send(JSON.stringify({
-      type: 'start_session',
-      sessionType: 'claude',
-      command,
-      options
-    }));
-
-    // Session creation will be handled via session-created message
+    if (options.resume && options.sessionId) {
+      // Resume with session ID
+      this.ws.send(JSON.stringify({
+        type: 'claude-command',
+        sessionType: 'claude',
+        command,
+        options
+      }));
+    } else {
+      // Create new session
+      this.ws.send(JSON.stringify({
+        type: 'start_session',
+        sessionType: 'claude',
+        command,
+        options
+      }));
+    }
   }
 
   async abortSession(sessionId: string): Promise<boolean> {

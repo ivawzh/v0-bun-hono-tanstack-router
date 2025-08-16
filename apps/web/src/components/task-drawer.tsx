@@ -240,15 +240,15 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:w-[40vw] sm:min-w-[500px] sm:max-w-[800px] p-0">
+      <SheetContent className="w-full sm:w-[40vw] sm:min-w-[500px] sm:max-w-[800px] p-0 max-h-[85vh] sm:max-h-[90vh]">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-muted-foreground">Loading task details...</div>
           </div>
         ) : task ? (
           <div className="flex flex-col h-full">
-            {/* Header */}
-            <div className="p-6 border-b">
+            {/* Fixed Header */}
+            <div className="flex-shrink-0 p-6 border-b bg-background">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2 mb-3">
@@ -347,27 +347,30 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
               </div>
             </div>
 
-            {/* Content Tabs */}
-            <Tabs defaultValue="overview" className="flex-1 flex flex-col">
-              <TabsList className="px-6 w-full justify-start rounded-none border-b h-12">
-                <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="plan">Plan</TabsTrigger>
-                <TabsTrigger value="attachments">
-                  Attachments
-                  {(() => {
-                    const attachments = task.attachments as any[];
-                    return attachments && Array.isArray(attachments) && attachments.length > 0 ? (
-                      <Badge variant="secondary" className="ml-2">
-                        {attachments.length}
-                      </Badge>
-                    ) : null;
-                  })()}
-                </TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-              </TabsList>
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-hidden">
+              <Tabs defaultValue="overview" className="flex flex-col h-full">
+                <div className="flex-shrink-0">
+                  <TabsList className="px-6 w-full justify-start rounded-none border-b h-12">
+                    <TabsTrigger value="overview">Overview</TabsTrigger>
+                    <TabsTrigger value="plan">Plan</TabsTrigger>
+                    <TabsTrigger value="attachments">
+                      Attachments
+                      {(() => {
+                        const attachments = task.attachments as any[];
+                        return attachments && Array.isArray(attachments) && attachments.length > 0 ? (
+                          <Badge variant="secondary" className="ml-2">
+                            {attachments.length}
+                          </Badge>
+                        ) : null;
+                      })()}
+                    </TabsTrigger>
+                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                  </TabsList>
+                </div>
 
-              <ScrollArea className="flex-1">
-                <div className="p-6">
+                <div className="flex-1 overflow-y-auto">
+                  <div className="p-6">
                   {/* Overview Tab */}
                   <TabsContent value="overview" className="mt-0">
                     <div className="space-y-6">
@@ -555,9 +558,16 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                       </div>
                     </div>
                   </TabsContent>
+                  </div>
                 </div>
-              </ScrollArea>
-            </Tabs>
+              </Tabs>
+            </div>
+
+            {/* Fixed Footer for Settings Tab Actions */}
+            {(() => {
+              // Only show fixed footer when on settings tab and there are critical actions
+              return null; // For now, keeping it simple without fixed footer
+            })()}
           </div>
         ) : (
           <div className="text-muted-foreground p-6">Task not found</div>
