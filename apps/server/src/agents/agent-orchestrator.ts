@@ -32,9 +32,10 @@ export interface AgentOrchestratorOptions {
  * - Considers rate limits, recent task assignments, and message activity
  * - Prevents duplicate task pushing with cooldown periods
  *
- * Note: Agent Session ID is currently a timestamp placeholder.
- * Future improvement needed: Agent client should communicate real session ID to Solo Unicorn
- * when session is created, allowing proper session-task binding.
+ * Session Management:
+ * - Tasks can resume existing Claude Code sessions for context continuity
+ * - Real session IDs are obtained from Claude Code UI via WebSocket messages
+ * - Session-task binding enables persistent context across stage transitions
  */
 export class AgentOrchestrator {
   private claudeCodeClient: ClaudeCodeClient;
@@ -236,6 +237,24 @@ export class AgentOrchestrator {
     const { task, repoAgent, actor, project } = taskData;
 
     try {
+      // Check if task already has an active session that can be resumed
+      const existingSession = await db.query.sessions.findFirst({
+        where: eq(sessions.taskId, task.id)
+      });
+
+      let sessionId = null;
+      let shouldCreateNewSession = true;
+
+      if (existingSession?.agentSessionId) {
+        // Try to resume existing session
+        sessionId = existingSession.agentSessionId;
+        shouldCreateNewSession = false;
+        this.logger.info('Resuming existing session', {
+          taskId: task.id,
+          sessionId: sessionId
+        });
+      }
+
       // Create task context for prompt generation
       const taskContext: TaskContext = {
         id: task.id,
@@ -262,6 +281,9 @@ export class AgentOrchestrator {
       const sessionOptions: SessionOptions = {
         projectPath: repoAgent.repoPath,
         cwd: repoAgent.repoPath,
+        sessionId: sessionId || undefined,
+        resume: !!sessionId,
+        soloUnicornTaskId: task.id,
         toolsSettings: {
           allowedTools: [
             "Bash(git log:*)",
@@ -290,19 +312,19 @@ export class AgentOrchestrator {
         permissionMode: 'default'
       };
 
-      // Start Claude session
-      // TODO: Fix Agent Session ID - currently using timestamp placeholder
-      // Future: Agent client should communicate real session ID when session is created
-      const sessionId = await this.claudeCodeClient.startSession(prompt, sessionOptions);
+      // Start or resume Claude session
+      await this.claudeCodeClient.startSession(prompt, sessionOptions);
 
-      // Create session record in database
-      await db.insert(sessions).values({
-        agentSessionId: sessionId,
-        taskId: task.id,
-        repoAgentId: repoAgent.id,
-        status: 'active',
-        startedAt: new Date()
-      });
+      // If resuming existing session, update status to active
+      if (!shouldCreateNewSession) {
+        await db
+          .update(sessions)
+          .set({
+            status: 'active'
+          })
+          .where(eq(sessions.taskId, task.id));
+      }
+      // Note: For new sessions, session record will be created when we receive session-created message
 
       // Update agent client's lastTaskPushedAt timestamp to prevent duplicate task pushing
       const agentClient = await db.query.agentClients.findFirst({
@@ -325,8 +347,9 @@ export class AgentOrchestrator {
 
       this.logger.info('Task successfully assigned to agent', {
         taskId: task.id,
-        sessionId,
-        stage: currentStage
+        sessionId: sessionId || 'pending',
+        stage: currentStage,
+        resumed: !shouldCreateNewSession
       });
 
     } catch (error) {

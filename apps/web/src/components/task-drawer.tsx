@@ -52,6 +52,7 @@ import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { TaskStageSelector } from "@/components/task-stage-selector";
+import { AIActivityBadge } from "@/components/ai-activity-badge";
 
 interface TaskDrawerProps {
   taskId: string | null;
@@ -216,18 +217,19 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="outline" className={cn("flex items-center gap-1", currentStatus?.color, "text-white")}>
-                      <StatusIcon className="h-3 w-3" />
-                      {currentStatus?.label}
+                    <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
+                      {task.priority}
                     </Badge>
+                    <AIActivityBadge
+                      ready={task.ready}
+                      isAiWorking={task.isAiWorking}
+                      status={task.status}
+                    />
                     {currentStage && (
                       <Badge variant="outline" className={currentStage.color}>
                         {currentStage.label}
                       </Badge>
                     )}
-                    <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
-                      {task.priority}
-                    </Badge>
                     <span className="text-xs text-muted-foreground ml-2">
                       TASK-{task.id.slice(0, 8)}
                     </span>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,7 @@ import {
 import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
 import { TaskDrawer } from "@/components/task-drawer";
 import { TaskStageSelector } from "@/components/task-stage-selector";
+import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { useWebSocket } from "@/hooks/use-websocket";
 
 // Drag and drop imports
@@ -160,6 +161,18 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardP
                 <DropdownMenuItem onClick={() => onTaskClick(task.id)}>
                   View Details
                 </DropdownMenuItem>
+                {(task as any)?.agentSessionId && (
+                  <DropdownMenuItem 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const base = 'http://localhost:8303';
+                      window.open(`${base}/session/${(task as any).agentSessionId}`, "_blank");
+                    }}
+                  >
+                    <ExternalLink className="h-4 w-4 mr-2" />
+                    Open in Claude Code
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem className="text-red-600">
                   Delete Task
@@ -170,15 +183,16 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardP
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {/* Priority and Status badges */}
+        {/* Priority, AI Activity, and Stage badges */}
         <div className="kanban-card-badges">
           <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
             {task.priority}
           </Badge>
-          <Badge variant="outline" className={cn("flex items-center gap-1", column?.color, "text-white")}>
-            <Icon className="h-3 w-3" />
-            {column?.label}
-          </Badge>
+          <AIActivityBadge
+            ready={task.ready}
+            isAiWorking={task.isAiWorking}
+            status={task.status}
+          />
           <TaskStageSelector
             stage={task.stage}
             status={task.status}

@@ -481,13 +481,13 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                 </div>
 
                 {/* Claude Code link */}
-                {(taskDetails as any)?.activeSessionId && (
+                {(taskDetails as any)?.agentSessionId && (
                   <Button
                     size="sm"
                     variant="outline"
                     onClick={() => {
-                      const base = '' // #TODO: getClaudeCodeBaseUrl();
-                      window.open(`${base}/session/${(taskDetails as any).activeSessionId}`, "_blank");
+                      const base = 'http://localhost:8303';
+                      window.open(`${base}/session/${(taskDetails as any).agentSessionId}`, "_blank");
                     }}
                   >
                     <ExternalLink className="h-4 w-4 mr-2" />

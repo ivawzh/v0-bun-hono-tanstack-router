@@ -15,6 +15,7 @@ export interface SessionOptions {
   resume?: boolean;
   toolsSettings?: any;
   permissionMode?: string;
+  soloUnicornTaskId?: string;
 }
 
 export class ClaudeCodeClient {
@@ -129,6 +130,56 @@ export class ClaudeCodeClient {
 
   private async handleSessionCreated(message: any) {
     console.log('📝 Session created:', message.sessionId);
+    
+    // Create or update session in database if soloUnicornTaskId is provided
+    if (message.soloUnicornTaskId) {
+      try {
+        const { db } = await import('../db/index');
+        const { sessions, repoAgents } = await import('../db/schema');
+        const { eq } = await import('drizzle-orm');
+        
+        // Check if session already exists (for resume case)
+        const existingSession = await db.query.sessions.findFirst({
+          where: eq(sessions.taskId, message.soloUnicornTaskId)
+        });
+        
+        if (existingSession) {
+          // Update existing session with real session ID
+          await db
+            .update(sessions)
+            .set({
+              agentSessionId: message.sessionId,
+              status: 'active'
+            })
+            .where(eq(sessions.taskId, message.soloUnicornTaskId));
+          console.log('📝 Session ID updated for task:', message.soloUnicornTaskId, '→', message.sessionId);
+        } else {
+          // Create new session record
+          // First get the task to find the repo agent
+          const { tasks } = await import('../db/schema');
+          const task = await db.query.tasks.findFirst({
+            where: eq(tasks.id, message.soloUnicornTaskId),
+            with: { repoAgent: true }
+          });
+          
+          if (task?.repoAgent) {
+            await db.insert(sessions).values({
+              agentSessionId: message.sessionId,
+              taskId: message.soloUnicornTaskId,
+              repoAgentId: task.repoAgent.id,
+              status: 'active',
+              startedAt: new Date()
+            });
+            console.log('📝 New session created for task:', message.soloUnicornTaskId, '→', message.sessionId);
+          } else {
+            console.error('❌ Could not find task or repo agent for:', message.soloUnicornTaskId);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Failed to handle session creation:', error);
+      }
+    }
+    
     await this.updateAgentState({
       lastSessionCreatedAt: new Date().toISOString(),
       lastMessagedAt: new Date().toISOString()
@@ -213,7 +264,7 @@ export class ClaudeCodeClient {
     }
   }
 
-  async startSession(command: string, options: SessionOptions): Promise<string> {
+  async startSession(command: string, options: SessionOptions): Promise<void> {
     if (!this.isConnected || !this.ws) {
       throw new Error('Not connected to Claude Code UI');
     }
@@ -225,8 +276,7 @@ export class ClaudeCodeClient {
       options
     }));
 
-    // TODO: this is wrong. This function should not return anything. Currently this is mistakenly used as agent session ID. Agent session ID to task ID binding should be provided via modifying Claude Code UI WS handling.
-    return Date.now().toString();
+    // Session creation will be handled via session-created message
   }
 
   async abortSession(sessionId: string): Promise<boolean> {

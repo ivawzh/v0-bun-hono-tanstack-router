@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { db } from "../db";
-import { projects, repoAgents, actors, tasks } from "../db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { projects, repoAgents, actors, tasks, sessions } from "../db/schema";
+import { eq, and, desc, getTableColumns } from "drizzle-orm";
 import { protectedProcedure, o } from "../lib/orpc";
 
 export const projectsRouter = o.router({
@@ -220,10 +220,14 @@ export const projectsRouter = o.router({
         throw new Error("Project not found");
       }
 
-      // Get all tasks for this project
+      // Get all tasks for this project with session information
       const projectTasks = await db
-        .select()
+        .select({
+          ...getTableColumns(tasks),
+          agentSessionId: sessions.agentSessionId
+        })
         .from(tasks)
+        .leftJoin(sessions, eq(tasks.id, sessions.taskId))
         .where(eq(tasks.projectId, input.id))
         .orderBy(desc(tasks.createdAt));
 
