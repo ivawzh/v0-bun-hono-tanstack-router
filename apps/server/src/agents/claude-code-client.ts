@@ -16,6 +16,11 @@ export interface SessionOptions {
   toolsSettings?: any;
   permissionMode?: string;
   soloUnicornTaskId?: string;
+  images?: Array<{
+    filename: string;
+    mimeType: string;
+    data: string; // base64 encoded
+  }>;
 }
 
 export class ClaudeCodeClient {
@@ -311,7 +316,6 @@ export class ClaudeCodeClient {
       // Resume with session ID
       this.ws.send(JSON.stringify({
         type: 'claude-command',
-        sessionType: 'claude',
         command,
         options
       }));
@@ -324,6 +328,23 @@ export class ClaudeCodeClient {
         options
       }));
     }
+  }
+
+  async resumeSession(command: string, options: SessionOptions): Promise<void> {
+    if (!this.isConnected || !this.ws) {
+      throw new Error('Not connected to Claude Code UI');
+    }
+
+    if (!options.sessionId || !options.resume) {
+      throw new Error("Session ID and resume is required to resume a session");
+    }
+
+    // Resume with session ID
+    this.ws.send(JSON.stringify({
+      type: 'claude-command',
+      command,
+      options
+    }));
   }
 
   async abortSession(sessionId: string): Promise<boolean> {

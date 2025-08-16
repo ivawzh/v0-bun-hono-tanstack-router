@@ -5,6 +5,8 @@ import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects, agentClients, taskDependencies } from '../db/schema';
 import { eq, and, sql, ne, desc, notExists } from 'drizzle-orm';
+import { getAttachmentFile, type AttachmentMetadata } from '../utils/file-storage';
+import { promises as fs } from 'fs';
 
 export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
@@ -120,6 +122,22 @@ export class AgentOrchestrator {
         if (timeSinceLastPush <= 20 * 1000) { // Less than 20 seconds
           return 'Busy';
         }
+      }
+
+      // Check if any tasks assigned to this agent client are currently being worked on
+      const activelyWorkingTasks = await db
+        .select({ count: sql`count(*)` })
+        .from(tasks)
+        .innerJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
+        .where(
+          and(
+            eq(repoAgents.agentClientId, agent.id),
+            eq(tasks.isAiWorking, true)
+          )
+        );
+
+      if ((activelyWorkingTasks?.[0]?.count as number) > 0) {
+        return 'Busy';
       }
 
       // Check last message time (must be more than 1 minute ago to be free)
@@ -286,6 +304,18 @@ export class AgentOrchestrator {
       // Generate prompt dynamically based on current task stage
       const prompt = PromptTemplateFactory.generatePrompt(currentStage, taskContext);
 
+      // Process task attachments to extract images
+      const attachments = (task.attachments as AttachmentMetadata[]) || [];
+      const images = await this.processTaskImages(task.id, attachments);
+
+      if (images.length > 0) {
+        this.logger.info('Including task images in session', {
+          taskId: task.id,
+          imageCount: images.length,
+          imageNames: images.map(img => img.filename)
+        });
+      }
+
       // Create session options with MCP tools
       const sessionOptions: SessionOptions = {
         projectPath: repoAgent.repoPath,
@@ -319,7 +349,8 @@ export class AgentOrchestrator {
           disallowedTools: [],
           skipPermissions: true
         },
-        permissionMode: 'default'
+        permissionMode: 'default',
+        images: images.length > 0 ? images : undefined
       };
 
       // Start or resume Claude session
@@ -373,6 +404,60 @@ export class AgentOrchestrator {
         .set({ status: 'todo', stage: null, updatedAt: new Date() })
         .where(eq(tasks.id, task.id));
     }
+  }
+
+  private async processTaskImages(taskId: string, attachments: AttachmentMetadata[]): Promise<Array<{
+    filename: string;
+    mimeType: string;
+    data: string;
+  }>> {
+    const images: Array<{
+      filename: string;
+      mimeType: string;
+      data: string;
+    }> = [];
+
+    // Filter for image attachments
+    const imageAttachments = attachments.filter(attachment => 
+      attachment.type.startsWith('image/')
+    );
+
+    for (const attachment of imageAttachments) {
+      try {
+        this.logger.debug('Processing image attachment', {
+          taskId,
+          filename: attachment.filename,
+          type: attachment.type
+        });
+
+        // Get the file buffer using the existing utility
+        const buffer = await getAttachmentFile(taskId, attachment.id, attachments);
+        
+        // Convert to base64
+        const base64Data = buffer.toString('base64');
+        
+        images.push({
+          filename: attachment.originalName || attachment.filename,
+          mimeType: attachment.type,
+          data: base64Data
+        });
+
+        this.logger.debug('Successfully processed image attachment', {
+          taskId,
+          filename: attachment.filename,
+          size: buffer.length
+        });
+      } catch (error) {
+        this.logger.error('Failed to process image attachment', error, {
+          taskId,
+          attachmentId: attachment.id,
+          filename: attachment.filename
+        });
+        // Continue processing other images even if one fails
+      }
+    }
+
+    return images;
   }
 
   async shutdown() {
