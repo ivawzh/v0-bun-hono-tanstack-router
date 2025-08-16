@@ -193,11 +193,16 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {/* Priority, AI Activity, and Stage badges */}
+        {/* Priority, Author, AI Activity, and Stage badges */}
         <div className="kanban-card-badges">
           <Badge variant="outline" className={getPriorityColors(task.priority)}>
             {getPriorityDisplay(task.priority)}
           </Badge>
+          {task.author === "ai" && (
+            <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
+              AI
+            </Badge>
+          )}
           <AIActivityBadge
             ready={task.ready}
             isAiWorking={task.isAiWorking}
@@ -265,6 +270,17 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
         {task.actor && (
           <div className="text-xs text-muted-foreground kanban-card-text">
             Actor: {task.actor.name}
+          </div>
+        )}
+
+        {/* Dependencies */}
+        {task.dependencies && task.dependencies.length > 0 && (
+          <div className="text-xs text-muted-foreground mt-1">
+            <span className="text-orange-600">
+              Depends on: {task.dependencies
+                .map((dep: any) => dep.refinedTitle || dep.rawTitle)
+                .join(", ")}
+            </span>
           </div>
         )}
 

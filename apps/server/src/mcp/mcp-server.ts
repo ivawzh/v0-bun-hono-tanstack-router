@@ -3,8 +3,8 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 import { db } from "../db";
-import { projects, tasks, repoAgents } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { projects, tasks, repoAgents, actors, taskDependencies } from "../db/schema";
+import { eq, and, sql } from "drizzle-orm";
 import { broadcastFlush } from "@/websocket/websocket-server";
 
 // Import the improved orchestrator for integration
@@ -358,6 +358,253 @@ function registerMcpTools(server: McpServer) {
         };
       } catch (error) {
         logger.error("project_memory_get failed", error, { projectId });
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+              }),
+            },
+          ],
+        };
+      }
+    }
+  );
+
+  // Register task_create tool
+  server.registerTool("task_create",
+    {
+      title: "Create a new task",
+      description: "Create a new task with optional stage targeting (kickoff/execute) and dependency specification.",
+      inputSchema: {
+        projectId: z.string().uuid(),
+        repoAgentId: z.string().uuid(),
+        actorId: z.string().uuid().optional(),
+        rawTitle: z.string().min(1).max(255).optional(),
+        rawDescription: z.string().optional(),
+        refinedTitle: z.string().min(1).max(255).optional(),
+        refinedDescription: z.string().optional(),
+        plan: z.unknown().optional(),
+        priority: z.number().min(1).max(5).default(3),
+        stage: z.enum(["kickoff", "execute"]).optional(),
+        dependsOn: z.array(z.string().uuid()).optional().default([]),
+      },
+    },
+    async ({ projectId, repoAgentId, actorId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn }, { requestInfo }) => {
+      logger.tool("task_create", "start", {
+        projectId,
+        repoAgentId,
+        stage,
+        hasRefinedTitle: !!refinedTitle,
+        dependencyCount: dependsOn?.length || 0,
+      });
+
+      try {
+        assertBearer(requestInfo?.headers?.authorization);
+
+        // Validate that either raw or refined title is provided
+        if (!rawTitle && !refinedTitle) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Either rawTitle or refinedTitle must be provided",
+                }),
+              },
+            ],
+          };
+        }
+
+        // Verify project exists (we can't verify ownership as we don't have user context in MCP)
+        const project = await db.query.projects.findFirst({
+          where: eq(projects.id, projectId),
+        });
+
+        if (!project) {
+          logger.error("task_create failed", {
+            projectId,
+            reason: "project not found",
+          });
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Project not found",
+                }),
+              },
+            ],
+          };
+        }
+
+        // Verify repo agent belongs to project
+        const repoAgent = await db.query.repoAgents.findFirst({
+          where: and(
+            eq(repoAgents.id, repoAgentId),
+            eq(repoAgents.projectId, projectId)
+          ),
+        });
+
+        if (!repoAgent) {
+          logger.error("task_create failed", {
+            repoAgentId,
+            projectId,
+            reason: "repo agent not found or doesn't belong to project",
+          });
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Repo agent not found or doesn't belong to project",
+                }),
+              },
+            ],
+          };
+        }
+
+        // Verify actor belongs to project (if provided)
+        if (actorId) {
+          const actor = await db.query.actors.findFirst({
+            where: and(
+              eq(actors.id, actorId),
+              eq(actors.projectId, projectId)
+            ),
+          });
+
+          if (!actor) {
+            logger.error("task_create failed", {
+              actorId,
+              projectId,
+              reason: "actor not found or doesn't belong to project",
+            });
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: "Actor not found or doesn't belong to project",
+                  }),
+                },
+              ],
+            };
+          }
+        }
+
+        // Verify all dependency tasks exist and belong to the same project
+        if (dependsOn && dependsOn.length > 0) {
+          const dependencyTasks = await db
+            .select()
+            .from(tasks)
+            .where(
+              and(
+                sql`${tasks.id} = ANY(${dependsOn})`,
+                eq(tasks.projectId, projectId)
+              )
+            );
+
+          if (dependencyTasks.length !== dependsOn.length) {
+            logger.error("task_create failed", {
+              dependsOn,
+              foundCount: dependencyTasks.length,
+              reason: "some dependency tasks not found or don't belong to project",
+            });
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: "Some dependency tasks not found or don't belong to project",
+                  }),
+                },
+              ],
+            };
+          }
+        }
+
+        // Determine task status and stage
+        let taskStatus = "todo";
+        let taskStage = null;
+        
+        if (stage) {
+          taskStatus = "doing";
+          taskStage = stage;
+        }
+
+        // Create the task
+        const newTask = await db
+          .insert(tasks)
+          .values({
+            projectId,
+            repoAgentId,
+            actorId,
+            rawTitle: rawTitle || refinedTitle || "AI-created task",
+            rawDescription,
+            refinedTitle,
+            refinedDescription,
+            plan,
+            priority,
+            status: taskStatus,
+            stage: taskStage,
+            author: "ai",
+            ready: stage ? true : false, // AI tasks that skip refine are automatically ready
+          })
+          .returning();
+
+        const taskId = newTask[0].id;
+
+        // Create task dependencies if provided
+        if (dependsOn && dependsOn.length > 0) {
+          const dependencyInserts = dependsOn.map(dependsOnTaskId => ({
+            taskId,
+            dependsOnTaskId,
+          }));
+
+          await db.insert(taskDependencies).values(dependencyInserts);
+          
+          logger.debug("Task dependencies created", {
+            taskId,
+            dependsOn,
+            dependencyCount: dependencyInserts.length,
+          });
+        }
+
+        logger.tool("task_create", "success", {
+          taskId,
+          projectId,
+          status: taskStatus,
+          stage: taskStage,
+          author: "ai",
+        });
+
+        broadcastFlush(projectId);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ 
+                success: true, 
+                taskId, 
+                task: newTask[0],
+              }),
+            },
+          ],
+        };
+      } catch (error) {
+        logger.error("task_create failed", error, {
+          projectId,
+          repoAgentId,
+          stage,
+        });
         return {
           content: [
             {

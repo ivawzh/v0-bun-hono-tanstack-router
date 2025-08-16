@@ -91,6 +91,9 @@ export const tasks = pgTable("tasks", {
   // AI working flag
   isAiWorking: boolean("is_ai_working").default(false),
   
+  // Task authorship (human or ai)
+  author: text("author").notNull().default("human"), // human, ai
+  
   // Attachments
   attachments: jsonb("attachments").default([]), // Array of attachment objects
   
@@ -107,6 +110,14 @@ export const sessions = pgTable("sessions", {
   status: text("status").notNull().default("starting"), // starting, active, completed, failed
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at")
+});
+
+// Task Dependencies table (many-to-many relationships)
+export const taskDependencies = pgTable("task_dependencies", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  dependsOnTaskId: uuid("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
 // Define relations
@@ -162,7 +173,13 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.actorId],
     references: [actors.id]
   }),
-  sessions: many(sessions)
+  sessions: many(sessions),
+  dependencies: many(taskDependencies, {
+    relationName: "taskDependencies"
+  }),
+  dependents: many(taskDependencies, {
+    relationName: "dependentTasks"
+  })
 }));
 
 export const sessionsRelations = relations(sessions, ({ one }) => ({
@@ -173,5 +190,18 @@ export const sessionsRelations = relations(sessions, ({ one }) => ({
   repoAgent: one(repoAgents, {
     fields: [sessions.repoAgentId],
     references: [repoAgents.id]
+  })
+}));
+
+export const taskDependenciesRelations = relations(taskDependencies, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskDependencies.taskId],
+    references: [tasks.id],
+    relationName: "taskDependencies"
+  }),
+  dependsOnTask: one(tasks, {
+    fields: [taskDependencies.dependsOnTaskId],
+    references: [tasks.id],
+    relationName: "dependentTasks"
   })
 }));

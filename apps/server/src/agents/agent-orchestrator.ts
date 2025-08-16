@@ -3,8 +3,8 @@ import type { SessionOptions } from './claude-code-client';
 import { PromptTemplateFactory } from './prompts/index';
 import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
-import { tasks, sessions, repoAgents, actors, projects, agentClients } from '../db/schema';
-import { eq, and, sql, ne, desc } from 'drizzle-orm';
+import { tasks, sessions, repoAgents, actors, projects, agentClients, taskDependencies } from '../db/schema';
+import { eq, and, sql, ne, desc, notExists } from 'drizzle-orm';
 
 export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
@@ -177,6 +177,7 @@ export class AgentOrchestrator {
   private async assignTopTaskToAgentType(targetAgentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE') {
     try {
       // Get the highest priority ready task for the specific agent type
+      // Exclude tasks that have incomplete dependencies
       const readyTasks = await db
         .select({
           task: tasks,
@@ -196,7 +197,19 @@ export class AgentOrchestrator {
             eq(tasks.isAiWorking, false),
             ne(tasks.status, 'done'),
             eq(agentClients.type, targetAgentType),
-            eq(repoAgents.isPaused, false)
+            eq(repoAgents.isPaused, false),
+            // Only tasks with no incomplete dependencies
+            notExists(
+              db.select()
+                .from(taskDependencies)
+                .innerJoin(tasks as any, eq(taskDependencies.dependsOnTaskId, (tasks as any).id))
+                .where(
+                  and(
+                    eq(taskDependencies.taskId, tasks.id),
+                    ne((tasks as any).status, 'done')
+                  )
+                )
+            )
           )
         )
         .orderBy(
@@ -300,7 +313,8 @@ export class AgentOrchestrator {
             "mcp__solo-unicorn__task_update",
             "mcp__solo-unicorn__agent_rateLimit",
             "mcp__solo-unicorn__project_memory_update",
-            "mcp__solo-unicorn__project_memory_get"
+            "mcp__solo-unicorn__project_memory_get",
+            "mcp__solo-unicorn__task_create"
           ],
           disallowedTools: [],
           skipPermissions: true

@@ -69,11 +69,27 @@ Kickoff a task - create a comprehensive implementation plan and detailed specifi
    - Design simplicity
    - Industry standards & best practices
    - Maintainability
-5. **Select Final Approach**: Choose the best solution
-6. **Create Plan**: Write a detailed plan including:
+4. **Select Final Approach**: Choose the best solution
+5. **Create Plan**: Write a detailed plan including:
    - Spec
    - Implementation steps
    - Potential risks and mitigations (only if necessary)
+6. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
+   - Count implementation steps (exclude planning/analysis steps)
+   - Estimate total lines of code changes across all files
+   - If plan has >6 implementation steps OR >600 lines of code changes:
+     * Split into smaller tasks (each <6 steps AND <600 lines)
+     * Use Solo Unicorn MCP tool \`task_create\` for each split task with:
+       - projectId="${context.projectId}"
+       - repoAgentId=same as current task
+       - actorId=same as current task
+       - refinedTitle=specific task title
+       - refinedDescription=specific task description
+       - plan=specific subtask plan
+       - priority=same as current task
+       - stage="execute" (skip refine/kickoff)
+       - dependsOn=[previous split task IDs for dependency chain]
+     * Update current task to become a coordination task with updated plan
 7. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false, plan=[from above]
 
 **Your Role**: ${actorDescription || defaultActorDescription}

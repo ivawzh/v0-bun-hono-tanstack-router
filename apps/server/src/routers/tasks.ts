@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repoAgents, actors } from "../db/schema";
+import { tasks, projects, repoAgents, actors, taskDependencies } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import { 
@@ -55,10 +55,37 @@ export const tasksRouter = o.router({
           desc(tasks.createdAt)
         );
 
+      // Fetch dependencies for all tasks in the project
+      const allTaskIds = results.map(r => r.task.id);
+      const dependencies = await db
+        .select({
+          taskId: taskDependencies.taskId,
+          dependsOnTaskId: taskDependencies.dependsOnTaskId,
+          dependsOnTask: {
+            id: tasks.id,
+            rawTitle: tasks.rawTitle,
+            refinedTitle: tasks.refinedTitle,
+            status: tasks.status
+          }
+        })
+        .from(taskDependencies)
+        .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
+        .where(sql`${taskDependencies.taskId} = ANY(${allTaskIds})`);
+
+      // Group dependencies by task ID
+      const dependenciesByTask = dependencies.reduce((acc, dep) => {
+        if (!acc[dep.taskId]) {
+          acc[dep.taskId] = [];
+        }
+        acc[dep.taskId].push(dep.dependsOnTask);
+        return acc;
+      }, {} as Record<string, any[]>);
+
       return results.map(r => ({
         ...r.task,
         repoAgent: r.repoAgent,
-        actor: r.actor
+        actor: r.actor,
+        dependencies: dependenciesByTask[r.task.id] || []
       }));
     }),
 
