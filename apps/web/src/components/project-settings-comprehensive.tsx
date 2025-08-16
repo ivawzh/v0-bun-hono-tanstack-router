@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Settings, Plus, FolderOpen, Code2, User, Trash2, Edit,
-  Loader2, AlertCircle, Star, StarOff
+  Loader2, AlertCircle, Star, StarOff, Play, Pause
 } from "lucide-react";
 import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -149,6 +149,19 @@ export function ProjectSettingsComprehensive({
       },
       onError: (error: any) => {
         toast.error(`Failed to delete repo agent: ${error.message}`);
+      },
+    })
+  );
+
+  const toggleRepoAgentPause = useMutation(
+    orpc.repoAgents.togglePause.mutationOptions({
+      onSuccess: (data, variables) => {
+        const action = variables.isPaused ? "paused" : "resumed";
+        toast.success(`Repo agent ${action} successfully`);
+        queryClient.invalidateQueries({ queryKey: ["repoAgents"] });
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to toggle repo agent pause: ${error.message}`);
       },
     })
   );
@@ -464,12 +477,12 @@ export function ProjectSettingsComprehensive({
 
             <div className="space-y-3">
               {repoAgents?.map((agent: any) => (
-                <Card key={agent.id}>
+                <Card key={agent.id} className={agent.isPaused ? "opacity-60" : ""}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-medium">{agent.name}</h4>
+                          <h4 className={`font-medium ${agent.isPaused ? "text-muted-foreground" : ""}`}>{agent.name}</h4>
                           <Badge
                             variant="outline"
                             className={getStatusBadgeColor(agent.status)}
@@ -479,6 +492,11 @@ export function ProjectSettingsComprehensive({
                           <Badge variant="secondary">
                             {agent.clientType}
                           </Badge>
+                          {agent.isPaused && (
+                            <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-200">
+                              Paused
+                            </Badge>
+                          )}
                         </div>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground">
                           <FolderOpen className="h-3 w-3" />
@@ -486,6 +504,24 @@ export function ProjectSettingsComprehensive({
                         </div>
                       </div>
                       <div className="flex gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            toggleRepoAgentPause.mutate({
+                              id: agent.id,
+                              isPaused: !agent.isPaused
+                            });
+                          }}
+                          disabled={toggleRepoAgentPause.isPending}
+                          title={agent.isPaused ? "Resume agent" : "Pause agent"}
+                        >
+                          {agent.isPaused ? (
+                            <Play className="h-4 w-4" />
+                          ) : (
+                            <Pause className="h-4 w-4" />
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

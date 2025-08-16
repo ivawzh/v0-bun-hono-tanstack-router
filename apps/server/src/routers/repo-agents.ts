@@ -231,6 +231,52 @@ export const repoAgentsRouter = o.router({
       return { success: true };
     }),
 
+  togglePause: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      isPaused: v.boolean()
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const repoAgent = await db
+        .select({
+          repoAgent: repoAgents,
+          project: projects
+        })
+        .from(repoAgents)
+        .innerJoin(projects, eq(repoAgents.projectId, projects.id))
+        .where(
+          and(
+            eq(repoAgents.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+      
+      if (repoAgent.length === 0) {
+        throw new Error("Repo agent not found or unauthorized");
+      }
+      
+      // Update the paused status
+      await db
+        .update(repoAgents)
+        .set({ 
+          isPaused: input.isPaused,
+          updatedAt: new Date() 
+        })
+        .where(eq(repoAgents.id, input.id));
+      
+      // Return updated repo agent with agent client info
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, input.id),
+        with: {
+          agentClient: true
+        }
+      });
+      
+      return result;
+    }),
+
   // Detect Claude Code projects from ~/.claude/projects/
   detectClaudeProjects: protectedProcedure
     .input(v.optional(v.object({})))

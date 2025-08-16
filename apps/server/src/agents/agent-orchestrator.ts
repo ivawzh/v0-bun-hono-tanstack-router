@@ -153,11 +153,12 @@ export class AgentOrchestrator {
   }
 
   private async checkAndPushTasks() {
-    // Get agent types that actually have repo agents assigned to them
+    // Get agent types that actually have repo agents assigned to them (excluding paused agents)
     const agentTypesInUse = await db
       .select({ agentType: agentClients.type })
       .from(agentClients)
       .innerJoin(repoAgents, eq(repoAgents.agentClientId, agentClients.id))
+      .where(eq(repoAgents.isPaused, false))
       .groupBy(agentClients.type);
 
     const activeAgentTypes = agentTypesInUse.map(row => row.agentType);
@@ -194,7 +195,8 @@ export class AgentOrchestrator {
             eq(tasks.ready, true),
             eq(tasks.isAiWorking, false),
             ne(tasks.status, 'done'),
-            eq(agentClients.type, targetAgentType)
+            eq(agentClients.type, targetAgentType),
+            eq(repoAgents.isPaused, false)
           )
         )
         .orderBy(

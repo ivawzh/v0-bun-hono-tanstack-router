@@ -41,6 +41,7 @@ export const repoAgents = pgTable("repo_agents", {
   name: text("name").notNull(),
   repoPath: text("repo_path").notNull(), // Local file system path
   config: jsonb("config").default({}), // Client-specific settings
+  isPaused: boolean("is_paused").default(false), // Pause new task assignment
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
