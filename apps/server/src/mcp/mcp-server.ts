@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db } from "../db";
 import { projects, tasks, repoAgents } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { broadcastFlush } from "@/websocket/websocket-server";
 
 // Import the improved orchestrator for integration
 let orchestrator: any = null;
@@ -67,11 +68,6 @@ function assertBearer(authHeader: string | string[] | undefined) {
   // Handle both string and string[] cases
   const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
 
-  logger.debug("Authentication attempt", {
-    hasAuthHeader: !!headerValue,
-    startsWithBearer: headerValue?.startsWith("Bearer "),
-  });
-
   if (!headerValue || !headerValue.startsWith("Bearer ")) {
     logger.auth("Authentication failed: missing or invalid token format", {
       headerValue: headerValue?.substring(0, 20) + "...",
@@ -85,8 +81,6 @@ function assertBearer(authHeader: string | string[] | undefined) {
     });
     throw new Error("unauthorized: invalid token");
   }
-
-  logger.auth("Authentication successful");
 }
 
 // Function to register all MCP tools on a server instance
@@ -122,6 +116,28 @@ function registerMcpTools(server: McpServer) {
       try {
         assertBearer(requestInfo?.headers?.authorization);
 
+        const task = await db.query.tasks.findFirst({
+          where: eq(tasks.id, taskId),
+        });
+
+        if (!task) {
+          logger.error("task_update failed", {
+            taskId,
+            reason: "task not found",
+          });
+          return {
+            content: [
+              {
+                type: "text",
+                text: JSON.stringify({
+                  success: false,
+                  error: "Task not found",
+                }),
+              },
+            ],
+          };
+        }
+
         await db
           .update(tasks)
           .set({
@@ -134,6 +150,8 @@ function registerMcpTools(server: McpServer) {
           taskId,
           updatedFields: Object.keys(filteredUpdates),
         });
+
+        broadcastFlush(task.projectId);
 
         return {
           content: [
@@ -365,6 +383,7 @@ logger.info("MCP Server module initialized", {
 function createStatelessMcpServer() {
   const server = new McpServer({
     name: "solo-unicorn-mcp",
+    title: "Solo Unicorn MCP Server. Solo Unicorn is a AI agent task management system. Basically Trello for AI tasks. Auto queuing, processing, recursive creation of tasks.",
     version: "1.0.0",
   });
 
@@ -385,12 +404,32 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
 
   app.post(basePath, async (c: any) => {
     const startTime = Date.now();
+    const timestamp = new Date().toISOString();
 
+    // Parse request body first to log MCP details
+    const requestBody = await c.req.json();
+
+    // Enhanced logging to show MCP tool and payload
     logger.debug("MCP HTTP request received", {
       method: c.req.method,
       url: c.req.url,
       headers: c.req.header(),
     });
+
+    // Log MCP-specific details
+    if (requestBody.method === 'tools/call' && requestBody.params) {
+      logger.info(`[MCP-CALL] ${timestamp} Tool: ${requestBody.params.name}`, {
+        tool: requestBody.params.name,
+        arguments: requestBody.params.arguments,
+        requestId: requestBody.id,
+      });
+    } else {
+      logger.info(`[MCP-REQUEST] ${timestamp} Method: ${requestBody.method}`, {
+        method: requestBody.method,
+        params: requestBody.params,
+        requestId: requestBody.id,
+      });
+    }
 
     try {
       // Check authentication before processing request (if auth is enabled)
@@ -432,7 +471,7 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
 
       // Create a fresh MCP server instance for this request (stateless)
       const server = createStatelessMcpServer();
-      
+
       try {
         // Create a fresh transport for this request
         const transport = new StreamableHTTPServerTransport({
@@ -444,9 +483,9 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
 
         // Connect the server to the transport
         await server.connect(transport);
-        
+
         // Handle the request
-        await transport.handleRequest(req, res, await c.req.json());
+        await transport.handleRequest(req, res, requestBody);
 
         // Clean up on response close
         res.on('close', () => {
@@ -455,31 +494,35 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
         });
 
         const duration = Date.now() - startTime;
-        logger.debug("MCP HTTP request completed", {
+        logger.info(`[MCP-RESPONSE] ${new Date().toISOString()} Request completed`, {
           method: c.req.method,
-          duration,
+          duration: `${duration}ms`,
+          tool: requestBody.params?.name || requestBody.method,
+          requestId: requestBody.id,
         });
 
         // Convert Node.js response back to Fetch API response
         return toFetchResponse(res);
       } catch (error) {
         logger.error("MCP server error", error);
-        
+
         // Clean up on error
         try {
           server.close();
         } catch (closeError) {
           logger.debug("Error closing server:", closeError as Record<string, any>);
         }
-        
+
         throw error;
       }
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.error("MCP HTTP request failed", error, {
+      logger.error(`[MCP-ERROR] ${new Date().toISOString()} Request failed`, error, {
         method: c.req.method,
         url: c.req.url,
-        duration,
+        duration: `${duration}ms`,
+        tool: requestBody?.params?.name || requestBody?.method,
+        requestId: requestBody?.id,
       });
 
       return c.json({ error: "MCP server error" }, 500);

@@ -1,5 +1,7 @@
 # Solo Unicorn 🦄
 
+Solo Unicorn is a AI agent task management system, basically Trello for AI tasks. Auto queuing, processing, recursive creation of tasks.
+
 A powerful web-based, agent-tasked workflow application with a Kanban-like GUI for creating and dispatching coding tasks to AI agents. Built for solo developers who want to leverage AI to accelerate their development workflow.
 
 ## 🚀 Features
@@ -159,9 +161,15 @@ The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Cla
 Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Claude Code connectivity:
 
 1. **Configure Server**
-   Copy env var from `apps/server/.env`
+   Create if haven't yet, set env var at `apps/server/.env`
 
    ```bash
+   # Generate AGENT_AUTH_TOKEN (for agent authentication)
+   openssl rand -hex 32
+   ```
+
+   ```bash
+   # Set env var at `apps/server/.env`
    AGENT_AUTH_TOKEN=your-generated-token-here
    ```
 
@@ -175,7 +183,8 @@ Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Clau
    claude mcp add-json solo-unicorn '{"type":"http","url":"http://localhost:8500/mcp","headers":{"Authorization":"Bearer <AGENT_AUTH_TOKEN>","Accept":"application/json, text/event-stream"}}' -s user
 
    # Verify connection
-   claude mcp list
+   bun dev # start server
+   claude mcp list # verify connection
    ```
 
 This ensures Claude Code sends the required `Accept` headers and proper authentication token that Solo Unicorn's MCP server expects.

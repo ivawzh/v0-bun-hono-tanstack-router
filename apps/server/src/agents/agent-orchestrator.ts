@@ -14,6 +14,28 @@ export interface AgentOrchestratorOptions {
   taskPushEnabled?: boolean;
 }
 
+/**
+ * AgentOrchestrator manages the automatic assignment of tasks to available AI agents.
+ * 
+ * Core functionality:
+ * - Checks every second for vacant agent clients
+ * - When an agent client is free, finds the highest priority ready task assigned to that client type
+ * - Feeds tasks to agents with dynamically selected prompts based on current stage (refine/kickoff/execute)
+ * - Agents communicate back via MCP to update task status, stage, and progress
+ * 
+ * Task selection criteria:
+ * - ready=true and isAiWorking=false
+ * - Ordered by priority (P5 highest to P1 lowest), then column order, then creation time
+ * - Must be assigned to the specific free agent client type
+ * 
+ * Agent vacancy determination:
+ * - Considers rate limits, recent task assignments, and message activity
+ * - Prevents duplicate task pushing with cooldown periods
+ * 
+ * Note: Agent Session ID is currently a timestamp placeholder.
+ * Future improvement needed: Agent client should communicate real session ID to Solo Unicorn
+ * when session is created, allowing proper session-task binding.
+ */
 export class AgentOrchestrator {
   private claudeCodeClient: ClaudeCodeClient;
   private isConnected = false;
@@ -229,8 +251,11 @@ export class AgentOrchestrator {
         repoPath: repoAgent.repoPath
       };
 
-      // Generate prompt for refine stage
-      const prompt = PromptTemplateFactory.generatePrompt('refine', taskContext);
+      // Determine current stage - if task has no stage set, start with refine
+      const currentStage = task.stage || 'refine';
+      
+      // Generate prompt dynamically based on current task stage
+      const prompt = PromptTemplateFactory.generatePrompt(currentStage, taskContext);
 
       // Create session options with MCP tools
       const sessionOptions: SessionOptions = {
@@ -249,6 +274,8 @@ export class AgentOrchestrator {
       };
 
       // Start Claude session
+      // TODO: Fix Agent Session ID - currently using timestamp placeholder
+      // Future: Agent client should communicate real session ID when session is created
       const sessionId = await this.claudeCodeClient.startSession(prompt, sessionOptions);
 
       // Create session record in database
@@ -282,7 +309,7 @@ export class AgentOrchestrator {
       this.logger.info('Task successfully assigned to agent', {
         taskId: task.id,
         sessionId,
-        stage: 'refine'
+        stage: currentStage
       });
 
     } catch (error) {
