@@ -841,8 +841,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent className="max-w-[700px] w-[95vw] h-[85vh] max-h-[85vh] flex flex-col overflow-hidden">
-          <DialogHeader className="flex-shrink-0">
+        <DialogContent className="max-w-[700px] w-[95vw] max-h-[90vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0 pb-4">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
               Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
@@ -853,8 +853,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <ScrollArea className="flex-1 min-h-0 overflow-y-auto">
-            <div className="space-y-4 p-6">
+          <div className="flex-1 overflow-y-auto px-6">
+            <div className="space-y-4 pb-4">
             <div className="space-y-2">
               <Label htmlFor="task-title">Title</Label>
               <Input
@@ -951,8 +951,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               />
             </div>
             </div>
-          </ScrollArea>
-          <DialogFooter className="flex-shrink-0 p-6 pt-0 border-t bg-background">
+          </div>
+          <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t bg-background/50">
             <Button 
               variant="outline" 
               onClick={() => {
