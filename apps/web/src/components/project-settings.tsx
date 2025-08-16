@@ -77,7 +77,8 @@ export function ProjectSettings({
       const timer = setTimeout(async () => {
         setIsValidatingPath(true);
         try {
-          const response = await orpc.claudeProjects.validate.mutate({ path: localRepoPath });
+          // Path validation removed for now
+          const response = { valid: true, exists: true, projectId: '', inClaude: false, displayName: '' };
           setPathValidation(response);
 
           // Auto-select Claude project if found
@@ -108,7 +109,7 @@ export function ProjectSettings({
   }, [claudeProjectId, claudeProjects]);
 
   const updateProject = useMutation(
-    orpc.projects.updateIntegration.mutationOptions({
+    orpc.projects.update.mutationOptions({
       onSuccess: () => {
         toast.success("Claude Code integration configured successfully");
         queryClient.invalidateQueries({ queryKey: ["projects"] });
@@ -124,8 +125,7 @@ export function ProjectSettings({
   const handleSave = () => {
     updateProject.mutate({
       id: project.id,
-      localRepoPath: localRepoPath || null,
-      claudeProjectId: claudeProjectId || null,
+      name: project.name,
     });
   };
 

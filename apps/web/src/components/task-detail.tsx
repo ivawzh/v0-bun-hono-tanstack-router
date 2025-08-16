@@ -116,7 +116,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
   const { isRecording, startRecording, stopRecording, audioBlob } = useMediaRecorder();
 
   const { data: taskDetails, isLoading, refetch } = useQuery({
-    ...orpc.tasks.getDetails.queryOptions({ input: { id: taskId! } }),
+    ...orpc.tasks.get.queryOptions({ input: { id: taskId! } }),
     enabled: !!taskId,
     refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
   });
@@ -136,42 +136,13 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
     })
   );
 
-  const addMessage = useMutation(
-    orpc.tasks.addMessage.mutationOptions({
-      onSuccess: () => {
-        toast.success("Message added");
-        setNewMessage("");
-        refetch();
-      },
-    })
-  );
+  // Removed - message functionality not implemented
 
-  const askQuestion = useMutation(
-    orpc.tasks.askQuestion.mutationOptions({
-      onSuccess: () => {
-        toast.success("Question posted - Task marked as blocked");
-        setNewQuestion("");
-        refetch();
-      },
-    })
-  );
+  // Removed - question functionality not implemented
 
-  const answerQuestion = useMutation(
-    orpc.tasks.answerQuestion.mutationOptions({
-      onSuccess: () => {
-        toast.success("Question answered - Task unblocked");
-        refetch();
-      },
-    })
-  );
+  // Removed - answer question functionality not implemented
 
-  const updateChecklistItem = useMutation(
-    orpc.tasks.updateChecklistItem.mutationOptions({
-      onSuccess: () => {
-        refetch();
-      },
-    })
-  );
+  // Removed - checklist functionality not implemented
 
   const uploadAttachment = useMutation(
     orpc.tasks.uploadAttachment.mutationOptions({
@@ -182,26 +153,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
     })
   );
 
-  const startAgentSession = useMutation(
-    orpc.agents.startSession.mutationOptions({
-      onSuccess: () => {
-        toast.success("Agent session started");
-        refetch();
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to start agent: ${error.message}`);
-      },
-    })
-  );
+  // Removed - start session functionality not implemented in current API
 
-  const pauseAgentSession = useMutation(
-    orpc.agents.pauseSession.mutationOptions({
-      onSuccess: () => {
-        toast.success("Agent session paused");
-        refetch();
-      },
-    })
-  );
+  // Removed - pause session functionality not implemented in current API
 
   // Handle voice recording
   const handleVoiceInput = async (forField: 'description' | 'message' | 'question') => {
@@ -429,16 +383,8 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         size="sm"
                         variant={(taskDetails as any)?.activeSessionId ? "destructive" : "default"}
                         onClick={() => {
-                          if ((taskDetails as any)?.activeSessionId) {
-                            pauseAgentSession.mutate({
-                              sessionId: (taskDetails as any).activeSessionId
-                            } as any);
-                          } else {
-                            startAgentSession.mutate({
-                              taskId,
-                              agentId: (taskDetails as any).assignedAgentId
-                            } as any);
-                          }
+                          // Agent session controls not implemented
+                          toast.info("Agent session controls are not yet implemented");
                         }}
                       >
                         {(taskDetails as any)?.activeSessionId ? (
@@ -833,12 +779,10 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                                 <div key={item.id} className="flex items-center space-x-2">
                                   <Checkbox
                                     checked={item.state === "done"}
-                                    onCheckedChange={(checked) =>
-                                      updateChecklistItem.mutate({
-                                        itemId: item.id,
-                                        state: checked ? "done" : "open",
-                                      } as any)
-                                    }
+                                    onCheckedChange={(checked) => {
+                                      // Checklist update not implemented
+                                      toast.info("Checklist functionality not yet implemented");
+                                    }}
                                   />
                                   <label className="text-sm flex-1">{item.title}</label>
                                 </div>
@@ -907,14 +851,10 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           </Button>
                           <Button
                             onClick={() => {
-                              if (newMessage) {
-                                addMessage.mutate({
-                                  taskId,
-                                  contentMd: newMessage,
-                                } as any);
-                              }
+                              // Add message functionality not implemented
+                              toast.info("Message functionality not yet implemented");
                             }}
-                            disabled={!newMessage || addMessage.isPending}
+                            disabled={!newMessage}
                           >
                             <Send className="h-4 w-4" />
                           </Button>
@@ -1053,10 +993,8 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                                       placeholder="Type your answer..."
                                       onKeyPress={(e) => {
                                         if (e.key === 'Enter') {
-                                          answerQuestion.mutate({
-                                            questionId: question.id,
-                                            answer: (e.target as HTMLInputElement).value,
-                                          } as any);
+                                          // Answer question functionality not implemented
+                                          toast.info("Question answering not yet implemented");
                                         }
                                       }}
                                     />
@@ -1083,14 +1021,10 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           />
                           <Button
                             onClick={() => {
-                              if (newQuestion) {
-                                askQuestion.mutate({
-                                  taskId,
-                                  text: newQuestion,
-                                } as any);
-                              }
+                              // Ask question functionality not implemented
+                              toast.info("Question functionality not yet implemented");
                             }}
-                            disabled={!newQuestion || askQuestion.isPending}
+                            disabled={!newQuestion}
                           >
                             <HelpCircle className="h-4 w-4" />
                           </Button>

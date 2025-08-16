@@ -22,7 +22,7 @@ export function useLogin() {
     }),
   );
 
-  return { ...mutation, login: () => mutation.mutate() };
+  return { ...mutation, login: () => mutation.mutate({}) };
 }
 
 export function useLogout() {
@@ -40,7 +40,7 @@ export function useLogout() {
     }),
   );
 
-  return { ...mutation, logout: () => mutation.mutate() };
+  return { ...mutation, logout: () => mutation.mutate({}) };
 }
 
 export function useAuth() {

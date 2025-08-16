@@ -59,55 +59,17 @@ function AgentsPage() {
   });
 
   const { data: agents, isLoading, refetch: refetchAgents } = useQuery(orpc.agents.list.queryOptions({ input: {} }));
-  const { data: activeSessions } = useQuery(orpc.agents.getActiveSessions.queryOptions({ input: {} }));
+  // Removed - getActiveSessions not implemented
 
-  const createAgent = useMutation(
-    orpc.agents.create.mutationOptions({
-      onSuccess: () => {
-        toast.success("Agent created successfully");
-        setShowNewAgentDialog(false);
-        setNewAgent({ name: "", role: "Engineer", character: "", runtime: "windows-runner" });
-        refetchAgents();
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to create agent: ${error.message}`);
-      },
-    })
-  );
+  // Removed - createAgent not implemented in current API
 
-  const deleteAgent = useMutation(
-    orpc.agents.delete.mutationOptions({
-      onSuccess: () => {
-        toast.success("Agent deleted");
-        refetchAgents();
-      },
-      onError: (error: any) => {
-        toast.error(`Failed to delete agent: ${error.message}`);
-      },
-    })
-  );
+  // Removed - deleteAgent not implemented in current API
 
-  const pauseSession = useMutation(
-    orpc.agents.pauseSession.mutationOptions({
-      onSuccess: () => {
-        toast.success("Session paused");
-        refetchAgents();
-      },
-    })
-  );
+  // Removed - pauseSession not implemented in current API
 
-  const resumeSession = useMutation(
-    orpc.agents.resumeSession.mutationOptions({
-      onSuccess: () => {
-        toast.success("Session resumed");
-        refetchAgents();
-      },
-    })
-  );
+  // Removed - resumeSession not implemented in current API
 
-  const getSessionForAgent = (agentId: string) => {
-    return (activeSessions as any)?.find((s: any) => s.agent.id === agentId);
-  };
+  // Removed - activeSessions not implemented
 
   const getSessionStateColor = (state: string) => {
     switch (state) {
@@ -151,7 +113,7 @@ function AgentsPage() {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {(agents as any)?.map((agent: any) => {
-          const session = getSessionForAgent(agent.id);
+          const session = null; // Session functionality not implemented
           return (
             <Card key={agent.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
@@ -173,44 +135,40 @@ function AgentsPage() {
                     <Badge variant="secondary">{agent.runtime}</Badge>
                   </div>
 
-                  {session ? (
+                  {false ? (
                     <div className="space-y-2">
                       <div className="flex items-center gap-2">
                         <div
-                          className={`h-2 w-2 rounded-full ${getSessionStateColor(
-                            session.session.state
-                          )}`}
+                          className={`h-2 w-2 rounded-full bg-gray-400`}
                         />
                         <span className="text-sm font-medium">
-                          Session: {session.session.state}
+                          Session: idle
                         </span>
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        Task: {session.task.title}
+                        Task: None
                       </div>
                       <div className="flex gap-2">
-                        {session.session.state === "running" && (
+                        {false && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() =>
-                              pauseSession.mutate({
-                                sessionId: session.session.id,
-                              } as any)
-                            }
+                            onClick={() => {
+                              // Pause session not implemented
+                              toast.info("Session controls not yet implemented");
+                            }}
                           >
                             <Pause className="h-3 w-3" />
                           </Button>
                         )}
-                        {session.session.state === "paused" && (
+                        {false && (
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() =>
-                              resumeSession.mutate({
-                                sessionId: session.session.id,
-                              } as any)
-                            }
+                            onClick={() => {
+                              // Resume session not implemented
+                              toast.info("Session controls not yet implemented");
+                            }}
                           >
                             <Play className="h-3 w-3" />
                           </Button>
@@ -255,7 +213,8 @@ function AgentsPage() {
                             `Are you sure you want to delete agent "${agent.name}"?`
                           )
                         ) {
-                          deleteAgent.mutate({ id: agent.id } as any);
+                          // Delete agent not implemented
+                          toast.info("Agent deletion not yet implemented");
                         }
                       }}
                       disabled={!!session}
@@ -271,13 +230,13 @@ function AgentsPage() {
       </div>
 
       {/* Active Sessions Summary */}
-      {activeSessions && (activeSessions as any).length > 0 && (
+      {false && (
         <div className="mt-8">
           <h2 className="text-xl font-bold mb-4">Active Sessions</h2>
           <Card>
             <ScrollArea className="h-[200px]">
               <div className="p-4 space-y-2">
-                {(activeSessions as any)?.map((session: any) => (
+                {[]?.map((session: any) => (
                   <div
                     key={session.session.id}
                     className="flex items-center justify-between p-2 hover:bg-accent rounded-md"
@@ -388,16 +347,10 @@ function AgentsPage() {
             </Button>
             <Button
               onClick={() => {
-                if (newAgent.name && newAgent.role) {
-                  createAgent.mutate({
-                    name: newAgent.name,
-                    role: newAgent.role as any,
-                    character: newAgent.character || undefined,
-                    runtime: newAgent.runtime as any,
-                  } as any);
-                }
+                // Create agent not implemented
+                toast.info("Agent creation not yet implemented");
               }}
-              disabled={!newAgent.name || createAgent.isPending}
+              disabled={!newAgent.name}
             >
               Create Agent
             </Button>
