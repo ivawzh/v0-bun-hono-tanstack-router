@@ -44,6 +44,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ProjectSettingsComprehensive } from "@/components/project-settings-comprehensive";
+import { TaskDrawer } from "@/components/task-drawer";
 import { useWebSocket } from "@/hooks/use-websocket";
 
 // Drag and drop imports
@@ -118,22 +119,24 @@ function TaskCard({ task, onTaskClick, onToggleReady }: TaskCardProps) {
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-grab hover:shadow-md transition-shadow kanban-card",
+        "cursor-pointer hover:shadow-md transition-shadow kanban-card",
         isDragging && "opacity-50 cursor-grabbing"
       )}
+      onClick={(e) => {
+        // Only trigger click if not clicking on interactive elements
+        const target = e.target as HTMLElement;
+        if (!target.closest('button, [role="switch"], [data-radix-collection-item]')) {
+          e.preventDefault();
+          onTaskClick(task.id);
+        }
+      }}
       {...attributes}
       {...listeners}
     >
       <CardHeader className="pb-2">
         <div className="kanban-card-header-content">
           <div className="kanban-card-title-wrapper">
-            <CardTitle
-              className="text-sm font-medium cursor-pointer kanban-card-title"
-              onClick={(e) => {
-                e.stopPropagation();
-                onTaskClick(task.id);
-              }}
-            >
+            <CardTitle className="text-sm font-medium kanban-card-title">
               {task.refinedTitle || task.rawTitle}
             </CardTitle>
           </div>
@@ -771,6 +774,17 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Task Detail Drawer */}
+      <TaskDrawer
+        taskId={selectedTaskId}
+        open={!!selectedTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedTaskId(null);
+          }
+        }}
+      />
 
       {/* Project Settings Dialog */}
       {showProjectSettings && (
