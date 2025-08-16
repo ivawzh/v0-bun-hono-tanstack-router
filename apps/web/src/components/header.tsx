@@ -18,10 +18,6 @@ export default function Header() {
     orpc.projects.get.queryOptions({ input: { id: projectId as string }, enabled: !!projectId })
   );
 
-  // Fetch agents for health status (single-user MVP)
-  const { data: agents } = useQuery(
-    orpc.agents.list.queryOptions({ input: {} })
-  );
 
   const updateProject = useMutation(
     orpc.projects.update.mutationOptions({})

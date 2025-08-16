@@ -121,11 +121,6 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
     refetchInterval: 5000, // Auto-refresh every 5 seconds for real-time updates
   });
 
-  // Fetch available agents
-  const { data: agents } = useQuery({
-    ...orpc.agents.list.queryOptions({ input: {} }),
-    enabled: !!taskId,
-  });
 
   const updateTask = useMutation(
     orpc.tasks.update.mutationOptions({
