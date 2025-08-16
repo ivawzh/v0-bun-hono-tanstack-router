@@ -20,7 +20,7 @@ export interface AgentOrchestratorOptions {
  * Core functionality:
  * - Checks every second for vacant agent clients
  * - When an agent client is free, finds the highest priority ready task assigned to that client type
- * - Feeds tasks to agents with dynamically selected prompts based on current stage (refine/kickoff/execute)
+ * - Feeds tasks to agents with dynamically selected prompts based on current stage (refine/plan/execute)
  * - Agents communicate back via MCP to update task status, stage, and progress
  *
  * Task selection criteria:

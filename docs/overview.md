@@ -112,12 +112,12 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - Raw versions remain for reference
 - Uses MCP to update card
 
-**Stage 2: Kickoff**
+**Stage 2: Plan**
 
 - List solution options and rank them
 - Select final solution approach
 - Write spec if needed
-- Store all kickoff work in card for reference
+- Store all plan work in card for reference
 - Final solution and spec stored in card's `plan` field
 - Interaction via MCP
 
@@ -188,9 +188,9 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - `id`, `project_id`, `repo_agent_id`, `actor_id`
 - `raw_title`, `raw_description`
 - `refined_title`, `refined_description`
-- `plan` (jsonb) - kickoff results
+- `plan` (jsonb) - plan results
 - `status` (enum: todo, doing, done)
-- `stage` (enum: refine, kickoff, execute) - only for doing status
+- `stage` (enum: refine, plan, execute) - only for doing status
 - `priority` 1-5. With meaning of 1: Lowest, 2: Low, 3: Medium, 4: High, 5: Highest
 - `ready` (boolean) - replaces auto-start
 - `attachments` (jsonb array)

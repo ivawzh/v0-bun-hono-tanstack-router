@@ -72,12 +72,12 @@ export const tasks = pgTable("tasks", {
   refinedTitle: text("refined_title"),
   refinedDescription: text("refined_description"),
   
-  // Kickoff results
-  plan: jsonb("plan").default({}), // Final solution and spec from kickoff
+  // Plan results
+  plan: jsonb("plan").default({}), // Final solution and spec from plan stage
   
   // Status and stage
   status: text("status").notNull().default("todo"), // todo, doing, done
-  stage: text("stage"), // refine, kickoff, execute (only for doing status)
+  stage: text("stage"), // refine, plan, execute (only for doing status)
   
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest

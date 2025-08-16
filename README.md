@@ -9,7 +9,7 @@ A powerful web-based, agent-tasked workflow application with a Kanban-like GUI f
 ### Core Functionality
 
 - **Project & Board Management**: Organize work across multiple projects with Kanban boards
-- **Task Lifecycle Management**: Full task tracking from kickoff → spec → design → dev → qa → done
+- **Task Lifecycle Management**: Full task tracking from plan → spec → design → dev → qa → done
 - **AI Agent Integration**: Connect Windows PC or cloud-based AI agents to execute tasks
 - **Real-time Collaboration**: Human-in-the-loop controls with pause/resume and Q&A
 - **Voice Input**: Speech-to-text using OpenAI Whisper API for hands-free input

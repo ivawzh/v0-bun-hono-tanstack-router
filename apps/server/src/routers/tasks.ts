@@ -13,7 +13,7 @@ import {
 } from "../utils/file-storage";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
-const taskStageEnum = v.nullable(v.picklist(["refine", "kickoff", "execute"]));
+const taskStageEnum = v.nullable(v.picklist(["refine", "plan", "execute"]));
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
 export const tasksRouter = o.router({

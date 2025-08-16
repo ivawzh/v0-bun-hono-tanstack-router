@@ -85,7 +85,7 @@ const statusColumns = [
 
 const stageColors = {
   refine: "bg-purple-100 text-purple-800 border-purple-200",
-  kickoff: "bg-pink-100 text-pink-800 border-pink-200",
+  plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
 };
 
@@ -623,7 +623,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   };
 
   const handleStageChange = (taskId: string, stage: string | null) => {
-    updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "kickoff" | "execute" | null });
+    updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "plan" | "execute" | null });
   };
 
   const handleDeleteTask = (task: any) => {

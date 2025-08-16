@@ -96,7 +96,7 @@ function registerMcpTools(server: McpServer) {
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
         status: z.enum(["todo", "doing", "done"]).optional(),
-        stage: z.enum(["refine", "kickoff", "execute"]).optional().nullable(),
+        stage: z.enum(["refine", "plan", "execute"]).optional().nullable(),
         isAiWorking: z.boolean().optional(),
       },
     },
@@ -377,7 +377,7 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_create",
     {
       title: "Create a new task",
-      description: "Create a new task with optional stage targeting (kickoff/execute) and dependency specification.",
+      description: "Create a new task with optional stage targeting (plan/execute) and dependency specification.",
       inputSchema: {
         projectId: z.string().uuid(),
         repoAgentId: z.string().uuid(),
@@ -388,7 +388,7 @@ function registerMcpTools(server: McpServer) {
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
         priority: z.number().min(1).max(5).default(3),
-        stage: z.enum(["kickoff", "execute"]).optional(),
+        stage: z.enum(["plan", "execute"]).optional(),
         dependsOn: z.array(z.string().uuid()).optional().default([]),
       },
     },

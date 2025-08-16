@@ -7,7 +7,7 @@ export const dateSchema = v.pipe(v.string(), v.isoDateTime());
 
 // Task related schemas
 export const taskStatusSchema = v.picklist(["todo", "in_progress", "blocked", "done", "paused"]);
-export const taskStageSchema = v.picklist(["kickoff", "spec", "design", "dev", "qa", "done"]);
+export const taskStageSchema = v.picklist(["refine", "plan", "execute"]);
 export const taskActorTypeSchema = v.picklist(["agent", "human"]);
 
 // Agent related schemas

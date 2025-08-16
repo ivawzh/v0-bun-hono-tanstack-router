@@ -16,7 +16,7 @@ export interface TaskContext {
 const defaultActorDescription = 'Startup founder and fullstack software engineer focused on speed to market. Think small. Ignore performance, cost, and scalability. Basic auth and access control is still essential. Obsessed with UX - less frictions; max magics.';
 
 export interface PromptTemplate {
-  stage: 'refine' | 'kickoff' | 'execute';
+  stage: 'refine' | 'plan' | 'execute';
   generate(context: TaskContext): string;
 }
 
@@ -39,7 +39,7 @@ Refine this raw task.
    - Key requirements and goals
    - Expected outcome
    - Out-of-scope items if any
-5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="kickoff", isAiWorking=false, refinedTitle=[from above], refinedDescription=[from above]
+5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="plan", isAiWorking=false, refinedTitle=[from above], refinedDescription=[from above]
 
 **Your Role**: ${actorDescription || defaultActorDescription}
 ${projectMemory ? '**Project Context**: ' + projectMemory : ''}
@@ -50,18 +50,18 @@ ${projectMemory ? '**Project Context**: ' + projectMemory : ''}
   }
 }
 
-export class KickoffPrompt implements PromptTemplate {
-  stage: 'kickoff' = 'kickoff';
+export class PlanPrompt implements PromptTemplate {
+  stage: 'plan' = 'plan';
 
   generate(context: TaskContext): string {
     const { refinedTitle, refinedDescription, actorDescription, projectMemory } = context;
 
     return `[${this.stage}] ${context.rawTitle}
 **Do not write any code!**
-Kickoff a task - create a comprehensive implementation plan and detailed specification.
+Plan a task - create a comprehensive implementation plan and detailed specification.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="kickoff", isAiWorking=true
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="plan", isAiWorking=true
 2. **List Solution Options**: List viable potential solution options
 3. **Evaluate and Rank**: Compare the options considering in order of importance:
    - Most importantly - UX
@@ -87,7 +87,7 @@ Kickoff a task - create a comprehensive implementation plan and detailed specifi
        - refinedDescription=specific task description
        - plan=specific subtask plan
        - priority=same as current task
-       - stage="execute" (skip refine/kickoff)
+       - stage="execute" (skip refine/plan)
        - dependsOn=[previous split task IDs for dependency chain]
      * Update current task to become a coordination task with updated plan
 7. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", stage="execute", isAiWorking=false, plan=[from above]
@@ -132,13 +132,13 @@ ${planSummary}
 }
 
 export class PromptTemplateFactory {
-  static create(stage: 'refine' | 'kickoff' | 'execute' | null): PromptTemplate {
+  static create(stage: 'refine' | 'plan' | 'execute' | null): PromptTemplate {
     switch (stage) {
       case null:
       case 'refine':
         return new RefinePrompt();
-      case 'kickoff':
-        return new KickoffPrompt();
+      case 'plan':
+        return new PlanPrompt();
       case 'execute':
         return new ExecutePrompt();
       default:
@@ -146,7 +146,7 @@ export class PromptTemplateFactory {
     }
   }
 
-  static generatePrompt(stage: 'refine' | 'kickoff' | 'execute', context: TaskContext): string {
+  static generatePrompt(stage: 'refine' | 'plan' | 'execute', context: TaskContext): string {
     const template = this.create(stage);
     return template.generate(context);
   }

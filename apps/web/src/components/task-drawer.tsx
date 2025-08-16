@@ -70,7 +70,7 @@ const statusOptions = [
 
 const stageOptions = [
   { value: "refine", label: "Refine", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  { value: "kickoff", label: "Kickoff", color: "bg-pink-100 text-pink-800 border-pink-200" },
+  { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
 ];
 
@@ -175,7 +175,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
   const handleStageChange = (stage: string | null) => {
     updateStageMutation.mutate({
       id: taskId!,
-      stage: stage as "refine" | "kickoff" | "execute" | null
+      stage: stage as "refine" | "plan" | "execute" | null
     });
   };
 

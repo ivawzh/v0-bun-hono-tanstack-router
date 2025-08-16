@@ -87,7 +87,7 @@ const statusOptions = [
 ];
 
 const stageOptions = [
-  { value: "kickoff", label: "Kickoff" },
+  { value: "plan", label: "Plan" },
   { value: "spec", label: "Spec" },
   { value: "design", label: "Design" },
   { value: "dev", label: "Development" },
@@ -105,12 +105,12 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Kickoff state
-  const [kickoffChallenge, setKickoffChallenge] = useState("");
-  const [kickoffOptions, setKickoffOptions] = useState<string[]>([]);
+  // Plan state
+  const [planChallenge, setPlanChallenge] = useState("");
+  const [planOptions, setPlanOptions] = useState<string[]>([]);
   const [newOption, setNewOption] = useState("");
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [kickoffSpec, setKickoffSpec] = useState("");
+  const [planSpec, setPlanSpec] = useState("");
 
   // Voice recording state
   const { isRecording, startRecording, stopRecording, audioBlob } = useMediaRecorder();
@@ -236,25 +236,25 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
     }
   };
 
-  // Save kickoff data
-  const saveKickoffData = () => {
-    const kickoffData = {
-      challenge: kickoffChallenge,
-      options: kickoffOptions.map((opt, idx) => ({
+  // Save plan data
+  const savePlanData = () => {
+    const planData = {
+      challenge: planChallenge,
+      options: planOptions.map((opt, idx) => ({
         text: opt,
         rank: idx === selectedOption ? 1 : idx + 2
       })),
-      selectedOption: selectedOption !== null ? kickoffOptions[selectedOption] : null,
-      spec: kickoffSpec,
+      selectedOption: selectedOption !== null ? planOptions[selectedOption] : null,
+      spec: planSpec,
     };
 
     updateTask.mutate({
       id: taskId!,
       metadata: {
         ...(taskDetails as any)?.metadata,
-        kickoff: {
-          ...(taskDetails as any)?.metadata?.kickoff,
-          [Date.now()]: kickoffData, // Store with timestamp
+        plan: {
+          ...(taskDetails as any)?.metadata?.plan,
+          [Date.now()]: planData, // Store with timestamp
         }
       }
     } as any);
@@ -523,7 +523,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
             <Tabs defaultValue="overview" className="flex-1 flex flex-col">
               <TabsList className="px-6 w-full justify-start rounded-none border-b h-12">
                 <TabsTrigger value="overview">Overview</TabsTrigger>
-                <TabsTrigger value="kickoff">Kickoff</TabsTrigger>
+                <TabsTrigger value="plan">Plan</TabsTrigger>
                 <TabsTrigger value="checklist">Checklist</TabsTrigger>
                 <TabsTrigger value="comments">Comments</TabsTrigger>
                 <TabsTrigger value="attachments">Attachments</TabsTrigger>
@@ -676,15 +676,15 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                     </div>
                   </TabsContent>
 
-                  {/* Kickoff Tab */}
-                  <TabsContent value="kickoff" className="mt-0">
+                  {/* Plan Tab */}
+                  <TabsContent value="plan" className="mt-0">
                     <div className="space-y-6">
                       {/* Challenge the idea */}
                       <div>
                         <Label>Challenge the idea</Label>
                         <Textarea
-                          value={kickoffChallenge}
-                          onChange={(e) => setKickoffChallenge(e.target.value)}
+                          value={planChallenge}
+                          onChange={(e) => setPlanChallenge(e.target.value)}
                           placeholder="What assumptions should we challenge? What risks should we consider?"
                           rows={3}
                           className="mt-2"
@@ -695,7 +695,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                       <div>
                         <Label>Options & Ranking</Label>
                         <div className="mt-2 space-y-2">
-                          {kickoffOptions.map((option, idx) => (
+                          {planOptions.map((option, idx) => (
                             <div key={idx} className="flex items-center gap-2">
                               <Button
                                 size="sm"
@@ -707,9 +707,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                               <Input
                                 value={option}
                                 onChange={(e) => {
-                                  const newOptions = [...kickoffOptions];
+                                  const newOptions = [...planOptions];
                                   newOptions[idx] = e.target.value;
-                                  setKickoffOptions(newOptions);
+                                  setPlanOptions(newOptions);
                                 }}
                                 className="flex-1"
                               />
@@ -717,7 +717,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                                 size="sm"
                                 variant="ghost"
                                 onClick={() => {
-                                  setKickoffOptions(kickoffOptions.filter((_, i) => i !== idx));
+                                  setPlanOptions(planOptions.filter((_, i) => i !== idx));
                                   if (selectedOption === idx) setSelectedOption(null);
                                 }}
                               >
@@ -732,7 +732,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                               placeholder="Add new option..."
                               onKeyPress={(e) => {
                                 if (e.key === 'Enter' && newOption) {
-                                  setKickoffOptions([...kickoffOptions, newOption]);
+                                  setPlanOptions([...planOptions, newOption]);
                                   setNewOption("");
                                 }
                               }}
@@ -740,7 +740,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                             <Button
                               onClick={() => {
                                 if (newOption) {
-                                  setKickoffOptions([...kickoffOptions, newOption]);
+                                  setPlanOptions([...planOptions, newOption]);
                                   setNewOption("");
                                 }
                               }}
@@ -758,7 +758,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                           <Label>Selected Option</Label>
                           <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
                             <p className="text-sm font-medium">
-                              Option #{selectedOption + 1}: {kickoffOptions[selectedOption]}
+                              Option #{selectedOption + 1}: {planOptions[selectedOption]}
                             </p>
                           </div>
                         </div>
@@ -768,8 +768,8 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                       <div>
                         <Label>Specification</Label>
                         <Textarea
-                          value={kickoffSpec}
-                          onChange={(e) => setKickoffSpec(e.target.value)}
+                          value={planSpec}
+                          onChange={(e) => setPlanSpec(e.target.value)}
                           placeholder="Write the specification for the selected option..."
                           rows={6}
                           className="mt-2"
@@ -777,16 +777,16 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                       </div>
 
                       {/* Save button */}
-                      <Button onClick={saveKickoffData} className="w-full">
-                        Save Kickoff Data
+                      <Button onClick={savePlanData} className="w-full">
+                        Save Plan Data
                       </Button>
 
                       {/* History */}
-                      {(taskDetails as any)?.metadata?.kickoff && (
+                      {(taskDetails as any)?.metadata?.plan && (
                         <div>
-                          <Label>Kickoff History</Label>
+                          <Label>Plan History</Label>
                           <div className="mt-2 space-y-2">
-                            {Object.entries((taskDetails as any).metadata.kickoff)
+                            {Object.entries((taskDetails as any).metadata.plan)
                               .sort(([a], [b]) => Number(b) - Number(a))
                               .slice(0, 5)
                               .map(([timestamp, data]: [string, any]) => (
