@@ -381,6 +381,13 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     })
   );
 
+  // Auto-select repo agent when only one is available
+  useEffect(() => {
+    if (repoAgents && repoAgents.length === 1 && !newTask.repoAgentId) {
+      updateDraft({ repoAgentId: repoAgents[0].id });
+    }
+  }, [repoAgents, newTask.repoAgentId, updateDraft]);
+
   // Create task mutation
   const createTaskMutation = useMutation(orpc.tasks.create.mutationOptions({
     onSuccess: () => {
@@ -886,21 +893,30 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="task-repo-agent">Repo Agent</Label>
-                <Select
-                  value={newTask.repoAgentId}
-                  onValueChange={(value) => updateDraft({ repoAgentId: value })}
-                >
-                  <SelectTrigger id="task-repo-agent">
-                    <SelectValue placeholder="Select repo agent" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {repoAgents?.map((agent: any) => (
-                      <SelectItem key={agent.id} value={agent.id}>
-                        {agent.name} ({agent.clientType})
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {repoAgents && repoAgents.length === 1 ? (
+                  // Auto-selected single repo agent - show read-only field
+                  <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                    {repoAgents[0].name} ({repoAgents[0].agentClient.type})
+                    <span className="ml-auto text-xs text-green-600">Auto-selected</span>
+                  </div>
+                ) : (
+                  // Multiple repo agents - show dropdown
+                  <Select
+                    value={newTask.repoAgentId}
+                    onValueChange={(value) => updateDraft({ repoAgentId: value })}
+                  >
+                    <SelectTrigger id="task-repo-agent">
+                      <SelectValue placeholder="Select repo agent" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {repoAgents?.map((agent: any) => (
+                        <SelectItem key={agent.id} value={agent.id}>
+                          {agent.name} ({agent.agentClient.type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
             </div>
             <div className="space-y-2">
