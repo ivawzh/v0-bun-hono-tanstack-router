@@ -51,6 +51,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
+import { TaskStageSelector } from "@/components/task-stage-selector";
 
 interface TaskDrawerProps {
   taskId: string | null;
@@ -135,6 +136,21 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
     })
   );
 
+  // Update stage mutation
+  const updateStageMutation = useMutation(
+    orpc.tasks.updateStage.mutationOptions({
+      onSuccess: () => {
+        toast.success("Task stage updated successfully");
+        queryClient.invalidateQueries({
+          queryKey: ["projects", "getWithTasks"]
+        });
+      },
+      onError: (error) => {
+        toast.error("Failed to update task stage: " + error.message);
+      }
+    })
+  );
+
   const handleSaveTitle = () => {
     if (tempTitle.trim()) {
       updateTaskMutation.mutate({
@@ -164,6 +180,13 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
     updateTaskMutation.mutate({
       id: taskId!,
       priority: priority as any
+    });
+  };
+
+  const handleStageChange = (stage: string | null) => {
+    updateStageMutation.mutate({
+      id: taskId!,
+      stage: stage as "refine" | "kickoff" | "execute" | null
     });
   };
 
@@ -474,6 +497,20 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                           </SelectContent>
                         </Select>
                       </div>
+
+                      {task.status === "doing" && (
+                        <div>
+                          <Label>Stage</Label>
+                          <div className="mt-1">
+                            <TaskStageSelector
+                              stage={task.stage}
+                              status={task.status}
+                              onStageChange={handleStageChange}
+                              size="md"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       <Separator />
 

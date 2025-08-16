@@ -565,7 +565,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   };
 
   const handleStageChange = (taskId: string, stage: string | null) => {
-    updateStageMutation.mutate({ id: taskId, stage });
+    updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "kickoff" | "execute" | null });
   };
 
   const handleCreateTask = () => {
