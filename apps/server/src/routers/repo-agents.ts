@@ -228,5 +228,55 @@ export const repoAgentsRouter = o.router({
       await db.delete(repoAgents).where(eq(repoAgents.id, input.id));
       
       return { success: true };
+    }),
+
+  pause: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      paused: v.optional(v.boolean()) // If not provided, toggles current state
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const repoAgent = await db
+        .select({
+          repoAgent: repoAgents,
+          project: projects
+        })
+        .from(repoAgents)
+        .innerJoin(projects, eq(repoAgents.projectId, projects.id))
+        .where(
+          and(
+            eq(repoAgents.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+      
+      if (repoAgent.length === 0) {
+        throw new Error("Repo agent not found or unauthorized");
+      }
+      
+      // Determine new pause state
+      const currentPaused = repoAgent[0].repoAgent.isPaused;
+      const newPausedState = input.paused !== undefined ? input.paused : !currentPaused;
+      
+      // Update pause state
+      await db
+        .update(repoAgents)
+        .set({
+          isPaused: newPausedState,
+          updatedAt: new Date()
+        })
+        .where(eq(repoAgents.id, input.id));
+      
+      // Return updated repo agent with agent client info
+      const result = await db.query.repoAgents.findFirst({
+        where: eq(repoAgents.id, input.id),
+        with: {
+          agentClient: true
+        }
+      });
+      
+      return result;
     })
 });
