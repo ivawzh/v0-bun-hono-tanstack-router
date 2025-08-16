@@ -126,7 +126,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card max-h-[200px] overflow-hidden",
+        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card",
         isDragging && "opacity-50 cursor-grabbing"
       )}
       onClick={(e) => {
@@ -216,7 +216,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           <div className="mb-2">
             <div className={cn(
               "text-xs text-muted-foreground kanban-card-text relative",
-              !showMore && shouldTruncate && "max-h-12 overflow-hidden"
+              !showMore && shouldTruncate && "max-h-16 overflow-hidden"
             )}>
               <p className="whitespace-pre-wrap">
                 {!showMore && shouldTruncate ? description.slice(0, 150) + '...' : description}
