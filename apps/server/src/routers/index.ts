@@ -1,13 +1,9 @@
 import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
 import { projectsRouter } from "./projects";
-// import { repositoriesRouter } from "./repositories"; // Removed in simplified architecture
 import { tasksRouter } from "./tasks";
 import { repoAgentsRouter } from "./repo-agents";
 import { actorsRouter } from "./actors";
-import { agentsRouter } from "./agents";
-import { voiceRouter } from "./voice";
 import { authRouter } from "./auth";
-import { claudeProjectsRouter } from "./claude-projects";
 
 export const appRouter = o.router({
   healthCheck: publicProcedure.handler(() => {
@@ -23,12 +19,8 @@ export const appRouter = o.router({
   ownerPing: protectedProcedure.handler(() => ({ ok: true })),
   auth: authRouter,
   projects: projectsRouter,
-  // repositories: repositoriesRouter, // Removed in simplified architecture
   repoAgents: repoAgentsRouter,
   actors: actorsRouter,
   tasks: tasksRouter,
-  agents: agentsRouter,
-  voice: voiceRouter,
-  claudeProjects: claudeProjectsRouter,
 });
 export type AppRouter = typeof appRouter;

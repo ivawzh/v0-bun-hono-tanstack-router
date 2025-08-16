@@ -5,16 +5,12 @@ export const uuidSchema = v.pipe(v.string(), v.uuid());
 export const emailSchema = v.pipe(v.string(), v.email());
 export const dateSchema = v.pipe(v.string(), v.isoDateTime());
 
-// Task related schemas
-export const taskStatusSchema = v.picklist(["todo", "in_progress", "blocked", "done", "paused"]);
+// Task related schemas (simplified for 3-column workflow)
+export const taskStatusSchema = v.picklist(["todo", "doing", "done"]);
 export const taskStageSchema = v.picklist(["refine", "plan", "execute"]);
-export const taskActorTypeSchema = v.picklist(["agent", "human"]);
 
-// Agent related schemas
-export const agentRoleSchema = v.picklist(["PM", "Designer", "Architect", "Engineer", "QA"]);
-export const agentRuntimeSchema = v.picklist(["windows-runner", "cloud"]);
-export const sessionStateSchema = v.picklist(["booting", "running", "paused", "stopped", "error", "done"]);
-export const actionTypeSchema = v.picklist(["plan", "tool_call", "code_edit", "commit", "test", "comment"]);
+// Session related schemas (simplified)
+export const sessionStateSchema = v.picklist(["starting", "active", "completed", "failed"]);
 
 // Repository related schemas
 export const repositoryProviderSchema = v.picklist(["github", "gitlab", "local", "cloud-code"]);
