@@ -950,7 +950,6 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 disabled={createTaskMutation.isPending}
               />
             </div>
-            </div>
           </div>
           <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t bg-background/50">
             <Button 
