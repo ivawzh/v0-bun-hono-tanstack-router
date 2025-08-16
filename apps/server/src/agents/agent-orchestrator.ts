@@ -4,7 +4,7 @@ import { PromptTemplateFactory } from './prompts/index';
 import type { TaskContext } from './prompts/index';
 import { db } from '../db/index';
 import { tasks, sessions, repoAgents, actors, projects, agentClients } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, ne } from 'drizzle-orm';
 
 export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
@@ -24,7 +24,7 @@ export interface AgentOrchestratorOptions {
  * - Agents communicate back via MCP to update task status, stage, and progress
  *
  * Task selection criteria:
- * - ready=true and isAiWorking=false
+ * - status != 'done', ready=true and isAiWorking=false
  * - Ordered by priority (P5 highest to P1 lowest), then column order, then creation time
  * - Must be assigned to the specific free agent client type
  *
@@ -192,6 +192,7 @@ export class AgentOrchestrator {
           and(
             eq(tasks.ready, true),
             eq(tasks.isAiWorking, false),
+            ne(tasks.status, 'done'),
             eq(agentClients.type, targetAgentType)
           )
         )

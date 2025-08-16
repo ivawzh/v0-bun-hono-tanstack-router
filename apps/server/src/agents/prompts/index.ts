@@ -87,7 +87,7 @@ export class ExecutePrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { refinedTitle, refinedDescription, plan, actorDescription, projectMemory, repoPath } = context;
 
-    const planSummary = plan ?? 'No plan available';
+    const planSummary = plan ? JSON.stringify(plan) : 'No plan available';
 
     return `Implement the solution following the plan below. Do not write any code.
 
