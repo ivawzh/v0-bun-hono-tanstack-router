@@ -183,8 +183,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardP
       <CardContent className="pt-0">
         {/* Priority, AI Activity, and Stage badges */}
         <div className="kanban-card-badges">
-          <Badge variant="outline" className={getPriorityColors(task.priority as Priority)}>
-            {getPriorityDisplay(task.priority as Priority)}
+          <Badge variant="outline" className={getPriorityColors(task.priority)}>
+            {getPriorityDisplay(task.priority)}
           </Badge>
           <AIActivityBadge
             ready={task.ready}

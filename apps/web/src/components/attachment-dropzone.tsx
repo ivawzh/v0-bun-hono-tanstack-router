@@ -13,7 +13,7 @@ export interface AttachmentFile {
 }
 
 interface AttachmentDropzoneProps {
-  attachments: AttachmentFile[]
+  attachments?: AttachmentFile[]
   onAttachmentsChange: (attachments: AttachmentFile[]) => void
   maxFiles?: number
   maxSize?: number
@@ -54,7 +54,7 @@ function formatFileSize(bytes: number): string {
 }
 
 export function AttachmentDropzone({
-  attachments,
+  attachments = [],
   onAttachmentsChange,
   maxFiles = 10,
   maxSize = MAX_FILE_SIZE,

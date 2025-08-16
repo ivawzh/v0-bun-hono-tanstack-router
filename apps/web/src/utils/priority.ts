@@ -21,24 +21,54 @@ export const PRIORITY_COLORS = {
 } as const;
 
 /**
+ * Safely parse priority value, handling legacy formats and edge cases
+ */
+export function normalizePriority(priority: any): Priority {
+  // Handle legacy string format (P1, P2, etc.)
+  if (typeof priority === 'string') {
+    if (priority.startsWith('P')) {
+      const num = parseInt(priority.slice(1));
+      if (num >= 1 && num <= 5) {
+        return num as Priority;
+      }
+    }
+    const parsed = parseInt(priority);
+    if (parsed >= 1 && parsed <= 5) {
+      return parsed as Priority;
+    }
+  }
+  
+  // Handle numeric values
+  if (typeof priority === 'number' && priority >= 1 && priority <= 5) {
+    return priority as Priority;
+  }
+  
+  // Default fallback
+  return 3; // Medium priority
+}
+
+/**
  * Get the label for a priority number
  */
-export function getPriorityLabel(priority: Priority): string {
-  return PRIORITY_LABELS[priority];
+export function getPriorityLabel(priority: any): string {
+  const normalizedPriority = normalizePriority(priority);
+  return PRIORITY_LABELS[normalizedPriority];
 }
 
 /**
  * Get the display text for a priority (P5 • Highest format)
  */
-export function getPriorityDisplay(priority: Priority): string {
-  return `P${priority} • ${PRIORITY_LABELS[priority]}`;
+export function getPriorityDisplay(priority: any): string {
+  const normalizedPriority = normalizePriority(priority);
+  return `P${normalizedPriority} • ${PRIORITY_LABELS[normalizedPriority]}`;
 }
 
 /**
  * Get the CSS classes for priority badge styling
  */
-export function getPriorityColors(priority: Priority): string {
-  return PRIORITY_COLORS[priority];
+export function getPriorityColors(priority: any): string {
+  const normalizedPriority = normalizePriority(priority);
+  return PRIORITY_COLORS[normalizedPriority];
 }
 
 /**

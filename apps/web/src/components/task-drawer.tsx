@@ -205,8 +205,8 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="outline" className={getPriorityColors(task.priority as Priority)}>
-                      {getPriorityDisplay(task.priority as Priority)}
+                    <Badge variant="outline" className={getPriorityColors(task.priority)}>
+                      {getPriorityDisplay(task.priority)}
                     </Badge>
                     <AIActivityBadge
                       ready={task.ready}
