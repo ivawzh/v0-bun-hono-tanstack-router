@@ -100,6 +100,7 @@ interface TaskCardProps {
 }
 
 function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTask }: TaskCardProps) {
+  const [showMore, setShowMore] = useState(false);
   const {
     attributes,
     listeners,
@@ -116,13 +117,16 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
 
   const column = statusColumns.find(col => col.id === task.status);
   const Icon = column?.icon || Clock;
+  
+  const description = task.refinedDescription || task.rawDescription;
+  const shouldTruncate = description && description.length > 150;
 
   return (
     <Card
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-pointer hover:shadow-md transition-shadow kanban-card",
+        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card max-h-[200px] overflow-hidden",
         isDragging && "opacity-50 cursor-grabbing"
       )}
       onClick={(e) => {
@@ -207,11 +211,32 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           />
         </div>
 
-        {/* Description preview */}
-        {(task.refinedDescription || task.rawDescription) && (
-          <p className="text-xs text-muted-foreground mb-2 kanban-card-text">
-            {task.refinedDescription || task.rawDescription}
-          </p>
+        {/* Description preview with truncation */}
+        {description && (
+          <div className="mb-2">
+            <div className={cn(
+              "text-xs text-muted-foreground kanban-card-text relative",
+              !showMore && shouldTruncate && "max-h-12 overflow-hidden"
+            )}>
+              <p className="whitespace-pre-wrap">
+                {!showMore && shouldTruncate ? description.slice(0, 150) + '...' : description}
+              </p>
+              {!showMore && shouldTruncate && (
+                <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent" />
+              )}
+            </div>
+            {shouldTruncate && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowMore(!showMore);
+                }}
+                className="text-xs text-blue-600 hover:text-blue-800 mt-1 transition-colors"
+              >
+                {showMore ? 'Show less' : 'Show more'}
+              </button>
+            )}
+          </div>
         )}
 
         {/* Ready toggle */}
@@ -736,8 +761,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent>
-          <DialogHeader>
+        <DialogContent className="max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
               Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
@@ -748,7 +773,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <ScrollArea className="flex-1 px-1">
+            <div className="space-y-4 py-4 px-5">
             <div className="space-y-2">
               <Label htmlFor="task-title">Title</Label>
               <Input
@@ -835,8 +861,9 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                 disabled={createTaskMutation.isPending}
               />
             </div>
-          </div>
-          <DialogFooter>
+            </div>
+          </ScrollArea>
+          <DialogFooter className="flex-shrink-0 mt-4">
             <Button 
               variant="outline" 
               onClick={() => {

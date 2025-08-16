@@ -193,7 +193,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-[600px] sm:max-w-[600px] p-0">
+      <SheetContent className="w-full sm:w-[40vw] sm:min-w-[500px] sm:max-w-[800px] p-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-muted-foreground">Loading task details...</div>
@@ -370,7 +370,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                       {(task.refinedTitle || task.refinedDescription) && (
                         <div>
                           <Label>Refined by AI</Label>
-                          <Card className="mt-2 border-blue-200 bg-blue-50/50">
+                          <Card className="mt-2">
                             <CardContent className="p-4">
                               {task.refinedTitle && task.refinedTitle !== task.rawTitle && (
                                 <div className="mb-2">
@@ -405,7 +405,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                       {task.plan && Object.keys(task.plan).length > 0 ? (
                         <div>
                           <Label>Agent Plan</Label>
-                          <Card className="mt-2 border-green-200 bg-green-50/50">
+                          <Card className="mt-2">
                             <CardContent className="p-4">
                               <pre className="text-sm whitespace-pre-wrap font-mono">
                                 {JSON.stringify(task.plan, null, 2)}
