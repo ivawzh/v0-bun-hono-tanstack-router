@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repoAgents, actors, taskDependencies } from "../db/schema";
+import { tasks, projects, repoAgents, actors, taskDependencies, sessions, agentClients } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import { 
@@ -99,12 +99,19 @@ export const tasksRouter = o.router({
           task: tasks,
           project: projects,
           repoAgent: repoAgents,
-          actor: actors
+          agentClient: agentClients,
+          actor: actors,
+          session: sessions
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .leftJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
+        .leftJoin(agentClients, eq(repoAgents.agentClientId, agentClients.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
+        .leftJoin(sessions, and(
+          eq(sessions.taskId, tasks.id),
+          eq(sessions.status, "active")
+        ))
         .where(
           and(
             eq(tasks.id, input.id),
@@ -120,8 +127,12 @@ export const tasksRouter = o.router({
       return {
         ...result[0].task,
         project: result[0].project,
-        repoAgent: result[0].repoAgent,
-        actor: result[0].actor
+        repoAgent: {
+          ...result[0].repoAgent,
+          agentClient: result[0].agentClient
+        },
+        actor: result[0].actor,
+        activeSession: result[0].session
       };
     }),
 

@@ -56,6 +56,7 @@ import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentList } from "@/components/attachment-list";
 import { EditableField } from "@/components/editable-field";
+import { ClaudeCodeSessionLink } from "@/components/claude-code-session-link";
 
 interface TaskDrawerProps {
   taskId: string | null;
@@ -531,6 +532,14 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                           </div>
                         </div>
                       )}
+
+                      <div className="space-y-2">
+                        <ClaudeCodeSessionLink
+                          taskId={task.id}
+                          activeSession={task.activeSession}
+                          repoAgentClientType={task.repoAgent?.agentClient?.type}
+                        />
+                      </div>
 
                       <Separator />
 
