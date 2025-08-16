@@ -26,7 +26,9 @@ export class RefinePrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { rawTitle, rawDescription, actorDescription, projectMemory } = context;
 
-    return `Refine this raw task. Do not write any code.
+    return `[${this.stage}] ${context.rawTitle}
+**Do not write any code!**
+Refine this raw task.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="refine", isAiWorking=true
@@ -54,7 +56,9 @@ export class KickoffPrompt implements PromptTemplate {
   generate(context: TaskContext): string {
     const { refinedTitle, refinedDescription, actorDescription, projectMemory } = context;
 
-    return `Kickoff a task - create a comprehensive implementation plan and detailed specification. Do not write any code.
+    return `[${this.stage}] ${context.rawTitle}
+**Do not write any code!**
+Kickoff a task - create a comprehensive implementation plan and detailed specification.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="kickoff", isAiWorking=true
@@ -89,7 +93,8 @@ export class ExecutePrompt implements PromptTemplate {
 
     const planSummary = plan ? JSON.stringify(plan) : 'No plan available';
 
-    return `Implement the solution following the plan below. Do not write any code.
+    return `[${this.stage}] ${context.rawTitle}
+Implement the solution following the plan below.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${context.id}", status="doing", stage="execute", isAiWorking=true
