@@ -48,6 +48,7 @@ import { TaskDrawer } from "@/components/task-drawer";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
+import { DeleteTaskDialog } from "@/components/delete-task-dialog";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
@@ -95,9 +96,10 @@ interface TaskCardProps {
   onTaskClick: (taskId: string) => void;
   onToggleReady: (taskId: string, ready: boolean) => void;
   onStageChange: (taskId: string, stage: string | null) => void;
+  onDeleteTask: (task: any) => void;
 }
 
-function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardProps) {
+function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTask }: TaskCardProps) {
   const {
     attributes,
     listeners,
@@ -172,7 +174,13 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardP
                   </DropdownMenuItem>
                 )}
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="text-red-600">
+                <DropdownMenuItem 
+                  className="text-red-600"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDeleteTask(task);
+                  }}
+                >
                   Delete Task
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -252,6 +260,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
+  const [taskToDelete, setTaskToDelete] = useState<any>(null);
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft();
 
@@ -331,6 +341,19 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     },
     onError: (error) => {
       toast.error("Failed to update task stage: " + error.message);
+    }
+  }));
+
+  // Delete task mutation
+  const deleteTaskMutation = useMutation(orpc.tasks.delete.mutationOptions({
+    onSuccess: () => {
+      toast.success("Task deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      setDeleteTaskId(null);
+      setTaskToDelete(null);
+    },
+    onError: (error) => {
+      toast.error("Failed to delete task: " + error.message);
     }
   }));
 
@@ -562,6 +585,17 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "kickoff" | "execute" | null });
   };
 
+  const handleDeleteTask = (task: any) => {
+    setTaskToDelete(task);
+    setDeleteTaskId(task.id);
+  };
+
+  const handleConfirmDelete = () => {
+    if (deleteTaskId) {
+      deleteTaskMutation.mutate({ id: deleteTaskId });
+    }
+  };
+
   const handleCreateTask = async () => {
     if (!newTask.rawTitle || !newTask.repoAgentId) {
       toast.error("Please fill in all required fields");
@@ -666,6 +700,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                               onTaskClick={handleTaskClick}
                               onToggleReady={handleToggleReady}
                               onStageChange={handleStageChange}
+                              onDeleteTask={handleDeleteTask}
                             />
                           ))}
                         </div>
@@ -687,6 +722,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               onTaskClick={() => {}}
               onToggleReady={() => {}}
               onStageChange={() => {}}
+              onDeleteTask={() => {}}
             />
           ) : null}
         </DragOverlay>
@@ -836,6 +872,20 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
           onOpenChange={setShowProjectSettings}
         />
       )}
+
+      {/* Delete Task Confirmation Dialog */}
+      <DeleteTaskDialog
+        open={!!deleteTaskId}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTaskId(null);
+            setTaskToDelete(null);
+          }
+        }}
+        taskTitle={taskToDelete?.refinedTitle || taskToDelete?.rawTitle || ""}
+        onConfirm={handleConfirmDelete}
+        loading={deleteTaskMutation.isPending}
+      />
     </div>
   );
 }
