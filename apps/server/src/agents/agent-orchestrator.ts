@@ -25,7 +25,7 @@ export interface AgentOrchestratorOptions {
  *
  * Task selection criteria:
  * - status != 'done', ready=true and isAiWorking=false
- * - Ordered by priority (5 highest to 1 lowest), then column order, then creation time
+ * - Ordered by priority (5 highest to 1 lowest), then status (doing > todo), then column order, then creation time
  * - Must be assigned to the specific free agent client type
  *
  * Agent vacancy determination:
@@ -201,6 +201,7 @@ export class AgentOrchestrator {
         )
         .orderBy(
           desc(tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
+          sql`CASE WHEN ${tasks.status} = 'doing' THEN 2 WHEN ${tasks.status} = 'todo' THEN 1 ELSE 0 END DESC`, // Status weight: doing > todo
           sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
           tasks.createdAt
         )
