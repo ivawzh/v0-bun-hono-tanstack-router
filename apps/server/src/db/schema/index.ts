@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, jsonb, boolean, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, jsonb, boolean, integer, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // Enum for agent client types
@@ -78,8 +78,8 @@ export const tasks = pgTable("tasks", {
   status: text("status").notNull().default("todo"), // todo, doing, done
   stage: text("stage"), // refine, kickoff, execute (only for doing status)
   
-  // Priority (unified P1-P5)
-  priority: text("priority").notNull().default("P3"), // P1, P2, P3, P4, P5
+  // Priority (1-5 where 5=highest, 1=lowest)
+  priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest
   
   // Manual order within status column (for drag & drop)
   columnOrder: text("column_order").notNull().default("1000"), // Decimal string for ordering within status

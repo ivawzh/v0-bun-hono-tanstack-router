@@ -69,6 +69,7 @@ import { format } from "date-fns";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { useMediaRecorder } from "@/hooks/use-media-recorder";
+import { getPriorityOptions } from "@/utils/priority";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 interface TaskDetailProps {
@@ -94,14 +95,7 @@ const stageOptions = [
   { value: "done", label: "Done" },
 ];
 
-const priorityOptions = [
-  { value: 0, label: "None" },
-  { value: 1, label: "P1 - Critical" },
-  { value: 2, label: "P2 - High" },
-  { value: 3, label: "P3 - Medium" },
-  { value: 4, label: "P4 - Low" },
-  { value: 5, label: "P5 - Nice to have" },
-];
+// Priority options are now handled by the priority utility
 
 export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
   const [newMessage, setNewMessage] = useState("");
@@ -598,7 +592,7 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                         <div>
                           <Label>Priority</Label>
                           <Select
-                            value={String((taskDetails as any)?.priority || 0)}
+                            value={String((taskDetails as any)?.priority || 3)}
                             onValueChange={(value) =>
                               updateTask.mutate({
                                 id: taskId,
@@ -610,9 +604,9 @@ export function TaskDetail({ taskId, open, onOpenChange }: TaskDetailProps) {
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                              {priorityOptions.map((option) => (
+                              {getPriorityOptions().map((option) => (
                                 <SelectItem key={option.value} value={String(option.value)}>
-                                  {option.label}
+                                  {option.display}
                                 </SelectItem>
                               ))}
                             </SelectContent>

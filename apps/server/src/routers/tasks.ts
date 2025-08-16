@@ -14,7 +14,7 @@ import {
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
 const taskStageEnum = v.nullable(v.picklist(["refine", "kickoff", "execute"]));
-const priorityEnum = v.picklist(["P1", "P2", "P3", "P4", "P5"]);
+const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
 export const tasksRouter = o.router({
   list: protectedProcedure
@@ -50,14 +50,7 @@ export const tasksRouter = o.router({
         .where(eq(tasks.projectId, input.projectId))
         .orderBy(
           tasks.status,
-          sql`CASE ${tasks.priority}
-              WHEN 'P5' THEN 1
-              WHEN 'P4' THEN 2
-              WHEN 'P3' THEN 3
-              WHEN 'P2' THEN 4
-              WHEN 'P1' THEN 5
-              ELSE 6
-            END`,
+          desc(tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
           sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
           desc(tasks.createdAt)
         );
@@ -112,7 +105,7 @@ export const tasksRouter = o.router({
       actorId: v.optional(v.pipe(v.string(), v.uuid())),
       rawTitle: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
       rawDescription: v.optional(v.string()),
-      priority: v.optional(priorityEnum, "P3"),
+      priority: v.optional(prioritySchema, 3),
       attachments: v.optional(v.array(v.any()), [])
     }))
     .handler(async ({ context, input }) => {
@@ -197,7 +190,7 @@ export const tasksRouter = o.router({
       plan: v.optional(v.any()),
       status: v.optional(taskStatusEnum),
       stage: v.optional(taskStageEnum),
-      priority: v.optional(priorityEnum),
+      priority: v.optional(prioritySchema),
       ready: v.optional(v.boolean()),
       attachments: v.optional(v.array(v.any())),
       columnOrder: v.optional(v.string())

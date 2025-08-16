@@ -47,6 +47,7 @@ import {
   User,
 } from "lucide-react";
 import { orpc } from "@/utils/orpc";
+import { getPriorityColors, getPriorityDisplay, getPriorityOptions, type Priority } from "@/utils/priority";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -73,21 +74,7 @@ const stageOptions = [
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
 ];
 
-const priorityOptions = [
-  { value: "P5", label: "P5 - Highest" },
-  { value: "P4", label: "P4 - High" },
-  { value: "P3", label: "P3 - Medium" },
-  { value: "P2", label: "P2 - Low" },
-  { value: "P1", label: "P1 - Lowest" },
-];
-
-const priorityColors = {
-  P1: "bg-red-100 text-red-800 border-red-200",
-  P2: "bg-orange-100 text-orange-800 border-orange-200",
-  P3: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  P4: "bg-blue-100 text-blue-800 border-blue-200",
-  P5: "bg-gray-100 text-gray-800 border-gray-200",
-};
+// Priority options and colors are now handled by the priority utility
 
 export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
   const [editingTitle, setEditingTitle] = useState(false);
@@ -181,7 +168,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
   const handlePriorityChange = (priority: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      priority: priority as any
+      priority: parseInt(priority) as Priority
     });
   };
 
@@ -218,8 +205,8 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
                   <div className="flex items-center gap-2 mb-3">
-                    <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
-                      {task.priority}
+                    <Badge variant="outline" className={getPriorityColors(task.priority as Priority)}>
+                      {getPriorityDisplay(task.priority as Priority)}
                     </Badge>
                     <AIActivityBadge
                       ready={task.ready}
@@ -466,14 +453,14 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
 
                       <div>
                         <Label>Priority</Label>
-                        <Select value={task.priority} onValueChange={handlePriorityChange}>
+                        <Select value={task.priority.toString()} onValueChange={handlePriorityChange}>
                           <SelectTrigger className="mt-1">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {priorityOptions.map((option) => (
-                              <SelectItem key={option.value} value={option.value}>
-                                {option.label}
+                            {getPriorityOptions().map((option) => (
+                              <SelectItem key={option.value} value={option.value.toString()}>
+                                {option.display}
                               </SelectItem>
                             ))}
                           </SelectContent>

@@ -51,6 +51,7 @@ import { AttachmentDropzone } from "@/components/attachment-dropzone";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
+import { getPriorityColors, getPriorityDisplay, getPriorityOptions, comparePriority, type Priority } from "@/utils/priority";
 
 // Drag and drop imports
 import {
@@ -87,13 +88,7 @@ const stageColors = {
   execute: "bg-blue-100 text-blue-800 border-blue-200",
 };
 
-const priorityColors = {
-  P1: "bg-red-100 text-red-800 border-red-200",
-  P2: "bg-orange-100 text-orange-800 border-orange-200",
-  P3: "bg-yellow-100 text-yellow-800 border-yellow-200",
-  P4: "bg-blue-100 text-blue-800 border-blue-200",
-  P5: "bg-gray-100 text-gray-800 border-gray-200",
-};
+// Priority colors are now handled by the priority utility
 
 interface TaskCardProps {
   task: any;
@@ -188,8 +183,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange }: TaskCardP
       <CardContent className="pt-0">
         {/* Priority, AI Activity, and Stage badges */}
         <div className="kanban-card-badges">
-          <Badge variant="outline" className={priorityColors[task.priority as keyof typeof priorityColors]}>
-            {task.priority}
+          <Badge variant="outline" className={getPriorityColors(task.priority as Priority)}>
+            {getPriorityDisplay(task.priority as Priority)}
           </Badge>
           <AIActivityBadge
             ready={task.ready}
@@ -400,13 +395,10 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     const columnTasks = (project?.tasks || [])
       .filter((task: any) => task.status === column.id)
       .sort((a: any, b: any) => {
-        // First sort by priority (P5 > P4 > P3 > P2 > P1)
-        const priorityOrder = { P5: 1, P4: 2, P3: 3, P2: 4, P1: 5 };
-        const aPriority = priorityOrder[a.priority as keyof typeof priorityOrder] || 6;
-        const bPriority = priorityOrder[b.priority as keyof typeof priorityOrder] || 6;
-
-        if (aPriority !== bPriority) {
-          return aPriority - bPriority;
+        // Sort by priority (higher numbers = higher priority: 5 > 4 > 3 > 2 > 1)
+        const priorityComparison = comparePriority(a.priority, b.priority);
+        if (priorityComparison !== 0) {
+          return priorityComparison;
         }
 
         // Then sort by column order (manual drag and drop order)
@@ -513,12 +505,8 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
         const activeTask = targetTasks[activeIndex];
         const overTask = targetTasks[overIndex];
 
-        const priorityOrder = { P5: 1, P4: 2, P3: 3, P2: 4, P1: 5 };
-        const activePriority = priorityOrder[activeTask.priority as keyof typeof priorityOrder] || 6;
-        const overPriority = priorityOrder[overTask.priority as keyof typeof priorityOrder] || 6;
-
         // Only allow reordering within the same priority level
-        if (activePriority === overPriority) {
+        if (activeTask.priority === overTask.priority) {
           // Calculate new positions for reordering
           const isMovingDown = overIndex > activeIndex;
 
@@ -748,18 +736,18 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
               <div className="space-y-2">
                 <Label htmlFor="task-priority">Priority</Label>
                 <Select
-                  value={newTask.priority}
-                  onValueChange={(value) => updateDraft({ priority: value as 'P1' | 'P2' | 'P3' | 'P4' | 'P5' })}
+                  value={newTask.priority.toString()}
+                  onValueChange={(value) => updateDraft({ priority: parseInt(value) as Priority })}
                 >
                   <SelectTrigger id="task-priority">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="P5">P5 - Highest</SelectItem>
-                    <SelectItem value="P4">P4 - High</SelectItem>
-                    <SelectItem value="P3">P3 - Medium</SelectItem>
-                    <SelectItem value="P2">P2 - Low</SelectItem>
-                    <SelectItem value="P1">P1 - Lowest</SelectItem>
+                    {getPriorityOptions().map(option => (
+                      <SelectItem key={option.value} value={option.value.toString()}>
+                        {option.display}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

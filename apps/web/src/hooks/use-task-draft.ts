@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import type { Priority } from '@/utils/priority'
 
 export interface AttachmentFile {
   id: string
@@ -9,7 +10,7 @@ export interface AttachmentFile {
 interface TaskDraft {
   rawTitle: string
   rawDescription: string
-  priority: 'P1' | 'P2' | 'P3' | 'P4' | 'P5'
+  priority: Priority
   repoAgentId: string
   actorId: string
   attachments: AttachmentFile[]
@@ -22,7 +23,7 @@ export function useTaskDraft() {
   const [draft, setDraft] = useState<TaskDraft>({
     rawTitle: '',
     rawDescription: '',
-    priority: 'P3',
+    priority: 3,
     repoAgentId: '',
     actorId: '__default__',
     attachments: []
@@ -99,7 +100,7 @@ export function useTaskDraft() {
     setDraft({
       rawTitle: '',
       rawDescription: '',
-      priority: 'P3',
+      priority: 3,
       repoAgentId: '',
       actorId: '__default__',
       attachments: []
