@@ -53,6 +53,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
+import { AttachmentList } from "@/components/attachment-list";
 
 interface TaskDrawerProps {
   taskId: string | null;
@@ -437,32 +438,11 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
 
                   {/* Attachments Tab */}
                   <TabsContent value="attachments" className="mt-0">
-                    <div className="space-y-4">
-                      {task.attachments && task.attachments.length > 0 ? (
-                        <div className="grid gap-3">
-                          {task.attachments.map((attachment: any, index: number) => (
-                            <Card key={index}>
-                              <CardContent className="p-4">
-                                <div className="flex items-center gap-3">
-                                  <Paperclip className="h-5 w-5 text-muted-foreground" />
-                                  <div className="flex-1">
-                                    <p className="font-medium">{attachment.name || `Attachment ${index + 1}`}</p>
-                                    {attachment.type && (
-                                      <p className="text-xs text-muted-foreground">{attachment.type}</p>
-                                    )}
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="text-center text-muted-foreground py-8">
-                          <Paperclip className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                          <p>No attachments</p>
-                        </div>
-                      )}
-                    </div>
+                    <AttachmentList
+                      attachments={(task.attachments as any[]) || []}
+                      showDelete={false}
+                      compact={false}
+                    />
                   </TabsContent>
 
                   {/* Settings Tab */}

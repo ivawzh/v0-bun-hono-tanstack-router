@@ -18,15 +18,15 @@ export function AIActivityBadge({ ready, isAiWorking, status, className }: AIAct
   // AI Working state - highest priority
   if (isAiWorking === true) {
     return (
-      <Badge 
-        variant="outline" 
+      <Badge
+        variant="outline"
         className={cn(
           "bg-green-100 text-green-800 border-green-200 flex items-center gap-1",
           className
         )}
       >
         <Zap className="h-3 w-3 animate-pulse" />
-        AI Working
+        Working
       </Badge>
     );
   }
@@ -34,15 +34,15 @@ export function AIActivityBadge({ ready, isAiWorking, status, className }: AIAct
   // AI Ready state - only for todo tasks that are ready but AI not working
   if (status === "todo" && ready === true && isAiWorking !== true) {
     return (
-      <Badge 
-        variant="outline" 
+      <Badge
+        variant="outline"
         className={cn(
           "bg-blue-100 text-blue-800 border-blue-200 flex items-center gap-1",
           className
         )}
       >
         <Clock className="h-3 w-3" />
-        AI Ready
+        Queueing
       </Badge>
     );
   }

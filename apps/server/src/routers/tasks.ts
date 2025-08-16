@@ -4,6 +4,13 @@ import { db } from "../db";
 import { tasks, projects, repoAgents, actors } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
+import { 
+  saveAttachment, 
+  deleteAttachment, 
+  getAttachmentFile, 
+  validateTotalAttachmentSize,
+  type AttachmentMetadata 
+} from "../utils/file-storage";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
 const taskStageEnum = v.nullable(v.picklist(["refine", "kickoff", "execute"]));
@@ -427,5 +434,151 @@ export const tasksRouter = o.router({
       broadcastFlush(task[0].project.id);
 
       return updated[0];
+    }),
+
+  uploadAttachment: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      file: v.object({
+        buffer: v.any(), // Buffer
+        originalName: v.string(),
+        type: v.string(),
+        size: v.number()
+      })
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify task ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.taskId),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+      
+      // Validate total size
+      await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
+
+      // Save attachment file
+      const attachment = await saveAttachment(input.taskId, input.file);
+
+      // Update task with new attachment
+      const updatedAttachments = [...existingAttachments, attachment];
+      
+      const updated = await db
+        .update(tasks)
+        .set({
+          attachments: updatedAttachments,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, input.taskId))
+        .returning();
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return attachment;
+    }),
+
+  deleteAttachment: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      attachmentId: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify task ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.taskId),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+      
+      // Delete the file
+      await deleteAttachment(input.taskId, input.attachmentId, attachments);
+
+      // Remove from task attachments
+      const updatedAttachments = attachments.filter(a => a.id !== input.attachmentId);
+      
+      await db
+        .update(tasks)
+        .set({
+          attachments: updatedAttachments,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, input.taskId));
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return { success: true };
+    }),
+
+  getAttachment: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      attachmentId: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify task ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.taskId),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+      const attachment = attachments.find(a => a.id === input.attachmentId);
+      
+      if (!attachment) {
+        throw new Error("Attachment not found");
+      }
+
+      const buffer = await getAttachmentFile(input.taskId, input.attachmentId, attachments);
+      
+      return {
+        buffer,
+        metadata: attachment
+      };
     })
 });

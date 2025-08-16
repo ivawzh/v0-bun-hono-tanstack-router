@@ -1,11 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 
+export interface AttachmentFile {
+  id: string
+  file: File
+  preview?: string
+}
+
 interface TaskDraft {
   rawTitle: string
   rawDescription: string
   priority: 'P1' | 'P2' | 'P3' | 'P4' | 'P5'
   repoAgentId: string
   actorId: string
+  attachments: AttachmentFile[]
 }
 
 const STORAGE_KEY = 'solo-unicorn-task-draft'
@@ -17,7 +24,8 @@ export function useTaskDraft() {
     rawDescription: '',
     priority: 'P3',
     repoAgentId: '',
-    actorId: '__default__'
+    actorId: '__default__',
+    attachments: []
   })
   const [hasDraft, setHasDraft] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -46,8 +54,13 @@ export function useTaskDraft() {
     timeoutRef.current = setTimeout(() => {
       try {
         // Only save if there's actual content
-        if (newDraft.rawTitle.trim() || newDraft.rawDescription.trim()) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(newDraft))
+        if (newDraft.rawTitle.trim() || newDraft.rawDescription.trim() || newDraft.attachments.length > 0) {
+          // Don't save File objects to localStorage - they can't be serialized
+          const draftToSave = {
+            ...newDraft,
+            attachments: [] // Reset attachments in localStorage
+          }
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(draftToSave))
           setHasDraft(true)
         } else {
           // Clear storage if no content
@@ -88,7 +101,8 @@ export function useTaskDraft() {
       rawDescription: '',
       priority: 'P3',
       repoAgentId: '',
-      actorId: '__default__'
+      actorId: '__default__',
+      attachments: []
     })
     setHasDraft(false)
   }, [])

@@ -47,6 +47,8 @@ import { ProjectSettingsComprehensive } from "@/components/project-settings-comp
 import { TaskDrawer } from "@/components/task-drawer";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
+import { AttachmentDropzone } from "@/components/attachment-dropzone";
+import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
 
@@ -572,7 +574,7 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "kickoff" | "execute" | null });
   };
 
-  const handleCreateTask = () => {
+  const handleCreateTask = async () => {
     if (!newTask.rawTitle || !newTask.repoAgentId) {
       toast.error("Please fill in all required fields");
       return;
@@ -583,11 +585,13 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
     const lastTask = columnTasks[columnTasks.length - 1];
     const newOrder = lastTask ? (parseFloat(lastTask.columnOrder || "1000") + 100).toString() : "1000";
 
+    // For now, create task without attachments - will be implemented in next step
     createTaskMutation.mutate({
       projectId,
       ...newTask,
       // Convert __default__ back to undefined for the API
-      actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId
+      actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
+      attachments: [] // TODO: Implement file upload after task creation
     });
   };
 
@@ -796,6 +800,16 @@ export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            
+            {/* File Attachments */}
+            <div className="space-y-2">
+              <Label>Attachments (Optional)</Label>
+              <AttachmentDropzone
+                attachments={newTask.attachments}
+                onAttachmentsChange={(attachments) => updateDraft({ attachments })}
+                disabled={createTaskMutation.isPending}
+              />
             </div>
           </div>
           <DialogFooter>
