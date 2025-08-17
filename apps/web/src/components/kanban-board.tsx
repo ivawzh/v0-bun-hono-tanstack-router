@@ -77,17 +77,19 @@ interface KanbanBoardProps {
   projectId: string;
 }
 
-// Simplified 3-column structure
+// 4-column structure with Loop support
 const statusColumns = [
   { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
   { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
   { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
+  { id: "loop", label: "Loop", icon: RotateCcw, color: "bg-purple-500" },
 ];
 
 const stageColors = {
   refine: "bg-purple-100 text-purple-800 border-purple-200",
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
+  loop: "bg-orange-100 text-orange-800 border-orange-200",
 };
 
 // Priority colors are now handled by the priority utility
@@ -316,8 +318,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           </div>
         )}
 
-        {/* Ready toggle - only show for non-completed tasks */}
-        {task.status !== 'done' && (
+        {/* Ready toggle - only show for non-completed and non-loop tasks */}
+        {task.status !== 'done' && task.status !== 'loop' && (
           <div className="kanban-card-status">
             <div className="kanban-card-ready-toggle">
               <Switch
@@ -729,7 +731,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (updates.length > 0) {
       updateOrderMutation.mutate({
         projectId,
-        tasks: updates as Array<{ id: string; columnOrder: string; status?: "todo" | "doing" | "done" }>
+        tasks: updates as Array<{ id: string; columnOrder: string; status?: "todo" | "doing" | "done" | "loop" }>
       });
     }
   };
@@ -743,7 +745,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleStageChange = (taskId: string, stage: string | null) => {
-    updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "plan" | "execute" | null });
+    updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "plan" | "execute" | "loop" | null });
   };
 
   const handleDeleteTask = (task: any) => {
@@ -786,6 +788,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
+      status: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
       attachments: [] // TODO: Implement file upload after task creation
     });
   };

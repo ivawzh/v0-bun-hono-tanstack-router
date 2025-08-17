@@ -214,6 +214,7 @@ export class AgentOrchestrator {
             eq(tasks.ready, true),
             eq(tasks.isAiWorking, false),
             ne(tasks.status, 'done'),
+            ne(tasks.status, 'loop'),
             eq(agentClients.type, targetAgentType),
             eq(repoAgents.isPaused, false),
             // Only tasks with no incomplete dependencies
@@ -239,7 +240,18 @@ export class AgentOrchestrator {
         .limit(1); // Only get the highest priority task
 
       if (readyTasks.length === 0) {
-        this.logger.debug(`No ready tasks found for agent type ${targetAgentType}`);
+        // No regular tasks found, check for loop tasks to auto-feed
+        this.logger.debug(`No ready tasks found for agent type ${targetAgentType}, checking loop tasks for auto-feed`);
+        const loopTasks = await this.getLoopTasksForAutoFeed(targetAgentType);
+        
+        if (loopTasks.length === 0) {
+          this.logger.debug(`No loop tasks found for auto-feed for agent type ${targetAgentType}`);
+          return;
+        }
+        
+        // Move the top loop task to doing status and process it
+        const loopTask = loopTasks[0];
+        await this.autoFeedLoopTask(loopTask);
         return;
       }
 
@@ -257,6 +269,69 @@ export class AgentOrchestrator {
       }
     } catch (error) {
       this.logger.error(`Error assigning task to ${targetAgentType}`, error);
+    }
+  }
+
+  private async getLoopTasksForAutoFeed(targetAgentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE') {
+    // Get loop tasks for the specific agent type
+    const loopTasks = await db
+      .select({
+        task: tasks,
+        repoAgent: repoAgents,
+        actor: actors,
+        project: projects,
+        agentClient: agentClients
+      })
+      .from(tasks)
+      .innerJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
+      .innerJoin(agentClients, eq(repoAgents.agentClientId, agentClients.id))
+      .leftJoin(actors, eq(tasks.actorId, actors.id))
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .where(
+        and(
+          eq(tasks.status, 'loop'),
+          eq(tasks.stage, 'loop'),
+          eq(tasks.isAiWorking, false),
+          eq(agentClients.type, targetAgentType),
+          eq(repoAgents.isPaused, false)
+        )
+      )
+      .orderBy(
+        desc(tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
+        sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
+        tasks.createdAt
+      )
+      .limit(1);
+    
+    return loopTasks;
+  }
+
+  private async autoFeedLoopTask(taskData: any) {
+    const { task } = taskData;
+    
+    try {
+      this.logger.info('Auto-feeding loop task to doing status', {
+        taskId: task.id,
+        taskTitle: task.rawTitle
+      });
+      
+      // Move loop task to doing status but keep the loop stage
+      await db
+        .update(tasks)
+        .set({
+          status: 'doing',
+          // Keep stage as 'loop' for loop tasks
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, task.id));
+      
+      // Now assign this task to the agent
+      await this.assignTaskToAgent(taskData);
+      
+    } catch (error) {
+      this.logger.error('Failed to auto-feed loop task', error, {
+        taskId: task.id
+      });
     }
   }
 

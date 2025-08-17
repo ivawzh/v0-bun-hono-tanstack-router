@@ -12,8 +12,8 @@ import {
   type AttachmentMetadata 
 } from "../utils/file-storage";
 
-const taskStatusEnum = v.picklist(["todo", "doing", "done"]);
-const taskStageEnum = v.nullable(v.picklist(["refine", "plan", "execute"]));
+const taskStatusEnum = v.picklist(["todo", "doing", "done", "loop"]);
+const taskStageEnum = v.nullable(v.picklist(["refine", "plan", "execute", "loop"]));
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
 export const tasksRouter = o.router({
@@ -144,7 +144,8 @@ export const tasksRouter = o.router({
       rawTitle: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
       rawDescription: v.optional(v.string()),
       priority: v.optional(prioritySchema, 3),
-      attachments: v.optional(v.array(v.any()), [])
+      attachments: v.optional(v.array(v.any()), []),
+      status: v.optional(taskStatusEnum, "todo") // Allow creating tasks directly in loop column
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -207,8 +208,9 @@ export const tasksRouter = o.router({
           rawDescription: input.rawDescription,
           priority: input.priority,
           attachments: input.attachments,
-          status: "todo",
-          ready: false
+          status: input.status,
+          stage: input.status === "loop" ? "loop" : null, // Set stage to "loop" for loop tasks
+          ready: input.status === "loop" ? true : false // Loop tasks are always ready
         })
         .returning();
 
@@ -405,9 +407,11 @@ export const tasksRouter = o.router({
 
         if (taskUpdate.status !== undefined) {
           updates.status = taskUpdate.status;
-          // Clear stage when moving to todo or done
+          // Handle stage transitions for different statuses
           if (taskUpdate.status === 'todo' || taskUpdate.status === 'done') {
             updates.stage = null;
+          } else if (taskUpdate.status === 'loop') {
+            updates.stage = 'loop'; // Loop tasks always have loop stage
           }
         }
 
@@ -642,6 +646,75 @@ export const tasksRouter = o.router({
       const updated = await db
         .update(tasks)
         .set({
+          isAiWorking: false,
+          aiWorkingSince: null,
+          updatedAt: new Date()
+        })
+        .where(eq(tasks.id, input.id))
+        .returning();
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return updated[0];
+    }),
+
+  completeLoopTask: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Only allow completion of loop tasks in doing status with loop stage
+      if (task[0].task.status !== 'doing' || task[0].task.stage !== 'loop') {
+        throw new Error("Only loop tasks in doing status can be completed and returned to loop");
+      }
+
+      // Get the highest column order in the loop column to append at bottom
+      const loopTasks = await db
+        .select({ columnOrder: tasks.columnOrder })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.projectId, task[0].project.id),
+            eq(tasks.status, 'loop')
+          )
+        )
+        .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
+        .limit(1);
+
+      let newColumnOrder = "1000"; // Default if no loop tasks exist
+      if (loopTasks.length > 0) {
+        const highestOrder = parseFloat(loopTasks[0].columnOrder);
+        newColumnOrder = (highestOrder + 1000).toString(); // Add 1000 to be at bottom
+      }
+
+      // Move task back to loop status at bottom of column
+      const updated = await db
+        .update(tasks)
+        .set({
+          status: 'loop',
+          stage: 'loop',
+          columnOrder: newColumnOrder,
           isAiWorking: false,
           aiWorkingSince: null,
           updatedAt: new Date()
