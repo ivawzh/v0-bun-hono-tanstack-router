@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ArrowUp, ArrowDown
 } from "lucide-react";
@@ -843,11 +843,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   };
 
-  const handleToggleDoneSort = () => {
+  const handleToggleDoneSort = useCallback(() => {
     setDoneSortOrder(current => 
       current === 'newest-first' ? 'oldest-first' : 'newest-first'
     );
-  };
+  }, []);
 
   const handleCreateTask = async () => {
     if (!newTask.rawTitle || !newTask.repoAgentId) {
@@ -932,9 +932,14 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <Button
+                                  key="done-sort-toggle"
                                   variant="ghost"
                                   size="sm"
-                                  onClick={handleToggleDoneSort}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    handleToggleDoneSort();
+                                  }}
                                   className="h-8 w-8 p-0"
                                 >
                                   {doneSortOrder === 'newest-first' ? (
