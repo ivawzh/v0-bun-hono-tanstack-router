@@ -186,7 +186,7 @@ export class AgentOrchestrator {
 
       if (vacancy === 'Free') {
         // Agent is free, find and assign the top priority task for this agent type
-        this.logger.info(`Agent ${agentType} is free, checking for tasks to push`);
+        this.logger.debug(`Agent ${agentType} is free, checking for tasks to push`);
         await this.assignTopTaskToAgentType(agentType);
       }
     }
@@ -418,7 +418,7 @@ export class AgentOrchestrator {
     }> = [];
 
     // Filter for image attachments
-    const imageAttachments = attachments.filter(attachment => 
+    const imageAttachments = attachments.filter(attachment =>
       attachment.type.startsWith('image/')
     );
 
@@ -432,10 +432,10 @@ export class AgentOrchestrator {
 
         // Get the file buffer using the existing utility
         const buffer = await getAttachmentFile(taskId, attachment.id, attachments);
-        
+
         // Convert to base64
         const base64Data = buffer.toString('base64');
-        
+
         images.push({
           filename: attachment.originalName || attachment.filename,
           mimeType: attachment.type,
