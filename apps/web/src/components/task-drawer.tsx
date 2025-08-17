@@ -57,6 +57,7 @@ import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentList } from "@/components/attachment-list";
 import { EditableField } from "@/components/editable-field";
 import { ClaudeCodeSessionLink } from "@/components/claude-code-session-link";
+import { TaskAttachmentUpload } from "@/components/task-attachment-upload";
 
 interface TaskDrawerProps {
   taskId: string | null;
@@ -144,6 +145,22 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
       },
       onError: (error) => {
         toast.error("Failed to update task stage: " + error.message);
+      }
+    })
+  );
+
+  // Delete attachment mutation
+  const deleteAttachmentMutation = useMutation(
+    orpc.tasks.deleteAttachment.mutationOptions({
+      onSuccess: () => {
+        toast.success("Attachment deleted successfully");
+        queryClient.invalidateQueries({
+          queryKey: ["projects", "getWithTasks", { input: { id: task?.projectId } }],
+          exact: true
+        });
+      },
+      onError: (error) => {
+        toast.error("Failed to delete attachment: " + error.message);
       }
     })
   );
@@ -486,12 +503,21 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
 
                   {/* Attachments Tab */}
                   <TabsContent value="attachments" className="mt-0">
-                    <AttachmentList
-                      attachments={Array.isArray(task.attachments) ? task.attachments : []}
-                      taskId={task.id}
-                      showDelete={false}
-                      compact={false}
-                    />
+                    <div className="space-y-6">
+                      {/* Upload new attachments */}
+                      <TaskAttachmentUpload taskId={task.id} />
+                      
+                      {/* Existing attachments */}
+                      <AttachmentList
+                        attachments={Array.isArray(task.attachments) ? task.attachments : []}
+                        taskId={task.id}
+                        showDelete={true}
+                        compact={false}
+                        onDelete={(attachmentId) => {
+                          deleteAttachmentMutation.mutate({ taskId: task.id, attachmentId })
+                        }}
+                      />
+                    </div>
                   </TabsContent>
 
                   {/* Settings Tab */}
