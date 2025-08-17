@@ -153,9 +153,13 @@ export class ClaudeCodeClient {
           await db
             .update(sessions)
             .set({
-              agentSessionId: message.sessionId
+              agentSessionId: message.sessionId,
             })
             .where(eq(sessions.taskId, message.soloUnicornTaskId));
+
+          await db.update(tasks).set({
+            isAiWorking: true,
+          }).where(eq(tasks.id, message.soloUnicornTaskId));
           console.log('📝 Session ID updated for task:', message.soloUnicornTaskId, '→', message.sessionId);
         } else {
           // Create new session record
