@@ -879,8 +879,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{project?.name}</h1>
+        <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
+          <h1 className="text-xl md:text-2xl font-bold truncate">{project?.name}</h1>
           {/* WebSocket connection status */}
           <div className="flex items-center gap-1 text-xs">
             <div className={cn(
@@ -898,11 +898,12 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowProjectSettings(true)} variant="outline" size="sm">
-            <Settings className="h-4 w-4 mr-2" />
-            Settings
+            <Settings className="h-4 w-4 md:mr-2" />
+            <span className="hidden md:inline">Settings</span>
           </Button>
           <Button onClick={() => refetch()} variant="outline" size="sm">
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">↻</span>
           </Button>
         </div>
       </div>
@@ -913,8 +914,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
-        <ScrollArea className="w-full whitespace-nowrap">
-          <div className="flex gap-4 pb-4">
+        <ScrollArea className="w-full whitespace-nowrap kanban-board-container">
+          <div className="flex gap-3 md:gap-4 pb-4">
             {statusColumns.map((column) => {
               const columnTasks = groupedTasks[column.id] || [];
               const Icon = column.icon;
