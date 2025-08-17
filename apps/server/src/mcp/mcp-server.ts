@@ -246,17 +246,17 @@ function registerMcpTools(server: McpServer) {
       title: "Agent Rate Limit",
       description: "Mark the agent as rate limited with an optional resolve time.",
       inputSchema: {
-        sessionId: z.string().uuid(),
+        agentClientType: z.enum(["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]),
         resolveAt: z.string().datetime(),
       },
     },
-    async ({ sessionId, resolveAt }, { requestInfo }) => {
+    async ({ agentClientType, resolveAt }, { requestInfo }) => {
       const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
       const agentId = Array.isArray(agentIdHeader)
         ? agentIdHeader[0]
         : agentIdHeader;
 
-      logger.tool("agent_rateLimit", "start", { agentId, sessionId, resolveAt });
+      logger.tool("agent_rateLimit", "start", { agentId, agentClientType, resolveAt });
 
       try {
         assertBearer(requestInfo?.headers?.authorization);
@@ -264,7 +264,7 @@ function registerMcpTools(server: McpServer) {
         if (!agentId) {
           logger.tool("agent_rateLimit", "failed", {
             reason: "missing_agent_id",
-            sessionId,
+            agentClientType,
           });
           return {
             content: [
@@ -285,7 +285,7 @@ function registerMcpTools(server: McpServer) {
 
         logger.tool("agent_rateLimit", "success", {
           agentId,
-          sessionId,
+          agentClientType,
           resolveAt,
         });
 
@@ -293,7 +293,7 @@ function registerMcpTools(server: McpServer) {
           content: [{ type: "text", text: JSON.stringify({ success: true }) }],
         };
       } catch (error) {
-        logger.error("agent_rateLimit failed", error, { agentId, sessionId });
+        logger.error("agent_rateLimit failed", error, { agentId, agentClientType });
         throw error;
       }
     }
