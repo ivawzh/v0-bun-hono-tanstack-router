@@ -6,6 +6,7 @@ import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { jwtDecode } from '../ops/authCookies';
 import type { AccessTokenPayload } from '../ops/authCookies';
+import { isEmailAuthorized } from '../utils/email-authorization';
 
 const app = new Hono();
 
@@ -36,6 +37,45 @@ app.get('/callback', async (c) => {
       400
     );
   }
+
+  // Extract user email from token for authorization check
+  const tokenResult = jwtDecode<AccessTokenPayload>(exchanged.tokens.access);
+  if (!tokenResult.ok) {
+    console.error('Failed to decode access token for authorization check');
+    return c.json({
+      error: 'Authentication Error',
+      message: 'Failed to process authentication token',
+    }, 400);
+  }
+
+  const payload: any = tokenResult.good as any;
+  const userEmail =
+    payload?.subject?.properties?.email ??
+    payload?.properties?.email ??
+    payload?.email ??
+    payload?.user?.email ??
+    payload?.userinfo?.email ??
+    payload?.claims?.email;
+
+  if (!userEmail) {
+    console.error('No email found in access token payload');
+    return c.json({
+      error: 'Authentication Error',
+      message: 'Email address not provided by authentication provider',
+    }, 400);
+  }
+
+  // Check if user is authorized
+  const authResult = isEmailAuthorized(userEmail);
+  if (!authResult.isAuthorized) {
+    console.warn(`Unauthorized access attempt by email: ${userEmail}`);
+    return c.json({
+      error: 'Access Denied',
+      message: authResult.error || 'Your email address is not authorized to access this application. Please contact the administrator.',
+    }, 403);
+  }
+
+  console.log(`Authorized user login: ${userEmail}`);
 
   await setAuthCookies(c, {
     accessToken: exchanged.tokens.access,

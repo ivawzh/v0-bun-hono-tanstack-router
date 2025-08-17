@@ -4,6 +4,7 @@ import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { resolveAuthCookies } from "../ops/authCookies";
 import type { AccessTokenPayload } from "../ops/authCookies";
+import { isEmailAuthorized } from "../utils/email-authorization";
 
 export type CreateContextOptions = {
   context: HonoContext;
@@ -45,6 +46,13 @@ export async function createContext({ context }: CreateContextOptions) {
       if (!userInfo.email) {
         throw new Error("Access token did not include an email claim");
       }
+
+      // Check if user is authorized
+      const emailAuthResult = isEmailAuthorized(userInfo.email);
+      if (!emailAuthResult.isAuthorized) {
+        throw new Error(`Access denied: ${emailAuthResult.error}`);
+      }
+
       session = {
         user: {
           email: userInfo.email,
