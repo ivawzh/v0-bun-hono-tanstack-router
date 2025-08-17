@@ -16,16 +16,47 @@ export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
 
   const uploadMutation = useMutation({
     mutationFn: async (file: AttachmentFile) => {
-      const buffer = await file.file.arrayBuffer()
-      return client.tasks.uploadAttachment({
-        taskId,
-        file: {
-          buffer: new Uint8Array(buffer),
-          originalName: file.file.name,
-          type: file.file.type,
-          size: file.file.size
-        }
+      console.log('📤 Starting upload for file:', {
+        name: file.file.name,
+        size: file.file.size,
+        type: file.file.type,
+        taskId
+      });
+      
+      // Create FormData for proper file upload
+      const formData = new FormData()
+      formData.append('taskId', taskId)
+      formData.append('file', file.file)
+      
+      // Get the server URL from environment (same as orpc client)
+      const defaultServerUrl = "http://localhost:8500"
+      const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl
+      const uploadUrl = `${baseUrl}/api/tasks/upload-attachment`
+      
+      console.log('📤 Uploading to:', uploadUrl);
+      
+      // Use fetch directly for multipart/form-data upload
+      const response = await fetch(uploadUrl, {
+        method: 'POST',
+        body: formData,
+        credentials: 'include'
       })
+      
+      console.log('📤 Upload response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Upload failed:', errorText);
+        throw new Error(`Upload failed: ${response.statusText}`)
+      }
+      
+      const result = await response.json();
+      console.log('✅ Upload successful:', result);
+      return result;
     },
     onSuccess: () => {
       // Clear uploaded attachments

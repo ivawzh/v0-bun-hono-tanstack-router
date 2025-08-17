@@ -494,50 +494,55 @@ export const tasksRouter = o.router({
       })
     }))
     .handler(async ({ context, input }) => {
-      // Verify task ownership
-      const task = await db
-        .select({
-          task: tasks,
-          project: projects
-        })
-        .from(tasks)
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .where(
-          and(
-            eq(tasks.id, input.taskId),
-            eq(projects.ownerId, context.user.id)
+      try {
+        // Verify task ownership
+        const task = await db
+          .select({
+            task: tasks,
+            project: projects
+          })
+          .from(tasks)
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .where(
+            and(
+              eq(tasks.id, input.taskId),
+              eq(projects.ownerId, context.user.id)
+            )
           )
-        )
-        .limit(1);
+          .limit(1);
 
-      if (task.length === 0) {
-        throw new Error("Task not found or unauthorized");
+        if (task.length === 0) {
+          throw new Error("Task not found or unauthorized");
+        }
+
+        const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+        
+        // Validate total size
+        await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
+
+        // Save attachment file
+        const attachment = await saveAttachment(input.taskId, input.file);
+
+        // Update task with new attachment
+        const updatedAttachments = [...existingAttachments, attachment];
+        
+        const updated = await db
+          .update(tasks)
+          .set({
+            attachments: updatedAttachments,
+            updatedAt: new Date()
+          })
+          .where(eq(tasks.id, input.taskId))
+          .returning();
+
+        // Broadcast flush to invalidate all queries for this project
+        broadcastFlush(task[0].project.id);
+
+        return attachment;
+      } catch (error) {
+        console.error('Upload attachment error:', error);
+        throw error;
       }
-
-      const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-      
-      // Validate total size
-      await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
-
-      // Save attachment file
-      const attachment = await saveAttachment(input.taskId, input.file);
-
-      // Update task with new attachment
-      const updatedAttachments = [...existingAttachments, attachment];
-      
-      const updated = await db
-        .update(tasks)
-        .set({
-          attachments: updatedAttachments,
-          updatedAt: new Date()
-        })
-        .where(eq(tasks.id, input.taskId))
-        .returning();
-
-      // Broadcast flush to invalidate all queries for this project
-      broadcastFlush(task[0].project.id);
-
-      return attachment;
     }),
 
   deleteAttachment: protectedProcedure

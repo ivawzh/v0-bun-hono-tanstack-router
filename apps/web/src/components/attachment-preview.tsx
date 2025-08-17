@@ -67,7 +67,13 @@ export function AttachmentPreview({
 
   const handleDownload = async () => {
     try {
-      const response = await fetch(`/api/tasks/${taskId}/attachments/${attachment.id}`)
+      // Get the server URL from environment (same as orpc client)
+      const defaultServerUrl = "http://localhost:8500"
+      const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl
+      
+      const response = await fetch(`${baseUrl}/api/tasks/${taskId}/attachments/${attachment.id}/download`, {
+        credentials: 'include'
+      })
       if (response.ok) {
         const blob = await response.blob()
         const url = URL.createObjectURL(blob)
@@ -87,7 +93,13 @@ export function AttachmentPreview({
   const handlePreview = async () => {
     if (attachment.type && attachment.type.startsWith('image/')) {
       try {
-        const response = await fetch(`/api/tasks/${taskId}/attachments/${attachment.id}`)
+        // Get the server URL from environment (same as orpc client)
+        const defaultServerUrl = "http://localhost:8500"
+        const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl
+        
+        const response = await fetch(`${baseUrl}/api/tasks/${taskId}/attachments/${attachment.id}/download`, {
+          credentials: 'include'
+        })
         if (response.ok) {
           const blob = await response.blob()
           const url = URL.createObjectURL(blob)

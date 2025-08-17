@@ -16,7 +16,7 @@ const app = new Hono();
 app.use(logger());
 app.use("/*", cors({
   origin: process.env.CORS_ORIGIN || "http://localhost:8302",
-  allowMethods: ["GET", "POST", "OPTIONS"],
+  allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization"],
   credentials: true,
 }));
@@ -44,29 +44,150 @@ app.get("/", (c) => {
   return c.text("OK");
 });
 
+// File upload endpoint for attachments (multipart/form-data)
+app.post("/api/tasks/upload-attachment", async (c) => {
+  try {
+    console.log('📎 Attachment upload request received');
+    const formData = await c.req.formData();
+    const taskId = formData.get('taskId') as string;
+    const file = formData.get('file') as File;
+    
+    console.log('📎 Upload details:', {
+      taskId,
+      fileName: file?.name,
+      fileSize: file?.size,
+      fileType: file?.type
+    });
+    
+    if (!taskId || !file) {
+      console.error('❌ Missing taskId or file:', { taskId: !!taskId, file: !!file });
+      return c.json({ error: 'Missing taskId or file' }, 400);
+    }
+    
+    // Convert File to buffer
+    const buffer = await file.arrayBuffer();
+    
+    // Import required modules
+    const { db } = await import('./db/index');
+    const { tasks, projects } = await import('./db/schema');
+    const { eq, and } = await import('drizzle-orm');
+    const { saveAttachment, validateTotalAttachmentSize } = await import('./utils/file-storage');
+    const { broadcastFlush } = await import('./websocket/websocket-server');
+    
+    // Create context and verify authentication
+    const context = await createContext({ context: c });
+    if (!context.appUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
+    }
+    
+    // Verify task ownership
+    const task = await db
+      .select({
+        task: tasks,
+        project: projects
+      })
+      .from(tasks)
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .where(
+        and(
+          eq(tasks.id, taskId),
+          eq(projects.ownerId, context.appUser.id)
+        )
+      )
+      .limit(1);
+
+    if (task.length === 0) {
+      return c.json({ error: 'Task not found or unauthorized' }, 404);
+    }
+
+    const existingAttachments = (task[0].task.attachments as any[]) || [];
+    
+    // Validate total size
+    await validateTotalAttachmentSize(taskId, file.size, existingAttachments);
+
+    // Save attachment file
+    console.log('💾 Saving attachment to filesystem...');
+    const attachment = await saveAttachment(taskId, {
+      buffer: new Uint8Array(buffer),
+      originalName: file.name,
+      type: file.type,
+      size: file.size
+    });
+    console.log('💾 Attachment saved:', attachment);
+
+    // Update task with new attachment
+    const updatedAttachments = [...existingAttachments, attachment];
+    
+    console.log('🗄️ Updating database...');
+    await db
+      .update(tasks)
+      .set({
+        attachments: updatedAttachments,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, taskId));
+
+    // Broadcast flush to invalidate all queries for this project
+    broadcastFlush(task[0].project.id);
+    
+    console.log('✅ Upload completed successfully');
+    return c.json(attachment);
+  } catch (error) {
+    console.error('Upload error:', error);
+    return c.json({ error: error instanceof Error ? error.message : 'Upload failed' }, 500);
+  }
+});
+
 // File download endpoint for attachments
 app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
   try {
     const taskId = c.req.param('taskId')
     const attachmentId = c.req.param('attachmentId')
     
-    // Get the attachment using the router directly
-    const context = await createContext({ context: c });
-    const result = await appRouter.tasks.getAttachment({
-      taskId,
-      attachmentId
-    }, { context });
+    // Import required modules
+    const { db } = await import('./db/index');
+    const { tasks, projects } = await import('./db/schema');
+    const { eq, and } = await import('drizzle-orm');
+    const { getAttachmentFile } = await import('./utils/file-storage');
     
-    if (!result.buffer || !result.metadata) {
-      return c.notFound();
+    // Create context and verify authentication
+    const context = await createContext({ context: c });
+    if (!context.appUser) {
+      return c.json({ error: 'Unauthorized' }, 401);
     }
     
-    // Convert buffer to proper format
-    const buffer = Buffer.from(result.buffer);
+    // Verify task ownership and get attachments
+    const task = await db
+      .select({
+        task: tasks,
+        project: projects
+      })
+      .from(tasks)
+      .innerJoin(projects, eq(tasks.projectId, projects.id))
+      .where(
+        and(
+          eq(tasks.id, taskId),
+          eq(projects.ownerId, context.appUser.id)
+        )
+      )
+      .limit(1);
+
+    if (task.length === 0) {
+      return c.json({ error: 'Task not found or unauthorized' }, 404);
+    }
+
+    const attachments = (task[0].task.attachments as any[]) || [];
+    const attachment = attachments.find(a => a.id === attachmentId);
+    
+    if (!attachment) {
+      return c.json({ error: 'Attachment not found' }, 404);
+    }
+
+    const buffer = await getAttachmentFile(taskId, attachmentId, attachments);
     
     // Set proper headers for file download
-    c.header('Content-Type', result.metadata.type || 'application/octet-stream');
-    c.header('Content-Disposition', `attachment; filename="${result.metadata.originalName}"`);
+    c.header('Content-Type', attachment.type || 'application/octet-stream');
+    c.header('Content-Disposition', `attachment; filename="${attachment.originalName}"`);
     c.header('Content-Length', buffer.length.toString());
     
     return c.body(buffer);
