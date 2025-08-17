@@ -482,6 +482,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                   <TabsContent value="attachments" className="mt-0">
                     <AttachmentList
                       attachments={Array.isArray(task.attachments) ? task.attachments : []}
+                      taskId={task.id}
                       showDelete={false}
                       compact={false}
                     />

@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils'
 
 interface AttachmentListProps {
   attachments: AttachmentMetadata[]
+  taskId: string
   onDelete?: (id: string) => void
   showDelete?: boolean
   compact?: boolean
@@ -13,6 +14,7 @@ interface AttachmentListProps {
 
 export function AttachmentList({ 
   attachments, 
+  taskId,
   onDelete, 
   showDelete = false, 
   compact = false,
@@ -45,6 +47,7 @@ export function AttachmentList({
             <div key={attachment.id}>
               <AttachmentPreview
                 attachment={attachment}
+                taskId={taskId}
                 onDelete={onDelete}
                 showDelete={showDelete}
                 compact={compact}

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Download, Eye, FileText, Image, File, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
@@ -18,6 +18,7 @@ export interface AttachmentMetadata {
 
 interface AttachmentPreviewProps {
   attachment: AttachmentMetadata
+  taskId: string
   onDelete?: (id: string) => void
   showDelete?: boolean
   compact?: boolean
@@ -31,49 +32,93 @@ function getFileIcon(type: string, className?: string) {
   return <File className={className} />
 }
 
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
+function formatFileSize(bytes: number | undefined): string {
+  if (!bytes || bytes === 0) return '0 Bytes'
   const k = 1024
   const sizes = ['Bytes', 'KB', 'MB', 'GB']
   const i = Math.floor(Math.log(bytes) / Math.log(k))
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+function formatDate(dateString: string | undefined): string {
+  if (!dateString) return 'Unknown date'
+  try {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  } catch {
+    return 'Invalid date'
+  }
 }
 
 export function AttachmentPreview({ 
   attachment, 
+  taskId,
   onDelete, 
   showDelete = true, 
   compact = false 
 }: AttachmentPreviewProps) {
   const [showPreview, setShowPreview] = useState(false)
   const [previewError, setPreviewError] = useState(false)
+  const [imageUrl, setImageUrl] = useState<string | null>(null)
 
-  const handleDownload = () => {
-    // Create a download link using the attachment API endpoint
-    const downloadUrl = `/api/tasks/${attachment.id}/attachments/${attachment.id}/download`
-    const link = document.createElement('a')
-    link.href = downloadUrl
-    link.download = attachment.originalName
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
-  const handlePreview = () => {
-    if (attachment.type && attachment.type.startsWith('image/')) {
-      setShowPreview(true)
-      setPreviewError(false)
+  const handleDownload = async () => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}/attachments/${attachment.id}`)
+      if (response.ok) {
+        const blob = await response.blob()
+        const url = URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = attachment.originalName
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      }
+    } catch (error) {
+      console.error('Failed to download file:', error)
     }
   }
+
+  const handlePreview = async () => {
+    if (attachment.type && attachment.type.startsWith('image/')) {
+      try {
+        const response = await fetch(`/api/tasks/${taskId}/attachments/${attachment.id}`)
+        if (response.ok) {
+          const blob = await response.blob()
+          const url = URL.createObjectURL(blob)
+          setImageUrl(url)
+          setShowPreview(true)
+          setPreviewError(false)
+        } else {
+          setPreviewError(true)
+        }
+      } catch (error) {
+        console.error('Failed to load image:', error)
+        setPreviewError(true)
+      }
+    }
+  }
+
+  // Cleanup blob URL when component unmounts or preview closes
+  useEffect(() => {
+    return () => {
+      if (imageUrl) {
+        URL.revokeObjectURL(imageUrl)
+      }
+    }
+  }, [imageUrl])
+
+  useEffect(() => {
+    if (!showPreview && imageUrl) {
+      URL.revokeObjectURL(imageUrl)
+      setImageUrl(null)
+    }
+  }, [showPreview, imageUrl])
 
   if (compact) {
     return (
@@ -168,9 +213,9 @@ export function AttachmentPreview({
               <DialogTitle>{attachment.originalName}</DialogTitle>
             </DialogHeader>
             <div className="flex justify-center">
-              {!previewError ? (
+              {!previewError && imageUrl ? (
                 <img
-                  src={`/api/tasks/${attachment.id}/attachments/${attachment.id}`}
+                  src={imageUrl}
                   alt={attachment.originalName}
                   className="max-w-full max-h-[70vh] object-contain"
                   onError={() => setPreviewError(true)}
