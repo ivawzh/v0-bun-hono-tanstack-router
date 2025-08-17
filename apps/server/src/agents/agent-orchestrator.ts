@@ -186,7 +186,7 @@ export class AgentOrchestrator {
 
       if (vacancy === 'Free') {
         // Agent is free, find and assign the top priority task for this agent type
-        this.logger.debug(`Agent ${agentType} is free, checking for tasks to push`);
+        this.logger.info(`Agent ${agentType} is free, checking for tasks to push`);
         await this.assignTopTaskToAgentType(agentType);
       }
     }
@@ -241,14 +241,14 @@ export class AgentOrchestrator {
 
       if (readyTasks.length === 0) {
         // No regular tasks found, check for loop tasks to auto-feed
-        this.logger.debug(`No ready tasks found for agent type ${targetAgentType}, checking loop tasks for auto-feed`);
+        this.logger.info(`No ready tasks found for agent type ${targetAgentType}, checking loop tasks for auto-feed`);
         const loopTasks = await this.getLoopTasksForAutoFeed(targetAgentType);
-        
+
         if (loopTasks.length === 0) {
-          this.logger.debug(`No loop tasks found for auto-feed for agent type ${targetAgentType}`);
+          this.logger.info(`No loop tasks found for auto-feed for agent type ${targetAgentType}`);
           return;
         }
-        
+
         // Move the top loop task to doing status and process it
         const loopTask = loopTasks[0];
         await this.autoFeedLoopTask(loopTask);
@@ -302,19 +302,19 @@ export class AgentOrchestrator {
         tasks.createdAt
       )
       .limit(1);
-    
+
     return loopTasks;
   }
 
   private async autoFeedLoopTask(taskData: any) {
     const { task } = taskData;
-    
+
     try {
       this.logger.info('Auto-feeding loop task to doing status', {
         taskId: task.id,
         taskTitle: task.rawTitle
       });
-      
+
       // Move loop task to doing status but keep the loop stage
       await db
         .update(tasks)
@@ -324,10 +324,10 @@ export class AgentOrchestrator {
           updatedAt: new Date()
         })
         .where(eq(tasks.id, task.id));
-      
+
       // Now assign this task to the agent
       await this.assignTaskToAgent(taskData);
-      
+
     } catch (error) {
       this.logger.error('Failed to auto-feed loop task', error, {
         taskId: task.id

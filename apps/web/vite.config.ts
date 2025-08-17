@@ -32,5 +32,6 @@ export default defineConfig({
     port: 8302,
     strictPort: true,
     origin: 'http://localhost:8302',
+    allowedHosts: ['solounicorn.lol', 'www.solounicorn.lol'],
   },
 });

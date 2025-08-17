@@ -36,3 +36,7 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 ## Environment Variables
 
 Required environment variables are documented in `.env.example` files in each application directory.
+
+## Feature flows
+
+@docs/feature-flows/_index.md

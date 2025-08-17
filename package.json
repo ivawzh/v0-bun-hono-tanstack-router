@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "dev": "bun run --elide-lines 0 --filter '*' dev",
+    "start:prod": "bun run scripts/start-prod.js",
     "build": "bun run --elide-lines 0 --filter '*' build",
     "typecheck": "bun run --elide-lines 0 --filter '*' typecheck",
     "test:e2e": "playwright test",

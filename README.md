@@ -119,6 +119,16 @@ This will start:
 
 > Note: If ports are in use, the web app will automatically find the next available port
 
+### 5. Public Hosting (Optional)
+
+To expose Solo Unicorn to the internet via your domain:
+
+```bash
+bun start:prod
+```
+
+See the [Public Hosting Guide](docs/hosting.md) for complete setup instructions including Cloudflare Tunnel configuration.
+
 ## 🎯 Getting Started Guide
 
 ### Creating Your First Project

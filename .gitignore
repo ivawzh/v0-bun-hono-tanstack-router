@@ -3,3 +3,4 @@ node_modules
 pgdata
 .tmp
 dist
+.solo-unicorn
