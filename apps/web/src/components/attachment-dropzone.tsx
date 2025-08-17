@@ -128,7 +128,7 @@ export function AttachmentDropzone({
       <div
         {...getRootProps()}
         className={cn(
-          'border-2 border-dashed rounded-lg p-2 cursor-pointer transition-colors min-h-[60px]',
+          'border-2 border-dashed rounded-lg p-2 cursor-pointer transition-colors min-h-[60px] max-sm:min-h-[80px] max-sm:p-4 touch-manipulation',
           isDragActive 
             ? 'border-primary bg-primary/5' 
             : 'border-muted-foreground/25 hover:border-muted-foreground/50',
@@ -141,13 +141,13 @@ export function AttachmentDropzone({
             'h-5 w-5 flex-shrink-0',
             isDragActive ? 'text-primary' : 'text-muted-foreground'
           )} />
-          <div className="flex-1 text-sm">
+          <div className="flex-1 text-sm max-sm:text-base">
             {isDragActive ? (
               <p className="text-primary font-medium">Drop files here...</p>
             ) : (
               <div>
                 <p className="font-medium">Drag & drop files or click to select</p>
-                <p className="text-xs text-muted-foreground">Max {formatFileSize(maxSize)} per file</p>
+                <p className="text-xs text-muted-foreground max-sm:text-sm">Max {formatFileSize(maxSize)} per file</p>
               </div>
             )}
           </div>
@@ -172,9 +172,9 @@ export function AttachmentDropzone({
             </p>
           </div>
           
-          <div className="grid grid-cols-1 gap-2">
+          <div className="grid grid-cols-1 gap-2 max-sm:gap-3">
             {attachments.map((attachment) => (
-              <Card key={attachment.id} className="p-3">
+              <Card key={attachment.id} className="p-3 max-sm:p-4">
                 <div className="flex items-center gap-3">
                   {/* File icon or image preview */}
                   <div className="flex-shrink-0">
@@ -209,7 +209,7 @@ export function AttachmentDropzone({
                     variant="ghost"
                     size="sm"
                     onClick={() => removeAttachment(attachment.id)}
-                    className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive"
+                    className="h-8 w-8 p-0 hover:bg-destructive/10 hover:text-destructive max-sm:h-10 max-sm:w-10 touch-manipulation"
                   >
                     <X className="h-4 w-4" />
                   </Button>

@@ -165,6 +165,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
   const Icon = column?.icon || Clock;
 
   const description = task.refinedDescription || task.rawDescription;
+  // Use CSS breakpoint-aware truncation
   const shouldTruncate = description && description.length > 150;
 
   return (
@@ -172,7 +173,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card",
+        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card max-sm:active:scale-[0.98] max-sm:touch-manipulation",
         isDragging && "opacity-50 cursor-grabbing"
       )}
       onClick={(e) => {
@@ -200,7 +201,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0"
+                  className="h-6 w-6 p-0 max-sm:h-8 max-sm:w-8"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-3 w-3" />
@@ -298,7 +299,12 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
               !showMore && shouldTruncate && "max-h-16 overflow-hidden"
             )}>
               <p className="whitespace-pre-wrap">
-                {!showMore && shouldTruncate ? description.slice(0, 150) + '...' : description}
+                {!showMore && shouldTruncate ? (
+                  <>
+                    <span className="sm:hidden">{description.slice(0, 100)}...</span>
+                    <span className="hidden sm:inline">{description.slice(0, 150)}...</span>
+                  </>
+                ) : description}
               </p>
               {!showMore && shouldTruncate && (
                 <div className="absolute bottom-0 left-0 right-0 h-3 bg-gradient-to-t from-background to-transparent" />
@@ -310,7 +316,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   e.stopPropagation();
                   setShowMore(!showMore);
                 }}
-                className="flex items-center gap-1 text-xs text-gray-300 hover:text-white hover:opacity-70 mt-1 transition-all duration-200"
+                className="flex items-center gap-1 text-xs text-gray-300 hover:text-white hover:opacity-70 mt-1 transition-all duration-200 max-sm:py-1 max-sm:text-sm"
               >
                 <span>{showMore ? 'Show less' : 'Show more'}</span>
                 <ChevronDown className={cn(
@@ -880,9 +886,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 md:gap-3 min-w-0 flex-1">
-          <h1 className="text-xl md:text-2xl font-bold truncate">{project?.name}</h1>
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold truncate">{project?.name}</h1>
           {/* WebSocket connection status */}
-          <div className="flex items-center gap-1 text-xs">
+          <div className="flex items-center gap-1 text-xs hidden sm:flex">
             <div className={cn(
               "w-2 h-2 rounded-full",
               connectionStatus === 'connected' ? "bg-green-500" :
@@ -897,11 +903,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setShowProjectSettings(true)} variant="outline" size="sm">
+          <Button onClick={() => setShowProjectSettings(true)} variant="outline" size="sm" className="max-sm:h-9 max-sm:w-9 max-sm:p-0">
             <Settings className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">Settings</span>
           </Button>
-          <Button onClick={() => refetch()} variant="outline" size="sm">
+          <Button onClick={() => refetch()} variant="outline" size="sm" className="max-sm:h-9 max-sm:w-9 max-sm:p-0 max-sm:text-lg">
             <span className="hidden sm:inline">Refresh</span>
             <span className="sm:hidden">↻</span>
           </Button>
@@ -915,7 +921,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         onDragEnd={handleDragEnd}
       >
         <ScrollArea className="w-full whitespace-nowrap kanban-board-container">
-          <div className="flex gap-3 md:gap-4 pb-4">
+          <div className="flex gap-2 sm:gap-3 md:gap-4 pb-4 px-1">
             {statusColumns.map((column) => {
               const columnTasks = groupedTasks[column.id] || [];
               const Icon = column.icon;
@@ -979,7 +985,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                     </div>
 
                     {/* Tasks */}
-                    <ScrollArea className="h-[calc(100vh-250px)]">
+                    <ScrollArea className="h-[calc(100vh-250px)] max-sm:h-[calc(100vh-200px)]">
                       <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                         <div className="kanban-tasks-container">
                           {columnTasks.map((task) => (
@@ -1027,8 +1033,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col">
-          <DialogHeader className="flex-shrink-0 pb-4">
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col sm:max-w-4xl sm:w-[95vw] max-sm:fixed max-sm:inset-0 max-sm:max-w-none max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:max-h-none">
+          <DialogHeader className="flex-shrink-0 pb-4 max-sm:p-4 max-sm:border-b">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
               Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
@@ -1039,18 +1045,22 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               )}
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto px-6 min-h-0">
-            <div className="space-y-4 pb-4">
-            <div className="space-y-2">
+          <div className="flex-1 overflow-y-auto px-6 min-h-0 max-sm:px-4 max-sm:py-2">
+            <div className="space-y-3 pb-4 max-sm:space-y-4">
+            <div className="space-y-2 max-sm:space-y-3">
               <Label htmlFor="task-title">Title</Label>
               <Input
                 id="task-title"
                 placeholder="Task title"
                 value={newTask.rawTitle}
                 onChange={(e) => updateDraft({ rawTitle: e.target.value })}
+                className="max-sm:text-base max-sm:h-12"
+                autoComplete="off"
+                autoCapitalize="sentences"
+                spellCheck="true"
               />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-sm:space-y-3">
               <Label htmlFor="task-description">Description</Label>
               <Textarea
                 id="task-description"
@@ -1058,16 +1068,20 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 value={newTask.rawDescription}
                 onChange={(e) => updateDraft({ rawDescription: e.target.value })}
                 rows={3}
+                className="max-sm:text-base max-sm:min-h-20 resize-y"
+                autoComplete="off"
+                autoCapitalize="sentences"
+                spellCheck="true"
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2">
+              <div className="space-y-2 max-sm:space-y-3">
                 <Label htmlFor="task-priority">Priority</Label>
                 <Select
                   value={newTask.priority.toString()}
                   onValueChange={(value) => updateDraft({ priority: parseInt(value) as Priority })}
                 >
-                  <SelectTrigger id="task-priority">
+                  <SelectTrigger id="task-priority" className="max-sm:h-12 max-sm:text-base">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1079,11 +1093,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 max-sm:space-y-3">
                 <Label htmlFor="task-repo-agent">Repo Agent</Label>
                 {repoAgents && repoAgents.length === 1 ? (
                   // Auto-selected single repo agent - show read-only field
-                  <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+                  <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:h-12 max-sm:text-base">
                     {repoAgents[0].name} ({repoAgents[0].agentClient.type})
                     <span className="ml-auto text-xs text-green-600">Auto-selected</span>
                   </div>
@@ -1093,7 +1107,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                     value={newTask.repoAgentId}
                     onValueChange={(value) => updateDraft({ repoAgentId: value })}
                   >
-                    <SelectTrigger id="task-repo-agent">
+                    <SelectTrigger id="task-repo-agent" className="max-sm:h-12 max-sm:text-base">
                       <SelectValue placeholder="Select repo agent" />
                     </SelectTrigger>
                     <SelectContent>
@@ -1107,13 +1121,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 )}
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-sm:space-y-3">
               <Label htmlFor="task-actor">Actor (Optional)</Label>
               <Select
                 value={newTask.actorId}
                 onValueChange={(value) => updateDraft({ actorId: value })}
               >
-                <SelectTrigger id="task-actor">
+                <SelectTrigger id="task-actor" className="max-sm:h-12 max-sm:text-base">
                   <SelectValue placeholder="Select actor (optional)" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1126,7 +1140,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-2 max-sm:space-y-3">
               <Label htmlFor="task-stage">Stage (Optional)</Label>
               <div className="flex items-center gap-2">
                 <TaskStageSelector
@@ -1142,7 +1156,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
             </div>
 
             {/* File Attachments */}
-            <div className="space-y-2">
+            <div className="space-y-2 max-sm:space-y-3">
               <Label>Attachments (Optional)</Label>
               <AttachmentDropzone
                 attachments={newTask.attachments}
@@ -1152,17 +1166,18 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
             </div>
             </div>
           </div>
-          <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t bg-background/50">
+          <DialogFooter className="flex-shrink-0 px-6 pb-6 pt-4 border-t bg-background/50 max-sm:px-4 max-sm:py-4 max-sm:gap-2 max-sm:flex-col-reverse max-sm:sm:flex-row">
             <Button
               variant="outline"
               onClick={() => {
                 setShowNewTaskDialog(false);
                 // Don't clear draft on cancel - let user return to their work later
               }}
+              className="max-sm:w-full"
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending}>
+            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending} className="max-sm:w-full">
               {createTaskMutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
