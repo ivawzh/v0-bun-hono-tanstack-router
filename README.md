@@ -72,39 +72,51 @@ Before setting up your environment variables, generate secure secrets:
 openssl rand -hex 32
 ```
 
-#### Create Environment File
+#### Create Environment Files
 
-Create `.env` file in the `apps/server` directory:
+**Important**: Use environment-specific files instead of a single `.env` file:
+
+- `apps/server/.env.development` - for development mode
+- `apps/server/.env.production` - for production mode
+- `apps/web/.env.development` - for web app development  
+- `apps/web/.env.production` - for web app production
+
+Create `apps/server/.env.development`:
 
 ```bash
-# apps/server/.env
+# Solo Unicorn Server Development Environment
 
 # Auth - REQUIRED
-# Monster Auth configuration
-MONSTER_AUTH_URL=https://auth.monstermake.limited
-HOST=localhost:8500
+VITE_MONSTER_AUTH_URL=https://auth.alpha.monstermake.limited
 
-# CORS - Update if using different port
+# CORS - Development origins
 CORS_ORIGIN=http://localhost:8302
 
 # Agent Gateway Authentication
-# This token is used to authenticate AI agents connecting to the gateway.
 # Generate a secure token with: openssl rand -hex 32
-# Share this token with your AI agent configuration (e.g., in Claude Code settings)
 AGENT_AUTH_TOKEN=your-agent-token-here
 
 # OpenAI (for voice transcription)
 OPENAI_API_KEY=sk-your-openai-api-key
 
 # Database URL (recommended for stability)
-# For local PostgreSQL:
 DATABASE_URL=postgresql://$USER@localhost:5432/solo_unicorn_dev
-# For production:
-# DATABASE_URL=postgresql://user:password@host:5432/database
+
+# Claude Code UI WebSocket
+CLAUDE_CODE_WS_URL=ws://localhost:8501
 
 # Optional: OpenRouter (for multi-model support)
 # OPENROUTER_API_KEY=your-openrouter-key
 ```
+
+Create `apps/web/.env.development`:
+
+```bash
+VITE_SERVER_URL=http://localhost:8500
+VITE_WS_URL=ws://localhost:8500
+```
+
+For production, create corresponding `.env.production` files with production URLs and settings.
 
 ### 4. Start Development Servers
 

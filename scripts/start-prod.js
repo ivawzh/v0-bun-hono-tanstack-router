@@ -168,19 +168,23 @@ function startTunnel() {
   return tunnel
 }
 
-function startDevServers() {
-  log('Starting development servers...')
+function startProdServers() {
+  log('Starting production servers with hot reload...')
   
-  const dev = spawn('bun', ['dev'], {
+  // Set NODE_ENV to production and run bun dev
+  process.env.NODE_ENV = 'production'
+  
+  const servers = spawn('bun', ['dev'], {
     stdio: 'inherit',
-    cwd: process.cwd()
+    cwd: process.cwd(),
+    env: process.env
   })
   
-  dev.on('error', (error) => {
-    log(`Development server error: ${error.message}`, 'error')
+  servers.on('error', (error) => {
+    log(`Production server error: ${error.message}`, 'error')
   })
   
-  return dev
+  return servers
 }
 
 function main() {
@@ -201,13 +205,13 @@ function main() {
   
   // Start services
   const tunnel = startTunnel()
-  const dev = startDevServers()
+  const servers = startProdServers()
   
   // Handle cleanup
   const cleanup = () => {
     log('Shutting down services...')
     tunnel.kill()
-    dev.kill()
+    servers.kill()
     process.exit(0)
   }
   

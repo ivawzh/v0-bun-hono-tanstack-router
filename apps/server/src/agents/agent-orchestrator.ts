@@ -186,7 +186,7 @@ export class AgentOrchestrator {
 
       if (vacancy === 'Free') {
         // Agent is free, find and assign the top priority task for this agent type
-        this.logger.info(`Agent ${agentType} is free, checking for tasks to push`);
+        this.logger.debug(`Agent ${agentType} is free, checking for tasks to push`);
         await this.assignTopTaskToAgentType(agentType);
       }
     }
@@ -241,11 +241,11 @@ export class AgentOrchestrator {
 
       if (readyTasks.length === 0) {
         // No regular tasks found, check for loop tasks to auto-feed
-        this.logger.info(`No ready tasks found for agent type ${targetAgentType}, checking loop tasks for auto-feed`);
+        this.logger.debug(`No ready tasks found for agent type ${targetAgentType}, checking loop tasks for auto-feed`);
         const loopTasks = await this.getLoopTasksForAutoFeed(targetAgentType);
 
         if (loopTasks.length === 0) {
-          this.logger.info(`No loop tasks found for auto-feed for agent type ${targetAgentType}`);
+          this.logger.debug(`No loop tasks found for auto-feed for agent type ${targetAgentType}`);
           return;
         }
 

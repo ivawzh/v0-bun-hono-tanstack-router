@@ -7,7 +7,7 @@
     "typecheck": "tsc -b",
     "compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
     "dev": "bun --hot run src/index.ts",
-    "start": "bun run dist/index.js",
+    "start": "bun run src/index.ts",
     "db:create:dev": "pg-god db-create --databaseName=solo_unicorn_dev --userName=$USER",
     "db:create:test": "pg-god db-create --databaseName=solo_unicorn_test --userName=$USER",
     "db:create": "bun run db:create:dev",

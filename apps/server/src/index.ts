@@ -1,4 +1,12 @@
-import "dotenv/config";
+import { config } from "dotenv";
+
+// Load environment-specific .env file
+if (process.env.NODE_ENV === 'production') {
+  config({ path: '.env.production', override: true });
+  config({ override: false }); // Load .env for any missing vars without overriding
+} else {
+  config();
+}
 import { RPCHandler } from "@orpc/server/fetch";
 import { createContext } from "./lib/context";
 import { appRouter } from "./routers/index";
@@ -15,7 +23,7 @@ const app = new Hono();
 
 app.use(logger());
 app.use("/*", cors({
-  origin: process.env.CORS_ORIGIN || ["http://localhost:8302", "https://solounicorn.lol", "https://www.solounicorn.lol", "https://api.solounicorn.lol"],
+  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : ["http://localhost:8302", "https://solounicorn.lol", "https://www.solounicorn.lol", "https://api.solounicorn.lol"],
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "x-forwarded-for", "x-forwarded-proto"],
   credentials: true,
@@ -55,35 +63,35 @@ app.post("/api/tasks/upload-attachment", async (c) => {
     const formData = await c.req.formData();
     const taskId = formData.get('taskId') as string;
     const file = formData.get('file') as File;
-    
+
     console.log('📎 Upload details:', {
       taskId,
       fileName: file?.name,
       fileSize: file?.size,
       fileType: file?.type
     });
-    
+
     if (!taskId || !file) {
       console.error('❌ Missing taskId or file:', { taskId: !!taskId, file: !!file });
       return c.json({ error: 'Missing taskId or file' }, 400);
     }
-    
+
     // Convert File to buffer
     const buffer = await file.arrayBuffer();
-    
+
     // Import required modules
     const { db } = await import('./db/index');
     const { tasks, projects } = await import('./db/schema');
     const { eq, and } = await import('drizzle-orm');
     const { saveAttachment, validateTotalAttachmentSize } = await import('./utils/file-storage');
     const { broadcastFlush } = await import('./websocket/websocket-server');
-    
+
     // Create context and verify authentication
     const context = await createContext({ context: c });
     if (!context.appUser) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
-    
+
     // Verify task ownership
     const task = await db
       .select({
@@ -105,7 +113,7 @@ app.post("/api/tasks/upload-attachment", async (c) => {
     }
 
     const existingAttachments = (task[0].task.attachments as any[]) || [];
-    
+
     // Validate total size
     await validateTotalAttachmentSize(taskId, file.size, existingAttachments);
 
@@ -121,7 +129,7 @@ app.post("/api/tasks/upload-attachment", async (c) => {
 
     // Update task with new attachment
     const updatedAttachments = [...existingAttachments, attachment];
-    
+
     console.log('🗄️ Updating database...');
     await db
       .update(tasks)
@@ -133,7 +141,7 @@ app.post("/api/tasks/upload-attachment", async (c) => {
 
     // Broadcast flush to invalidate all queries for this project
     broadcastFlush(task[0].project.id);
-    
+
     console.log('✅ Upload completed successfully');
     return c.json(attachment);
   } catch (error) {
@@ -147,19 +155,19 @@ app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
   try {
     const taskId = c.req.param('taskId')
     const attachmentId = c.req.param('attachmentId')
-    
+
     // Import required modules
     const { db } = await import('./db/index');
     const { tasks, projects } = await import('./db/schema');
     const { eq, and } = await import('drizzle-orm');
     const { getAttachmentFile } = await import('./utils/file-storage');
-    
+
     // Create context and verify authentication
     const context = await createContext({ context: c });
     if (!context.appUser) {
       return c.json({ error: 'Unauthorized' }, 401);
     }
-    
+
     // Verify task ownership and get attachments
     const task = await db
       .select({
@@ -182,18 +190,18 @@ app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
 
     const attachments = (task[0].task.attachments as any[]) || [];
     const attachment = attachments.find(a => a.id === attachmentId);
-    
+
     if (!attachment) {
       return c.json({ error: 'Attachment not found' }, 404);
     }
 
     const buffer = await getAttachmentFile(taskId, attachmentId, attachments);
-    
+
     // Set proper headers for file download
     c.header('Content-Type', attachment.type || 'application/octet-stream');
     c.header('Content-Disposition', `attachment; filename="${attachment.originalName}"`);
     c.header('Content-Length', buffer.length.toString());
-    
+
     return c.body(buffer);
   } catch (error) {
     console.error('Download error:', error);
