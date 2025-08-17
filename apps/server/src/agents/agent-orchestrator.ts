@@ -514,7 +514,7 @@ export class AgentOrchestrator {
         images.push({
           filename: attachment.originalName || attachment.filename,
           mimeType: attachment.type,
-          data: base64Data
+          data: `data:${attachment.type};base64,${base64Data}`
         });
 
         this.logger.debug('Successfully processed image attachment', {

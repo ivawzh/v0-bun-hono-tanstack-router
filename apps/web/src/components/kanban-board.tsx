@@ -782,14 +782,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       ? (parseFloat(columnTasks[columnTasks.length - 1].columnOrder) + 1000).toString()
       : "1000";
 
-    // For now, create task without attachments - will be implemented in next step
     createTaskMutation.mutate({
       projectId,
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
       status: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
-      attachments: [] // TODO: Implement file upload after task creation
+      columnOrder: newOrder
     });
   };
 
