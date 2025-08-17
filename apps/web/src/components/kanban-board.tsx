@@ -369,7 +369,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
   );
 }
 
-export function KanbanBoardWithDnd({ projectId }: KanbanBoardProps) {
+export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { KanbanBoardWithDnd } from "@/components/kanban-board-with-dnd";
+import { KanbanBoard } from "@/components/kanban-board-with-dnd";
 
 export const Route = createFileRoute("/projects/$projectId")({
   component: ProjectBoardPage,
@@ -10,7 +10,7 @@ function ProjectBoardPage() {
 
   return (
     <div className="container mx-auto p-6">
-      <KanbanBoardWithDnd projectId={projectId} />
+      <KanbanBoard projectId={projectId} />
     </div>
   );
 }
