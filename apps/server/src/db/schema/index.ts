@@ -110,7 +110,6 @@ export const sessions = pgTable("sessions", {
   agentSessionId: text("agent_session_id"), // ID from agent client (Claude Code UI, etc.)
   taskId: uuid("task_id").references(() => tasks.id), // Made nullable
   repoAgentId: uuid("repo_agent_id").notNull().references(() => repoAgents.id),
-  status: text("status").notNull().default("starting"), // starting, active, completed, failed
   startedAt: timestamp("started_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at")
 });

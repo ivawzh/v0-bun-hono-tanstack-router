@@ -8,7 +8,6 @@ interface ClaudeCodeSessionLinkProps {
     agentSessionId: string | null;
     taskId: string | null;
     repoAgentId: string;
-    status: string;
     startedAt: Date;
     completedAt: Date | null;
   } | null;
@@ -23,7 +22,7 @@ export function ClaudeCodeSessionLink({
   // Only show for Claude Code client type with active session
   const shouldShow = repoAgentClientType === "CLAUDE_CODE" &&
                      activeSession &&
-                     activeSession.status === "active";
+                     activeSession.agentSessionId;
 
   if (!shouldShow) {
     return null;

@@ -108,10 +108,7 @@ export const tasksRouter = o.router({
         .leftJoin(repoAgents, eq(tasks.repoAgentId, repoAgents.id))
         .leftJoin(agentClients, eq(repoAgents.agentClientId, agentClients.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
-        .leftJoin(sessions, and(
-          eq(sessions.taskId, tasks.id),
-          eq(sessions.status, "active")
-        ))
+        .leftJoin(sessions, eq(sessions.taskId, tasks.id))
         .where(
           and(
             eq(tasks.id, input.id),

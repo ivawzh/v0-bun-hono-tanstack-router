@@ -153,8 +153,7 @@ export class ClaudeCodeClient {
           await db
             .update(sessions)
             .set({
-              agentSessionId: message.sessionId,
-              status: 'active'
+              agentSessionId: message.sessionId
             })
             .where(eq(sessions.taskId, message.soloUnicornTaskId));
           console.log('📝 Session ID updated for task:', message.soloUnicornTaskId, '→', message.sessionId);
@@ -172,7 +171,6 @@ export class ClaudeCodeClient {
               agentSessionId: message.sessionId,
               taskId: message.soloUnicornTaskId,
               repoAgentId: task.repoAgent.id,
-              status: 'active',
               startedAt: new Date()
             });
             console.log('📝 New session created for task:', message.soloUnicornTaskId, '→', message.sessionId);

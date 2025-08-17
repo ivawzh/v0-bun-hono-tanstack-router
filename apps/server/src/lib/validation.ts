@@ -9,8 +9,6 @@ export const dateSchema = v.pipe(v.string(), v.isoDateTime());
 export const taskStatusSchema = v.picklist(["todo", "doing", "done", "loop"]);
 export const taskStageSchema = v.picklist(["refine", "plan", "execute", "loop"]);
 
-// Session related schemas (simplified)
-export const sessionStateSchema = v.picklist(["starting", "active", "completed", "failed"]);
 
 // Repository related schemas
 export const repositoryProviderSchema = v.picklist(["github", "gitlab", "local", "cloud-code"]);

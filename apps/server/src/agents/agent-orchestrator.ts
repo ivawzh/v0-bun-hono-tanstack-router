@@ -431,15 +431,7 @@ export class AgentOrchestrator {
       // Start or resume Claude session
       await this.claudeCodeClient.startSession(prompt, sessionOptions);
 
-      // If resuming existing session, update status to active
-      if (!shouldCreateNewSession) {
-        await db
-          .update(sessions)
-          .set({
-            status: 'active'
-          })
-          .where(eq(sessions.taskId, task.id));
-      }
+      // Note: session tracking is simplified without status
       // Note: For new sessions, session record will be created when we receive session-created message
 
       // Update agent client's lastTaskPushedAt timestamp to prevent duplicate task pushing
