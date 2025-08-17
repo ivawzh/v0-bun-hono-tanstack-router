@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ArrowUp, ArrowDown
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ArrowUp, ArrowDown, ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -310,9 +310,13 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   e.stopPropagation();
                   setShowMore(!showMore);
                 }}
-                className="text-xs text-blue-600 hover:text-blue-800 mt-1 transition-colors"
+                className="flex items-center gap-1 text-xs text-gray-300 hover:text-white hover:opacity-70 mt-1 transition-all duration-200"
               >
-                {showMore ? 'Show less' : 'Show more'}
+                <span>{showMore ? 'Show less' : 'Show more'}</span>
+                <ChevronDown className={cn(
+                  "h-3 w-3 transition-transform duration-200",
+                  showMore && "rotate-180"
+                )} />
               </button>
             )}
           </div>
