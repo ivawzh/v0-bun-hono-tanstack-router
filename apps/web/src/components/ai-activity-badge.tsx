@@ -26,7 +26,7 @@ export function AIActivityBadge({ ready, isAiWorking, status, className }: AIAct
         )}
       >
         <Zap className="h-3 w-3 animate-pulse" />
-        Working
+        AI in work
       </Badge>
     );
   }
