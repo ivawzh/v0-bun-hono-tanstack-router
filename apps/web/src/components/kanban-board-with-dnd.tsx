@@ -92,7 +92,7 @@ const stageColors = {
 
 // Priority colors are now handled by the priority utility
 
-// Helper function to check if task is stuck (5+ minutes of AI working)
+// Helper function to check if task is stuck (1+ minutes of AI working)
 function isTaskStuck(task: any): boolean {
   if (!task.isAiWorking || !task.aiWorkingSince) {
     return false;
@@ -102,7 +102,36 @@ function isTaskStuck(task: any): boolean {
   const now = new Date();
   const minutesWorking = (now.getTime() - workingSince.getTime()) / (1000 * 60);
 
-  return minutesWorking >= 5;
+  return minutesWorking >= 1;
+}
+
+// Helper function to get reset button tooltip text
+function getResetButtonTooltip(task: any): string {
+  if (!task.isAiWorking || !task.aiWorkingSince) {
+    return "Only available when AI is working on this task";
+  }
+
+  const workingSince = new Date(task.aiWorkingSince);
+  const now = new Date();
+  const millisecondsWorking = now.getTime() - workingSince.getTime();
+  const millisecondsUntilStuck = (1 * 60 * 1000) - millisecondsWorking; // 1 minute in milliseconds
+
+  if (millisecondsUntilStuck <= 0) {
+    return "Reset the AI agent for this task";
+  }
+
+  const secondsRemaining = Math.ceil(millisecondsUntilStuck / 1000);
+  const minutes = Math.floor(secondsRemaining / 60);
+  const seconds = secondsRemaining % 60;
+
+  let timeString = "";
+  if (minutes > 0) {
+    timeString = `${minutes}m ${seconds}s`;
+  } else {
+    timeString = `${seconds}s`;
+  }
+
+  return `Available in ${timeString} (when AI has been working for 1 minute)`;
 }
 
 interface TaskCardProps {
@@ -192,18 +221,34 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                     Open in Claude Code
                   </DropdownMenuItem>
                 )}
-                {isTaskStuck(task) && (
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onResetAgent(task);
-                    }}
-                    className="text-orange-600"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Reset Agent
-                  </DropdownMenuItem>
-                )}
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="w-full">
+                        <DropdownMenuItem
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (isTaskStuck(task)) {
+                              onResetAgent(task);
+                            }
+                          }}
+                          disabled={!isTaskStuck(task)}
+                          className={cn(
+                            isTaskStuck(task)
+                              ? "text-orange-600"
+                              : "text-muted-foreground cursor-not-allowed opacity-50"
+                          )}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Reset Agent
+                        </DropdownMenuItem>
+                      </div>
+                    </TooltipTrigger>
+                                        <TooltipContent>
+                      {getResetButtonTooltip(task)}
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-red-600"
