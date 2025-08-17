@@ -19,7 +19,9 @@ app.get('/callback', async (c) => {
     return c.text('Query param `code` is missing from oauth provider callback', 400);
   }
 
-  const redirectUrl = `${url.origin}/api/oauth/callback`;
+  // Ensure we use the correct protocol - https for production
+  const protocol = process.env.NODE_ENV === 'production' ? 'https' : url.protocol.slice(0, -1);
+  const redirectUrl = `${protocol}://${url.hostname}/api/oauth/callback`;
   const exchanged = await openauth.exchange(code, redirectUrl);
 
   if (exchanged.err) {
