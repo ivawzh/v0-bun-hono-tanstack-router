@@ -153,7 +153,11 @@ export function ProjectSettings({
     orpc.projects.update.mutationOptions({
       onSuccess: () => {
         toast.success("Project settings updated successfully");
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        // Only invalidate projects list - no need for broad invalidation
+        queryClient.invalidateQueries({ 
+          queryKey: ["projects"],
+          exact: true 
+        });
         onSuccess?.();
       },
       onError: (error: any) => {
@@ -166,8 +170,15 @@ export function ProjectSettings({
     orpc.repoAgents.pause.mutationOptions({
       onSuccess: () => {
         toast.success("Repo agent status updated successfully");
-        queryClient.invalidateQueries({ queryKey: ["repoAgents", "list"] });
-        queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks"] });
+        // Only invalidate specific repo agent list and project data
+        queryClient.invalidateQueries({ 
+          queryKey: ["repoAgents", "list", { input: { projectId: project.id } }],
+          exact: true 
+        });
+        queryClient.invalidateQueries({ 
+          queryKey: ["projects", "getWithTasks", { input: { id: project.id } }],
+          exact: true 
+        });
       },
       onError: (error: any) => {
         toast.error(`Failed to update repo agent: ${error.message}`);

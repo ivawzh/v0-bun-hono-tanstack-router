@@ -43,18 +43,21 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       url: window.location.href,
     });
 
-    toast.error('Application Error', {
-      description: `${error.name}: ${error.message}`,
-      action: {
-        label: 'View Details',
-        onClick: () => {
-          console.group('🚨 Error Boundary Details');
-          console.error('Error:', error);
-          console.error('Error Info:', errorInfo);
-          console.groupEnd();
+    // Skip toast for AbortError - these are normal request cancellations
+    if (error.name !== 'AbortError' && !error.message.includes('aborted')) {
+      toast.error('Application Error', {
+        description: `${error.name}: ${error.message}`,
+        action: {
+          label: 'View Details',
+          onClick: () => {
+            console.group('🚨 Error Boundary Details');
+            console.error('Error:', error);
+            console.error('Error Info:', errorInfo);
+            console.groupEnd();
+          }
         }
-      }
-    });
+      });
+    }
 
     this.setState({
       hasError: true,
@@ -70,6 +73,12 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   render() {
     if (this.state.hasError) {
       const { error } = this.state;
+      
+      // For AbortError, just reset silently instead of showing error UI
+      if (error?.name === 'AbortError' || error?.message.includes('aborted')) {
+        setTimeout(() => this.resetError(), 0);
+        return this.props.children;
+      }
       
       if (this.props.fallback) {
         const Fallback = this.props.fallback;

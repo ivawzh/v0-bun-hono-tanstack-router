@@ -101,8 +101,10 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
         toast.success("Task updated successfully");
         setEditingTitle(false);
         setEditingDescription(false);
+        // Only invalidate specific project's data
         queryClient.invalidateQueries({
-          queryKey: ["projects", "getWithTasks"]
+          queryKey: ["projects", "getWithTasks", { input: { id: task?.projectId } }],
+          exact: true
         });
       },
       onError: (error) => {
@@ -117,8 +119,10 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
       onSuccess: () => {
         toast.success("Task deleted successfully");
         onOpenChange(false);
+        // Only invalidate specific project's data
         queryClient.invalidateQueries({
-          queryKey: ["projects", "getWithTasks"]
+          queryKey: ["projects", "getWithTasks", { input: { id: task?.projectId } }],
+          exact: true
         });
       },
       onError: (error) => {
@@ -132,8 +136,10 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
     orpc.tasks.updateStage.mutationOptions({
       onSuccess: () => {
         toast.success("Task stage updated successfully");
+        // Only invalidate specific project's data
         queryClient.invalidateQueries({
-          queryKey: ["projects", "getWithTasks"]
+          queryKey: ["projects", "getWithTasks", { input: { id: task?.projectId } }],
+          exact: true
         });
       },
       onError: (error) => {

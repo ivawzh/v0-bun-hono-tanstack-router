@@ -445,7 +445,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
       clearDraft(); // Clear the auto-saved draft
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      // Only invalidate this specific project's data
+      queryClient.invalidateQueries({ 
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
+        exact: true 
+      });
     },
     onError: (error) => {
       toast.error("Failed to create task: " + error.message);
@@ -455,7 +459,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Toggle ready mutation
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      // Only invalidate this specific project's data
+      queryClient.invalidateQueries({ 
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
+        exact: true 
+      });
     },
     onError: (error) => {
       toast.error("Failed to update task: " + error.message);
@@ -465,7 +473,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Update stage mutation
   const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      // Only invalidate this specific project's data
+      queryClient.invalidateQueries({ 
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
+        exact: true 
+      });
     },
     onError: (error) => {
       toast.error("Failed to update task stage: " + error.message);
@@ -476,7 +488,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const deleteTaskMutation = useMutation(orpc.tasks.delete.mutationOptions({
     onSuccess: () => {
       toast.success("Task deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      // Only invalidate this specific project's data
+      queryClient.invalidateQueries({ 
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
+        exact: true 
+      });
       setDeleteTaskId(null);
       setTaskToDelete(null);
     },
@@ -489,7 +505,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const resetAgentMutation = useMutation(orpc.tasks.resetAgent.mutationOptions({
     onSuccess: () => {
       toast.success("AI agent status reset successfully");
-      queryClient.invalidateQueries({ queryKey: ["projects", "getWithTasks", { input: { id: projectId } }] });
+      // Only invalidate this specific project's data
+      queryClient.invalidateQueries({ 
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
+        exact: true 
+      });
       setResetTaskId(null);
       setTaskToReset(null);
     },

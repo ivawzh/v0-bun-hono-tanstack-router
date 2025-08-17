@@ -10,13 +10,16 @@ import type { RouterClient } from "@orpc/server";
 export const queryClient = new QueryClient({
   defaultOptions: {
     mutations: {
-      onSettled: () => {
-        queryClient.invalidateQueries();
-      },
+      // Remove global invalidation - let individual mutations handle their own invalidation
+      // This prevents mass query cancellations that cause AbortErrors
     }
   },
   queryCache: new QueryCache({
     onError: (error) => {
+      // Skip toast for AbortError - these are normal request cancellations
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        return;
+      }
       toast.error(`Error: ${error.message}`, {
         action: {
           label: "retry",
@@ -25,6 +28,17 @@ export const queryClient = new QueryClient({
           },
         },
       });
+    },
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => {
+      // Skip toast for AbortError - these are normal request cancellations
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        return;
+      }
+      // Let individual mutations handle their own error toasts
+      // This is just a fallback for unhandled errors
+      console.error('Unhandled mutation error:', error);
     },
   }),
 });
@@ -119,6 +133,11 @@ export const link = new RPCLink({
         baseUrl,
         serverUrl: baseUrl
       });
+
+      // Skip toast for AbortError - these are normal request cancellations
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        throw error;
+      }
 
       toast.error(`Connection Failed: ${error.message}`, {
         description: `Unable to reach server at ${baseUrl}. Check if the server is running.`,
