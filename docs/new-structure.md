@@ -1,4 +1,4 @@
-# Solo Unicorn Multi-Project Architecture Plan
+# Solo Unicorn V2 Architecture Plan
 
 ## Executive Summary
 
@@ -10,7 +10,7 @@ This document outlines the architectural evolution of Solo Unicorn from a single
 
 1. **Current Usage Pattern**: Primarily using Claude Code agent client type, which remains the most powerful option
 2. **Claude Code Max Subscription**: Monthly access with unknown rate limits (hourly, daily, or monthly) that change without notice
-3. **Claude Code Capabilities**: 
+3. **Claude Code Capabilities**:
    - Supports additional working directories for multi-repo access
    - Can switch accounts via `CLAUDE_CONFIG_DIR` environment variable
    - Rate limit refresh times are provided when limits are hit
@@ -20,10 +20,11 @@ This document outlines the architectural evolution of Solo Unicorn from a single
 ### Current Limitations Requiring Solutions
 
 1. **Single Active Session**: Only one agent client session across entire application
-2. **Project Isolation**: Multiple projects cannot operate independently 
+2. **Project Isolation**: Multiple projects cannot operate independently
 3. **Repository Inflexibility**: Current repo agent model too rigid for multi-repo workflows
 4. **Account Management**: No support for multiple Claude Code accounts
-5. **Session Management**: Need configurable session limits per repository
+5. **Session Management**: Need configurable concurrency limits per repository
+6. **Class-Based Architecture**: V1 uses classes which are harder to test and maintain - V2 will use function modules
 
 ## Current Architecture Analysis
 
@@ -54,7 +55,7 @@ erDiagram
 1. **User-Centric Resource Management**: Agents belong to users, not projects
 2. **Flexible Repository Access**: Projects define repo lists with configurable working directories
 3. **Intelligent Rate Limit Handling**: Account switching and multi-account support
-4. **Granular Session Control**: Per-repo session limits with project-level configuration
+4. **Granular Concurrency Control**: Per-repo concurrency limits with project-level configuration
 5. **Authorization-First**: All operations secured with project-user authorization
 
 ### New Data Model
@@ -71,7 +72,6 @@ erDiagram
     Repositories ||--o{ Tasks : main_repo
     Repositories ||--o{ TaskRepositories : additional_repos
     Tasks ||--o{ TaskRepositories : uses_repos
-    Tasks ||--o{ Sessions : executes_in
 ```
 
 ## Detailed Schema Changes
@@ -100,7 +100,9 @@ CREATE TABLE agents (
   name TEXT NOT NULL, -- Auto-generated or user-defined
   agent_type TEXT NOT NULL DEFAULT 'CLAUDE_CODE', -- CLAUDE_CODE, CURSOR_CLI, OPENCODE
   agent_settings JSONB DEFAULT '{}' NOT NULL, -- { CLAUDE_CONFIG_DIR, etc. }
-  state JSONB DEFAULT '{}' NOT NULL, -- Current state tracking
+  max_concurrency_limit INTEGER DEFAULT 1, -- User configurable concurrency limit per agent
+  last_task_pushed_at TIMESTAMP, -- Track when agent last got assigned a task
+  state JSONB DEFAULT '{}' NOT NULL, -- Current state tracking (rate limits, etc.)
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
@@ -116,6 +118,8 @@ CREATE TABLE repositories (
   name TEXT NOT NULL,
   repo_path TEXT NOT NULL, -- Local filesystem path
   is_default BOOLEAN DEFAULT FALSE, -- One default per project
+  max_concurrency_limit INTEGER DEFAULT 1, -- User configurable concurrency limit per repository
+  last_task_pushed_at TIMESTAMP, -- Track when repo last got assigned a task
   created_at TIMESTAMP DEFAULT NOW() NOT NULL,
   updated_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
@@ -125,7 +129,7 @@ CREATE TABLE repositories (
 
 ```sql
 -- Updated tasks table - keep actor linkage, add session tracking
-ALTER TABLE tasks 
+ALTER TABLE tasks
 ADD COLUMN main_repository_id UUID NOT NULL REFERENCES repositories(id),
 ADD COLUMN last_agent_session_id TEXT; -- Store agent session ID directly
 
@@ -147,16 +151,15 @@ CREATE TABLE task_agents (
   UNIQUE(task_id, agent_id)
 );
 
--- Remove sessions table - session tracking moved to tasks
--- DROP TABLE sessions;
+-- No sessions table needed - session tracking handled via tasks.last_agent_session_id
 ```
 
 ### 5. Project Configuration
 
 ```sql
--- Add session limits to projects
-ALTER TABLE projects 
-ADD COLUMN repo_session_limit INTEGER DEFAULT 1,
+-- Add concurrency limits to projects
+ALTER TABLE projects
+ADD COLUMN repo_concurrency_limit INTEGER DEFAULT 1,
 ADD COLUMN settings JSONB DEFAULT '{}';
 ```
 
@@ -184,18 +187,101 @@ interface CreateTaskForm {
 3. Confirm agents belong to the requesting user
 4. Ensure at least one agent is assigned
 
-## Agent Orchestration Redesign
+## V2 Agent Orchestration Architecture
 
-### Core Orchestrator Logic
+### Core Design Changes from V1
 
-The new orchestrator operates on **repository-level session management** with configurable limits per repository and agent availability tracking.
+V2 introduces significant simplifications and improvements:
 
-#### Key Components
+1. **Function-Based Modules**: Replace classes with pure functions for better testability
+2. **Simplified Session Tracking**: Use `tasks.isAiWorking` as primary indicator instead of complex state
+3. **Dual Concurrency Limits**: Both repositories and agents have configurable concurrency limits
+4. **Enhanced Delay Handling**: Utilize `lastTaskPushedAt` timestamps for startup delays
 
-1. **Repository Session Tracking**: Monitor active sessions per repository
-2. **Agent State Management**: Track agent availability and rate limits  
-3. **Session Assignment**: Intelligent matching of tasks to available agents
-4. **Delay Handling**: Account for session startup delays before MCP communication
+### Key Components
+
+1. **Repository Session Tracking**: Monitor active sessions per repository using `isAiWorking`
+2. **Agent Session Tracking**: Monitor active sessions per agent using `isAiWorking`
+3. **Delay Compensation**: Use `lastTaskPushedAt` on both agents and repositories
+4. **Rate Limit Management**: Simplified rate limit checking without complex timestamps
+
+### V2 Function Module Architecture
+
+V2 replaces the following V1 class-based files with function modules:
+
+#### Files to Replace:
+- `apps/server/src/agents/agent-orchestrator.ts` → `apps/server/src/agents/v2/orchestrator.ts`
+- `apps/server/src/agents/claude-code-client.ts` → `apps/server/src/agents/v2/claude-code-client.ts`
+
+#### Function Module Benefits:
+1. **Better Testability**: Pure functions are easier to unit test
+2. **Reduced Complexity**: No `this` binding or class state management
+3. **Functional Composition**: Functions can be easily composed and reused
+4. **Tree Shaking**: Better dead code elimination in bundlers
+
+### Session Counting Logic (Detailed Explanation)
+
+#### getActiveRepositorySessionsAmount(repositoryId) Logic
+
+This function determines how many tasks are currently using a specific repository:
+
+1. **Task Selection Criteria**: Find all tasks where either:
+   - The task's `mainRepositoryId` equals the target repository, OR
+   - The task has the repository listed in its `taskRepositories` (additional repos)
+
+2. **Active Session Indicators**: Only count tasks that meet ALL conditions:
+   - `isAiWorking = true` (agent is currently working on this task)
+   - `status != 'done'` (task is not completed)
+   - Task must be assigned to at least one agent (via `taskAgents` table)
+
+3. **Key Insight**: We rely on `isAiWorking` as the primary indicator rather than tracking separate session states. This is simpler and more reliable because:
+   - When orchestrator assigns a task, it immediately sets `isAiWorking = true`
+   - When agent completes work, it uses MCP to set `isAiWorking = false`
+   - No complex timing logic or state transitions needed
+
+4. **Repository Usage Counting**: A repository is "occupied" by any task that references it, regardless of whether it's the main repo or additional repo for that task.
+
+#### getActiveAgentSessionsAmount(agentId) Logic
+
+This function determines how many tasks a specific agent is currently working on:
+
+1. **Task Selection Criteria**: Find all tasks where:
+   - The agent is assigned to the task (via `taskAgents` table)
+   - `isAiWorking = true` (agent is actively working)
+   - `status != 'done'` (task is not completed)
+
+2. **Agent Workload Tracking**: Simple count of concurrent tasks per agent
+   - Default limit is 1 concurrent task per agent (configurable via `maxConcurrencyLimit`)
+   - Prevents overloading agents and maintains session quality
+
+3. **Cross-Repository Work**: An agent can work on tasks across different repositories simultaneously (if limits allow)
+
+#### Delay Handling with lastTaskPushedAt
+
+Both repositories and agents track `lastTaskPushedAt` to handle the startup delay:
+
+1. **Repository Delay Logic**:
+   - When a task is assigned to a repository, update `repositories.lastTaskPushedAt`
+   - For next 20-30 seconds, consider repository "recently assigned" even if agent hasn't started MCP communication
+   - Prevents double-assignment during startup window
+
+2. **Agent Delay Logic**:
+   - When an agent gets assigned a task, update `agents.lastTaskPushedAt`
+   - Similar 20-30 second cooldown period to prevent overwhelming the agent
+   - Allows time for Claude Code session to start and establish MCP connection
+
+3. **Why Both Are Needed**:
+   - Repository tracking prevents multiple tasks being assigned to same repo during startup
+   - Agent tracking prevents single agent from getting multiple tasks rapidly
+   - Together they provide robust protection against race conditions
+
+#### Rate Limit Integration
+
+Agent availability also considers rate limit status stored in `agents.state`:
+
+1. **Rate Limit Check**: If `state.rateLimitResetAt` exists and is in the future, agent is unavailable
+2. **Simplified State**: V2 removes `lastMessagedAt`, `lastSessionCreatedAt`, `lastSessionCompletedAt` - these proved unreliable
+3. **Focus on Core Indicators**: Primary reliance on `isAiWorking` and `lastTaskPushedAt` for accurate state tracking
 
 ### Repository Session Vacancy Calculation
 
@@ -203,7 +289,7 @@ The new orchestrator operates on **repository-level session management** with co
 interface RepositorySessionState {
   repositoryId: string;
   activeSessions: SessionInfo[];
-  maxAllowedSessions: number; // User configurable per project
+  maxConcurrencyLimit: number; // User configurable per project
   lastActivityTimestamp: Date;
 }
 
@@ -217,7 +303,7 @@ interface SessionInfo {
 }
 
 class EnhancedAgentOrchestrator {
-  
+
   /**
    * Calculate if a repository can accept new sessions
    * Accounts for:
@@ -228,31 +314,31 @@ class EnhancedAgentOrchestrator {
   private async calculateRepositoryVacancy(
     repositoryId: string
   ): Promise<'Available' | 'AtLimit' | 'NoAgents'> {
-    
+
     // Get repository configuration and current sessions
     const repoConfig = await this.getRepositoryConfig(repositoryId);
     const activeSessions = await this.getActiveRepositorySessions(repositoryId);
-    
-    // Check if we're at the session limit
+
+    // Check if we're at the concurrency limit
     if (activeSessions.length >= repoConfig.maxSessions) {
       return 'AtLimit';
     }
-    
+
     // Check if any agents are available for this repository
     const availableAgents = await this.getAvailableAgentsForRepository(repositoryId);
     if (availableAgents.length === 0) {
       return 'NoAgents';
     }
-    
+
     return 'Available';
   }
-  
+
   /**
    * Get active sessions for a repository
    * Includes sessions in all states except completed
    */
   private async getActiveRepositorySessions(repositoryId: string): Promise<SessionInfo[]> {
-    
+
     // Query tasks that are currently using this repository
     const activeTasks = await db
       .select({
@@ -281,7 +367,7 @@ class EnhancedAgentOrchestrator {
           ne(tasks.status, 'done')
         )
       );
-    
+
     return activeTasks.map(({ task, agent }) => ({
       taskId: task.id,
       agentId: agent.id,
@@ -291,7 +377,7 @@ class EnhancedAgentOrchestrator {
       status: this.determineSessionStatus(task, agent)
     }));
   }
-  
+
   /**
    * Determine session status based on task state and timing
    */
@@ -299,35 +385,35 @@ class EnhancedAgentOrchestrator {
     const now = new Date();
     const workingSince = task.aiWorkingSince || task.updatedAt;
     const timeSinceStart = now.getTime() - workingSince.getTime();
-    
+
     // If no agent session ID yet and started recently, it's starting
     if (!task.lastAgentSessionId && timeSinceStart < 30 * 1000) { // 30 second startup window
       return 'starting';
     }
-    
+
     // Check agent state for rate limits or completion signals
     const agentState = agent.state as any || {};
-    
+
     // If agent recently messaged and task is still ai working, it's active
     if (agentState.lastMessagedAt) {
       const lastMessage = new Date(agentState.lastMessagedAt).getTime();
       const timeSinceMessage = now - lastMessage;
-      
+
       if (timeSinceMessage < 2 * 60 * 1000) { // Active within 2 minutes
         return 'active';
       }
     }
-    
+
     // Check if session recently completed
     if (agentState.lastSessionCompletedAt) {
       const sessionCompleted = new Date(agentState.lastSessionCompletedAt).getTime();
       const timeSinceCompletion = now - sessionCompleted;
-      
+
       if (timeSinceCompletion < 10 * 1000) { // Completed within 10 seconds
         return 'completing';
       }
     }
-    
+
     // Default to idle if agent hasn't been active recently
     return 'idle';
   }
@@ -347,7 +433,7 @@ class EnhancedAgentOrchestrator {
 private async getAvailableAgentsForRepository(
   repositoryId: string
 ): Promise<Agent[]> {
-  
+
   // Get all agents that could work on tasks for this repository
   const candidateAgents = await db
     .select({ agent: agents })
@@ -360,7 +446,7 @@ private async getAvailableAgentsForRepository(
           eq(tasks.mainRepositoryId, repositoryId),
           exists(
             db.select()
-              .from(taskRepositories) 
+              .from(taskRepositories)
               .where(
                 and(
                   eq(taskRepositories.taskId, tasks.id),
@@ -374,16 +460,16 @@ private async getAvailableAgentsForRepository(
       )
     )
     .groupBy(agents.id);
-  
+
   const availableAgents: Agent[] = [];
-  
+
   for (const { agent } of candidateAgents) {
     const isAvailable = await this.isAgentAvailable(agent);
     if (isAvailable) {
       availableAgents.push(agent);
     }
   }
-  
+
   return availableAgents;
 }
 
@@ -393,7 +479,7 @@ private async getAvailableAgentsForRepository(
 private async isAgentAvailable(agent: Agent): Promise<boolean> {
   const state = agent.state as any || {};
   const now = new Date().getTime();
-  
+
   // Check rate limit status
   if (state.rateLimitResetAt) {
     const resetTime = new Date(state.rateLimitResetAt).getTime();
@@ -401,17 +487,17 @@ private async isAgentAvailable(agent: Agent): Promise<boolean> {
       return false; // Still rate limited
     }
   }
-  
+
   // Check recent task assignment cooldown
   if (state.lastTaskPushedAt) {
     const lastPushTime = new Date(state.lastTaskPushedAt).getTime();
     const timeSinceLastPush = now - lastPushTime;
-    
+
     if (timeSinceLastPush <= 20 * 1000) { // 20 second cooldown
       return false;
     }
   }
-  
+
   // Check current workload - count active tasks across all repositories
   const activeTaskCount = await db
     .select({ count: sql`count(*)` })
@@ -424,13 +510,13 @@ private async isAgentAvailable(agent: Agent): Promise<boolean> {
         ne(tasks.status, 'done')
       )
     );
-  
+
   // For now, limit agents to 1 concurrent task, but make this configurable later
   const maxConcurrentTasks = 1;
   if ((activeTaskCount?.[0]?.count as number) >= maxConcurrentTasks) {
     return false;
   }
-  
+
   return true;
 }
 ```
@@ -448,7 +534,7 @@ private async assignTaskToAgent(
   mainRepo: Repository,
   additionalRepos: Repository[]
 ): Promise<void> {
-  
+
   try {
     // Mark task as AI working immediately to prevent double assignment
     await db
@@ -460,12 +546,12 @@ private async assignTaskToAgent(
         stage: task.stage || 'refine'
       })
       .where(eq(tasks.id, task.id));
-    
+
     // Update agent state
     await this.updateAgentState(agent.id, {
       lastTaskPushedAt: new Date().toISOString()
     });
-    
+
     // Create Claude Code session with main + additional working directories
     const sessionOptions = {
       projectPath: mainRepo.repoPath,
@@ -473,12 +559,12 @@ private async assignTaskToAgent(
       agentConfig: agent.agentSettings,
       // ... other session options
     };
-    
+
     // Start the session (this may take time before agent responds via MCP)
     await this.claudeCodeClient.startSession(prompt, sessionOptions);
-    
+
     // Session ID will be updated later when agent communicates back via MCP
-    
+
   } catch (error) {
     // Reset task state on error
     await db
@@ -490,44 +576,44 @@ private async assignTaskToAgent(
         stage: null
       })
       .where(eq(tasks.id, task.id));
-    
+
     throw error;
   }
 }
 ```
 
-### Flexible Session Limit Configuration
+### Flexible Concurrency Limit Configuration
 
 ```typescript
 interface ProjectSettings {
-  repositorySessionLimits: {
-    [repositoryId: string]: number; // Per-repo session limits
+  repositoryConcurrencyLimits: {
+    [repositoryId: string]: number; // Per-repo concurrency limits
   };
-  globalSessionLimit?: number; // Optional overall project limit
+  globalConcurrencyLimit?: number; // Optional overall project limit
   agentConcurrencyLimit?: number; // Max tasks per agent
 }
 
 /**
- * Get effective session limit for a repository
+ * Get effective concurrency limit for a repository
  * Considers project-level settings and repository-specific overrides
  */
-private async getRepositorySessionLimit(repositoryId: string): Promise<number> {
+async getRepositoryConcurrencyLimit(repositoryId: string): Promise<number> {
   const repository = await db.query.repositories.findFirst({
     where: eq(repositories.id, repositoryId),
     with: { project: true }
   });
-  
+
   if (!repository) return 1; // Default to 1 if repo not found
-  
+
   const projectSettings = repository.project.settings as ProjectSettings || {};
-  
+
   // Check for repository-specific limit
-  if (projectSettings.repositorySessionLimits?.[repositoryId]) {
-    return projectSettings.repositorySessionLimits[repositoryId];
+  if (projectSettings.repositoryConcurrencyLimits?.[repositoryId]) {
+    return projectSettings.repositoryConcurrencyLimits[repositoryId];
   }
-  
+
   // Fall back to project default (usually 1 to avoid conflicts)
-  return projectSettings.globalSessionLimit || 1;
+  return projectSettings.globalConcurrencyLimit || 1;
 }
 ```
 
@@ -535,40 +621,40 @@ private async getRepositorySessionLimit(repositoryId: string): Promise<number> {
 
 ```typescript
 /**
- * Main orchestration logic - runs every second
+ * Main logic - runs every second
  * Checks each repository for vacancy and assigns tasks accordingly
  */
-private async checkAndAssignTasks(): Promise<void> {
-  
+async checkAndAssignTasks(): Promise<void> {
+
   // Get all repositories that have ready tasks
   const repositoriesWithTasks = await this.getRepositoriesWithReadyTasks();
-  
+
   for (const repository of repositoriesWithTasks) {
-    
+
     // Check if repository can accept new sessions
     const vacancy = await this.calculateRepositoryVacancy(repository.id);
-    
+
     if (vacancy === 'Available') {
-      
+
       // Find the highest priority ready task for this repository
       const nextTask = await this.getNextTaskForRepository(repository.id);
-      
+
       if (nextTask) {
-        
+
         // Find available agents assigned to this task
         const availableAgents = await this.getAvailableAgentsForTask(nextTask.id);
-        
+
         if (availableAgents.length > 0) {
-          
+
           // Select best agent (could be based on workload, last used, etc.)
           const selectedAgent = this.selectBestAgent(availableAgents);
-          
+
           // Get additional repositories for this task
           const additionalRepos = await this.getAdditionalRepositoriesForTask(nextTask.id);
-          
+
           // Assign the task
           await this.assignTaskToAgent(nextTask, selectedAgent, repository, additionalRepos);
-          
+
           this.logger.info('Task assigned', {
             taskId: nextTask.id,
             agentId: selectedAgent.id,
@@ -664,7 +750,7 @@ interface ClaudeCodeSession {
 
 - **Repository Independence**: Projects can define any number of repositories
 - **Agent Flexibility**: Users can configure multiple agents with different settings
-- **Session Control**: Configurable session limits per project
+- **Concurrency Control**: Configurable concurrency limits per project
 
 ### Rate Limit Optimization
 
@@ -759,7 +845,7 @@ interface ClaudeCodeSession {
     },
     {
       "name": "Claude Personal",
-      "agentType": "CLAUDE_CODE", 
+      "agentType": "CLAUDE_CODE",
       "agentSettings": {
         "CLAUDE_CONFIG_DIR": "/home/user/.claude-personal"
       }

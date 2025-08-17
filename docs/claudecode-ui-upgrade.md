@@ -36,6 +36,33 @@ const db = new Database(dbPath, { readonly: true });
 const rows = db.prepare('SELECT * FROM table').all();
 ```
 
+Important modification we did on claude-cli.js spawnClaude to inform soloUnicornTaskId and acknowledge resumed session.
+
+```javascript
+   if (!sessionId && !sessionCreatedSent) {
+      sessionCreatedSent = true;
+      const sessionCreatedMessage = {
+         type: 'session-created',
+         sessionId: capturedSessionId
+      };
+
+      // Include soloUnicornTaskId if provided
+      if (soloUnicornTaskId) {
+         sessionCreatedMessage.soloUnicornTaskId = soloUnicornTaskId;
+      }
+
+      ws.send(JSON.stringify(sessionCreatedMessage));
+   } else {
+   // Solo Unicorn modification: send session-resumed event only once for resumed sessions
+      const sessionCreatedMessage = {
+         type: 'session-resumed',
+         sessionId: capturedSessionId,
+         ...(soloUnicornTaskId && { soloUnicornTaskId }),
+      };
+      ws.send(JSON.stringify(sessionCreatedMessage));
+   }
+```
+
 **Package.json:**
 ```diff
 - "sqlite": "^5.1.1",
@@ -114,10 +141,10 @@ This process ensures Claude Code UI works with Bun while maintaining Solo Unicor
 ## V1.7.0 Upgrade Summary
 
 ### Completed Steps (2025-08-14)
-1. ✅ **Version Check**: Confirmed current version is V1.7.0 
+1. ✅ **Version Check**: Confirmed current version is V1.7.0
 2. ✅ **Code Migration**: All key files already using `bun:sqlite`:
    - `server/projects.js` - Claude project SQLite operations
-   - `server/routes/cursor.js` - Cursor session SQLite operations  
+   - `server/routes/cursor.js` - Cursor session SQLite operations
    - `server/database/db.js` - Database initialization
 3. ✅ **Dependencies**: Package.json clean (no sqlite3/sqlite dependencies)
 4. ✅ **Installation**: `bun install` completed successfully
