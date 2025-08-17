@@ -64,8 +64,20 @@ console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 // Initialize Agent Orchestrator
 let agentOrchestrator: AgentOrchestrator | null = null;
 
+// Global tracking to prevent multiple instances during hot reload
+declare global {
+  var __agentOrchestrator: AgentOrchestrator | undefined;
+}
+
 async function initializeAgentOrchestrator() {
   try {
+    // Clean up any existing orchestrator instance (hot reload cleanup)
+    if (global.__agentOrchestrator) {
+      console.log("🔄 Hot reload detected, cleaning up previous Agent Orchestrator...");
+      await global.__agentOrchestrator.shutdown();
+      global.__agentOrchestrator = undefined;
+    }
+
     const claudeCodeWebsocketUrl = process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501";
     const agentToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
 
@@ -76,6 +88,9 @@ async function initializeAgentOrchestrator() {
       agentToken,
       taskPushEnabled: true
     });
+
+    // Store globally for hot reload cleanup
+    global.__agentOrchestrator = agentOrchestrator;
 
     await agentOrchestrator.initialize();
 
@@ -99,8 +114,8 @@ initializeAgentOrchestrator();
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
-  if (agentOrchestrator) {
-    agentOrchestrator.shutdown();
+  if (global.__agentOrchestrator) {
+    global.__agentOrchestrator.shutdown();
   }
   wsManager.shutdown();
   process.exit(0);
@@ -108,8 +123,8 @@ process.on('SIGTERM', () => {
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
-  if (agentOrchestrator) {
-    agentOrchestrator.shutdown();
+  if (global.__agentOrchestrator) {
+    global.__agentOrchestrator.shutdown();
   }
   wsManager.shutdown();
   process.exit(0);

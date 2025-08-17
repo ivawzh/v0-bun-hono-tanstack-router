@@ -312,36 +312,10 @@ export class ClaudeCodeClient {
       throw new Error('Not connected to Claude Code UI');
     }
 
-    if (options.resume && options.sessionId) {
-      // Resume with session ID
-      this.ws.send(JSON.stringify({
-        type: 'claude-command',
-        command,
-        options
-      }));
-    } else {
-      // Create new session
-      this.ws.send(JSON.stringify({
-        type: 'start_session',
-        sessionType: 'claude',
-        command,
-        options
-      }));
-    }
-  }
-
-  async resumeSession(command: string, options: SessionOptions): Promise<void> {
-    if (!this.isConnected || !this.ws) {
-      throw new Error('Not connected to Claude Code UI');
-    }
-
-    if (!options.sessionId || !options.resume) {
-      throw new Error("Session ID and resume is required to resume a session");
-    }
-
-    // Resume with session ID
+    // Create new session
     this.ws.send(JSON.stringify({
-      type: 'claude-command',
+      type: 'start_session',
+      sessionType: 'claude',
       command,
       options
     }));

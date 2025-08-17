@@ -10,7 +10,7 @@ import type { RouterClient } from "@orpc/server";
 export const queryClient = new QueryClient({
   defaultOptions: {
     mutations: {
-      onSuccess: () => {
+      onSettled: () => {
         queryClient.invalidateQueries();
       },
     }
