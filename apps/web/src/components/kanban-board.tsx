@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ArrowUp, ArrowDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -381,6 +381,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
   const [resetTaskId, setResetTaskId] = useState<string | null>(null);
   const [taskToReset, setTaskToReset] = useState<any>(null);
+  // Done column sort state - default to newest first (descending)
+  const [doneSortOrder, setDoneSortOrder] = useState<'newest-first' | 'oldest-first'>('newest-first');
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft();
 
@@ -581,19 +583,35 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       return task;
     });
 
-    // Final sort by columnOrder now that all tasks have proper values
-    columnTasks = columnTasks.sort((a: any, b: any) => {
-      // Sort by priority first
-      const priorityComparison = comparePriority(a.priority, b.priority);
-      if (priorityComparison !== 0) {
-        return priorityComparison;
-      }
+    // Final sort - special handling for Done column
+    if (column.id === 'done') {
+      // Done column: sort by completion time based on user preference
+      columnTasks = columnTasks.sort((a: any, b: any) => {
+        // Use updatedAt as completion time (when task moved to done)
+        const aTime = new Date(a.updatedAt).getTime();
+        const bTime = new Date(b.updatedAt).getTime();
+        
+        if (doneSortOrder === 'newest-first') {
+          return bTime - aTime; // Newest first (descending)
+        } else {
+          return aTime - bTime; // Oldest first (ascending)
+        }
+      });
+    } else {
+      // Other columns: sort by priority first, then columnOrder
+      columnTasks = columnTasks.sort((a: any, b: any) => {
+        // Sort by priority first
+        const priorityComparison = comparePriority(a.priority, b.priority);
+        if (priorityComparison !== 0) {
+          return priorityComparison;
+        }
 
-      // Then sort by column order
-      const aOrder = parseFloat(a.columnOrder);
-      const bOrder = parseFloat(b.columnOrder);
-      return aOrder - bOrder;
-    });
+        // Then sort by column order
+        const aOrder = parseFloat(a.columnOrder);
+        const bOrder = parseFloat(b.columnOrder);
+        return aOrder - bOrder;
+      });
+    }
 
     acc[column.id] = columnTasks;
     return acc;
@@ -770,25 +788,24 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   };
 
+  const handleToggleDoneSort = () => {
+    setDoneSortOrder(current => 
+      current === 'newest-first' ? 'oldest-first' : 'newest-first'
+    );
+  };
+
   const handleCreateTask = async () => {
     if (!newTask.rawTitle || !newTask.repoAgentId) {
       toast.error("Please fill in all required fields");
       return;
     }
 
-    // Calculate columnOrder for new task (place at end of column)
-    const columnTasks = groupedTasks[newTaskColumn] || [];
-    const newOrder = columnTasks.length > 0
-      ? (parseFloat(columnTasks[columnTasks.length - 1].columnOrder) + 1000).toString()
-      : "1000";
-
     createTaskMutation.mutate({
       projectId,
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      status: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
-      columnOrder: newOrder
+      status: newTaskColumn as "todo" | "doing" | "done" | "loop" // Support creating tasks in loop column
     });
   };
 
@@ -852,16 +869,47 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                         <h3 className="font-semibold">{column.label}</h3>
                         <Badge variant="secondary">{columnTasks.length}</Badge>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setNewTaskColumn(column.id);
-                          setShowNewTaskDialog(true);
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
+                      <div className="flex items-center gap-1">
+                        {/* Sort button for Done column */}
+                        {column.id === 'done' && (
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={handleToggleDoneSort}
+                                  className="h-8 w-8 p-0"
+                                >
+                                  {doneSortOrder === 'newest-first' ? (
+                                    <ArrowDown className="h-4 w-4" />
+                                  ) : (
+                                    <ArrowUp className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {doneSortOrder === 'newest-first' 
+                                  ? 'Newest first (click for oldest first)' 
+                                  : 'Oldest first (click for newest first)'
+                                }
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        )}
+                        {/* Add task button */}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setNewTaskColumn(column.id);
+                            setShowNewTaskDialog(true);
+                          }}
+                          className="h-8 w-8 p-0"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* Tasks */}
