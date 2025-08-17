@@ -101,13 +101,15 @@ export function ProjectSwitcher() {
             role="combobox"
             aria-expanded={open}
             aria-label="Select a project"
-            className="w-[200px] justify-between"
+            className="w-[140px] sm:w-[200px] justify-between h-8 sm:h-9 text-sm"
           >
-            {selectedProjectData?.name ?? "Select project..."}
+            <span className="truncate">
+              {selectedProjectData?.name ?? "Select project..."}
+            </span>
             <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[200px] p-0">
+        <PopoverContent className="w-[140px] sm:w-[200px] p-0">
           <Command>
             <CommandList>
               <CommandInput placeholder="Search project..." />

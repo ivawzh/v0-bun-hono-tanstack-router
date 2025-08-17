@@ -294,7 +294,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:w-[40vw] sm:min-w-[500px] sm:max-w-[800px] p-0 max-h-[85vh] sm:max-h-[90vh]">
+      <SheetContent className="w-full h-full sm:w-[40vw] sm:min-w-[500px] sm:max-w-[800px] sm:h-auto p-0 sm:max-h-[90vh]">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-muted-foreground">Loading task details...</div>
@@ -302,10 +302,10 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
         ) : task ? (
           <div className="flex flex-col h-full">
             {/* Fixed Header */}
-            <div className="flex-shrink-0 p-6 border-b bg-background">
+            <div className="flex-shrink-0 p-4 sm:p-6 border-b bg-background">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1 pr-4">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-3 flex-wrap">
                     <Badge variant="outline" className={getPriorityColors(task.priority)}>
                       {getPriorityDisplay(task.priority)}
                     </Badge>
@@ -324,8 +324,8 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 ml-auto">
-                          <MoreVertical className="h-4 w-4" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-6 sm:w-6 ml-auto">
+                          <MoreVertical className="h-5 w-5 sm:h-4 sm:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -355,11 +355,11 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                         className="text-lg font-semibold"
                         autoFocus
                       />
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={handleSaveTitle}>
+                      <div className="flex gap-2 flex-col sm:flex-row">
+                        <Button size="sm" onClick={handleSaveTitle} className="h-9 text-sm">
                           Save
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingTitle(false)}>
+                        <Button size="sm" variant="outline" onClick={() => setEditingTitle(false)} className="h-9 text-sm">
                           Cancel
                         </Button>
                       </div>
@@ -372,12 +372,13 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                       <Button
                         variant="ghost"
                         size="sm"
+                        className="h-8 w-8 sm:h-auto sm:w-auto p-1 sm:p-2"
                         onClick={() => {
                           setTempTitle(task.rawTitle);
                           setEditingTitle(true);
                         }}
                       >
-                        <Edit3 className="h-4 w-4" />
+                        <Edit3 className="h-5 w-5 sm:h-4 sm:w-4" />
                       </Button>
                     </div>
                   )}
@@ -385,7 +386,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
               </div>
 
               {/* Metadata */}
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-4 text-sm">
                 <div>
                   <Label className="text-xs text-muted-foreground">Repo Agent</Label>
                   <p className="font-medium">{task.repoAgent?.name}</p>
@@ -405,26 +406,27 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
             <div className="flex-1 overflow-hidden">
               <Tabs defaultValue="overview" className="flex flex-col h-full">
                 <div className="flex-shrink-0">
-                  <TabsList className="px-6 w-full justify-start rounded-none border-b h-12">
-                    <TabsTrigger value="overview">Overview</TabsTrigger>
-                    <TabsTrigger value="plan">Plan</TabsTrigger>
-                    <TabsTrigger value="attachments">
-                      Attachments
+                  <TabsList className="px-4 sm:px-6 w-full justify-start rounded-none border-b h-10 sm:h-12">
+                    <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3">Overview</TabsTrigger>
+                    <TabsTrigger value="plan" className="text-xs sm:text-sm px-2 sm:px-3">Plan</TabsTrigger>
+                    <TabsTrigger value="attachments" className="text-xs sm:text-sm px-2 sm:px-3">
+                      <span className="hidden sm:inline">Attachments</span>
+                      <span className="sm:hidden">Files</span>
                       {(() => {
                         const attachments = task.attachments as any[];
                         return attachments && Array.isArray(attachments) && attachments.length > 0 ? (
-                          <Badge variant="secondary" className="ml-2">
+                          <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
                             {attachments.length}
                           </Badge>
                         ) : null;
                       })()}
                     </TabsTrigger>
-                    <TabsTrigger value="settings">Settings</TabsTrigger>
+                    <TabsTrigger value="settings" className="text-xs sm:text-sm px-2 sm:px-3">Settings</TabsTrigger>
                   </TabsList>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
-                  <div className="p-6">
+                  <div className="p-4 sm:p-6">
                   {/* Overview Tab */}
                   <TabsContent value="overview" className="mt-0">
                     <div className="space-y-6">
@@ -435,6 +437,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                           <Button
                             size="sm"
                             variant="ghost"
+                            className="h-8 w-auto p-2"
                             onClick={() => {
                               if (editingDescription) {
                                 handleSaveDescription();
@@ -444,7 +447,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                               }
                             }}
                           >
-                            {editingDescription ? "Save" : <Edit3 className="h-4 w-4" />}
+                            {editingDescription ? "Save" : <Edit3 className="h-5 w-5 sm:h-4 sm:w-4" />}
                           </Button>
                         </div>
                         {editingDescription ? (
@@ -455,11 +458,11 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                               placeholder="Add a description..."
                               rows={6}
                             />
-                            <div className="flex gap-2">
-                              <Button size="sm" onClick={handleSaveDescription}>
+                            <div className="flex gap-2 flex-col sm:flex-row">
+                              <Button size="sm" onClick={handleSaveDescription} className="h-9">
                                 Save
                               </Button>
-                              <Button size="sm" variant="outline" onClick={() => setEditingDescription(false)}>
+                              <Button size="sm" variant="outline" onClick={() => setEditingDescription(false)} className="h-9">
                                 Cancel
                               </Button>
                             </div>
@@ -614,9 +617,9 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                         <Button 
                           variant="destructive" 
                           onClick={handleDeleteTask}
-                          className="w-full"
+                          className="w-full h-10"
                         >
-                          <Trash2 className="h-4 w-4 mr-2" />
+                          <Trash2 className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                           Delete Task
                         </Button>
                       </div>
