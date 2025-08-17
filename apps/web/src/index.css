@@ -133,7 +133,7 @@ body {
   }
 }
 
-/* Kanban board specific styles - Clean rebuild */
+/* Kanban board specific styles - Clean rebuild with touch optimizations */
 @layer components {
   /* Column layout - Responsive for mobile */
   .kanban-column {
@@ -342,12 +342,21 @@ body {
       min-height: 44px;
       /* Enhanced touch feedback */
       transform-origin: center;
-      transition: transform 0.15s ease;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
     }
 
     /* Active state for touch feedback */
     .kanban-card:active {
       transform: scale(0.98);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Hover state for larger screens */
+    @media (hover: hover) {
+      .kanban-card:hover {
+        transform: scale(1.02);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+      }
     }
 
     /* Optimize scroll area for mobile touch */
@@ -413,5 +422,71 @@ body {
       touch-action: manipulation;
       user-select: none;
     }
+
+    /* Enhanced touch feedback for all interactive elements */
+    button, [role="button"], [role="switch"] {
+      min-height: 44px;
+      min-width: 44px;
+      touch-action: manipulation;
+      user-select: none;
+      transition: transform 0.15s ease, background-color 0.15s ease;
+    }
+
+    button:active, [role="button"]:active {
+      transform: scale(0.95);
+    }
+
+    /* Enhanced feedback for switches */
+    [role="switch"]:active {
+      transform: scale(0.9);
+    }
+
+    /* Input field touch optimizations */
+    input, textarea, select {
+      font-size: 16px !important; /* Prevents zoom on iOS */
+      touch-action: manipulation;
+    }
+
+    /* Dropdown and popover improvements */
+    [data-radix-popper-content-wrapper] {
+      z-index: 9999;
+    }
+
+    /* Improved focus visibility for touch navigation */
+    *:focus-visible {
+      outline: 2px solid #3b82f6;
+      outline-offset: 2px;
+    }
+  }
+
+  /* Universal touch improvements for all screen sizes */
+  .touch-enhanced {
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  /* Improved drag feedback */
+  [data-dnd-kit-overlay] {
+    transform: rotate(3deg) scale(1.05);
+    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
+    z-index: 9999;
+  }
+
+  /* Better button hover states */
+  @media (hover: hover) {
+    button:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+    }
+    
+    .dark button:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  /* Accessible focus indicators */
+  button:focus-visible, [role="button"]:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
   }
 }

@@ -2,6 +2,7 @@ import Header from "@/components/header";
 import Loader from "@/components/loader";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { MobileTestHelper } from "@/components/mobile-test-helper";
 import { link, orpc } from "@/utils/orpc";
 import type { QueryClient } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
@@ -148,6 +149,7 @@ function RootComponent() {
             {isFetching ? <Loader /> : <Outlet />}
           </div>
           <Toaster richColors />
+          <MobileTestHelper />
         </ThemeProvider>
       <TanStackRouterDevtools position="bottom-left" />
       <ReactQueryDevtools position="bottom" buttonPosition="bottom-right" />

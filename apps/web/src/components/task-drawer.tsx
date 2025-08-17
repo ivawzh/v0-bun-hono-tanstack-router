@@ -324,7 +324,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                     </span>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-6 sm:w-6 ml-auto">
+                        <Button variant="ghost" size="icon" className="h-11 w-11 sm:h-8 sm:w-8 ml-auto min-h-[44px] min-w-[44px] touch-manipulation">
                           <MoreVertical className="h-5 w-5 sm:h-4 sm:w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -352,14 +352,15 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                             setEditingTitle(false);
                           }
                         }}
-                        className="text-lg font-semibold"
+                        style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                        className="text-lg font-semibold h-11 min-h-[44px] touch-manipulation"
                         autoFocus
                       />
                       <div className="flex gap-2 flex-col sm:flex-row">
-                        <Button size="sm" onClick={handleSaveTitle} className="h-9 text-sm">
+                        <Button size="sm" onClick={handleSaveTitle} className="h-11 text-sm min-h-[44px] touch-manipulation">
                           Save
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => setEditingTitle(false)} className="h-9 text-sm">
+                        <Button size="sm" variant="outline" onClick={() => setEditingTitle(false)} className="h-11 text-sm min-h-[44px] touch-manipulation">
                           Cancel
                         </Button>
                       </div>
@@ -372,7 +373,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-8 w-8 sm:h-auto sm:w-auto p-1 sm:p-2"
+                        className="h-11 w-11 sm:h-auto sm:w-auto p-1 sm:p-2 min-h-[44px] min-w-[44px] touch-manipulation"
                         onClick={() => {
                           setTempTitle(task.rawTitle);
                           setEditingTitle(true);
@@ -617,7 +618,7 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
                         <Button 
                           variant="destructive" 
                           onClick={handleDeleteTask}
-                          className="w-full h-10"
+                          className="w-full h-11 min-h-[44px] touch-manipulation"
                         >
                           <Trash2 className="h-5 w-5 sm:h-4 sm:w-4 mr-2" />
                           Delete Task

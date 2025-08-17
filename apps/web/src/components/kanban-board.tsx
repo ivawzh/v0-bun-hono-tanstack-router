@@ -60,6 +60,8 @@ import {
   DndContext,
   DragOverlay,
   PointerSensor,
+  TouchSensor,
+  MouseSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
@@ -173,9 +175,16 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
       ref={setNodeRef}
       style={style}
       className={cn(
-        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card max-sm:active:scale-[0.98] max-sm:touch-manipulation",
-        isDragging && "opacity-50 cursor-grabbing"
+        "cursor-pointer hover:shadow-md transition-all duration-200 kanban-card",
+        "touch-manipulation select-none",
+        "max-sm:active:scale-[0.98] max-sm:hover:scale-[1.02]",
+        "min-h-[44px] focus-visible:ring-2 focus-visible:ring-offset-2",
+        isDragging && "opacity-50 cursor-grabbing scale-105 shadow-xl z-50"
       )}
+      role="button"
+      tabIndex={0}
+      aria-label={`Task: ${task.refinedTitle || task.rawTitle}. Priority: ${getPriorityDisplay(task.priority)}. Status: ${task.status}. ${task.ready ? 'Ready for AI' : 'Not ready'}`}
+      aria-describedby={`task-${task.id}-description`}
       onClick={(e) => {
         // Only trigger click if not clicking on interactive elements
         const target = e.target as HTMLElement;
@@ -201,7 +210,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 max-sm:h-8 max-sm:w-8"
+                  className="h-8 w-8 p-0 min-h-[44px] min-w-[44px] max-sm:h-10 max-sm:w-10 touch-manipulation"
                   onClick={(e) => e.stopPropagation()}
                 >
                   <MoreHorizontal className="h-3 w-3" />
@@ -316,7 +325,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   e.stopPropagation();
                   setShowMore(!showMore);
                 }}
-                className="flex items-center gap-1 text-xs text-gray-300 hover:text-white hover:opacity-70 mt-1 transition-all duration-200 max-sm:py-1 max-sm:text-sm"
+                className="flex items-center gap-1 text-xs text-gray-300 hover:text-white hover:opacity-70 mt-1 transition-all duration-200 max-sm:py-2 max-sm:text-sm min-h-[44px] touch-manipulation select-none"
               >
                 <span>{showMore ? 'Show less' : 'Show more'}</span>
                 <ChevronDown className={cn(
@@ -339,6 +348,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                   onToggleReady(task.id, checked);
                 }}
                 onClick={(e) => e.stopPropagation()}
+                className="touch-manipulation min-h-[44px] min-w-[44px] data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
+                aria-label={`Mark task as ${task.ready ? 'not ready' : 'ready'} for AI processing`}
               />
               <span className="text-xs text-muted-foreground">
                 {task.ready ? "Ready" : "Not Ready"}
@@ -410,8 +421,22 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   });
 
-  // Drag and drop sensors
+  // Drag and drop sensors - optimized for touch and mouse
   const sensors = useSensors(
+    // Touch sensor for mobile devices
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 250,
+        tolerance: 8,
+      },
+    }),
+    // Mouse sensor for desktop
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    // Fallback pointer sensor
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
@@ -903,11 +928,21 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={() => setShowProjectSettings(true)} variant="outline" size="sm" className="max-sm:h-9 max-sm:w-9 max-sm:p-0">
+          <Button 
+            onClick={() => setShowProjectSettings(true)} 
+            variant="outline" 
+            size="sm" 
+            className="max-sm:h-11 max-sm:w-11 max-sm:p-0 min-h-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
+          >
             <Settings className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">Settings</span>
           </Button>
-          <Button onClick={() => refetch()} variant="outline" size="sm" className="max-sm:h-9 max-sm:w-9 max-sm:p-0 max-sm:text-lg">
+          <Button 
+            onClick={() => refetch()} 
+            variant="outline" 
+            size="sm" 
+            className="max-sm:h-11 max-sm:w-11 max-sm:p-0 max-sm:text-lg min-h-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
+          >
             <span className="hidden sm:inline">Refresh</span>
             <span className="sm:hidden">↻</span>
           </Button>
@@ -951,7 +986,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                                     e.stopPropagation();
                                     handleToggleDoneSort();
                                   }}
-                                  className="h-8 w-8 p-0"
+                                  className="h-10 w-10 p-0 min-h-[44px] min-w-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
                                 >
                                   {doneSortOrder === 'newest-first' ? (
                                     <ArrowDown className="h-4 w-4" />
@@ -977,7 +1012,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                             setNewTaskColumn(column.id);
                             setShowNewTaskDialog(true);
                           }}
-                          className="h-8 w-8 p-0"
+                          className="h-10 w-10 p-0 min-h-[44px] min-w-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
+                          aria-label={`Add new task to ${column.label} column`}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -1173,11 +1209,15 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 setShowNewTaskDialog(false);
                 // Don't clear draft on cancel - let user return to their work later
               }}
-              className="max-sm:w-full"
+              className="max-sm:w-full min-h-[44px] touch-manipulation focus-visible:ring-2"
             >
               Cancel
             </Button>
-            <Button onClick={handleCreateTask} disabled={createTaskMutation.isPending} className="max-sm:w-full">
+            <Button 
+              onClick={handleCreateTask} 
+              disabled={createTaskMutation.isPending} 
+              className="max-sm:w-full min-h-[44px] touch-manipulation focus-visible:ring-2 disabled:opacity-50"
+            >
               {createTaskMutation.isPending ? "Creating..." : "Create Task"}
             </Button>
           </DialogFooter>
