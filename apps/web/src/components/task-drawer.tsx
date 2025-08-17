@@ -117,17 +117,48 @@ export function TaskDrawer({ taskId, open, onOpenChange }: TaskDrawerProps) {
   // Delete task mutation
   const deleteTaskMutation = useMutation(
     orpc.tasks.delete.mutationOptions({
+      onMutate: async (variables) => {
+        // Cancel any outgoing refetches
+        await queryClient.cancelQueries({
+          queryKey: ["projects", "getWithTasks", { input: { id: task?.projectId } }]
+        });
+
+        // Snapshot the previous value
+        const previousData = queryClient.getQueryData(
+          ["projects", "getWithTasks", { input: { id: task?.projectId } }]
+        );
+
+        // Optimistically remove the task from the UI
+        if (previousData && task?.projectId) {
+          queryClient.setQueryData(
+            ["projects", "getWithTasks", { input: { id: task.projectId } }],
+            (old: any) => {
+              if (!old?.tasks) return old;
+              
+              // Remove the deleted task from the tasks array
+              const updatedTasks = old.tasks.filter((t: any) => t.id !== variables.id);
+              
+              return { ...old, tasks: updatedTasks };
+            }
+          );
+        }
+
+        return { previousData };
+      },
+      onError: (error, variables, context) => {
+        // Roll back on error
+        if (context?.previousData && task?.projectId) {
+          queryClient.setQueryData(
+            ["projects", "getWithTasks", { input: { id: task.projectId } }],
+            context.previousData
+          );
+        }
+        toast.error("Failed to delete task: " + error.message);
+      },
       onSuccess: () => {
         toast.success("Task deleted successfully");
         onOpenChange(false);
-        // Only invalidate specific project's data
-        queryClient.invalidateQueries({
-          queryKey: ["projects", "getWithTasks", { input: { id: task?.projectId } }],
-          exact: true
-        });
-      },
-      onError: (error) => {
-        toast.error("Failed to delete task: " + error.message);
+        console.log('✅ Task deleted successfully from drawer');
       }
     })
   );

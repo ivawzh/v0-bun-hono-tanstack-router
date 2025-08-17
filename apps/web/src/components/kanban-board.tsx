@@ -486,18 +486,53 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Delete task mutation
   const deleteTaskMutation = useMutation(orpc.tasks.delete.mutationOptions({
+    onMutate: async (variables) => {
+      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
+      await queryClient.cancelQueries({
+        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }]
+      });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData(
+        ["projects", "getWithTasks", { input: { id: projectId } }]
+      );
+
+      // Optimistically remove the task from the UI
+      if (previousData) {
+        queryClient.setQueryData(
+          ["projects", "getWithTasks", { input: { id: projectId } }],
+          (old: any) => {
+            if (!old?.tasks) return old;
+            
+            // Remove the deleted task from the tasks array
+            const updatedTasks = old.tasks.filter((task: any) => task.id !== variables.id);
+            
+            return { ...old, tasks: updatedTasks };
+          }
+        );
+      }
+
+      // Return a context object with the snapshotted value
+      return { previousData };
+    },
+    onError: (error, variables, context) => {
+      // If the mutation fails, use the context returned from onMutate to roll back
+      if (context?.previousData) {
+        queryClient.setQueryData(
+          ["projects", "getWithTasks", { input: { id: projectId } }],
+          context.previousData
+        );
+      }
+      toast.error("Failed to delete task: " + error.message);
+    },
     onSuccess: () => {
       toast.success("Task deleted successfully");
-      // Only invalidate this specific project's data
-      queryClient.invalidateQueries({ 
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true 
-      });
+      // Clear the delete modal state
       setDeleteTaskId(null);
       setTaskToDelete(null);
-    },
-    onError: (error) => {
-      toast.error("Failed to delete task: " + error.message);
+      // Don't invalidate immediately - let optimistic update persist
+      // WebSocket events will sync if needed
+      console.log('✅ Task deleted successfully');
     }
   }));
 

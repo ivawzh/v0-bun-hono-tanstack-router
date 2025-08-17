@@ -307,6 +307,9 @@ export const tasksRouter = o.router({
       // Delete task (no cascading needed in simplified model)
       await db.delete(tasks).where(eq(tasks.id, input.id));
 
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
       return { success: true };
     }),
 

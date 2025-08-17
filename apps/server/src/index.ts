@@ -44,6 +44,38 @@ app.get("/", (c) => {
   return c.text("OK");
 });
 
+// File download endpoint for attachments
+app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
+  try {
+    const taskId = c.req.param('taskId')
+    const attachmentId = c.req.param('attachmentId')
+    
+    // Get the attachment using the router directly
+    const context = await createContext({ context: c });
+    const result = await appRouter.tasks.getAttachment({
+      taskId,
+      attachmentId
+    }, { context });
+    
+    if (!result.buffer || !result.metadata) {
+      return c.notFound();
+    }
+    
+    // Convert buffer to proper format
+    const buffer = Buffer.from(result.buffer);
+    
+    // Set proper headers for file download
+    c.header('Content-Type', result.metadata.type || 'application/octet-stream');
+    c.header('Content-Disposition', `attachment; filename="${result.metadata.originalName}"`);
+    c.header('Content-Length', buffer.length.toString());
+    
+    return c.body(buffer);
+  } catch (error) {
+    console.error('Download error:', error);
+    return c.json({ error: 'File not found' }, 404);
+  }
+});
+
 
 // Mount MCP Streamable HTTP endpoint at /mcp (stateless integration)
 async function initializeMcp() {
