@@ -12,7 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Pause, Play, Activity, AlertCircle, Loader2 } from "lucide-react";
+import { Settings, Pause, Play, Activity, AlertCircle, Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -25,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { CreateRepoAgentModal } from "./create-repo-agent-modal";
 
 interface ProjectSettingsProps {
   project: {
@@ -140,6 +141,7 @@ export function ProjectSettings({
 
   const [name, setName] = useState(project.name || "");
   const [description, setDescription] = useState(project.description || "");
+  const [createRepoAgentModalOpen, setCreateRepoAgentModalOpen] = useState(false);
 
   // Fetch repo agents for this project
   const { data: repoAgents, isLoading: loadingRepoAgents } = useQuery(
@@ -248,9 +250,19 @@ export function ProjectSettings({
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium">Repo Agents</h3>
-                <Badge variant="outline">
-                  {repoAgents?.length || 0} agents
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline">
+                    {repoAgents?.length || 0} agents
+                  </Badge>
+                  <Button 
+                    size="sm" 
+                    onClick={() => setCreateRepoAgentModalOpen(true)}
+                    className="h-8"
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Add Repo Agent
+                  </Button>
+                </div>
               </div>
               
               {loadingRepoAgents ? (
@@ -305,6 +317,13 @@ export function ProjectSettings({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Create Repo Agent Modal */}
+      <CreateRepoAgentModal
+        projectId={project.id}
+        open={createRepoAgentModalOpen}
+        onOpenChange={setCreateRepoAgentModalOpen}
+      />
     </Dialog>
   );
 }
