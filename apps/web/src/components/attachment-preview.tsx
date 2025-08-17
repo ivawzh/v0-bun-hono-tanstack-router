@@ -24,6 +24,7 @@ interface AttachmentPreviewProps {
 }
 
 function getFileIcon(type: string, className?: string) {
+  if (!type) return <File className={className} />
   if (type.startsWith('image/')) return <Image className={className} />
   if (type === 'application/pdf') return <FileText className={className} />
   if (type.startsWith('text/') || type === 'application/json') return <FileText className={className} />
@@ -68,7 +69,7 @@ export function AttachmentPreview({
   }
 
   const handlePreview = () => {
-    if (attachment.type.startsWith('image/')) {
+    if (attachment.type && attachment.type.startsWith('image/')) {
       setShowPreview(true)
       setPreviewError(false)
     }
@@ -113,7 +114,7 @@ export function AttachmentPreview({
               <h4 className="text-sm font-medium truncate">{attachment.originalName}</h4>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant="outline" className="text-xs">
-                  {attachment.type.split('/')[1]?.toUpperCase() || 'FILE'}
+                  {attachment.type ? attachment.type.split('/')[1]?.toUpperCase() || 'FILE' : 'FILE'}
                 </Badge>
                 <span className="text-xs text-muted-foreground">
                   {formatFileSize(attachment.size)}
@@ -126,7 +127,7 @@ export function AttachmentPreview({
             
             {/* Actions */}
             <div className="flex items-center gap-1">
-              {attachment.type.startsWith('image/') && (
+              {attachment.type && attachment.type.startsWith('image/') && (
                 <Button
                   variant="ghost"
                   size="sm"
@@ -160,7 +161,7 @@ export function AttachmentPreview({
       </Card>
 
       {/* Image preview dialog */}
-      {attachment.type.startsWith('image/') && (
+      {attachment.type && attachment.type.startsWith('image/') && (
         <Dialog open={showPreview} onOpenChange={setShowPreview}>
           <DialogContent className="max-w-4xl">
             <DialogHeader>
