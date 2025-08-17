@@ -15,14 +15,14 @@ interface ClaudeCodeSessionLinkProps {
   repoAgentClientType?: string;
 }
 
-export function ClaudeCodeSessionLink({ 
-  taskId, 
-  activeSession, 
-  repoAgentClientType 
+export function ClaudeCodeSessionLink({
+  taskId,
+  activeSession,
+  repoAgentClientType
 }: ClaudeCodeSessionLinkProps) {
   // Only show for Claude Code client type with active session
-  const shouldShow = repoAgentClientType === "CLAUDE_CODE" && 
-                     activeSession && 
+  const shouldShow = repoAgentClientType === "CLAUDE_CODE" &&
+                     activeSession &&
                      activeSession.status === "active";
 
   if (!shouldShow) {
@@ -32,7 +32,7 @@ export function ClaudeCodeSessionLink({
   const handleOpenClaudeCode = () => {
     // Open Claude Code UI in a new tab
     // Using port 8303 as specified in the project documentation
-    const claudeCodeUrl = "http://localhost:8303";
+    const claudeCodeUrl = "http://localhost:8303/session/" + activeSession.agentSessionId;
     window.open(claudeCodeUrl, "_blank", "noopener,noreferrer");
   };
 
