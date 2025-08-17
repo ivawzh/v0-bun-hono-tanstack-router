@@ -119,6 +119,9 @@ export class ClaudeCodeClient {
       case 'session-created':
         this.handleSessionCreated(message);
         break;
+      case 'session-resumed':
+        this.handleSessionResumed(message);
+        break;
       case 'claude-response':
         this.handleClaudeResponse(message);
         break;
@@ -143,6 +146,10 @@ export class ClaudeCodeClient {
         const { sessions, repoAgents } = await import('../db/schema');
         const { eq } = await import('drizzle-orm');
 
+        await db.update(tasks).set({
+          isAiWorking: true,
+        }).where(eq(tasks.id, message.soloUnicornTaskId));
+
         // Check if session already exists (for resume case)
         const existingSession = await db.query.sessions.findFirst({
           where: eq(sessions.taskId, message.soloUnicornTaskId)
@@ -157,9 +164,6 @@ export class ClaudeCodeClient {
             })
             .where(eq(sessions.taskId, message.soloUnicornTaskId));
 
-          await db.update(tasks).set({
-            isAiWorking: true,
-          }).where(eq(tasks.id, message.soloUnicornTaskId));
           console.log('📝 Session ID updated for task:', message.soloUnicornTaskId, '→', message.sessionId);
         } else {
           // Create new session record
@@ -186,6 +190,19 @@ export class ClaudeCodeClient {
         console.error('❌ Failed to handle session creation:', error);
       }
     }
+
+    await this.updateAgentState({
+      lastSessionCreatedAt: new Date().toISOString(),
+      lastMessagedAt: new Date().toISOString()
+    });
+  }
+
+  private async handleSessionResumed(message: any) {
+    console.log('📝 Session resumed:', message.sessionId);
+
+    await db.update(tasks).set({
+      isAiWorking: true,
+    }).where(eq(tasks.id, message.soloUnicornTaskId));
 
     await this.updateAgentState({
       lastSessionCreatedAt: new Date().toISOString(),
