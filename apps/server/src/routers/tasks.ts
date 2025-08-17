@@ -142,7 +142,8 @@ export const tasksRouter = o.router({
       rawDescription: v.optional(v.string()),
       priority: v.optional(prioritySchema, 3),
       attachments: v.optional(v.array(v.any()), []),
-      status: v.optional(taskStatusEnum, "todo") // Allow creating tasks directly in loop column
+      status: v.optional(taskStatusEnum, "todo"), // Allow creating tasks directly in loop column
+      stage: v.optional(taskStageEnum) // Allow explicit stage assignment on creation
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -195,6 +196,17 @@ export const tasksRouter = o.router({
         }
       }
 
+      // Determine the stage value to use
+      let stageToUse = input.stage;
+      if (stageToUse === undefined) {
+        // Apply intelligent defaults if no stage provided
+        if (input.status === "loop") {
+          stageToUse = "loop";
+        } else {
+          stageToUse = "refine"; // Default for non-loop tasks
+        }
+      }
+
       const newTask = await db
         .insert(tasks)
         .values({
@@ -206,7 +218,7 @@ export const tasksRouter = o.router({
           priority: input.priority,
           attachments: input.attachments,
           status: input.status,
-          stage: input.status === "loop" ? "loop" : null, // Set stage to "loop" for loop tasks
+          stage: stageToUse,
           ready: input.status === "loop" ? true : false // Loop tasks are always ready
         })
         .returning();
@@ -475,7 +487,7 @@ export const tasksRouter = o.router({
     .input(v.object({
       taskId: v.pipe(v.string(), v.uuid()),
       file: v.object({
-        buffer: v.any(), // Buffer
+        buffer: v.any(), // Buffer or Uint8Array
         originalName: v.string(),
         type: v.string(),
         size: v.number()

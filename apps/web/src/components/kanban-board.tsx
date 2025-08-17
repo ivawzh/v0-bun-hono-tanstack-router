@@ -384,7 +384,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Done column sort state - default to newest first (descending)
   const [doneSortOrder, setDoneSortOrder] = useState<'newest-first' | 'oldest-first'>('newest-first');
   // Use task draft hook for auto-save functionality
-  const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft();
+  const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
 
   const queryClient = useQueryClient();
 
@@ -860,7 +860,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      status: newTaskColumn as "todo" | "doing" | "done" | "loop" // Support creating tasks in loop column
+      status: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
+      stage: newTask.stage as "refine" | "plan" | "execute" | "loop" | null
     });
   };
 
@@ -1114,6 +1115,20 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="task-stage">Stage (Optional)</Label>
+              <div className="flex items-center gap-2">
+                <TaskStageSelector
+                  stage={newTask.stage}
+                  status="doing" // Force showing stage selector in creation mode
+                  onStageChange={(stage) => updateDraft({ stage })}
+                  size="md"
+                />
+                <span className="text-xs text-muted-foreground">
+                  Default: {newTaskColumn === 'loop' ? 'Loop' : 'Refine'}
+                </span>
+              </div>
             </div>
 
             {/* File Attachments */}

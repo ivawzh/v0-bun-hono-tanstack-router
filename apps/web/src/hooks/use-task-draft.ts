@@ -14,19 +14,29 @@ interface TaskDraft {
   repoAgentId: string
   actorId: string
   attachments: AttachmentFile[]
+  stage: string | null
 }
 
 const STORAGE_KEY = 'solo-unicorn-task-draft'
 const DEBOUNCE_DELAY = 500
 
-export function useTaskDraft() {
+// Helper function to get default stage based on column
+function getDefaultStage(column?: string): string | null {
+  if (column === 'loop') {
+    return 'loop'
+  }
+  return 'refine' // Default for all other columns (todo, doing, done)
+}
+
+export function useTaskDraft(defaultColumn?: string) {
   const [draft, setDraft] = useState<TaskDraft>({
     rawTitle: '',
     rawDescription: '',
     priority: 3,
     repoAgentId: '',
     actorId: '__default__',
-    attachments: []
+    attachments: [],
+    stage: getDefaultStage(defaultColumn)
   })
   const [hasDraft, setHasDraft] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -37,6 +47,10 @@ export function useTaskDraft() {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
         const parsedDraft = JSON.parse(stored)
+        // Ensure stage is set if missing from stored draft
+        if (!parsedDraft.stage) {
+          parsedDraft.stage = getDefaultStage(defaultColumn)
+        }
         setDraft(parsedDraft)
         setHasDraft(true)
       }
@@ -44,7 +58,7 @@ export function useTaskDraft() {
       // Silent fallback - localStorage might be disabled or full
       console.warn('Failed to load task draft from localStorage:', error)
     }
-  }, [])
+  }, [defaultColumn])
 
   // Debounced save to localStorage
   const saveDraft = useCallback((newDraft: TaskDraft) => {
@@ -84,6 +98,19 @@ export function useTaskDraft() {
     })
   }, [saveDraft])
 
+  // Update stage when defaultColumn changes
+  useEffect(() => {
+    setDraft(currentDraft => {
+      const newStage = getDefaultStage(defaultColumn)
+      if (currentDraft.stage !== newStage) {
+        const newDraft = { ...currentDraft, stage: newStage }
+        saveDraft(newDraft)
+        return newDraft
+      }
+      return currentDraft
+    })
+  }, [defaultColumn, saveDraft])
+
   // Clear draft from both state and localStorage
   const clearDraft = useCallback(() => {
     if (timeoutRef.current) {
@@ -103,10 +130,11 @@ export function useTaskDraft() {
       priority: 3,
       repoAgentId: '',
       actorId: '__default__',
-      attachments: []
+      attachments: [],
+      stage: getDefaultStage(defaultColumn)
     })
     setHasDraft(false)
-  }, [])
+  }, [defaultColumn])
 
   // Cleanup timeout on unmount
   useEffect(() => {

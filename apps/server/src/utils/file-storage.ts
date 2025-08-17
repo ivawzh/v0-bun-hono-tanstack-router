@@ -65,7 +65,7 @@ export async function ensureAttachmentDir(taskId: string): Promise<string> {
 
 export async function saveAttachment(
   taskId: string,
-  file: { buffer: Buffer; originalName: string; type: string; size: number }
+  file: { buffer: Buffer | Uint8Array; originalName: string; type: string; size: number }
 ): Promise<AttachmentMetadata> {
   const sanitizedName = validateFile({
     size: file.size,
@@ -83,7 +83,9 @@ export async function saveAttachment(
   
   const filePath = path.join(attachmentDir, filename)
   
-  await fs.writeFile(filePath, file.buffer)
+  // Ensure buffer is a Buffer (convert Uint8Array if needed)
+  const buffer = file.buffer instanceof Buffer ? file.buffer : Buffer.from(file.buffer)
+  await fs.writeFile(filePath, buffer)
 
   return {
     id,
