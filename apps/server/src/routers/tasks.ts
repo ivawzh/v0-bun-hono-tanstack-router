@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repoAgents, actors, taskDependencies, sessions, agentClients } from "../db/schema";
+import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import { 

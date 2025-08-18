@@ -1,18 +1,21 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repoAgents, actors, sessions, tasks, projects, agentClients } from "../db/schema";
+import { agents, actors, tasks, projects } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
-// Helper function to get or create agent client by type
-async function getOrCreateAgentByType(type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
-  let agent = await db.query.agentClients.findFirst({
-    where: eq(agentClients.type, type)
+// Helper function to get or create agent by type (V2 - user-owned agents)
+async function getOrCreateAgentByType(userId: string, type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
+  let agent = await db.query.agents.findFirst({
+    where: and(eq(agents.userId, userId), eq(agents.agentType, type))
   });
 
   if (!agent) {
-    const [newAgent] = await db.insert(agentClients).values({
-      type,
+    const [newAgent] = await db.insert(agents).values({
+      userId,
+      name: `${type} Agent`,
+      agentType: type,
+      agentSettings: {},
       state: {}
     }).returning();
     agent = newAgent;

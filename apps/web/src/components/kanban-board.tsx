@@ -44,8 +44,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ProjectSettings } from "@/components/project-settings";
-import { TaskDrawer } from "@/components/task-drawer";
+import { ProjectSettingsV2 } from "@/components/v2/project-settings-v2";
+import { TaskDrawerV2 } from "@/components/v2/task-drawer-v2";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
@@ -357,10 +357,15 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           </div>
         )}
 
-        {/* Repo Agent and Actor info */}
-        {task.repoAgent && (
+        {/* Repository and Actor info */}
+        {task.mainRepository && (
           <div className="text-xs text-muted-foreground mt-1 kanban-card-text">
-            Repo: {task.repoAgent.name}
+            Repo: {task.mainRepository.name}
+          </div>
+        )}
+        {task.assignedAgents && task.assignedAgents.length > 0 && (
+          <div className="text-xs text-muted-foreground mt-1 kanban-card-text">
+            Agents: {task.assignedAgents.map((agent: any) => agent.name).join(", ")}
           </div>
         )}
         {task.actor && (
@@ -450,13 +455,27 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     })
   );
 
-  // Fetch repo agents for this project
-  const { data: repoAgents } = useQuery(
-    orpc.repoAgents.list.queryOptions({
-      input: { projectId },
-      enabled: !!projectId
-    })
-  );
+  // Fetch repositories for this project
+  const { data: repositories } = useQuery({
+    queryKey: ["repositories", projectId],
+    queryFn: async () => {
+      const response = await fetch(`/api/v2/projects/${projectId}/repositories`);
+      if (!response.ok) throw new Error('Failed to fetch repositories');
+      return response.json();
+    },
+    enabled: !!projectId
+  });
+
+  // Fetch agents for this project
+  const { data: agents } = useQuery({
+    queryKey: ["agents", projectId],
+    queryFn: async () => {
+      const response = await fetch('/api/v2/agents');
+      if (!response.ok) throw new Error('Failed to fetch agents');
+      return response.json();
+    },
+    enabled: !!projectId
+  });
 
   // Fetch actors for this project
   const { data: actors } = useQuery(
@@ -466,12 +485,15 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     })
   );
 
-  // Auto-select repo agent when only one is available
+  // Auto-select repository and agent when only one is available
   useEffect(() => {
-    if (repoAgents && repoAgents.length === 1 && !newTask.repoAgentId) {
-      updateDraft({ repoAgentId: repoAgents[0].id });
+    if (repositories && repositories.length === 1 && !newTask.mainRepositoryId) {
+      updateDraft({ mainRepositoryId: repositories[0].id });
     }
-  }, [repoAgents, newTask.repoAgentId, updateDraft]);
+    if (agents && agents.length === 1 && !newTask.assignedAgentIds?.length) {
+      updateDraft({ assignedAgentIds: [agents[0].id] });
+    }
+  }, [repositories, agents, newTask.mainRepositoryId, newTask.assignedAgentIds, updateDraft]);
 
   // Create task mutation
   const createTaskMutation = useMutation(orpc.tasks.create.mutationOptions({
@@ -902,8 +924,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }, []);
 
   const handleCreateTask = async () => {
-    if (!newTask.rawTitle || !newTask.repoAgentId) {
-      toast.error("Please fill in all required fields");
+    if (!newTask.rawTitle || !newTask.mainRepositoryId || !newTask.assignedAgentIds?.length) {
+      toast.error("Please fill in all required fields (title, repository, and agent)");
       return;
     }
 
@@ -1147,26 +1169,53 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 </Select>
               </div>
               <div className="space-y-2 max-sm:space-y-3">
-                <Label htmlFor="task-repo-agent">Repo Agent</Label>
-                {repoAgents && repoAgents.length === 1 ? (
-                  // Auto-selected single repo agent - show read-only field
+                <Label htmlFor="task-repository">Main Repository</Label>
+                {repositories && repositories.length === 1 ? (
+                  // Auto-selected single repository - show read-only field
                   <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:h-12 max-sm:text-base">
-                    {repoAgents[0].name} ({repoAgents[0].agentClient.type})
+                    {repositories[0].name}
                     <span className="ml-auto text-xs text-green-600">Auto-selected</span>
                   </div>
                 ) : (
-                  // Multiple repo agents - show dropdown
+                  // Multiple repositories - show dropdown
                   <Select
-                    value={newTask.repoAgentId}
-                    onValueChange={(value) => updateDraft({ repoAgentId: value })}
+                    value={newTask.mainRepositoryId}
+                    onValueChange={(value) => updateDraft({ mainRepositoryId: value })}
                   >
-                    <SelectTrigger id="task-repo-agent" className="max-sm:h-12 max-sm:text-base">
-                      <SelectValue placeholder="Select repo agent" />
+                    <SelectTrigger id="task-repository" className="max-sm:h-12 max-sm:text-base">
+                      <SelectValue placeholder="Select main repository" />
                     </SelectTrigger>
                     <SelectContent>
-                      {repoAgents?.map((agent: any) => (
+                      {repositories?.map((repo: any) => (
+                        <SelectItem key={repo.id} value={repo.id}>
+                          {repo.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              <div className="space-y-2 max-sm:space-y-3">
+                <Label htmlFor="task-agents">Assigned Agents</Label>
+                {agents && agents.length === 1 ? (
+                  // Auto-selected single agent - show read-only field
+                  <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:h-12 max-sm:text-base">
+                    {agents[0].name} ({agents[0].agentType})
+                    <span className="ml-auto text-xs text-green-600">Auto-selected</span>
+                  </div>
+                ) : (
+                  // Multiple agents - show dropdown (for now, we'll use a simple select instead of multi-select)
+                  <Select
+                    value={newTask.assignedAgentIds?.[0] || ""}
+                    onValueChange={(value) => updateDraft({ assignedAgentIds: value ? [value] : [] })}
+                  >
+                    <SelectTrigger id="task-agents" className="max-sm:h-12 max-sm:text-base">
+                      <SelectValue placeholder="Select agent" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agents?.map((agent: any) => (
                         <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name} ({agent.agentClient.type})
+                          {agent.name} ({agent.agentType})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1242,7 +1291,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       </Dialog>
 
       {/* Task Detail Drawer */}
-      <TaskDrawer
+      <TaskDrawerV2
         taskId={selectedTaskId}
         open={!!selectedTaskId}
         onOpenChange={(open) => {
@@ -1254,7 +1303,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
       {/* Project Settings Dialog */}
       {showProjectSettings && project && (
-        <ProjectSettings
+        <ProjectSettingsV2
           project={project}
           open={showProjectSettings}
           onOpenChange={setShowProjectSettings}

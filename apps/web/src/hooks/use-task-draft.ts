@@ -11,7 +11,9 @@ interface TaskDraft {
   rawTitle: string
   rawDescription: string
   priority: Priority
-  repoAgentId: string
+  mainRepositoryId: string
+  additionalRepositoryIds: string[]
+  assignedAgentIds: string[]
   actorId: string
   attachments: AttachmentFile[]
   stage: string | null
@@ -33,7 +35,9 @@ export function useTaskDraft(defaultColumn?: string) {
     rawTitle: '',
     rawDescription: '',
     priority: 3,
-    repoAgentId: '',
+    mainRepositoryId: '',
+    additionalRepositoryIds: [],
+    assignedAgentIds: [],
     actorId: '__default__',
     attachments: [],
     stage: getDefaultStage(defaultColumn)
@@ -128,7 +132,9 @@ export function useTaskDraft(defaultColumn?: string) {
       rawTitle: '',
       rawDescription: '',
       priority: 3,
-      repoAgentId: '',
+      mainRepositoryId: '',
+      additionalRepositoryIds: [],
+      assignedAgentIds: [],
       actorId: '__default__',
       attachments: [],
       stage: getDefaultStage(defaultColumn)

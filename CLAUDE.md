@@ -27,8 +27,24 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 ## Quick Commands
 
 - Development server: `bun dev` (in apps/server or apps/web). However, I manually keep `bun dev` running in the background. So that please don't run it from your side.
-- Database migrations: `bun run db:push` (in apps/server).
+- Database migrations: `bun run db:push` (in apps/server)
 - Run type checks: `bun typecheck`
+
+## Database Migration
+
+When database schema changes are needed:
+
+1. **Set DATABASE_URL** in `.env` file if not already set:
+   ```bash
+   DATABASE_URL=postgresql://iw@localhost:5432/database_name
+   ```
+
+2. **Run migration**:
+   ```bash
+   bun run db:push
+   ```
+
+This will automatically sync the database schema with the current codebase schema definitions.
 
 ## Integration Points
 

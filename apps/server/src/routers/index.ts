@@ -1,7 +1,7 @@
 import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
 import { projectsRouter } from "./projects";
-import { tasksRouter } from "./tasks";
-import { repoAgentsRouter } from "./repo-agents";
+// import { tasksRouter } from "./tasks";
+// import { repoAgentsRouter } from "./repo-agents";
 import { actorsRouter } from "./actors";
 import { authRouter } from "./auth";
 
@@ -19,8 +19,9 @@ export const appRouter = o.router({
   ownerPing: protectedProcedure.handler(() => ({ ok: true })),
   auth: authRouter,
   projects: projectsRouter,
-  repoAgents: repoAgentsRouter,
+  // Temporarily disabled V1 routers during V2 migration
+  // repoAgents: repoAgentsRouter,
   actors: actorsRouter,
-  tasks: tasksRouter,
+  // tasks: tasksRouter,
 });
 export type AppRouter = typeof appRouter;

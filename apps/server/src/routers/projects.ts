@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { db } from "../db";
-import { projects, repoAgents, actors, tasks, sessions } from "../db/schema";
+import { projects, repositories, agents, actors, tasks } from "../db/schema";
 import { eq, and, desc, getTableColumns } from "drizzle-orm";
 import { protectedProcedure, o } from "../lib/orpc";
 
@@ -132,8 +132,8 @@ export const projectsRouter = o.router({
       // Delete tasks
       await db.delete(tasks).where(eq(tasks.projectId, input.id));
 
-      // Delete repo agents
-      await db.delete(repoAgents).where(eq(repoAgents.projectId, input.id));
+      // Delete repositories
+      await db.delete(repositories).where(eq(repositories.projectId, input.id));
 
       // Delete actors
       await db.delete(actors).where(eq(actors.projectId, input.id));
@@ -165,10 +165,10 @@ export const projectsRouter = o.router({
       }
 
       // Get counts
-      const repoAgentCount = await db
+      const repositoryCount = await db
         .select()
-        .from(repoAgents)
-        .where(eq(repoAgents.projectId, input.id));
+        .from(repositories)
+        .where(eq(repositories.projectId, input.id));
 
       const actorCount = await db
         .select()
@@ -187,7 +187,7 @@ export const projectsRouter = o.router({
       return {
         ...project[0],
         stats: {
-          repoAgents: repoAgentCount.length,
+          repositories: repositoryCount.length,
           actors: actorCount.length,
           tasks: {
             total: taskStats.length,
@@ -220,14 +220,10 @@ export const projectsRouter = o.router({
         throw new Error("Project not found");
       }
 
-      // Get all tasks for this project with session information
+      // Get all tasks for this project
       const projectTasks = await db
-        .select({
-          ...getTableColumns(tasks),
-          agentSessionId: sessions.agentSessionId
-        })
+        .select()
         .from(tasks)
-        .leftJoin(sessions, eq(tasks.id, sessions.taskId))
         .where(eq(tasks.projectId, input.id))
         .orderBy(desc(tasks.createdAt));
 
