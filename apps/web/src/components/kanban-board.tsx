@@ -675,10 +675,26 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     // Final sort - special handling for Done column
     if (column.id === 'done') {
       // Done column: sort by completion time based on user preference
+      // Use a more reliable completion time approach - combination of status and timestamps
       columnTasks = columnTasks.sort((a: any, b: any) => {
-        // Use updatedAt as completion time (when task moved to done)
+        // For done tasks, we'll use updatedAt as the best available completion indicator
+        // since tasks get updatedAt set when they move to done status
+        // But we'll also consider createdAt as a secondary sort for stability
         const aTime = new Date(a.updatedAt).getTime();
         const bTime = new Date(b.updatedAt).getTime();
+        
+        // If updatedAt times are very close (within 1 second), fall back to createdAt for stable sorting
+        const timeDiff = Math.abs(aTime - bTime);
+        if (timeDiff < 1000) {
+          const aCreated = new Date(a.createdAt).getTime();
+          const bCreated = new Date(b.createdAt).getTime();
+          
+          if (doneSortOrder === 'newest-first') {
+            return bCreated - aCreated;
+          } else {
+            return aCreated - bCreated;
+          }
+        }
         
         if (doneSortOrder === 'newest-first') {
           return bTime - aTime; // Newest first (descending)
@@ -878,9 +894,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleToggleDoneSort = useCallback(() => {
-    setDoneSortOrder(current => 
-      current === 'newest-first' ? 'oldest-first' : 'newest-first'
-    );
+    setDoneSortOrder(current => {
+      const newOrder = current === 'newest-first' ? 'oldest-first' : 'newest-first';
+      console.log('Done sort order changed:', current, '->', newOrder);
+      return newOrder;
+    });
   }, []);
 
   const handleCreateTask = async () => {
@@ -996,8 +1014,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                               </TooltipTrigger>
                               <TooltipContent>
                                 {doneSortOrder === 'newest-first' 
-                                  ? 'Newest first (click for oldest first)' 
-                                  : 'Oldest first (click for newest first)'
+                                  ? 'Sorted by newest first (click for oldest first)' 
+                                  : 'Sorted by oldest first (click for newest first)'
                                 }
                               </TooltipContent>
                             </Tooltip>
