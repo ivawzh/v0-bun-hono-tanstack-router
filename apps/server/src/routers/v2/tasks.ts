@@ -9,7 +9,7 @@ import { z } from 'zod';
 import { db } from '../../db';
 import { eq, and, or, inArray } from 'drizzle-orm';
 import * as schema from '../../db/schema/index';
-import { requireProjectAccess, schemaAwareRoute } from '../../lib/auth-v2';
+import { requireProjectAccess } from '../../lib/auth-v2';
 import {
   assignAgentToTask,
   removeAgentFromTask
@@ -54,50 +54,23 @@ const updateTaskStatusSchema = z.object({
  * GET /api/v2/projects/:projectId/tasks
  * Get all tasks for a project with V2 enhancements
  */
-tasksRouter.get('/projects/:projectId/tasks', requireProjectAccess(), schemaAwareRoute(
-  // V1 Handler
-  async (c) => {
-    const projectId = c.req.param('projectId');
-    
-    const tasks = await db.select({
-      task: schema.tasks,
-      repoAgent: schema.repoAgents,
-      actor: schema.actors
-    })
-      .from(schema.tasks)
-      .leftJoin(schema.repoAgents, eq(schema.repoAgents.id, schema.tasks.repoAgentId))
-      .leftJoin(schema.actors, eq(schema.actors.id, schema.tasks.actorId))
-      .where(eq(schema.tasks.projectId, projectId))
-      .orderBy(schema.tasks.priority, schema.tasks.createdAt);
+tasksRouter.get('/projects/:projectId/tasks', requireProjectAccess(), async (c) => {
+  const projectId = c.req.param('projectId');
+  
+  const tasks = await db.select({
+    task: schema.tasks,
+    mainRepository: schema.repositories,
+    actor: schema.actors
+  })
+    .from(schema.tasks)
+    .leftJoin(schema.repositories, eq(schema.repositories.id, schema.tasks.mainRepositoryId))
+    .leftJoin(schema.actors, eq(schema.actors.id, schema.tasks.actorId))
+    .where(eq(schema.tasks.projectId, projectId))
+    .orderBy(schema.tasks.priority, schema.tasks.createdAt);
 
-    const tasksWithRelations = tasks.map(row => ({
-      ...row.task,
-      repoAgent: row.repoAgent,
-      actor: row.actor,
-      assignedAgents: [], // V1 doesn't have multiple agents
-      additionalRepositories: [] // V1 doesn't have additional repos
-    }));
-
-    return c.json({ tasks: tasksWithRelations });
-  },
-  // V2 Handler
-  async (c) => {
-    const projectId = c.req.param('projectId');
-    
-    const tasks = await db.select({
-      task: schema.tasks,
-      mainRepository: schema.repositories,
-      actor: schema.actors
-    })
-      .from(schema.tasks)
-      .leftJoin(schema.repositories, eq(schema.repositories.id, schema.tasks.mainRepositoryId))
-      .leftJoin(schema.actors, eq(schema.actors.id, schema.tasks.actorId))
-      .where(eq(schema.tasks.projectId, projectId))
-      .orderBy(schema.tasks.priority, schema.tasks.createdAt);
-
-    // Get assigned agents and additional repositories for each task
-    const tasksWithRelations = [];
-    for (const row of tasks) {
+  // Get assigned agents and additional repositories for each task
+  const tasksWithRelations = [];
+  for (const row of tasks) {
       // Get assigned agents
       const taskAgents = await db.select({
         agent: schema.agents
@@ -118,9 +91,8 @@ tasksRouter.get('/projects/:projectId/tasks', requireProjectAccess(), schemaAwar
       });
     }
 
-    return c.json({ tasks: tasksWithRelations });
-  }
-));
+  return c.json({ tasks: tasksWithRelations });
+});
 
 /**
  * POST /api/v2/projects/:projectId/tasks
@@ -198,9 +170,6 @@ tasksRouter.put('/tasks/:taskId/assignments',
   zValidator('json', updateTaskAssignmentsSchema), 
   async (c) => {
     try {
-      if (!schema()) {
-        return c.json({ error: 'Task assignments require V2 schema' }, 400);
-      }
 
       const taskId = c.req.param('taskId');
       const input = c.req.valid('json');
@@ -254,8 +223,7 @@ tasksRouter.put('/tasks/:taskId/status',
       const taskId = c.req.param('taskId');
       const input = c.req.valid('json');
 
-      if (schema()) {
-        const updated = await db.update(schema.tasks)
+      const updated = await db.update(schema.tasks)
           .set({
             status: input.status,
             stage: input.stage,
@@ -272,24 +240,6 @@ tasksRouter.put('/tasks/:taskId/status',
         }
 
         return c.json({ task: updated[0] });
-      } else {
-        const updated = await db.update(schema.tasks)
-          .set({
-            status: input.status,
-            stage: input.stage,
-            isAiWorking: input.isAiWorking,
-            aiWorkingSince: input.isAiWorking ? new Date() : null,
-            updatedAt: new Date()
-          })
-          .where(eq(schema.tasks.id, taskId))
-          .returning();
-
-        if (!updated[0]) {
-          return c.json({ error: 'Task not found' }, 404);
-        }
-
-        return c.json({ task: updated[0] });
-      }
     } catch (error) {
       console.error('Failed to update task status:', error);
       return c.json({ error: 'Failed to update task status' }, 500);
@@ -304,13 +254,6 @@ tasksRouter.put('/tasks/:taskId/status',
 tasksRouter.get('/tasks/:taskId/assignments', async (c) => {
   try {
     const taskId = c.req.param('taskId');
-
-    if (!schema()) {
-      return c.json({ 
-        assignedAgents: [], 
-        additionalRepositories: [] 
-      });
-    }
 
     // Get assigned agents
     const assignedAgents = await db.select({
@@ -341,7 +284,6 @@ tasksRouter.get('/loop/:projectId', requireProjectAccess(), async (c) => {
   try {
     const projectId = c.req.param('projectId');
 
-    if (schema()) {
       const loopTasks = await db.select()
         .from(schema.tasks)
         .where(and(
@@ -351,11 +293,7 @@ tasksRouter.get('/loop/:projectId', requireProjectAccess(), async (c) => {
         ))
         .orderBy(schema.tasks.priority, schema.tasks.createdAt);
 
-      return c.json({ tasks: loopTasks });
-    } else {
-      // V1 doesn't support loop tasks
-      return c.json({ tasks: [] });
-    }
+    return c.json({ tasks: loopTasks });
   } catch (error) {
     console.error('Failed to get loop tasks:', error);
     return c.json({ error: 'Failed to get loop tasks' }, 500);
@@ -369,10 +307,6 @@ tasksRouter.get('/loop/:projectId', requireProjectAccess(), async (c) => {
 tasksRouter.put('/tasks/:taskId/loop-return', async (c) => {
   try {
     const taskId = c.req.param('taskId');
-
-    if (!schema()) {
-      return c.json({ error: 'Loop tasks require V2 schema' }, 400);
-    }
 
     // Get current highest column order for loop tasks in this project
     const task = await db.select()
