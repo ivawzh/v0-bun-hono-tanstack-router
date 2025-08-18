@@ -49,6 +49,7 @@
     "drizzle-orm": "^0.44.2",
     "fetch-to-node": "^2.1.0",
     "hono": "^4.8.2",
+    "@hono/zod-validator":"0.7.2",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.14.1",
     "valibot": "^1.1.0",

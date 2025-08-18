@@ -15,13 +15,12 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { registerMcpHttp, setOrchestrator } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
-import { AgentOrchestrator } from "./agents/agent-orchestrator";
 import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
 import agentsRouter from "./routers/v2/agents";
 import repositoriesRouter from "./routers/v2/repositories";
 import tasksRouter from "./routers/v2/tasks";
-import { initializeFeatureFlags } from "./lib/feature-flags";
+import { initializeV2Orchestrator, shutdownV2Orchestrator } from "./agents/v2/orchestrator";
 
 const app = new Hono();
 
@@ -33,13 +32,10 @@ app.use("/*", cors({
   credentials: true,
 }));
 
-// Initialize feature flags
-initializeFeatureFlags();
-
 // Mount OAuth callback routes
 app.route("/api/oauth", oauthCallbackRoutes);
 
-// Mount V2 API routes (feature flag protected)
+// Mount V2 API routes
 app.route("/api/v2/agents", agentsRouter);
 app.route("/api/v2", repositoriesRouter);
 app.route("/api/v2", tasksRouter);
@@ -238,71 +234,20 @@ const port = process.env.PORT || 8500;
 console.log(`🚀 Solo Unicorn server starting on port ${port}`);
 console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 
-// Initialize Agent Orchestrator
-let agentOrchestrator: AgentOrchestrator | null = null;
-
-// Global tracking to prevent multiple instances during hot reload
-declare global {
-  var __agentOrchestrator: AgentOrchestrator | undefined;
-}
-
-async function initializeAgentOrchestrator() {
-  try {
-    // Clean up any existing orchestrator instance (hot reload cleanup)
-    if (global.__agentOrchestrator) {
-      console.log("🔄 Hot reload detected, cleaning up previous Agent Orchestrator...");
-      await global.__agentOrchestrator.shutdown();
-      global.__agentOrchestrator = undefined;
-    }
-
-    const claudeCodeWebsocketUrl = process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501";
-    const agentToken = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
-
-    console.log("🤖 Initializing Agent Orchestrator...");
-
-    agentOrchestrator = new AgentOrchestrator({
-      claudeCodeUrl: claudeCodeWebsocketUrl,
-      agentToken,
-      taskPushEnabled: true
-    });
-
-    // Store globally for hot reload cleanup
-    global.__agentOrchestrator = agentOrchestrator;
-
-    await agentOrchestrator.initialize();
-
-    // Integrate with MCP server
-    setOrchestrator(agentOrchestrator);
-
-    console.log("🤖 Agent Orchestrator initialized successfully");
-  } catch (error) {
-    console.error("❌ Failed to initialize Agent Orchestrator:", error instanceof Error ? error.message : String(error));
-    console.log("ℹ️  Agent Orchestrator will continue trying to connect in the background");
-    console.log("ℹ️  Make sure Claude Code UI is running on", process.env.CLAUDE_CODE_WS_URL || "ws://localhost:8501");
-
-    // Don't throw error - let the app continue running
-    // The agent orchestrator will retry connections automatically
-  }
-}
-
-// Initialize on startup
-initializeAgentOrchestrator();
+// Initialize V2 Orchestrator on startup
+initializeV2Orchestrator();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
-  if (global.__agentOrchestrator) {
-    global.__agentOrchestrator.shutdown();
-  }
+  shutdownV2Orchestrator();
   wsManager.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
-  if (global.__agentOrchestrator) {
-    global.__agentOrchestrator.shutdown();
-  }
+  shutdownV2Orchestrator();
   wsManager.shutdown();
   process.exit(0);
 });
