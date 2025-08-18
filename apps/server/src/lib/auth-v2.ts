@@ -6,7 +6,6 @@
 import { Context } from 'hono';
 import { eq, and } from 'drizzle-orm';
 import { db } from '../db';
-import { useV2Schema } from './feature-flags';
 import * as v1Schema from '../db/schema/index';
 import * as v2Schema from '../db/schema/v2';
 

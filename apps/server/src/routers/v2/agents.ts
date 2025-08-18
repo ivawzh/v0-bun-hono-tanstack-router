@@ -17,7 +17,6 @@ import {
   updateAgentState
 } from '../../services/v2/user-agents';
 import { requireAgentOwnership } from '../../lib/auth-v2';
-import { useV2APIs } from '../../lib/feature-flags';
 
 const agentsRouter = new Hono();
 

@@ -11,7 +11,6 @@ import { eq, and, or, inArray } from 'drizzle-orm';
 import * as v1Schema from '../../db/schema/index';
 import * as v2Schema from '../../db/schema/v2';
 import { requireProjectAccess, schemaAwareRoute } from '../../lib/auth-v2';
-import { useV2APIs, useV2Schema } from '../../lib/feature-flags';
 import {
   assignAgentToTask,
   removeAgentFromTask

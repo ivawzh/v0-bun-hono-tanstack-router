@@ -4,12 +4,10 @@
  */
 
 import WebSocket from 'ws';
-import { useV2Schema, useV2Orchestrator } from '../../lib/feature-flags';
 import { getTaskAdditionalRepositories } from '../../services/v2/repositories';
 import { db } from '../../db';
 import { eq } from 'drizzle-orm';
-import * as v1Schema from '../../db/schema/index';
-import * as v2Schema from '../../db/schema/v2';
+import * as schema from '../../db/schema/index';
 
 interface ClaudeCodeSessionOptions {
   projectPath: string;
@@ -50,7 +48,7 @@ let authToken: string = '';
 export function initializeClaudeCodeClient(url: string, token: string): Promise<void> {
   connectionUrl = url;
   authToken = token;
-  
+
   return new Promise((resolve, reject) => {
     try {
       claudeCodeSocket = new WebSocket(url, {
@@ -95,7 +93,7 @@ export function initializeClaudeCodeClient(url: string, token: string): Promise<
 function handleClaudeCodeMessage(message: string) {
   try {
     const parsed: ClaudeCodeMessage = JSON.parse(message);
-    
+
     console.log(`📨 Claude Code message: ${parsed.type}`, {
       taskId: parsed.taskId,
       sessionId: parsed.sessionId
@@ -130,7 +128,7 @@ function handleClaudeCodeMessage(message: string) {
  */
 async function handleSessionStarted(message: ClaudeCodeMessage) {
   const { taskId, sessionId } = message;
-  
+
   if (!taskId || !sessionId) {
     console.error('❌ Session started without taskId or sessionId');
     return;
@@ -145,14 +143,12 @@ async function handleSessionStarted(message: ClaudeCodeMessage) {
   }
 
   // Update task in database
-  if (useV2Schema()) {
-    await db.update(v2Schema.tasks)
-      .set({
-        lastAgentSessionId: sessionId,
-        updatedAt: new Date()
-      })
-      .where(eq(v2Schema.tasks.id, taskId));
-  }
+  await db.update(schema.tasks)
+    .set({
+      lastAgentSessionId: sessionId,
+      updatedAt: new Date()
+    })
+    .where(eq(schema.tasks.id, taskId));
 
   console.log(`✅ Session started for task ${taskId}: ${sessionId}`);
 }
@@ -162,7 +158,7 @@ async function handleSessionStarted(message: ClaudeCodeMessage) {
  */
 async function handleSessionCompleted(message: ClaudeCodeMessage) {
   const { taskId, sessionId } = message;
-  
+
   if (!taskId) {
     console.error('❌ Session completed without taskId');
     return;
@@ -176,50 +172,34 @@ async function handleSessionCompleted(message: ClaudeCodeMessage) {
   }
 
   // Check if this is a loop task that should return to loop
-  if (useV2Schema()) {
-    const task = await db.select()
-      .from(v2Schema.tasks)
-      .where(eq(v2Schema.tasks.id, taskId))
-      .limit(1);
+  const task = await db.select()
+    .from(schema.tasks)
+    .where(eq(schema.tasks.id, taskId))
+    .limit(1);
 
-    if (task[0] && task[0].stage === 'loop') {
-      // Return to loop column (bottom)
-      const { returnTaskToLoop } = await import('./orchestrator');
-      const result = await returnTaskToLoop(taskId);
-      
-      if (result.success) {
-        console.log(`♻️ Task ${taskId} returned to loop column`);
-      } else {
-        console.error(`❌ Failed to return task ${taskId} to loop:`, result.error);
-      }
+  if (task[0] && task[0].stage === 'loop') {
+    // Return to loop column (bottom)
+    const { returnTaskToLoop } = await import('./orchestrator');
+    const result = await returnTaskToLoop(taskId);
+
+    if (result.success) {
+      console.log(`♻️ Task ${taskId} returned to loop column`);
     } else {
-      // Regular task - mark as done
-      await db.update(v2Schema.tasks)
-        .set({
-          status: 'done',
-          stage: null,
-          isAiWorking: false,
-          aiWorkingSince: null,
-          updatedAt: new Date()
-        })
-        .where(eq(v2Schema.tasks.id, taskId));
+      console.error(`❌ Failed to return task ${taskId} to loop:`, result.error);
     }
   } else {
-    // V1 behavior - always mark as done
-    await db.update(v1Schema.tasks)
+    await db.update(schema.tasks)
       .set({
-        status: 'done',
-        stage: null,
         isAiWorking: false,
         aiWorkingSince: null,
         updatedAt: new Date()
       })
-      .where(eq(v1Schema.tasks.id, taskId));
+      .where(eq(schema.tasks.id, taskId));
   }
 
   // Clean up session tracking
   activeSessions.delete(taskId);
-  
+
   console.log(`✅ Session completed for task ${taskId}`);
 }
 
@@ -228,7 +208,7 @@ async function handleSessionCompleted(message: ClaudeCodeMessage) {
  */
 async function handleSessionFailed(message: ClaudeCodeMessage) {
   const { taskId, sessionId } = message;
-  
+
   if (!taskId) {
     console.error('❌ Session failed without taskId');
     return;
@@ -241,30 +221,17 @@ async function handleSessionFailed(message: ClaudeCodeMessage) {
     session.lastMessageAt = new Date();
   }
 
-  // Reset task status
-  if (useV2Schema()) {
-    await db.update(v2Schema.tasks)
-      .set({
-        isAiWorking: false,
-        aiWorkingSince: null,
-        status: session?.status === 'loop' ? 'loop' : 'todo',
-        updatedAt: new Date()
-      })
-      .where(eq(v2Schema.tasks.id, taskId));
-  } else {
-    await db.update(v1Schema.tasks)
-      .set({
-        isAiWorking: false,
-        aiWorkingSince: null,
-        status: 'todo',
-        updatedAt: new Date()
-      })
-      .where(eq(v1Schema.tasks.id, taskId));
-  }
+  await db.update(schema.tasks)
+    .set({
+      isAiWorking: false,
+      aiWorkingSince: null,
+      updatedAt: new Date()
+    })
+    .where(eq(schema.tasks.id, taskId));
 
   // Clean up session tracking
   activeSessions.delete(taskId);
-  
+
   console.error(`❌ Session failed for task ${taskId}`);
 }
 
@@ -273,7 +240,7 @@ async function handleSessionFailed(message: ClaudeCodeMessage) {
  */
 function handleAgentActivity(message: ClaudeCodeMessage) {
   const { taskId } = message;
-  
+
   if (!taskId) return;
 
   // Update session tracking
@@ -288,8 +255,8 @@ function handleAgentActivity(message: ClaudeCodeMessage) {
  */
 async function handleRateLimit(message: ClaudeCodeMessage) {
   console.log('⏰ Claude Code rate limit hit:', message.data);
-  
-  if (useV2Schema() && message.data?.agentId && message.data?.resetAt) {
+
+  if (message.data?.agentId && message.data?.resetAt) {
     const { updateAgentState } = await import('../../services/v2/user-agents');
     await updateAgentState(message.data.agentId, {
       rateLimitResetAt: message.data.resetAt
@@ -306,16 +273,14 @@ export async function startClaudeCodeSession(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     if (!claudeCodeSocket || claudeCodeSocket.readyState !== WebSocket.OPEN) {
-      return { 
-        success: false, 
-        error: 'Claude Code UI not connected' 
+      return {
+        success: false,
+        error: 'Claude Code UI not connected'
       };
     }
 
     // Get task details for prompt generation
-    const task = useV2Schema() ? 
-      await getV2TaskDetails(taskId) : 
-      await getV1TaskDetails(taskId);
+    const task = await getTaskDetails(taskId);
 
     if (!task) {
       return { success: false, error: 'Task not found' };
@@ -324,12 +289,9 @@ export async function startClaudeCodeSession(
     // Generate prompt based on task stage
     const prompt = await generateTaskPrompt(task);
 
-    // Get additional repositories for V2
-    let additionalRepos: string[] = [];
-    if (useV2Schema()) {
-      const additionalRepositories = await getTaskAdditionalRepositories(taskId);
-      additionalRepos = additionalRepositories.map(repo => repo.repoPath);
-    }
+    // Get additional repositories
+    const additionalRepositories = await getTaskAdditionalRepositories(taskId);
+    const additionalRepos = additionalRepositories.map(repo => repo.repoPath);
 
     // Prepare session message
     const sessionMessage = {
@@ -357,54 +319,34 @@ export async function startClaudeCodeSession(
 
     // Send to Claude Code UI
     claudeCodeSocket.send(JSON.stringify(sessionMessage));
-    
+
     console.log(`🚀 Started Claude Code session for task ${taskId}`);
     return { success: true };
 
   } catch (error) {
     console.error('❌ Failed to start Claude Code session:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
 
 /**
- * Get V2 task details
+ * Get task details
  */
-async function getV2TaskDetails(taskId: string) {
+async function getTaskDetails(taskId: string) {
   const task = await db.select({
-    task: v2Schema.tasks,
-    mainRepository: v2Schema.repositories,
-    actor: v2Schema.actors,
-    project: v2Schema.projects
+    task: schema.tasks,
+    mainRepository: schema.repositories,
+    actor: schema.actors,
+    project: schema.projects
   })
-    .from(v2Schema.tasks)
-    .leftJoin(v2Schema.repositories, eq(v2Schema.repositories.id, v2Schema.tasks.mainRepositoryId))
-    .leftJoin(v2Schema.actors, eq(v2Schema.actors.id, v2Schema.tasks.actorId))
-    .leftJoin(v2Schema.projects, eq(v2Schema.projects.id, v2Schema.tasks.projectId))
-    .where(eq(v2Schema.tasks.id, taskId))
-    .limit(1);
-
-  return task[0] || null;
-}
-
-/**
- * Get V1 task details
- */
-async function getV1TaskDetails(taskId: string) {
-  const task = await db.select({
-    task: v1Schema.tasks,
-    repoAgent: v1Schema.repoAgents,
-    actor: v1Schema.actors,
-    project: v1Schema.projects
-  })
-    .from(v1Schema.tasks)
-    .leftJoin(v1Schema.repoAgents, eq(v1Schema.repoAgents.id, v1Schema.tasks.repoAgentId))
-    .leftJoin(v1Schema.actors, eq(v1Schema.actors.id, v1Schema.tasks.actorId))
-    .leftJoin(v1Schema.projects, eq(v1Schema.projects.id, v1Schema.tasks.projectId))
-    .where(eq(v1Schema.tasks.id, taskId))
+    .from(schema.tasks)
+    .leftJoin(schema.repositories, eq(schema.repositories.id, schema.tasks.mainRepositoryId))
+    .leftJoin(schema.actors, eq(schema.actors.id, schema.tasks.actorId))
+    .leftJoin(schema.projects, eq(schema.projects.id, schema.tasks.projectId))
+    .where(eq(schema.tasks.id, taskId))
     .limit(1);
 
   return task[0] || null;
@@ -416,13 +358,13 @@ async function getV1TaskDetails(taskId: string) {
 async function generateTaskPrompt(taskDetails: any): Promise<string> {
   const task = taskDetails.task;
   const stage = task.stage || 'refine';
-  
+
   // Base prompt components
   const titleSection = task.refinedTitle || task.rawTitle;
   const descriptionSection = task.refinedDescription || task.rawDescription || '';
   const projectMemory = taskDetails.project?.memory || {};
   const actorDescription = taskDetails.actor?.description || 'Default engineering agent';
-  
+
   // Stage-specific prompts
   switch (stage) {
     case 'refine':

@@ -6,7 +6,6 @@
 import { db } from '../../db';
 import { eq, and } from 'drizzle-orm';
 import * as v2Schema from '../../db/schema/v2';
-import { useV2Schema } from '../../lib/feature-flags';
 
 interface CreateAgentInput {
   userId: string;

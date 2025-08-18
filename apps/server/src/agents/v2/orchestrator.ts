@@ -5,9 +5,7 @@
 
 import { db } from '../../db';
 import { eq, and, or, ne, desc, asc } from 'drizzle-orm';
-import * as v1Schema from '../../db/schema/index';
-import * as v2Schema from '../../db/schema/v2';
-import { useV2Schema, useV2Orchestrator } from '../../lib/feature-flags';
+import * as schema from '../../db/schema/index';
 import { isAgentAvailable, updateAgentState } from '../../services/v2/user-agents';
 import { isRepositoryAvailable, updateRepositoryLastTaskPushed } from '../../services/v2/repositories';
 
@@ -17,8 +15,8 @@ interface TaskWithPriority {
   columnOrder: string;
   status: string;
   stage: string | null;
-  ready: boolean;
-  isAiWorking: boolean;
+  ready: boolean | null;
+  isAiWorking: boolean | null;
   mainRepositoryId: string;
   createdAt: Date;
 }
@@ -43,91 +41,54 @@ interface RepositoryCapacity {
  * Get ready tasks sorted by priority
  */
 export async function getReadyTasks(): Promise<TaskWithPriority[]> {
-  if (!useV2Schema()) {
-    // V1 behavior
-    const tasks = await db.select({
-      id: v1Schema.tasks.id,
-      priority: v1Schema.tasks.priority,
-      columnOrder: v1Schema.tasks.columnOrder,
-      status: v1Schema.tasks.status,
-      stage: v1Schema.tasks.stage,
-      ready: v1Schema.tasks.ready,
-      isAiWorking: v1Schema.tasks.isAiWorking,
-      mainRepositoryId: v1Schema.tasks.repoAgentId, // Map repoAgentId to mainRepositoryId
-      createdAt: v1Schema.tasks.createdAt
-    })
-      .from(v1Schema.tasks)
-      .where(and(
-        eq(v1Schema.tasks.ready, true),
-        eq(v1Schema.tasks.isAiWorking, false),
-        or(
-          eq(v1Schema.tasks.status, 'todo'),
-          eq(v1Schema.tasks.status, 'loop')
-        )
-      ))
-      .orderBy(
-        desc(v1Schema.tasks.priority),
-        asc(v1Schema.tasks.columnOrder),
-        asc(v1Schema.tasks.createdAt)
-      );
-
-    return tasks;
-  }
-
-  // V2 behavior
   const tasks = await db.select({
-    id: v2Schema.tasks.id,
-    priority: v2Schema.tasks.priority,
-    columnOrder: v2Schema.tasks.columnOrder,
-    status: v2Schema.tasks.status,
-    stage: v2Schema.tasks.stage,
-    ready: v2Schema.tasks.ready,
-    isAiWorking: v2Schema.tasks.isAiWorking,
-    mainRepositoryId: v2Schema.tasks.mainRepositoryId,
-    createdAt: v2Schema.tasks.createdAt
+    id: schema.tasks.id,
+    priority: schema.tasks.priority,
+    columnOrder: schema.tasks.columnOrder,
+    status: schema.tasks.status,
+    stage: schema.tasks.stage,
+    ready: schema.tasks.ready,
+    isAiWorking: schema.tasks.isAiWorking,
+    mainRepositoryId: schema.tasks.mainRepositoryId,
+    createdAt: schema.tasks.createdAt
   })
-    .from(v2Schema.tasks)
+    .from(schema.tasks)
     .where(and(
-      eq(v2Schema.tasks.ready, true),
-      eq(v2Schema.tasks.isAiWorking, false),
+      eq(schema.tasks.ready, true),
+      eq(schema.tasks.isAiWorking, false),
       or(
-        eq(v2Schema.tasks.status, 'todo'),
-        eq(v2Schema.tasks.status, 'loop')
+        eq(schema.tasks.status, 'todo'),
+        eq(schema.tasks.status, 'loop')
       )
     ))
     .orderBy(
-      desc(v2Schema.tasks.priority),
-      asc(v2Schema.tasks.columnOrder),
-      asc(v2Schema.tasks.createdAt)
+      desc(schema.tasks.priority),
+      asc(schema.tasks.columnOrder),
+      asc(schema.tasks.createdAt)
     );
 
-  return tasks;
+  return tasks as TaskWithPriority[];
 }
 
 /**
  * Get available agents with capacity information
  */
 export async function getAvailableAgents(): Promise<AgentCapacity[]> {
-  if (!useV2Schema()) {
-    // V1 doesn't have user agents - return empty
-    return [];
-  }
-
   const agents = await db.select()
-    .from(v2Schema.agents)
-    .orderBy(v2Schema.agents.lastTaskPushedAt); // Agents with oldest last push first
+    .from(schema.agents)
+    .orderBy(schema.agents.lastTaskPushedAt); // Agents with oldest last push first
 
   const agentCapacities: AgentCapacity[] = [];
 
   for (const agent of agents) {
     // Count current active tasks
     const activeTasks = await db.select()
-      .from(v2Schema.taskAgents)
-      .innerJoin(v2Schema.tasks, eq(v2Schema.tasks.id, v2Schema.taskAgents.taskId))
+      .from(schema.taskAgents)
+      .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAgents.taskId))
       .where(and(
-        eq(v2Schema.taskAgents.agentId, agent.id),
-        eq(v2Schema.tasks.isAiWorking, true),
-        ne(v2Schema.tasks.status, 'done')
+        eq(schema.taskAgents.agentId, agent.id),
+        eq(schema.tasks.isAiWorking, true),
+        ne(schema.tasks.status, 'done')
       ));
 
     const currentLoad = activeTasks.length;
@@ -150,55 +111,29 @@ export async function getAvailableAgents(): Promise<AgentCapacity[]> {
  * Get repository capacity information
  */
 export async function getRepositoryCapacity(repositoryId: string): Promise<RepositoryCapacity | null> {
-  if (!useV2Schema()) {
-    // V1 behavior - use repoAgent
-    const repoAgent = await db.select()
-      .from(v1Schema.repoAgents)
-      .where(eq(v1Schema.repoAgents.id, repositoryId))
-      .limit(1);
-
-    if (!repoAgent[0]) return null;
-
-    const activeTasks = await db.select()
-      .from(v1Schema.tasks)
-      .where(and(
-        eq(v1Schema.tasks.repoAgentId, repositoryId),
-        eq(v1Schema.tasks.isAiWorking, true),
-        ne(v1Schema.tasks.status, 'done')
-      ));
-
-    return {
-      repositoryId,
-      currentLoad: activeTasks.length,
-      maxCapacity: 1, // V1 default
-      isAvailable: activeTasks.length < 1,
-      lastTaskPushedAt: null
-    };
-  }
-
   const repository = await db.select()
-    .from(v2Schema.repositories)
-    .where(eq(v2Schema.repositories.id, repositoryId))
+    .from(schema.repositories)
+    .where(eq(schema.repositories.id, repositoryId))
     .limit(1);
 
   if (!repository[0]) return null;
 
   // Count tasks using this repository (main + additional)
   const mainTasks = await db.select()
-    .from(v2Schema.tasks)
+    .from(schema.tasks)
     .where(and(
-      eq(v2Schema.tasks.mainRepositoryId, repositoryId),
-      eq(v2Schema.tasks.isAiWorking, true),
-      ne(v2Schema.tasks.status, 'done')
+      eq(schema.tasks.mainRepositoryId, repositoryId),
+      eq(schema.tasks.isAiWorking, true),
+      ne(schema.tasks.status, 'done')
     ));
 
   const additionalTasks = await db.select()
-    .from(v2Schema.taskRepositories)
-    .innerJoin(v2Schema.tasks, eq(v2Schema.tasks.id, v2Schema.taskRepositories.taskId))
+    .from(schema.taskRepositories)
+    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskRepositories.taskId))
     .where(and(
-      eq(v2Schema.taskRepositories.repositoryId, repositoryId),
-      eq(v2Schema.tasks.isAiWorking, true),
-      ne(v2Schema.tasks.status, 'done')
+      eq(schema.taskRepositories.repositoryId, repositoryId),
+      eq(schema.tasks.isAiWorking, true),
+      ne(schema.tasks.status, 'done')
     ));
 
   const currentLoad = mainTasks.length + additionalTasks.length;
@@ -220,18 +155,14 @@ export async function selectBestAgent(
   taskId: string,
   availableAgents: AgentCapacity[]
 ): Promise<string | null> {
-  if (!useV2Schema()) {
-    return null; // V1 doesn't use agent selection
-  }
-
   if (availableAgents.length === 0) {
     return null;
   }
 
   // Get agents assigned to this task
   const assignedAgents = await db.select()
-    .from(v2Schema.taskAgents)
-    .where(eq(v2Schema.taskAgents.taskId, taskId));
+    .from(schema.taskAgents)
+    .where(eq(schema.taskAgents.taskId, taskId));
 
   const assignedAgentIds = assignedAgents.map(ta => ta.agentId);
 
@@ -264,30 +195,14 @@ export async function selectBestAgent(
  * This determines when to pick from loop tasks
  */
 export async function hasRegularTasksAvailable(): Promise<boolean> {
-  if (!useV2Schema()) {
-    const tasks = await db.select()
-      .from(v1Schema.tasks)
-      .where(and(
-        eq(v1Schema.tasks.ready, true),
-        eq(v1Schema.tasks.isAiWorking, false),
-        or(
-          eq(v1Schema.tasks.status, 'todo'),
-          eq(v1Schema.tasks.status, 'doing')
-        )
-      ))
-      .limit(1);
-
-    return tasks.length > 0;
-  }
-
   const tasks = await db.select()
-    .from(v2Schema.tasks)
+    .from(schema.tasks)
     .where(and(
-      eq(v2Schema.tasks.ready, true),
-      eq(v2Schema.tasks.isAiWorking, false),
+      eq(schema.tasks.ready, true),
+      eq(schema.tasks.isAiWorking, false),
       or(
-        eq(v2Schema.tasks.status, 'todo'),
-        eq(v2Schema.tasks.status, 'doing')
+        eq(schema.tasks.status, 'todo'),
+        eq(schema.tasks.status, 'doing')
       )
     ))
     .limit(1);
@@ -299,35 +214,30 @@ export async function hasRegularTasksAvailable(): Promise<boolean> {
  * Get loop tasks when no regular tasks are available
  */
 export async function getLoopTasks(): Promise<TaskWithPriority[]> {
-  if (!useV2Schema()) {
-    // V1 doesn't support loop tasks
-    return [];
-  }
-
   const tasks = await db.select({
-    id: v2Schema.tasks.id,
-    priority: v2Schema.tasks.priority,
-    columnOrder: v2Schema.tasks.columnOrder,
-    status: v2Schema.tasks.status,
-    stage: v2Schema.tasks.stage,
-    ready: v2Schema.tasks.ready,
-    isAiWorking: v2Schema.tasks.isAiWorking,
-    mainRepositoryId: v2Schema.tasks.mainRepositoryId,
-    createdAt: v2Schema.tasks.createdAt
+    id: schema.tasks.id,
+    priority: schema.tasks.priority,
+    columnOrder: schema.tasks.columnOrder,
+    status: schema.tasks.status,
+    stage: schema.tasks.stage,
+    ready: schema.tasks.ready,
+    isAiWorking: schema.tasks.isAiWorking,
+    mainRepositoryId: schema.tasks.mainRepositoryId,
+    createdAt: schema.tasks.createdAt
   })
-    .from(v2Schema.tasks)
+    .from(schema.tasks)
     .where(and(
-      eq(v2Schema.tasks.status, 'loop'),
-      eq(v2Schema.tasks.ready, true),
-      eq(v2Schema.tasks.isAiWorking, false)
+      eq(schema.tasks.status, 'loop'),
+      eq(schema.tasks.ready, true),
+      eq(schema.tasks.isAiWorking, false)
     ))
     .orderBy(
-      desc(v2Schema.tasks.priority),
-      asc(v2Schema.tasks.columnOrder),
-      asc(v2Schema.tasks.createdAt)
+      desc(schema.tasks.priority),
+      asc(schema.tasks.columnOrder),
+      asc(schema.tasks.createdAt)
     );
 
-  return tasks;
+  return tasks as TaskWithPriority[];
 }
 
 /**
@@ -341,25 +251,10 @@ export async function assignTaskToAgent(
   try {
     const now = new Date();
 
-    if (!useV2Schema()) {
-      // V1 behavior - just update task
-      await db.update(v1Schema.tasks)
-        .set({
-          isAiWorking: true,
-          aiWorkingSince: now,
-          status: 'doing',
-          stage: 'refine', // V1 always starts with refine
-          updatedAt: now
-        })
-        .where(eq(v1Schema.tasks.id, taskId));
-
-      return { success: true };
-    }
-
-    // V2 behavior - get task to determine stage
+    // Get task to determine stage
     const task = await db.select()
-      .from(v2Schema.tasks)
-      .where(eq(v2Schema.tasks.id, taskId))
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, taskId))
       .limit(1);
 
     if (!task[0]) {
@@ -373,7 +268,7 @@ export async function assignTaskToAgent(
     }
 
     // Update task status
-    await db.update(v2Schema.tasks)
+    await db.update(schema.tasks)
       .set({
         isAiWorking: true,
         aiWorkingSince: now,
@@ -381,7 +276,7 @@ export async function assignTaskToAgent(
         stage: initialStage,
         updatedAt: now
       })
-      .where(eq(v2Schema.tasks.id, taskId));
+      .where(eq(schema.tasks.id, taskId));
 
     // Update agent state
     await updateAgentState(agentId, {
@@ -406,14 +301,10 @@ export async function assignTaskToAgent(
  */
 export async function returnTaskToLoop(taskId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    if (!useV2Schema()) {
-      return { success: false, error: 'Loop tasks require V2 schema' };
-    }
-
     // Get task and its project
     const task = await db.select()
-      .from(v2Schema.tasks)
-      .where(eq(v2Schema.tasks.id, taskId))
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, taskId))
       .limit(1);
 
     if (!task[0]) {
@@ -422,12 +313,12 @@ export async function returnTaskToLoop(taskId: string): Promise<{ success: boole
 
     // Get current loop tasks to calculate new bottom position
     const loopTasks = await db.select()
-      .from(v2Schema.tasks)
+      .from(schema.tasks)
       .where(and(
-        eq(v2Schema.tasks.projectId, task[0].projectId),
-        eq(v2Schema.tasks.status, 'loop')
+        eq(schema.tasks.projectId, task[0].projectId),
+        eq(schema.tasks.status, 'loop')
       ))
-      .orderBy(desc(v2Schema.tasks.columnOrder));
+      .orderBy(desc(schema.tasks.columnOrder));
 
     // Calculate new column order (bottom of loop column)
     const lastOrder = loopTasks.length > 0 ? 
@@ -436,7 +327,7 @@ export async function returnTaskToLoop(taskId: string): Promise<{ success: boole
     const newOrder = (lastOrder + 1000).toString();
 
     // Return task to loop
-    await db.update(v2Schema.tasks)
+    await db.update(schema.tasks)
       .set({
         status: 'loop',
         stage: 'loop',
@@ -445,7 +336,7 @@ export async function returnTaskToLoop(taskId: string): Promise<{ success: boole
         columnOrder: newOrder,
         updatedAt: new Date()
       })
-      .where(eq(v2Schema.tasks.id, taskId));
+      .where(eq(schema.tasks.id, taskId));
 
     return { success: true };
   } catch (error) {
@@ -464,10 +355,6 @@ export async function checkAndAssignTasks(): Promise<{
   assigned: number;
   errors: string[];
 }> {
-  if (!useV2Orchestrator()) {
-    return { assigned: 0, errors: ['V2 orchestrator not enabled'] };
-  }
-
   const errors: string[] = [];
   let assigned = 0;
 
@@ -553,12 +440,58 @@ export async function getOrchestrationStatus() {
   const loopTasks = await getLoopTasks();
 
   return {
-    schemaVersion: useV2Schema() ? 'v2' : 'v1',
-    orchestratorEnabled: useV2Orchestrator(),
+    schemaVersion: 'v2',
+    orchestratorEnabled: true,
     readyTasksCount: readyTasks.length,
     availableAgentsCount: availableAgents.length,
     hasRegularTasks: hasRegular,
     loopTasksCount: loopTasks.length,
     timestamp: new Date().toISOString()
   };
+}
+
+/**
+ * Initialize V2 orchestrator (startup function)
+ */
+export async function initializeV2Orchestrator(): Promise<void> {
+  console.log('🤖 Initializing V2 Agent Orchestrator...');
+  
+  // Set up periodic task checking
+  const checkInterval = setInterval(async () => {
+    try {
+      const result = await checkAndAssignTasks();
+      if (result.assigned > 0) {
+        console.log(`🤖 Assigned ${result.assigned} tasks`);
+      }
+      if (result.errors.length > 0) {
+        console.error('🤖 Orchestration errors:', result.errors);
+      }
+    } catch (error) {
+      console.error('🤖 Orchestration check failed:', error);
+    }
+  }, 5000); // Check every 5 seconds
+
+  // Store interval globally for cleanup
+  global.__v2OrchestatorInterval = checkInterval;
+  
+  console.log('🤖 V2 Agent Orchestrator initialized');
+}
+
+/**
+ * Shutdown V2 orchestrator (cleanup function)
+ */
+export async function shutdownV2Orchestrator(): Promise<void> {
+  console.log('🤖 Shutting down V2 Agent Orchestrator...');
+  
+  if (global.__v2OrchestatorInterval) {
+    clearInterval(global.__v2OrchestatorInterval);
+    global.__v2OrchestatorInterval = undefined;
+  }
+  
+  console.log('🤖 V2 Agent Orchestrator shutdown complete');
+}
+
+// Global type declaration for cleanup
+declare global {
+  var __v2OrchestatorInterval: NodeJS.Timeout | undefined;
 }

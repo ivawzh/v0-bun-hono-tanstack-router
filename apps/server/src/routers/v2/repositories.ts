@@ -17,7 +17,6 @@ import {
   isRepositoryAvailable
 } from '../../services/v2/repositories';
 import { requireProjectAccess, requireRepositoryAccess } from '../../lib/auth-v2';
-import { useV2APIs } from '../../lib/feature-flags';
 
 const repositoriesRouter = new Hono();
 
