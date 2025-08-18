@@ -89,7 +89,7 @@ const statusColumns = [
 ];
 
 const stageColors = {
-  refine: "bg-purple-100 text-purple-800 border-purple-200",
+  clarify: "bg-purple-100 text-purple-800 border-purple-200",
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
   loop: "bg-orange-100 text-orange-800 border-orange-200",
@@ -497,9 +497,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       setShowNewTaskDialog(false);
       clearDraft(); // Clear the auto-saved draft
       // Only invalidate this specific project's data
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true 
+        exact: true
       });
     },
     onError: (error) => {
@@ -511,9 +511,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
     onSuccess: () => {
       // Only invalidate this specific project's data
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true 
+        exact: true
       });
     },
     onError: (error) => {
@@ -525,9 +525,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
     onSuccess: () => {
       // Only invalidate this specific project's data
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true 
+        exact: true
       });
     },
     onError: (error) => {
@@ -554,10 +554,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           ["projects", "getWithTasks", { input: { id: projectId } }],
           (old: any) => {
             if (!old?.tasks) return old;
-            
+
             // Remove the deleted task from the tasks array
             const updatedTasks = old.tasks.filter((task: any) => task.id !== variables.id);
-            
+
             return { ...old, tasks: updatedTasks };
           }
         );
@@ -592,9 +592,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     onSuccess: () => {
       toast.success("AI agent status reset successfully");
       // Only invalidate this specific project's data
-      queryClient.invalidateQueries({ 
+      queryClient.invalidateQueries({
         queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true 
+        exact: true
       });
       setResetTaskId(null);
       setTaskToReset(null);
@@ -699,20 +699,20 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         // But we'll also consider createdAt as a secondary sort for stability
         const aTime = new Date(a.updatedAt).getTime();
         const bTime = new Date(b.updatedAt).getTime();
-        
+
         // If updatedAt times are very close (within 1 second), fall back to createdAt for stable sorting
         const timeDiff = Math.abs(aTime - bTime);
         if (timeDiff < 1000) {
           const aCreated = new Date(a.createdAt).getTime();
           const bCreated = new Date(b.createdAt).getTime();
-          
+
           if (doneSortOrder === 'newest-first') {
             return bCreated - aCreated;
           } else {
             return aCreated - bCreated;
           }
         }
-        
+
         if (doneSortOrder === 'newest-first') {
           return bTime - aTime; // Newest first (descending)
         } else {
@@ -885,7 +885,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleStageChange = (taskId: string, stage: string | null) => {
-    updateStageMutation.mutate({ id: taskId, stage: stage as "refine" | "plan" | "execute" | "loop" | null });
+    updateStageMutation.mutate({ id: taskId, stage: stage as "clarify" | "plan" | "execute" | "loop" | null });
   };
 
   const handleDeleteTask = (task: any) => {
@@ -927,7 +927,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       setShowProjectSettings(true);
       return;
     }
-    
+
     if (!agents || agents.length === 0) {
       toast.error("No agents configured");
       setShowNewTaskDialog(false);
@@ -935,7 +935,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       setShowProjectSettings(true);
       return;
     }
-    
+
     if (!newTask.rawTitle || !newTask.mainRepositoryId || !newTask.assignedAgentIds?.length) {
       toast.error("Please fill in all required fields (title, repository, and agent)");
       return;
@@ -947,7 +947,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
       status: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
-      stage: newTask.stage as "refine" | "plan" | "execute" | "loop" | null
+      stage: newTask.stage as "clarify" | "plan" | "execute" | "loop" | null
     });
   };
 
@@ -979,19 +979,19 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button 
-            onClick={() => setShowProjectSettings(true)} 
-            variant="outline" 
-            size="sm" 
+          <Button
+            onClick={() => setShowProjectSettings(true)}
+            variant="outline"
+            size="sm"
             className="max-sm:h-11 max-sm:w-11 max-sm:p-0 min-h-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
           >
             <Settings className="h-4 w-4 md:mr-2" />
             <span className="hidden md:inline">Settings</span>
           </Button>
-          <Button 
-            onClick={() => refetch()} 
-            variant="outline" 
-            size="sm" 
+          <Button
+            onClick={() => refetch()}
+            variant="outline"
+            size="sm"
             className="max-sm:h-11 max-sm:w-11 max-sm:p-0 max-sm:text-lg min-h-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
           >
             <span className="hidden sm:inline">Refresh</span>
@@ -1047,8 +1047,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                                 </Button>
                               </TooltipTrigger>
                               <TooltipContent>
-                                {doneSortOrder === 'newest-first' 
-                                  ? 'Sorted by newest first (click for oldest first)' 
+                                {doneSortOrder === 'newest-first'
+                                  ? 'Sorted by newest first (click for oldest first)'
                                   : 'Sorted by oldest first (click for newest first)'
                                 }
                               </TooltipContent>
@@ -1072,7 +1072,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                               setShowProjectSettings(true);
                               return;
                             }
-                            
+
                             setNewTaskColumn(column.id);
                             setShowNewTaskDialog(true);
                           }}
@@ -1277,7 +1277,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                   size="md"
                 />
                 <span className="text-xs text-muted-foreground">
-                  Default: {newTaskColumn === 'loop' ? 'Loop' : 'Refine'}
+                  Default: {newTaskColumn === 'loop' ? 'Loop' : 'clarify'}
                 </span>
               </div>
             </div>
@@ -1304,9 +1304,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
             >
               Cancel
             </Button>
-            <Button 
-              onClick={handleCreateTask} 
-              disabled={createTaskMutation.isPending} 
+            <Button
+              onClick={handleCreateTask}
+              disabled={createTaskMutation.isPending}
               className="max-sm:w-full min-h-[44px] touch-manipulation focus-visible:ring-2 disabled:opacity-50"
             >
               {createTaskMutation.isPending ? "Creating..." : "Create Task"}

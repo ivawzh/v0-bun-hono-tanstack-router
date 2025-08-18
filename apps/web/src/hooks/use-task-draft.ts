@@ -27,7 +27,7 @@ function getDefaultStage(column?: string): string | null {
   if (column === 'loop') {
     return 'loop'
   }
-  return 'refine' // Default for all other columns (todo, doing, done)
+  return 'clarify' // Default for all other columns (todo, doing, done)
 }
 
 export function useTaskDraft(defaultColumn?: string) {
@@ -121,13 +121,13 @@ export function useTaskDraft(defaultColumn?: string) {
       clearTimeout(timeoutRef.current)
       timeoutRef.current = null
     }
-    
+
     try {
       localStorage.removeItem(STORAGE_KEY)
     } catch (error) {
       console.warn('Failed to clear task draft from localStorage:', error)
     }
-    
+
     setDraft({
       rawTitle: '',
       rawDescription: '',

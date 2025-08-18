@@ -72,10 +72,10 @@ interface Repository {
   id: string;
   name: string;
   repoPath: string;
-  isDefault?: boolean;
+  isDefault?: boolean | null;
   isAvailable?: boolean;
   activeTaskCount?: number;
-  maxConcurrencyLimit?: number;
+  maxConcurrencyLimit?: number | null;
 }
 
 interface Agent {
@@ -84,14 +84,14 @@ interface Agent {
   agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE';
   isAvailable?: boolean;
   activeTaskCount?: number;
-  maxConcurrencyLimit?: number;
+  maxConcurrencyLimit?: number | null;
 }
 
 interface Actor {
   id: string;
   name: string;
   description: string;
-  isDefault?: boolean;
+  isDefault?: boolean | null;
 }
 
 interface TaskV2 {
@@ -102,20 +102,20 @@ interface TaskV2 {
   refinedTitle?: string;
   refinedDescription?: string;
   status: 'todo' | 'doing' | 'done';
-  stage?: 'refine' | 'plan' | 'execute';
+  stage?: 'clarify' | 'plan' | 'execute';
   priority: number;
   ready: boolean;
   plan?: any;
   attachments?: any[];
   createdAt: string;
   isAiWorking?: boolean;
-  
+
   // V2 specific fields
   mainRepositoryId: string;
   additionalRepositoryIds: string[];
   assignedAgentIds: string[];
   actorId?: string;
-  
+
   // Populated relationships
   mainRepository?: Repository;
   additionalRepositories?: Repository[];
@@ -137,7 +137,7 @@ const statusOptions = [
 ];
 
 const stageOptions = [
-  { value: "refine", label: "Refine", color: "bg-purple-100 text-purple-800 border-purple-200" },
+  { value: "clarify", label: "clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
 ];
@@ -150,19 +150,13 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   const queryClient = useQueryClient();
 
-  // Fetch task details via V2 API (Note: Individual task fetch may need to be implemented)
-  const { data: task, isLoading } = useQuery({
-    queryKey: ['v2-task', taskId],
-    queryFn: async () => {
-      // For now, this endpoint might not exist, so we'll fetch from project tasks
-      // This would need to be implemented in the V2 tasks router
-      const response = await fetch(`/api/v2/tasks/${taskId}`);
-      if (!response.ok) throw new Error("Task not found");
-      const data = await response.json();
-      return data.task;
-    },
-    enabled: !!taskId
-  });
+  // Fetch task details using oRPC
+  const { data: task, isLoading } = useQuery(
+    orpc.tasks.get.queryOptions({
+      input: { id: taskId! },
+      enabled: !!taskId
+    })
+  );
 
   // Fetch available repositories
   const { data: repositories = [] } = useQuery(
@@ -180,29 +174,16 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     })
   );
 
-  // Fetch available actors (Note: actors endpoint may need to be implemented)
-  const { data: actors = [] } = useQuery({
-    queryKey: ['v2-actors', task?.projectId],
-    queryFn: async () => {
-      if (!task?.projectId) return [];
-      // This endpoint may need to be implemented in V2 API
-      return [];
-    },
-    enabled: !!task?.projectId
-  });
+  // Fetch available actors using oRPC
+  const { data: actors = [] } = useQuery(
+    orpc.actors.list.queryOptions({
+      input: { projectId: task?.projectId || '' },
+      enabled: !!task?.projectId
+    })
+  );
 
-  // Update task mutation
-  const updateTaskMutation = useMutation({
-    mutationFn: async (updates: Partial<TaskV2>) => {
-      // Note: This would need individual task update endpoint in V2 API
-      const response = await fetch(`/api/v2/tasks/${taskId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updates)
-      });
-      if (!response.ok) throw new Error('Failed to update task');
-      return await response.json();
-    },
+  // Update task mutation using oRPC
+  const updateTaskMutation = useMutation(orpc.tasks.update.mutationOptions({
     onSuccess: () => {
       toast.success("Task updated successfully");
       setEditingTitle(false);
@@ -213,14 +194,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     onError: (error: any) => {
       toast.error(`Failed to update task: ${error.message}`);
     }
-  });
+  }));
 
-  // Delete task mutation
-  const deleteTaskMutation = useMutation({
-    mutationFn: async (taskId: string) => {
-      // TODO: Replace with V2 API
-      throw new Error("V2 task delete API not implemented yet");
-    },
+  // Delete task mutation using oRPC
+  const deleteTaskMutation = useMutation(orpc.tasks.delete.mutationOptions({
     onSuccess: () => {
       toast.success("Task deleted successfully");
       onOpenChange(false);
@@ -229,7 +206,18 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     onError: (error: any) => {
       toast.error(`Failed to delete task: ${error.message}`);
     }
-  });
+  }));
+
+  // Delete attachment mutation using oRPC
+  const deleteAttachmentMutation = useMutation(orpc.tasks.deleteAttachment.mutationOptions({
+    onSuccess: () => {
+      toast.success("Attachment deleted successfully");
+      queryClient.invalidateQueries({ queryKey: ['v2-task', taskId] });
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to delete attachment: ${error.message}`);
+    }
+  }));
 
   const handleSaveTitle = () => {
     if (tempTitle.trim()) {
@@ -266,13 +254,13 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   const handleStageChange = (stage: string | null) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      stage: stage as "refine" | "plan" | "execute" | null
+      stage: stage as "execute" | "plan" | "clarify" | undefined
     });
   };
 
   const handleDeleteTask = () => {
     if (window.confirm("Are you sure you want to delete this task?")) {
-      deleteTaskMutation.mutate(taskId!);
+      deleteTaskMutation.mutate({ id: taskId! });
     }
   };
 
@@ -308,7 +296,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
       } catch {
         planValue = newValue;
       }
-      
+
       updateTaskMutation.mutate({
         id: taskId!,
         plan: planValue
@@ -321,44 +309,23 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   // V2 specific handlers
   const handleMainRepositoryChange = (repositoryId: string) => {
-    const currentAdditional = task?.additionalRepositoryIds || [];
-    // Use assignment endpoint for repository changes
-    fetch(`/api/v2/tasks/${taskId}/assignments`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assignedAgentIds: task?.assignedAgentIds || [],
-        additionalRepositoryIds: currentAdditional.filter(id => id !== repositoryId)
-      })
-    }).then(() => {
-      // Update main repository separately if needed
-      updateTaskMutation.mutate({ mainRepositoryId: repositoryId });
+    updateTaskMutation.mutate({ 
+      id: taskId!,
+      mainRepositoryId: repositoryId 
     });
   };
 
   const handleAdditionalRepositoriesChange = (repositoryIds: string[]) => {
-    fetch(`/api/v2/tasks/${taskId}/assignments`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assignedAgentIds: task?.assignedAgentIds || [],
-        additionalRepositoryIds: repositoryIds
-      })
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['v2-task', taskId] });
+    updateTaskMutation.mutate({ 
+      id: taskId!,
+      additionalRepositoryIds: repositoryIds 
     });
   };
 
   const handleAssignedAgentsChange = (agentIds: string[]) => {
-    fetch(`/api/v2/tasks/${taskId}/assignments`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        assignedAgentIds: agentIds,
-        additionalRepositoryIds: task?.additionalRepositoryIds || []
-      })
-    }).then(() => {
-      queryClient.invalidateQueries({ queryKey: ['v2-task', taskId] });
+    updateTaskMutation.mutate({ 
+      id: taskId!,
+      assignedAgentIds: agentIds 
     });
   };
 
@@ -633,7 +600,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                       <div className="space-y-6">
                         {/* Upload new attachments */}
                         <TaskAttachmentUpload taskId={task.id} />
-                        
+
                         {/* Existing attachments */}
                         <AttachmentList
                           attachments={Array.isArray(task.attachments) ? task.attachments : []}
@@ -641,8 +608,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                           showDelete={true}
                           compact={false}
                           onDelete={(attachmentId) => {
-                            // TODO: Implement V2 attachment deletion
-                            toast.error("V2 attachment deletion not implemented yet");
+                            deleteAttachmentMutation.mutate({
+                              taskId: task.id,
+                              attachmentId
+                            });
                           }}
                         />
                       </div>
@@ -718,8 +687,8 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                           <CardContent className="space-y-4">
                             <div>
                               <Label>Main Repository</Label>
-                              <Select 
-                                value={task.mainRepositoryId || ""} 
+                              <Select
+                                value={task.mainRepositoryId || ""}
                                 onValueChange={handleMainRepositoryChange}
                               >
                                 <SelectTrigger className="mt-1">
@@ -782,8 +751,8 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
                             <div>
                               <Label>Actor (Optional)</Label>
-                              <Select 
-                                value={task.actorId || ""} 
+                              <Select
+                                value={task.actorId || ""}
                                 onValueChange={handleActorChange}
                               >
                                 <SelectTrigger className="mt-1">
@@ -823,8 +792,8 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
                         {/* Danger Zone */}
                         <div className="pt-4">
-                          <Button 
-                            variant="destructive" 
+                          <Button
+                            variant="destructive"
                             onClick={handleDeleteTask}
                             className="w-full h-11 min-h-[44px] touch-manipulation"
                           >

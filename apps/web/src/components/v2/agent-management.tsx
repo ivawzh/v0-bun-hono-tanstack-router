@@ -147,18 +147,18 @@ export function AgentManagement({
   );
 }
 
-function AgentCard({ 
-  agent, 
-  onEdit, 
-  onDelete 
-}: { 
-  agent: Agent; 
-  onEdit: () => void; 
-  onDelete: () => void; 
+function AgentCard({
+  agent,
+  onEdit,
+  onDelete
+}: {
+  agent: Agent;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
-  const isRateLimited = agent.state?.rateLimitResetAt && 
+  const isRateLimited = agent.state?.rateLimitResetAt &&
     new Date(agent.state.rateLimitResetAt) > new Date();
-  
+
   const getStatusBadge = () => {
     if (isRateLimited) {
       return <Badge variant="destructive">Rate Limited</Badge>;
@@ -236,10 +236,10 @@ function AgentCard({
   );
 }
 
-function CreateAgentForm({ 
-  onSubmit 
-}: { 
-  onSubmit: (agent: Omit<Agent, 'id' | 'state' | 'createdAt' | 'updatedAt'>) => Promise<void>; 
+function CreateAgentForm({
+  onSubmit
+}: {
+  onSubmit: (agent: Omit<Agent, 'id' | 'state' | 'createdAt' | 'updatedAt'>) => Promise<void>;
 }) {
   const [formData, setFormData] = useState({
     name: '',
@@ -250,7 +250,7 @@ function CreateAgentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const agentSettings: Record<string, any> = {};
     if (formData.claudeConfigDir) {
       agentSettings.CLAUDE_CONFIG_DIR = formData.claudeConfigDir;
@@ -281,7 +281,7 @@ function CreateAgentForm({
         <Label htmlFor="agentType">Agent Type</Label>
         <Select
           value={formData.agentType}
-          onValueChange={(value: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE') =>
+          onValueChange={(value: 'CLAUDE_CODE') =>
             setFormData(prev => ({ ...prev, agentType: value }))
           }
         >
@@ -304,9 +304,9 @@ function CreateAgentForm({
           min="1"
           max="10"
           value={formData.maxConcurrencyLimit}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
-            maxConcurrencyLimit: parseInt(e.target.value) 
+          onChange={(e) => setFormData(prev => ({
+            ...prev,
+            maxConcurrencyLimit: parseInt(e.target.value)
           }))}
         />
       </div>
@@ -333,14 +333,14 @@ function CreateAgentForm({
   );
 }
 
-function EditAgentForm({ 
-  agent, 
-  onSubmit, 
-  onCancel 
-}: { 
-  agent: Agent; 
-  onSubmit: (updates: Partial<Agent>) => Promise<void>; 
-  onCancel: () => void; 
+function EditAgentForm({
+  agent,
+  onSubmit,
+  onCancel
+}: {
+  agent: Agent;
+  onSubmit: (updates: Partial<Agent>) => Promise<void>;
+  onCancel: () => void;
 }) {
   const [formData, setFormData] = useState({
     name: agent.name,
@@ -350,7 +350,7 @@ function EditAgentForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const agentSettings = { ...agent.agentSettings };
     if (formData.claudeConfigDir) {
       agentSettings.CLAUDE_CONFIG_DIR = formData.claudeConfigDir;
@@ -385,9 +385,9 @@ function EditAgentForm({
           min="1"
           max="10"
           value={formData.maxConcurrencyLimit}
-          onChange={(e) => setFormData(prev => ({ 
-            ...prev, 
-            maxConcurrencyLimit: parseInt(e.target.value) 
+          onChange={(e) => setFormData(prev => ({
+            ...prev,
+            maxConcurrencyLimit: parseInt(e.target.value)
           }))}
         />
       </div>

@@ -16,16 +16,16 @@ interface TaskStageSelectorProps {
 }
 
 const stages = [
-  { value: "refine", label: "Refine", color: "bg-purple-100 text-purple-800 border-purple-200" },
+  { value: "clarify", label: "clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   { value: "loop", label: "Loop", color: "bg-orange-100 text-orange-800 border-orange-200" },
 ];
 
-export function TaskStageSelector({ 
-  stage, 
-  status, 
-  onStageChange, 
+export function TaskStageSelector({
+  stage,
+  status,
+  onStageChange,
   disabled = false,
   size = "sm"
 }: TaskStageSelectorProps) {
@@ -33,7 +33,7 @@ export function TaskStageSelector({
   if (status === "done" || status === "todo") {
     return null;
   }
-  
+
   // For loop tasks, show read-only loop stage badge
   if (status === "loop") {
     const loopStage = stages.find(s => s.value === "loop");
@@ -48,14 +48,14 @@ export function TaskStageSelector({
   }
 
   const currentStage = stages.find(s => s.value === stage);
-  
+
   return (
-    <Select 
-      value={stage || ""} 
+    <Select
+      value={stage || ""}
       onValueChange={(value) => onStageChange(value || null)}
       disabled={disabled}
     >
-      <SelectTrigger 
+      <SelectTrigger
         className={cn(
           "h-6 text-xs border-0 bg-transparent p-1 font-medium",
           size === "sm" ? "w-auto min-w-[70px]" : "w-auto min-w-[80px]",
