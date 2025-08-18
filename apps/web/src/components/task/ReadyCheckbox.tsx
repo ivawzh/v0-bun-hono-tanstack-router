@@ -42,8 +42,6 @@ export function ReadyCheckbox({
         "w-4 h-4 rounded-full border transition-all duration-200",
         "focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-blue-500",
         "hover:scale-110 active:scale-95",
-        // Touch target for mobile (minimum 44px as per guidelines)
-        "min-h-[44px] min-w-[44px] touch-manipulation",
         // Ready state (checked) - filled green with checkmark
         checked && [
           "bg-green-600 border-green-600 text-white",
@@ -62,7 +60,7 @@ export function ReadyCheckbox({
       {/* Checkmark icon - only visible when checked */}
       <Check 
         className={cn(
-          "w-2.5 h-2.5 transition-opacity duration-150",
+          "w-3.5 h-3.5 transition-opacity duration-150",
           checked ? "opacity-100" : "opacity-0"
         )} 
       />
