@@ -8,6 +8,8 @@ import { getTaskAdditionalRepositories } from '../../services/v2/repositories';
 import { db } from '../../db';
 import { eq } from 'drizzle-orm';
 import * as schema from '../../db/schema/index';
+import { generatePrompt } from '../prompts/index';
+import type { TaskContext, TaskStage } from '../prompts/index';
 
 interface ClaudeCodeSessionOptions {
   projectPath: string;
@@ -357,98 +359,25 @@ async function getTaskDetails(taskId: string) {
  */
 async function generateTaskPrompt(taskDetails: any): Promise<string> {
   const task = taskDetails.task;
-  const stage = task.stage || 'refine';
+  const stage = (task.stage || 'refine') as TaskStage;
 
-  // Base prompt components
-  const titleSection = task.refinedTitle || task.rawTitle;
-  const descriptionSection = task.refinedDescription || task.rawDescription || '';
-  const projectMemory = taskDetails.project?.memory || {};
-  const actorDescription = taskDetails.actor?.description || 'Default engineering agent';
+  // Build task context for prompt generation
+  const context: TaskContext = {
+    id: task.id,
+    projectId: task.projectId,
+    rawTitle: task.rawTitle,
+    rawDescription: task.rawDescription,
+    refinedTitle: task.refinedTitle,
+    refinedDescription: task.refinedDescription,
+    plan: task.plan,
+    priority: task.priority,
+    attachments: task.attachments,
+    actorDescription: taskDetails.actor?.description,
+    projectMemory: JSON.stringify(taskDetails.project?.memory || {}),
+    repoPath: taskDetails.mainRepository?.repoPath || ''
+  };
 
-  // Stage-specific prompts
-  switch (stage) {
-    case 'refine':
-      return `[refine] ${titleSection}
-${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
-
-**Do not write any code!**
-Refine this raw task.
-
-**Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="refine", isAiWorking=true
-2. Analyze the raw title and raw description to understand the user's intent. Focus on UX improvements and Customer Obsession.
-3. Create a refined title that is clear and specific.
-4. Write a detailed refined description that includes:
-   - What needs to be implemented/fixed/changed
-   - Key requirements and goals
-   - Expected outcome
-   - Out-of-scope items if any
-5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="plan", isAiWorking=false, refinedTitle=[from above], refinedDescription=[from above]
-
-**Your Role**: ${actorDescription}
-**Project Context**: ${JSON.stringify(projectMemory)}`;
-
-    case 'plan':
-      return `[plan] ${titleSection}
-${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
-
-**Do not write any code!**
-Create a plan for implementing this task.
-
-**Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="plan", isAiWorking=true
-2. **Analyze Requirements**: Review the refined title and description
-3. **Solution Options**: List 2-3 different implementation approaches
-4. **Select Approach**: Choose the best solution and explain why
-5. **Create Specification**: Write detailed implementation spec
-6. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", isAiWorking=false, plan=[solution and spec from above]
-
-**Your Role**: ${actorDescription}
-**Project Context**: ${JSON.stringify(projectMemory)}`;
-
-    case 'execute':
-      return `[execute] ${titleSection}
-${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
-
-Implement the solution following the plan below.
-
-**Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="execute", isAiWorking=true
-2. **Follow the Plan**: Implement the solution as specified in the plan above
-3. **Commit Changes**: Make appropriate git commits when needed
-4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", stage=null, isAiWorking=false
-
-**Your Role**: ${actorDescription}
-**Project Context**: ${JSON.stringify(projectMemory)}
-
-**Task to Implement**:
-- **Title**: ${titleSection}
-- **Description**: ${descriptionSection}
-${task.plan ? `\n**Implementation Plan**:\n${JSON.stringify(task.plan, null, 2)}` : ''}`;
-
-    case 'loop':
-      return `[loop] ${titleSection}
-${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
-
-Execute this repeatable task. This is a loop task that will return to the loop column after completion.
-
-**Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="loop", isAiWorking=true
-2. **Execute Task**: Perform the task as described (no refine/plan stages for loop tasks)
-3. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", stage="loop", isAiWorking=false
-
-**Note**: This task will automatically return to the Loop column for future execution.
-
-**Your Role**: ${actorDescription}
-**Project Context**: ${JSON.stringify(projectMemory)}`;
-
-    default:
-      return `${titleSection}
-${descriptionSection}
-
-**Your Role**: ${actorDescription}
-**Project Context**: ${JSON.stringify(projectMemory)}`;
-  }
+  return generatePrompt(stage, context);
 }
 
 /**

@@ -38,10 +38,12 @@ interface RepositoryCapacity {
 }
 
 /**
- * Get ready tasks sorted by priority
+ * Get ready tasks sorted by priority > column (doing > todo > loop) > columnOrder
+ * Includes dependency checking - only tasks with completed dependencies are ready
  */
 export async function getReadyTasks(): Promise<TaskWithPriority[]> {
-  const tasks = await db.select({
+  // Get all ready tasks from todo, doing, and loop columns
+  const allTasks = await db.select({
     id: schema.tasks.id,
     priority: schema.tasks.priority,
     columnOrder: schema.tasks.columnOrder,
@@ -58,16 +60,83 @@ export async function getReadyTasks(): Promise<TaskWithPriority[]> {
       eq(schema.tasks.isAiWorking, false),
       or(
         eq(schema.tasks.status, 'todo'),
+        eq(schema.tasks.status, 'doing'),
         eq(schema.tasks.status, 'loop')
       )
-    ))
-    .orderBy(
-      desc(schema.tasks.priority),
-      asc(schema.tasks.columnOrder),
-      asc(schema.tasks.createdAt)
-    );
+    ));
 
-  return tasks as TaskWithPriority[];
+  // Filter tasks that have all dependencies completed
+  const readyTasks: TaskWithPriority[] = [];
+  
+  for (const task of allTasks) {
+    const hasUncompletedDependencies = await checkTaskDependencies(task.id);
+    if (!hasUncompletedDependencies) {
+      readyTasks.push(task as TaskWithPriority);
+    }
+  }
+
+  // Sort by: priority (desc) > column status (doing > todo > loop) > columnOrder (asc)
+  readyTasks.sort((a, b) => {
+    // First: Priority (higher priority first)
+    if (a.priority !== b.priority) {
+      return b.priority - a.priority;
+    }
+
+    // Second: Column status ordering (doing > todo > loop)
+    const statusOrder = { doing: 1, todo: 2, loop: 3 };
+    const aStatusOrder = statusOrder[a.status as keyof typeof statusOrder] || 4;
+    const bStatusOrder = statusOrder[b.status as keyof typeof statusOrder] || 4;
+    
+    if (aStatusOrder !== bStatusOrder) {
+      return aStatusOrder - bStatusOrder;
+    }
+
+    // Third: Column order (lower number first)
+    const aOrder = parseFloat(a.columnOrder);
+    const bOrder = parseFloat(b.columnOrder);
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+
+    // Fourth: Creation date (older first)
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  });
+
+  return readyTasks;
+}
+
+/**
+ * Check if task has any uncompleted dependencies
+ * Returns true if there are uncompleted dependencies (task not ready)
+ * Returns false if all dependencies are completed (task is ready)
+ */
+async function checkTaskDependencies(taskId: string): Promise<boolean> {
+  // Get all dependencies for this task
+  const dependencies = await db.select({
+    dependsOnTaskId: schema.taskDependencies.dependsOnTaskId
+  })
+    .from(schema.taskDependencies)
+    .where(eq(schema.taskDependencies.taskId, taskId));
+
+  if (dependencies.length === 0) {
+    return false; // No dependencies, task is ready
+  }
+
+  // Check if all dependency tasks are completed
+  for (const dep of dependencies) {
+    const dependencyTask = await db.select({
+      status: schema.tasks.status
+    })
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, dep.dependsOnTaskId))
+      .limit(1);
+
+    if (dependencyTask.length === 0 || dependencyTask[0].status !== 'done') {
+      return true; // Has uncompleted dependency
+    }
+  }
+
+  return false; // All dependencies completed
 }
 
 /**
