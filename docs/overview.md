@@ -2,32 +2,22 @@
 
 ## Vision and Goal
 
-Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 3-column board where agents automatically pick up and complete work.
+Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-column board where agents automatically pick up and complete work.
 
-- Single-user, single-machine, local-everything approach
-- AI agents autonomously refine, plan, and execute tasks
-- Zero setup complexity - just create project, configure repo agents, and start tasking
+- AI agents autonomously refine, plan, execute and loop tasks
+- Create project, configure repo, agents, and start tasking
 
-## Principles
+## Tech stack
 
-- **Least Powerful Principle**: Only one user, one machine, one coding session at one time. Local everything. PostgreSQL database and repositories are on the same machine.
-- **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
-- **Single-User Only**: No multi-user, permissions, or organizations.
-- **Local-First**: Everything runs locally. No cloud dependencies beyond auth.
-- **Reactive UXUI**: Upon user interaction, implement real-time UI updates either by invalidating all queries or via WebSocket connections for immediate feedback and responsive user experience.
-- **Idempotency**: All operations safe to retry with proper deduplication.
-- **Default Best Config**: Optimal defaults out-of-the-box, minimal configuration required.
-- **Auth**: Every endpoint/operation must pass through Monster Auth guard
-- Tech stack:
-  - Web: React + TanStack Router (apps/web)
-  - UI: TailwindCSS + shadcn/ui component library
-  - Server: Hono + oRPC (apps/server)
-  - Runtime: Bun
-  - ORM: Drizzle
-  - Database: Local PostgreSQL
-  - Validation: Valibot
-  - MCP: @modelcontextprotocol/sdk/server/mcp
-  - WebSocket: Bun std `Bun.serve({ websocket })`
+- Web: React + TanStack Router (apps/web)
+- UI: TailwindCSS + shadcn/ui component library
+- Server: Hono + oRPC (apps/server)
+- Runtime: Bun
+- ORM: Drizzle
+- Database: Local PostgreSQL
+- Validation: Valibot
+- MCP: stateless http @modelcontextprotocol/sdk/server/mcp
+- WebSocket: Bun std `Bun.serve({ websocket })`
 
 ## Database Implementation
 
@@ -127,123 +117,45 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - Make commits and push as needed
 - Move to Done when complete
 
-### Removed Features
+## Data Model
 
-- "Ask Human" button
-- "Start Agent" button
-- Separate boards (1 project = 1 board)
-- Card Checklist, Comments, Questions sections
-- QA requirement/column
-- Pause Agent on single card
-- Chat entirely
-- CLAUDE_PROJECT_ID from Claude Code UI
-
-## In-Scope (Simplified)
-
-- **Core Entities**: Projects, repo agents, actors, tasks
-- **3-Column Board**: Todo, Doing (with stages), Done
-- **Agent Automation**: Autonomous pickup and execution
-- **Project Memory**: Database-stored context for agents
-- **Task Attachments**: File/image support
-- **Priority System**: Unified 1-5 priority
-- **WebSocket Communication**: Real-time agent coordination
-- **Single Active Session**: One coding session per client type
-- **Authentication**: Monster Auth for single owner
-
-## Out of Scope
-
-- Multi-user support
-- Multiple boards per project
-- Chat/messaging system
-- QA workflows
-- Manual agent controls
-- Cloud deployment
-- Multiple active sessions
-- Performance optimization
-
-## Simplified Data Model
-
-### Projects
-
-- `id`, `name`, `description`
-- `memory` (jsonb) - project context for agents
-- `created_at`, `updated_at`
-
-### Repo Agents
-
-- `id`, `project_id`, `name`
-- `repo_path` (local file system path)
-- `client_type` (enum: claude_code, opencode, etc.)
-- `config` (jsonb) - client-specific settings
-- `status` (enum: idle, active, rate_limited, error)
-
-### Actors
-
-- `id`, `project_id`, `name`
-- `description` (agent personality/methodology)
-- `is_default` (boolean)
-
-### Tasks
-
-- `id`, `project_id`, `repo_agent_id`, `actor_id`
-- `raw_title`, `raw_description`
-- `refined_title`, `refined_description`
-- `plan` (jsonb) - plan results
-- `status` (enum: todo, doing, done)
-- `stage` (enum: refine, plan, execute) - only for doing status
-- `priority` 1-5. With meaning of 1: Lowest, 2: Low, 3: Medium, 4: High, 5: Highest
-- `ready` (boolean) - replaces auto-start
-- `attachments` (jsonb array)
-- `created_at`, `updated_at`
-
-### Sessions
-
-- `id`, `task_id`, `repo_agent_id`
-- `status` (enum: starting, active, completed, failed)
-- `started_at`, `completed_at`
+```mermaid
+erDiagram
+    Users ||--o{ ProjectUsers : member_of
+    ProjectUsers }o--|| Projects : access_to
+    Users ||--o{ Agents : owns
+    Projects ||--o{ Repositories : defines
+    Projects ||--o{ Tasks : contains
+    Projects ||--o{ Actors : contains
+    Agents ||--o{ Tasks : assigned_to
+    Repositories ||--o{ Tasks : main_repo
+    Repositories ||--o{ TaskRepositories : additional_repos
+    Tasks ||--o{ TaskRepositories : uses_repos
+```
 
 ## Code Agent Management
 
-### Claude Code UI WebSocket Server
+### Claude Code UI
 
-- CCU originally uses its WebSocket server to communicate with code agent shell, server and UI.
-- Now we modified and added basic auth via env var `AGENT_AUTH_TOKEN` to its websocket server.
-- Solo Unicorn server will connect to CCU websocket.
-- Solo Unicorn will monitor code agent vacancy and automatically push tasks to it (create session).
+Claude Code UI is a open source project. It support not only Claude Code but other agent clients like Cursor CLI. We have cloned Claude Code UI to local and modified it. We aim to keep pulling its latest upstream version so that we gets all its up-to-dated features. We aim to make minimum modificaftions so that reduce conflicts during new version pull.
+
+- CCU originally uses its WebSocket server to communicate with code agent shell, CCU server and CCU UI.
+- Now we modified and added basic auth (bearer header of env var `AGENT_AUTH_TOKEN`) to its websocket server.
+- Solo Unicorn server connects to CCU websocket.
+- Solo Unicorn push tasks to CCU via its ws.
 
 ### Solo Unicorn MCP Server
 
-- Solo Unicorn provides MCP server for code agents to push information to.
-- Usage includes:
-  - Update task status, stage, refined title, refined description, plan, code agent session id, etc.
-  - Update code agent client type status (e.g. rate limit and rate limit reset time)
-  - Create tasks.
+- Solo Unicorn provides MCP server for code agents (e.g. CCU) to communicate back.
+- MCP tools includes:
+  - create task
+  - Update task
+  - Report agent rate limited
+  - Update project memory
 
 ## API Endpoints
 
 **Authentication**: All routes protected by Monster Auth
-
-### Core Routes
-
-- `GET/POST /api/projects` - Project CRUD
-- `GET/POST /api/projects/:id/repo-agents` - Repo agent management
-- `GET/POST /api/projects/:id/actors` - Actor management
-- `GET/POST /api/projects/:id/tasks` - Task CRUD
-- `PUT /api/tasks/:id/ready` - Toggle ready status
-- `GET /api/tasks/:id/attachments` - File management
-
-### MCP Integration
-
-- `context.read` - Fetch project/task/memory
-- `cards.update` - Update task fields during workflow
-- `memory.update` - Modify project memory
-
-## Development Setup
-
-1. **Local PostgreSQL**: Create fresh database
-2. **Solo Unicorn Server**: Start on port 8500 with WebSocket
-3. **Solo Unicorn Web**: React app for task management
-4. **Claude Code UI**: Adapt WebSocket client for communication
 
 ## Implementation Notes
 

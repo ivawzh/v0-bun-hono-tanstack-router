@@ -12,6 +12,10 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 
 @docs/uiux-design.md
 
+## Principles
+
+@.ai/rules/shared/rules/principles.mdc
+
 ## Key Development Guidelines
 
 @.ai/rules/shared/rules/js-rules.mdc
