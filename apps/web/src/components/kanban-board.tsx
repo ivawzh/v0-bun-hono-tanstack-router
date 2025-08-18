@@ -401,6 +401,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
   const [showProjectSettings, setShowProjectSettings] = useState(false);
+  const [projectSettingsTab, setProjectSettingsTab] = useState<'repositories' | 'agents'>('repositories');
   const [activeId, setActiveId] = useState<string | null>(null);
   const [deleteTaskId, setDeleteTaskId] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
@@ -922,6 +923,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (!repositories || repositories.length === 0) {
       toast.error("No repositories configured");
       setShowNewTaskDialog(false);
+      setProjectSettingsTab('repositories');
       setShowProjectSettings(true);
       return;
     }
@@ -929,6 +931,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (!agents || agents.length === 0) {
       toast.error("No agents configured");
       setShowNewTaskDialog(false);
+      setProjectSettingsTab('agents');
       setShowProjectSettings(true);
       return;
     }
@@ -1061,8 +1064,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                             if (!repositories || repositories.length === 0 || !agents || agents.length === 0) {
                               if (!repositories || repositories.length === 0) {
                                 toast.error("Please configure repositories first");
+                                setProjectSettingsTab('repositories');
                               } else if (!agents || agents.length === 0) {
                                 toast.error("Please configure agents first");
+                                setProjectSettingsTab('agents');
                               }
                               setShowProjectSettings(true);
                               return;
@@ -1327,6 +1332,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           project={project}
           open={showProjectSettings}
           onOpenChange={setShowProjectSettings}
+          defaultTab={projectSettingsTab}
         />
       )}
 

@@ -37,6 +37,7 @@ interface ProjectSettingsV2Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  defaultTab?: 'repositories' | 'agents';
 }
 
 // Repository card component
@@ -363,6 +364,7 @@ export function ProjectSettingsV2({
   open,
   onOpenChange,
   onSuccess,
+  defaultTab = 'repositories',
 }: ProjectSettingsV2Props) {
   const queryClient = useQueryClient();
 
@@ -483,7 +485,7 @@ export function ProjectSettingsV2({
             <div className="space-y-4">
               <h3 className="text-lg font-medium">Configuration</h3>
               
-              <Tabs defaultValue="repositories" className="w-full">
+              <Tabs defaultValue={defaultTab} className="w-full">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="repositories" className="flex items-center gap-2">
                     <FolderOpen className="h-4 w-4" />
