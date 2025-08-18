@@ -18,6 +18,10 @@ import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { AgentOrchestrator } from "./agents/agent-orchestrator";
 import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
+import agentsRouter from "./routers/v2/agents";
+import repositoriesRouter from "./routers/v2/repositories";
+import tasksRouter from "./routers/v2/tasks";
+import { initializeFeatureFlags } from "./lib/feature-flags";
 
 const app = new Hono();
 
@@ -29,8 +33,16 @@ app.use("/*", cors({
   credentials: true,
 }));
 
+// Initialize feature flags
+initializeFeatureFlags();
+
 // Mount OAuth callback routes
 app.route("/api/oauth", oauthCallbackRoutes);
+
+// Mount V2 API routes (feature flag protected)
+app.route("/api/v2/agents", agentsRouter);
+app.route("/api/v2", repositoriesRouter);
+app.route("/api/v2", tasksRouter);
 
 const handler = new RPCHandler(appRouter);
 app.use("/rpc/*", async (c, next) => {

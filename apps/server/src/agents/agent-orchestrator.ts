@@ -7,6 +7,9 @@ import { tasks, sessions, repoAgents, actors, projects, agentClients, taskDepend
 import { eq, and, sql, ne, desc, notExists } from 'drizzle-orm';
 import { getAttachmentFile, type AttachmentMetadata } from '../utils/file-storage';
 import { promises as fs } from 'fs';
+import { useV2Orchestrator } from '../lib/feature-flags';
+import { checkAndAssignTasks as checkAndAssignTasksV2 } from './v2/orchestrator';
+import { initializeClaudeCodeClient, shutdownClaudeCodeClient } from './v2/claude-code-client';
 
 export type AgentClientVacancy = 'Busy' | 'Free' | null;
 
@@ -64,7 +67,18 @@ export class AgentOrchestrator {
 
   async initialize() {
     try {
+      // Initialize V1 Claude Code client
       await this.claudeCodeClient.connect();
+      
+      // Initialize V2 Claude Code client if V2 orchestrator is enabled
+      if (useV2Orchestrator()) {
+        await initializeClaudeCodeClient(
+          this.claudeCodeClient.claudeCodeUrl,
+          this.claudeCodeClient.agentToken
+        );
+        this.logger.info('V2 Claude Code client initialized');
+      }
+      
       this.isConnected = true;
       this.logger.info('Agent Orchestrator initialized with push-based task assignment');
     } catch (error) {
@@ -84,7 +98,19 @@ export class AgentOrchestrator {
     this.taskPushingInterval = setInterval(async () => {
       try {
         if (this.taskPushEnabled) {
-          await this.checkAndPushTasks();
+          if (useV2Orchestrator()) {
+            // Use V2 orchestrator
+            const result = await checkAndAssignTasksV2();
+            if (result.assigned > 0) {
+              this.logger.info(`V2 Orchestrator assigned ${result.assigned} tasks`);
+            }
+            if (result.errors.length > 0) {
+              this.logger.error('V2 Orchestrator errors', result.errors);
+            }
+          } else {
+            // Use V1 orchestrator
+            await this.checkAndPushTasks();
+          }
         }
       } catch (error) {
         this.logger.error('Error checking and pushing tasks', error);
@@ -532,5 +558,11 @@ export class AgentOrchestrator {
       clearInterval(this.taskPushingInterval);
     }
     this.claudeCodeClient.disconnect();
+    
+    // Shutdown V2 Claude Code client if it was initialized
+    if (useV2Orchestrator()) {
+      shutdownClaudeCodeClient();
+      this.logger.info('V2 Claude Code client shutdown');
+    }
   }
 }
