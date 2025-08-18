@@ -1,25 +1,13 @@
-import { config } from "dotenv";
-
-// Load environment-specific .env file
-if (process.env.NODE_ENV === 'production') {
-  config({ path: '.env.production', override: true });
-  config({ override: false }); // Load .env for any missing vars without overriding
-} else {
-  config();
-}
 import { RPCHandler } from "@orpc/server/fetch";
 import { createContext } from "./lib/context";
 import { appRouter } from "./routers/index";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { registerMcpHttp, setOrchestrator } from "./mcp/mcp-server";
+import { registerMcpHttp } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
-import agentsRouter from "./routers/v2/agents";
-import repositoriesRouter from "./routers/v2/repositories";
-import tasksRouter from "./routers/v2/tasks";
 import { startOrchestrator, shutdownOrchestrator } from "./agents/v2/orchestrator";
 
 const app = new Hono();
@@ -35,10 +23,7 @@ app.use("/*", cors({
 // Mount OAuth callback routes
 app.route("/api/oauth", oauthCallbackRoutes);
 
-// Mount V2 API routes
-app.route("/api/v2/agents", agentsRouter);
-app.route("/api/v2", repositoriesRouter);
-app.route("/api/v2", tasksRouter);
+// V2 API routes are now handled through oRPC endpoints
 
 const handler = new RPCHandler(appRouter);
 app.use("/rpc/*", async (c, next) => {
