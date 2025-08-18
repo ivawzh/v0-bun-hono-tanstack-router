@@ -17,7 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity } from "lucide-react";
+import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,6 +25,7 @@ import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 interface ProjectSettingsV2Props {
@@ -199,7 +200,19 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="repo-path">Repository Path</Label>
+        <div className="flex items-center gap-2">
+          <Label htmlFor="repo-path">Repository Path</Label>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent side="right" className="max-w-xs">
+                <p>Absolute path to your repository directory. To find your repository path, navigate to your project folder in the terminal and run <code className="bg-muted px-1 py-0.5 rounded text-xs">pwd</code></p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
         <Input
           id="repo-path"
           placeholder="/home/user/repos/my-project"
