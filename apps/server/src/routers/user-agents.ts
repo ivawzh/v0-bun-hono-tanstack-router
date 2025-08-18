@@ -1,10 +1,10 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { userAgents } from "../db/schema";
+import { agents } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
-export const userAgentsRouter = o.router({
+export const agentsRouter = o.router({
   list: protectedProcedure
     .input(v.object({
       includeTaskCounts: v.optional(v.boolean(), false)
@@ -12,9 +12,9 @@ export const userAgentsRouter = o.router({
     .handler(async ({ context, input }) => {
       const results = await db
         .select()
-        .from(userAgents)
-        .where(eq(userAgents.userId, context.user.id))
-        .orderBy(desc(userAgents.createdAt));
+        .from(agents)
+        .where(eq(agents.userId, context.user.id))
+        .orderBy(desc(agents.createdAt));
       
       // TODO: Add task counts if requested
       return results;
@@ -27,11 +27,11 @@ export const userAgentsRouter = o.router({
     .handler(async ({ context, input }) => {
       const result = await db
         .select()
-        .from(userAgents)
+        .from(agents)
         .where(
           and(
-            eq(userAgents.id, input.id),
-            eq(userAgents.userId, context.user.id)
+            eq(agents.id, input.id),
+            eq(agents.userId, context.user.id)
           )
         )
         .limit(1);
@@ -52,7 +52,7 @@ export const userAgentsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const newAgent = await db
-        .insert(userAgents)
+        .insert(agents)
         .values({
           userId: context.user.id,
           name: input.name,
@@ -76,11 +76,11 @@ export const userAgentsRouter = o.router({
       // Verify ownership
       const agent = await db
         .select()
-        .from(userAgents)
+        .from(agents)
         .where(
           and(
-            eq(userAgents.id, input.id),
-            eq(userAgents.userId, context.user.id)
+            eq(agents.id, input.id),
+            eq(agents.userId, context.user.id)
           )
         )
         .limit(1);
@@ -96,9 +96,9 @@ export const userAgentsRouter = o.router({
       if (input.maxConcurrencyLimit !== undefined) updates.maxConcurrencyLimit = input.maxConcurrencyLimit;
       
       const updated = await db
-        .update(userAgents)
+        .update(agents)
         .set(updates)
-        .where(eq(userAgents.id, input.id))
+        .where(eq(agents.id, input.id))
         .returning();
       
       return updated[0];
@@ -112,11 +112,11 @@ export const userAgentsRouter = o.router({
       // Verify ownership
       const agent = await db
         .select()
-        .from(userAgents)
+        .from(agents)
         .where(
           and(
-            eq(userAgents.id, input.id),
-            eq(userAgents.userId, context.user.id)
+            eq(agents.id, input.id),
+            eq(agents.userId, context.user.id)
           )
         )
         .limit(1);
@@ -127,7 +127,7 @@ export const userAgentsRouter = o.router({
       
       // TODO: Check if any tasks are using this agent
       // For now, allow deletion (tasks will need to handle null agent)
-      await db.delete(userAgents).where(eq(userAgents.id, input.id));
+      await db.delete(agents).where(eq(agents.id, input.id));
       
       return { success: true };
     })

@@ -4,7 +4,7 @@ import { projectsRouter } from "./projects";
 // import { repoAgentsRouter } from "./repo-agents";
 import { actorsRouter } from "./actors";
 import { repositoriesRouter } from "./repositories";
-import { userAgentsRouter } from "./user-agents";
+import { agentsRouter as userAgentsRouter } from "./user-agents";
 import { authRouter } from "./auth";
 
 export const appRouter = o.router({
