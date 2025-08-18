@@ -63,7 +63,7 @@ const logger = {
 
 // Small helper to enforce bearer auth from headers
 function assertBearer(authHeader: string | string[] | undefined) {
-  const expected = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
+  const expected = process.env.CLAUDE_CODE_UI_AUTH_TOKEN || "default-agent-token";
 
   // Handle both string and string[] cases
   const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
@@ -105,7 +105,7 @@ function registerMcpTools(server: McpServer) {
 
       // Prepare initial updates
       const updates: any = { refinedTitle, refinedDescription, plan, status, stage };
-      
+
       // Special handling for loop tasks that are marked as "done"
       // Loop tasks should never stay in "done" status, they should cycle back to "loop"
       let shouldHandleLoopCompletion = false;
@@ -113,7 +113,7 @@ function registerMcpTools(server: McpServer) {
         const task = await db.query.tasks.findFirst({
           where: eq(tasks.id, taskId),
         });
-        
+
         if (task && task.stage === "loop") {
           // This is a loop task being completed, handle it specially
           shouldHandleLoopCompletion = true;
@@ -189,7 +189,7 @@ function registerMcpTools(server: McpServer) {
             const highestOrder = parseFloat(loopTasks[0].columnOrder);
             newColumnOrder = (highestOrder + 1000).toString(); // Add 1000 to be at bottom
           }
-          
+
           filteredUpdates.columnOrder = newColumnOrder;
           logger.info("Loop task completion - appending to bottom of loop column", {
             taskId,
@@ -790,8 +790,8 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
     try {
       // Check authentication before processing request (if auth is enabled)
       const authRequired =
-        process.env.AGENT_AUTH_TOKEN &&
-        process.env.AGENT_AUTH_TOKEN !== "disabled";
+        process.env.CLAUDE_CODE_UI_AUTH_TOKEN &&
+        process.env.CLAUDE_CODE_UI_AUTH_TOKEN !== "disabled";
       if (authRequired) {
         try {
           assertBearer(c.req.header("authorization"));
@@ -800,7 +800,7 @@ export async function registerMcpHttp(app: any, basePath = "/mcp") {
           logger.auth("MCP request authentication failed", {
             url: c.req.url,
             hasAuth: !!c.req.header("authorization"),
-            authToken: process.env.AGENT_AUTH_TOKEN?.substring(0, 8) + "...",
+            authToken: process.env.CLAUDE_CODE_UI_AUTH_TOKEN?.substring(0, 8) + "...",
           });
           return c.json(
             {

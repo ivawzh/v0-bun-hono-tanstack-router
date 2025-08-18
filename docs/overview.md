@@ -175,7 +175,7 @@ erDiagram
 Claude Code UI is a open source project. It support not only Claude Code but other agent clients like Cursor CLI. We have cloned Claude Code UI to local and modified it. We aim to keep pulling its latest upstream version so that we gets all its up-to-dated features. We aim to make minimum modificaftions so that reduce conflicts during new version pull.
 
 - CCU originally uses its WebSocket server to communicate with code agent shell, CCU server and CCU UI.
-- Now we modified and added basic auth (bearer header of env var `AGENT_AUTH_TOKEN`) to its websocket server.
+- Now we modified and added basic auth (bearer header of env var `CLAUDE_CODE_UI_AUTH_TOKEN`) to its websocket server.
 - Solo Unicorn server connects to CCU websocket.
 - Solo Unicorn push tasks to CCU via its ws.
 

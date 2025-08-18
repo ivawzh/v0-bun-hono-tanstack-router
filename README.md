@@ -68,7 +68,7 @@ bun install
 Before setting up your environment variables, generate secure secrets:
 
 ```bash
-# Generate AGENT_AUTH_TOKEN (for agent authentication)
+# Generate CLAUDE_CODE_UI_AUTH_TOKEN (for agent authentication)
 openssl rand -hex 32
 ```
 
@@ -78,7 +78,7 @@ openssl rand -hex 32
 
 - `apps/server/.env.development` - for development mode
 - `apps/server/.env.production` - for production mode
-- `apps/web/.env.development` - for web app development  
+- `apps/web/.env.development` - for web app development
 - `apps/web/.env.production` - for web app production
 
 Create `apps/server/.env.development`:
@@ -94,7 +94,7 @@ CORS_ORIGIN=http://localhost:8302
 
 # Agent Gateway Authentication
 # Generate a secure token with: openssl rand -hex 32
-AGENT_AUTH_TOKEN=your-agent-token-here
+CLAUDE_CODE_UI_AUTH_TOKEN=your-agent-token-here
 
 # OpenAI (for voice transcription)
 OPENAI_API_KEY=sk-your-openai-api-key
@@ -102,8 +102,8 @@ OPENAI_API_KEY=sk-your-openai-api-key
 # Database URL (recommended for stability)
 DATABASE_URL=postgresql://$USER@localhost:5432/solo_unicorn_dev
 
-# Claude Code UI WebSocket
-CLAUDE_CODE_WS_URL=ws://localhost:8501
+# Claude Code UI API
+CLAUDE_CODE_UI_URL=http://localhost:8501
 
 # Optional: OpenRouter (for multi-model support)
 # OPENROUTER_API_KEY=your-openrouter-key
@@ -169,9 +169,9 @@ Each task includes:
 
 ### Connecting AI Agents
 
-#### Understanding AGENT_AUTH_TOKEN
+#### Understanding CLAUDE_CODE_UI_AUTH_TOKEN
 
-The `AGENT_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Claude Code, Windsurf, or custom agents) when they connect to your Solo Unicorn instance. This ensures only authorized agents can:
+The `CLAUDE_CODE_UI_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Claude Code, Windsurf, or custom agents) when they connect to your Solo Unicorn instance. This ensures only authorized agents can:
 
 - Retrieve tasks assigned to them
 - Submit work artifacts and logs
@@ -186,13 +186,13 @@ Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Clau
    Create if haven't yet, set env var at `apps/server/.env`
 
    ```bash
-   # Generate AGENT_AUTH_TOKEN (for agent authentication)
+   # Generate CLAUDE_CODE_UI_AUTH_TOKEN (for agent authentication)
    openssl rand -hex 32
    ```
 
    ```bash
    # Set env var at `apps/server/.env`
-   AGENT_AUTH_TOKEN=your-generated-token-here
+   CLAUDE_CODE_UI_AUTH_TOKEN=your-generated-token-here
    ```
 
 2. **Add MCP Server to Claude Code**
@@ -202,7 +202,7 @@ Solo Unicorn provides MCP (Model Context Protocol) integration for seamless Clau
    claude mcp remove solo-unicorn
 
    # Add with proper headers and authentication to user scope (apply to all projects)
-   claude mcp add-json solo-unicorn '{"type":"http","url":"http://localhost:8500/mcp","headers":{"Authorization":"Bearer <AGENT_AUTH_TOKEN>","Accept":"application/json, text/event-stream"}}' -s user
+   claude mcp add-json solo-unicorn '{"type":"http","url":"http://localhost:8500/mcp","headers":{"Authorization":"Bearer <CLAUDE_CODE_UI_AUTH_TOKEN>","Accept":"application/json, text/event-stream"}}' -s user
 
    # Verify connection
    bun dev # start server
@@ -344,7 +344,7 @@ Task hooks trigger actions on stage changes:
 ```bash
 # Register agent
 POST /agent/register
-Authorization: Bearer <AGENT_AUTH_TOKEN>
+Authorization: Bearer <CLAUDE_CODE_UI_AUTH_TOKEN>
 
 # Claim a task
 POST /agent/tasks/claim

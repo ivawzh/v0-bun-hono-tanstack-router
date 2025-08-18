@@ -6,9 +6,14 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { registerMcpHttp } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
-import { wsManager, handleWebSocketMessage } from "./websocket/websocket-server";
+import { wsManager, handleWebSocketMessage, broadcastFlush } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
 import { startOrchestrator, shutdownOrchestrator } from "./agents/v2/orchestrator";
+import { requireClaudeCodeUIAuth } from './lib/guards';
+import { db } from "./db";
+import { agents, projects, taskAgents, tasks } from "./db/schema";
+import { and, eq, sql } from "drizzle-orm";
+import { getAttachmentFile, saveAttachment, validateTotalAttachmentSize } from "./utils/file-storage";
 
 const app = new Hono();
 
@@ -71,13 +76,6 @@ app.post("/api/tasks/upload-attachment", async (c) => {
 
     // Convert File to buffer
     const buffer = await file.arrayBuffer();
-
-    // Import required modules
-    const { db } = await import('./db/index');
-    const { tasks, projects } = await import('./db/schema');
-    const { eq, and } = await import('drizzle-orm');
-    const { saveAttachment, validateTotalAttachmentSize } = await import('./utils/file-storage');
-    const { broadcastFlush } = await import('./websocket/websocket-server');
 
     // Create context and verify authentication
     const context = await createContext({ context: c });
@@ -149,12 +147,6 @@ app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
     const taskId = c.req.param('taskId')
     const attachmentId = c.req.param('attachmentId')
 
-    // Import required modules
-    const { db } = await import('./db/index');
-    const { tasks, projects } = await import('./db/schema');
-    const { eq, and } = await import('drizzle-orm');
-    const { getAttachmentFile } = await import('./utils/file-storage');
-
     // Create context and verify authentication
     const context = await createContext({ context: c });
     if (!context.appUser) {
@@ -202,6 +194,151 @@ app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
   }
 });
 
+// Claude Code UI callback endpoints (server-to-server)
+// Session started callback
+app.post("/api/claude-code-ui/session-started", requireClaudeCodeUIAuth, async (c) => {
+  try {
+    const body = await c.req.json();
+    const { sessionId, agentType, soloUnicornParams, resumed } = body;
+
+    console.log('🟢 Claude Code UI session started callback:', {
+      sessionId,
+      agentType,
+      resumed,
+      taskId: soloUnicornParams?.taskId,
+      projectId: soloUnicornParams?.projectId
+    });
+
+    if (!soloUnicornParams?.taskId || !soloUnicornParams?.projectId) {
+      return c.json({ error: 'Missing taskId or projectId in soloUnicornParams' }, 400);
+    }
+
+    // Update task to mark AI as working
+    await db
+      .update(tasks)
+      .set({
+        isAiWorking: true,
+        aiWorkingSince: new Date(),
+        lastAgentSessionId: sessionId,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, soloUnicornParams.taskId));
+
+    console.log('✅ Updated task AI working status:', soloUnicornParams.taskId);
+
+    // Broadcast flush to refresh real-time updates
+    broadcastFlush(soloUnicornParams.projectId);
+
+    return c.json({ success: true, message: 'Session started callback processed' });
+  } catch (error) {
+    console.error('❌ Session started callback error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Session ended callback
+app.post("/api/claude-code-ui/session-ended", requireClaudeCodeUIAuth, async (c) => {
+  try {
+    const body = await c.req.json();
+    const { sessionId, agentType, soloUnicornParams, exitCode, success } = body;
+
+    console.log('🔴 Claude Code UI session ended callback:', {
+      sessionId,
+      agentType,
+      exitCode,
+      success,
+      taskId: soloUnicornParams?.taskId,
+      projectId: soloUnicornParams?.projectId
+    });
+
+    if (!soloUnicornParams?.taskId || !soloUnicornParams?.projectId) {
+      return c.json({ error: 'Missing taskId or projectId in soloUnicornParams' }, 400);
+    }
+
+    // Update task to mark AI as no longer working
+    await db
+      .update(tasks)
+      .set({
+        isAiWorking: false,
+        aiWorkingSince: null,
+        lastAgentSessionId: sessionId,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, soloUnicornParams.taskId));
+
+    console.log('✅ Updated task AI stopped working status:', soloUnicornParams.taskId, { exitCode, success });
+
+    // Broadcast flush to refresh real-time updates
+    broadcastFlush(soloUnicornParams.projectId);
+
+    return c.json({ success: true, message: 'Session ended callback processed' });
+  } catch (error) {
+    console.error('❌ Session ended callback error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Rate limited callback
+app.post("/api/claude-code-ui/rate-limited", requireClaudeCodeUIAuth, async (c) => {
+  try {
+    const body = await c.req.json();
+    const { sessionId, agentType, soloUnicornParams, rateLimitResetAt } = body;
+
+    console.log('🚫 Claude Code UI rate limited callback:', {
+      sessionId,
+      agentType,
+      rateLimitResetAt,
+      taskId: soloUnicornParams?.taskId,
+      projectId: soloUnicornParams?.projectId
+    });
+
+    if (!soloUnicornParams?.taskId || !soloUnicornParams?.projectId) {
+      return c.json({ error: 'Missing taskId or projectId in soloUnicornParams' }, 400);
+    }
+
+    // Update task to mark AI as no longer working due to rate limit
+    await db
+      .update(tasks)
+      .set({
+        isAiWorking: false,
+        aiWorkingSince: null,
+        lastAgentSessionId: sessionId,
+        updatedAt: new Date()
+      })
+      .where(eq(tasks.id, soloUnicornParams.taskId));
+
+    // Find assigned agents for this task and update their rate limit state
+    const assignedAgents = await db
+      .select({ agentId: taskAgents.agentId })
+      .from(taskAgents)
+      .where(eq(taskAgents.taskId, soloUnicornParams.taskId));
+
+    // Update each assigned agent's state with rate limit info
+    for (const assignment of assignedAgents) {
+      await db
+        .update(agents)
+        .set({
+          state: sql`${JSON.stringify(rateLimitResetAt)}::jsonb')`,
+          updatedAt: new Date()
+        })
+        .where(eq(agents.id, assignment.agentId));
+    }
+
+    console.log('✅ Updated task and agent rate limit status:', {
+      taskId: soloUnicornParams.taskId,
+      agentsUpdated: assignedAgents.length,
+      rateLimitResetAt
+    });
+
+    // Broadcast flush to refresh real-time updates
+    broadcastFlush(soloUnicornParams.projectId);
+
+    return c.json({ success: true, message: 'Rate limited callback processed' });
+  } catch (error) {
+    console.error('❌ Rate limited callback error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
 
 // Mount MCP Streamable HTTP endpoint at /mcp (stateless integration)
 async function initializeMcp() {

@@ -37,13 +37,13 @@ sequenceDiagram
     participant O as Agent Orchestrator
     participant CC as Claude Code UI
     participant DB as Database
-    
+
     S->>O: Initialize orchestrator on startup
     O->>CC: Connect via WebSocket with auth token
     CC->>O: Connection established
     O->>O: Start task pushing interval (1 second)
     O->>DB: Query agent client states for vacancy detection
-    
+
     Note over O: Orchestrator now monitors and assigns tasks automatically
 ```
 
@@ -54,11 +54,11 @@ sequenceDiagram
     participant DB as Database
     participant CC as Claude Code UI
     participant MCP as MCP Server
-    
+
     loop Every 1 second
         O->>DB: Query active agent types with non-paused repo agents
         O->>O: Calculate agent vacancy for each type
-        
+
         alt Agent is Free
             O->>DB: Query highest priority ready task for agent type
             alt Ready task found
@@ -89,11 +89,11 @@ flowchart TD
     C -->|Still limited| D[Return 'Busy']
     C -->|Limit expired| E[Continue checks]
     B -->|No| E
-    
+
     E --> F{Recent task pushed?}
     F -->|< 30s ago| D
     F -->|> 30s ago| G{Recent messages?}
-    
+
     G -->|< 30s ago| H{Session completed recently?}
     H -->|Yes, < 5s ago| D
     H -->|No or > 5s ago| I[Return 'Free']
@@ -108,7 +108,7 @@ sequenceDiagram
     participant T as Task
     participant RA as Repo Agent
     participant AC as Agent Client
-    
+
     O->>DB: Query ready tasks
     DB->>O: Return tasks with repo agent and client info
     O->>O: Filter by target agent type (CLAUDE_CODE, OPENCODE)
@@ -116,7 +116,7 @@ sequenceDiagram
     O->>O: Check dependency completion
     O->>O: Sort by priority, status, column order, creation time
     O->>O: Select top task
-    
+
     Note over O: Perfect match: highest priority, correct agent type, no blockers
 ```
 
@@ -153,8 +153,8 @@ INNER JOIN repoAgents ra ON t.repoAgentId = ra.id
 INNER JOIN agentClients ac ON ra.agentClientId = ac.id
 LEFT JOIN actors a ON t.actorId = a.id
 INNER JOIN projects p ON t.projectId = p.id
-WHERE 
-  t.ready = true 
+WHERE
+  t.ready = true
   AND t.isAiWorking = false
   AND t.status != 'done'
   AND t.status != 'loop'
@@ -166,10 +166,10 @@ WHERE
     INNER JOIN tasks dt ON td.dependsOnTaskId = dt.id
     WHERE td.taskId = t.id AND dt.status != 'done'
   )
-ORDER BY 
+ORDER BY
   t.priority DESC,                           -- Higher priority first
   CASE WHEN t.status = 'doing' THEN 2        -- Doing tasks before todo
-       WHEN t.status = 'todo' THEN 1 
+       WHEN t.status = 'todo' THEN 1
        ELSE 0 END DESC,
   CAST(t.columnOrder AS DECIMAL),            -- Manual position
   t.createdAt                                -- Creation time tiebreaker
@@ -182,17 +182,17 @@ LIMIT 1;
 ```typescript
 class ClaudeCodeClient {
   private ws: WebSocket | null = null;
-  
+
   async connect(): Promise<void> {
     const wsUrl = `${claudeCodeUrl}/ws/agent?token=${agentToken}`;
     this.ws = new WebSocket(wsUrl);
-    
+
     this.ws.on('message', (data) => {
       const message = JSON.parse(data.toString());
       this.handleMessage(message);
     });
   }
-  
+
   async createSession(options: SessionOptions): Promise<string> {
     const sessionMessage = {
       type: 'createSession',
@@ -201,7 +201,7 @@ class ClaudeCodeClient {
       prompt: options.prompt,
       soloUnicornTaskId: options.soloUnicornTaskId
     };
-    
+
     return this.sendMessage(sessionMessage);
   }
 }
@@ -215,7 +215,7 @@ sequenceDiagram
     participant CC as Claude Code UI
     participant AI as AI Agent
     participant MCP as MCP Server
-    
+
     O->>PT: Generate prompt for task stage (refine/plan/execute)
     PT->>O: Return stage-specific prompt with context
     O->>CC: createSession with project path and prompt
@@ -233,12 +233,12 @@ private handleMessage(message: any) {
       // Track new session creation
       this.updateAgentState('lastSessionCreatedAt', new Date().toISOString());
       break;
-      
+
     case 'sessionCompleted':
       // Session finished, agent available again
       this.updateAgentState('lastSessionCompletedAt', new Date().toISOString());
       break;
-      
+
     case 'rateLimited':
       // Handle API rate limiting
       const resetTime = new Date(Date.now() + message.resetInMs);
@@ -261,7 +261,7 @@ async calculateAgentClientVacancy(clientType: string): Promise<AgentClientVacanc
   const agentClient = await this.getAgentClientByType(clientType);
   const state = agentClient?.state || {};
   const now = Date.now();
-  
+
   // Check rate limiting
   if (state.rateLimitedUntil) {
     const rateLimitTime = new Date(state.rateLimitedUntil).getTime();
@@ -269,7 +269,7 @@ async calculateAgentClientVacancy(clientType: string): Promise<AgentClientVacanc
       return 'Busy'; // Still rate limited
     }
   }
-  
+
   // Check recent task pushing (30 second cooldown)
   if (state.lastTaskPushedAt) {
     const timeSinceLastPush = now - new Date(state.lastTaskPushedAt).getTime();
@@ -277,7 +277,7 @@ async calculateAgentClientVacancy(clientType: string): Promise<AgentClientVacanc
       return 'Busy'; // Recently pushed a task
     }
   }
-  
+
   // Check recent messaging activity (30 second cooldown)
   if (state.lastMessagedAt) {
     const timeSinceLastMessage = now - new Date(state.lastMessagedAt).getTime();
@@ -286,7 +286,7 @@ async calculateAgentClientVacancy(clientType: string): Promise<AgentClientVacanc
       if (state.lastSessionCompletedAt) {
         const sessionCompletedTime = new Date(state.lastSessionCompletedAt).getTime();
         const timeSinceCompletion = now - sessionCompletedTime;
-        
+
         if (Math.abs(sessionCompletedTime - lastMessageTime) <= 1000) {
           return timeSinceCompletion > 5 * 1000 ? 'Free' : 'Busy';
         }
@@ -294,7 +294,7 @@ async calculateAgentClientVacancy(clientType: string): Promise<AgentClientVacanc
       return 'Busy'; // Recent activity
     }
   }
-  
+
   return 'Free'; // Available for assignment
 }
 ```
@@ -306,7 +306,7 @@ async calculateAgentClientVacancy(clientType: string): Promise<AgentClientVacanc
 -- Ensure task dependencies are complete before assignment
 NOT EXISTS (
   SELECT 1 FROM taskDependencies td
-  INNER JOIN tasks dt ON td.dependsOnTaskId = dt.id  
+  INNER JOIN tasks dt ON td.dependsOnTaskId = dt.id
   WHERE td.taskId = t.id AND dt.status != 'done'
 )
 ```
@@ -332,7 +332,7 @@ sequenceDiagram
     participant O as Orchestrator
     participant DB as Database
     participant LT as Loop Task
-    
+
     O->>DB: No regular ready tasks found
     O->>DB: Query loop tasks for agent type
     alt Loop tasks available
@@ -351,7 +351,7 @@ sequenceDiagram
 SELECT * FROM tasks t
 INNER JOIN repoAgents ra ON t.repoAgentId = ra.id
 INNER JOIN agentClients ac ON ra.agentClientId = ac.id
-WHERE 
+WHERE
   t.status = 'loop'
   AND t.stage = 'loop'
   AND t.isAiWorking = false
@@ -377,7 +377,7 @@ private scheduleReconnect() {
     console.error('Max reconnect attempts reached');
     return;
   }
-  
+
   const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 30000);
   this.reconnectTimeout = setTimeout(() => {
     this.reconnectAttempts++;
@@ -417,9 +417,9 @@ private scheduleReconnect() {
 ```bash
 # Claude Code UI integration
 CLAUDE_CODE_URL=http://localhost:8303
-AGENT_AUTH_TOKEN=your-secure-token
+CLAUDE_CODE_UI_AUTH_TOKEN=your-secure-token
 
-# Orchestrator behavior  
+# Orchestrator behavior
 TASK_PUSH_ENABLED=true
 DEBUG_ORCHESTRATOR=false
 

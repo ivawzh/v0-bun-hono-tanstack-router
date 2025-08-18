@@ -30,7 +30,7 @@ sequenceDiagram
     participant MCP as MCP Server
     participant DB as Database
     participant WS as WebSocket
-    
+
     S->>MCP: Initialize MCP server on startup
     MCP->>MCP: Register available tools (task_update, task_create, etc.)
     MCP->>MCP: Setup HTTP transport with bearer auth
@@ -45,9 +45,9 @@ sequenceDiagram
     participant MCP as MCP Server
     participant Auth as Auth Guard
     participant DB as Database
-    
+
     AI->>MCP: Connect with Bearer token
-    MCP->>Auth: Validate AGENT_AUTH_TOKEN
+    MCP->>Auth: Validate CLAUDE_CODE_UI_AUTH_TOKEN
     alt Valid token
         Auth->>MCP: Authentication successful
         MCP->>AI: Connection established
@@ -67,7 +67,7 @@ sequenceDiagram
     participant DB as Database
     participant WS as WebSocket
     participant UI as Frontend
-    
+
     AI->>MCP: task_update(taskId, refinedTitle, stage="plan")
     MCP->>MCP: Validate bearer token
     MCP->>DB: SELECT task for existence check
@@ -92,7 +92,7 @@ sequenceDiagram
     participant MCP as MCP Server
     participant DB as Database
     participant WS as WebSocket
-    
+
     AI->>MCP: task_create(projectId, repoAgentId, refinedTitle, etc.)
     MCP->>MCP: Validate bearer token
     MCP->>DB: Verify project ownership and repo agent
@@ -111,17 +111,17 @@ sequenceDiagram
     participant AI as AI Agent
     participant MCP as MCP Server
     participant DB as Database
-    
+
     %% Reading project memory
     AI->>MCP: project_memory_get(projectId)
     MCP->>DB: SELECT project.memory
     MCP->>AI: Return memory content
-    
+
     %% Updating project memory
     AI->>MCP: project_memory_update(projectId, newMemory)
     MCP->>DB: UPDATE projects SET memory = newMemory
     MCP->>AI: Success confirmation
-    
+
     Note over AI: Memory updates persist for future agent sessions
 ```
 
@@ -146,7 +146,7 @@ interface MCPTools {
   inputSchema: {
     taskId: z.string().uuid(),
     refinedTitle: z.string().optional(),
-    refinedDescription: z.string().optional(), 
+    refinedDescription: z.string().optional(),
     plan: z.any().optional(),
     status: z.enum(["todo", "doing", "done", "loop"]).optional(),
     stage: z.enum(["refine", "plan", "execute", "loop"]).nullable().optional(),
@@ -216,14 +216,14 @@ interface MCPTools {
 ### Bearer Token Authentication
 ```typescript
 function assertBearer(authHeader: string | string[] | undefined) {
-  const expected = process.env.AGENT_AUTH_TOKEN || "default-agent-token";
-  
+  const expected = process.env.CLAUDE_CODE_UI_AUTH_TOKEN || "default-agent-token";
+
   const headerValue = Array.isArray(authHeader) ? authHeader[0] : authHeader;
-  
+
   if (!headerValue || !headerValue.startsWith("Bearer ")) {
     throw new Error("unauthorized: missing token");
   }
-  
+
   const token = headerValue.slice(7);
   if (token !== expected) {
     throw new Error("unauthorized: invalid token");
@@ -233,7 +233,7 @@ function assertBearer(authHeader: string | string[] | undefined) {
 
 ### Request Headers
 ```http
-Authorization: Bearer {AGENT_AUTH_TOKEN}
+Authorization: Bearer {CLAUDE_CODE_UI_AUTH_TOKEN}
 X-Agent-ID: {unique-agent-identifier}
 Content-Type: application/json
 ```
@@ -268,7 +268,7 @@ if (status === "done") {
   const task = await db.query.tasks.findFirst({
     where: eq(tasks.id, taskId)
   });
-  
+
   if (task && task.stage === "loop") {
     // Loop tasks cycle back instead of completing
     updates.status = "loop";
@@ -313,7 +313,7 @@ sequenceDiagram
     participant WS as WebSocket Server
     participant UI1 as User 1 Browser
     participant UI2 as User 2 Browser
-    
+
     MCP->>DB: UPDATE task SET refinedTitle = "..."
     DB->>MCP: Confirm update
     MCP->>WS: broadcastFlush(projectId)
@@ -321,7 +321,7 @@ sequenceDiagram
     WS->>UI2: WebSocket message
     UI1->>UI1: Invalidate queries, re-fetch data
     UI2->>UI2: Invalidate queries, re-fetch data
-    
+
     Note over UI1,UI2: Both users see changes instantly
 ```
 
@@ -332,7 +332,7 @@ sequenceDiagram
 {
   "content": [
     {
-      "type": "text", 
+      "type": "text",
       "text": JSON.stringify({
         "success": false,
         "error": "Task not found",
@@ -354,7 +354,7 @@ sequenceDiagram
 ```typescript
 const logger = {
   info: (message: string, context?: Record<string, any>) => {
-    console.log(`[MCP-INFO] ${new Date().toISOString()} ${message}`, 
+    console.log(`[MCP-INFO] ${new Date().toISOString()} ${message}`,
                 context ? JSON.stringify(context) : "");
   },
   error: (message: string, error?: any, context?: Record<string, any>) => {
@@ -405,7 +405,7 @@ const transport = new StreamableHTTPServerTransport({
 ### Database Optimization
 ```sql
 -- Optimized task queries with proper indexing
-CREATE INDEX idx_tasks_ready_working ON tasks(ready, isAiWorking) 
+CREATE INDEX idx_tasks_ready_working ON tasks(ready, isAiWorking)
 WHERE ready = true AND isAiWorking = false;
 
 CREATE INDEX idx_tasks_project_status ON tasks(projectId, status);
@@ -414,7 +414,7 @@ CREATE INDEX idx_task_dependencies_task ON taskDependencies(taskId);
 
 ### Query Efficiency
 - **Single-query updates** with filtered field sets
-- **Batch operations** for multiple related changes  
+- **Batch operations** for multiple related changes
 - **Selective field updates** to avoid unnecessary writes
 - **Transaction boundaries** for data consistency
 
@@ -456,7 +456,7 @@ export function setOrchestrator(orch: any) {
 # MCP Server settings
 MCP_SERVER_PORT=8502
 MCP_SERVER_PATH=/mcp
-AGENT_AUTH_TOKEN=your-secure-token
+CLAUDE_CODE_UI_AUTH_TOKEN=your-secure-token
 
 # Logging and debugging
 DEBUG_MCP=false

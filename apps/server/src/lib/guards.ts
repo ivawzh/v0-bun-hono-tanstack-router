@@ -51,10 +51,10 @@ export async function requireAgentAuth(c: Context, next: Next) {
     throw new HTTPException(401, { message: "Unauthorized - Agent token required" });
   }
 
-  const expectedToken = process.env.AGENT_AUTH_TOKEN;
+  const expectedToken = process.env.CLAUDE_CODE_UI_AUTH_TOKEN;
 
   if (!expectedToken) {
-    console.error("AGENT_AUTH_TOKEN not configured");
+    console.error("CLAUDE_CODE_UI_AUTH_TOKEN not configured");
     throw new HTTPException(500, { message: "Agent authentication not configured" });
   }
 
@@ -65,6 +65,28 @@ export async function requireAgentAuth(c: Context, next: Next) {
   const agentId = c.req.header("X-Agent-ID");
   if (agentId) {
     c.set("agentId", agentId);
+  }
+
+  await next();
+}
+
+export async function requireClaudeCodeUIAuth(c: Context, next: Next) {
+  const authHeader = c.req.header("Authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+
+  if (!token) {
+    throw new HTTPException(401, { message: "Unauthorized - Bearer token required" });
+  }
+
+  const expectedToken = process.env.CLAUDE_CODE_UI_AUTH_TOKEN;
+
+  if (!expectedToken) {
+    console.error("CLAUDE_CODE_UI_AUTH_TOKEN not configured");
+    throw new HTTPException(500, { message: "Claude Code UI authentication not configured" });
+  }
+
+  if (token !== expectedToken) {
+    throw new HTTPException(401, { message: "Invalid Claude Code UI token" });
   }
 
   await next();
