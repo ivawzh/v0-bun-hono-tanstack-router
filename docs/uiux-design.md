@@ -4,29 +4,29 @@ This document describes the extremely simplified UI/UX for Solo Unicorn, reflect
 
 ## Board Layout
 
-### 3-Column Kanban Board
+### 4-Column Kanban Board
 
-Simple, clean board with only essential columns:
+Simple, clean board with essential workflow columns including iterative Loop:
 
 ```text
-+-------------------------------------------------------------------------------------------------------------+
++-------------------------------------------------------------------------------------------------------------------------------+
 | Solo Unicorn | Project: My App [▼] | + New Task | Repo Agents: Claude Code (active) | Profile |
-+-------------------------------------------------------------------------------------------------------------+
-|  Todo                           |  Doing                           |  Done                                |
-|  ┌───────────────────────────┐  |  ┌───────────────────────────┐  |  ┌─────────────────────────────┐  |
-|  | [P1] Task A              |  |  | [P2] Task C (Refine)     |  |  | [P3] Task E                 |  |
-|  | Main Repo (Claude Code)  |  |  | Main Repo (Claude Code)  |  |  | Frontend (OpenCode)         |  |
-|  | Default Actor            |  |  | Custom Actor             |  |  | Default Actor               |  |
-|  | Ready [☑]   📎2          |  |  | Stage: Refine ●○○        |  |  | Completed 2h ago            |  |
-|  | [Delete]                 |  |  | [Delete]                 |  |  | [Delete]                    |  |
-|  └───────────────────────────┘  |  └───────────────────────────┘  |  └─────────────────────────────┘  |
-|  ┌───────────────────────────┐  |  ┌───────────────────────────┐  |                                  |
-|  | [P1] Task B              |  |  | [P1] Task D (Execute)    |  |                                  |
-|  | Main Repo (Claude Code)  |  |  | Main Repo (Claude Code)  |  |                                  |
-|  | Ready [☐]                |  |  | Stage: Execute ●●●       |  |                                  |
-|  | [Delete]                 |  |  | [Delete]                 |  |                                  |
-|  └───────────────────────────┘  |  └───────────────────────────┘  |                                  |
-+-------------------------------------------------------------------------------------------------------------+
++-------------------------------------------------------------------------------------------------------------------------------+
+|  Todo                   |  Doing                  |  Done                   |  Loop                   |
+|  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|
+|  | [P1] Task A         ||  | [P2] Task C (Refine)||  | [P3] Task E         ||  | [∞] Brainstorm      ||
+|  | Main Repo (Claude)  ||  | Main Repo (Claude)  ||  | Frontend (OpenCode) ||  | ideas & document    ||
+|  | Default Actor       ||  | Custom Actor        ||  | Default Actor       ||  | Main Repo (Claude)  ||
+|  | Ready [☑]   📎2     ||  | Stage: Refine ●○○   ||  | Completed 2h ago    ||  | Stage: loop ♻️      ||
+|  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||
+|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|
+|  ┌─────────────────────┐|  ┌─────────────────────┐|                         |  ┌─────────────────────┐|
+|  | [P1] Task B         ||  | [∞] Code review &   ||                         ||  | [∞] Update docs     ||
+|  | Main Repo (Claude)  ||  | refactoring         ||                         ||  | & README            ||
+|  | Ready [☐]           ||  | Stage: loop ♻️      ||                         ||  | Main Repo (Claude)  ||
+|  | [Delete]            ||  | [Delete]            ||                         ||  | Stage: loop ♻️      ||
+|  └─────────────────────┘|  └─────────────────────┘|                         |  └─────────────────────┘|
++-------------------------------------------------------------------------------------------------------------------------------+
 ```
 
 ### Card Information
@@ -52,6 +52,13 @@ Simple, clean board with only essential columns:
 - Repo Agent
 - Completion timestamp
 - Delete button
+
+**Loop Cards:**
+- Infinity symbol [∞] indicating repeatable nature
+- Title and description of repeatable task
+- Repo Agent and Actor
+- Stage: loop ♻️ (never changes)
+- Delete button (removes from Loop entirely)
 
 ## Task Creation Flow
 
@@ -164,19 +171,30 @@ Click any card to open simplified drawer:
 ## Key Interactions
 
 ### Task Lifecycle
+
+**Regular Tasks:**
 1. **Create**: Human creates task with raw title/description
 2. **Ready**: Human marks task ready when prepared
 3. **Pickup**: Agent automatically picks up highest priority ready task
 4. **Refine**: Agent updates with refined title/description
-5. **Kickoff**: Agent creates solution options and plan
+5. **Plan**: Agent creates solution options and plan
 6. **Execute**: Agent implements the plan
-7. **Done**: Agent moves task to done
+7. **Done**: Task completed ✓
+
+**Loop Tasks:**
+1. **Create**: Human creates repeatable task directly in Loop column
+2. **Pickup**: Agent picks Loop task when Todo/Doing are empty
+3. **Execute**: Task moves to Doing with stage="loop" (no Refine/Plan stages)
+4. **Return**: After completion, task returns to bottom of Loop column
+5. **Cycle**: Process repeats infinitely ♻️
 
 ### Drag and Drop
 - Drag from Todo → Doing: Sets status to doing (if ready)
-- Drag from Doing → Done: Marks as completed
-- Drag from Done → Todo: Reopens task
-- No QA column - simplified workflow
+- Drag from Doing → Done: Marks as completed (regular tasks)
+- Drag from Doing → Loop: Returns Loop task to bottom of Loop column
+- Drag from Done → Todo: Reopens regular task
+- Drag from Loop → Doing: Manual execution of Loop task
+- No dragging Loop tasks to Done (infinite cycle only)
 
 ### Agent Status
 - Header shows active repo agent sessions
@@ -204,10 +222,10 @@ All complex features removed for extreme simplification:
 ## Implementation Notes
 
 ### Components (apps/web)
-- `SimplifiedBoard` - 3 columns with drag/drop
-- `TaskCard` - minimal card display
+- `SimplifiedBoard` - 4 columns with drag/drop (Todo, Doing, Done, Loop)
+- `TaskCard` - minimal card display with Loop task indicators
 - `TaskDrawer` - simplified task details
-- `CreateTaskModal` - basic task creation
+- `CreateTaskModal` - basic task creation with Loop option
 - `ProjectSettings` - repo agents and actors config
 
 ### State Management
@@ -222,4 +240,8 @@ All complex features removed for extreme simplification:
 - Full-screen modals on mobile
 - Simplified navigation
 
-This simplified design focuses on the core workflow: create task → mark ready → agent picks up → agent completes → done. Everything else is removed to achieve maximum simplicity.
+This design focuses on dual workflows:
+- **Regular tasks**: create → mark ready → agent completes → done
+- **Loop tasks**: create in Loop → agent cycles infinitely when no regular work available
+
+The Loop column ensures projects maintain continuous momentum with repeatable tasks like brainstorming, maintenance, and reviews.

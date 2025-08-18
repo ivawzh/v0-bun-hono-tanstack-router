@@ -48,8 +48,10 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 ### Task (Card)
 
-- Simple lifecycle: Todo → Doing → Done
-- Doing has 3 stages: Refine → Kickoff → Execute
+- **Regular tasks**: Todo → Doing → Done
+- **Loop tasks**: Loop → Doing → Loop (infinite cycle)
+- Doing has 3 stages: Refine → Plan → Execute
+- Loop has 1 stage: loop (never changes)
 - Must have repo agent assigned
 - Optional actor assignment
 - "Ready" checkbox replaces auto-start/start agent buttons
@@ -116,6 +118,39 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - Real implementation using refined title, description, attachments, plan, actor, and project memory
 - Make commits and push as needed
 - Move to Done when complete
+
+## Loop Column - Repeatable Tasks
+
+The Loop column stores repeatable tasks that cycle infinitely to maintain project momentum.
+
+**Loop Purpose:**
+- **Repeatable Tasks**: Tasks that should be executed regularly (brainstorming, maintenance, reviews)
+- **Project Continuity**: When Todo and Doing are empty, agents pick from Loop
+- **Infinite Cycling**: Loop tasks never reach "Done" - they return to Loop after completion
+
+**Loop Workflow:**
+1. **Task Selection**: When no regular tasks available, agent picks from Loop (top of column)
+2. **Execution**: Loop task moves to Doing with stage="loop" (never changes stage)
+3. **Completion**: After execution, task returns to Loop (bottom of column)
+4. **Rotation**: Bottom placement ensures all Loop tasks get cycled through
+
+**Loop Task Examples:**
+- "Brainstorm new feature ideas. Document in wiki."
+- "Review and refactor old code for improvements."
+- "Update project documentation and README."
+- "Research competitor features and document findings."
+- "Run comprehensive project health checks."
+
+**Infinite Cycling Logic:**
+- **Regular tasks**: Todo → Doing → Done ✓
+- **Loop tasks**: Loop → Doing → Loop → Doing → Loop... (never Done)
+
+**Column Priority:**
+1. Todo and Doing tasks (highest priority)
+2. Loop tasks (when no regular tasks available)
+3. Bottom placement after completion ensures fair rotation
+
+The Loop column ensures projects never run out of productive work while maintaining continuous improvement and innovation cycles.
 
 ## Data Model
 
