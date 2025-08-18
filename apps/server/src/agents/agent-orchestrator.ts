@@ -512,7 +512,7 @@ export class AgentOrchestrator {
 
     // Filter for image attachments
     const imageAttachments = attachments.filter(attachment =>
-      attachment.type.startsWith('image/')
+      attachment.type && attachment.type.startsWith('image/')
     );
 
     for (const attachment of imageAttachments) {
