@@ -165,29 +165,24 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
     maxConcurrencyLimit: 1
   });
 
-  const createRepository = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const response = await fetch(`/api/v2/projects/${projectId}/repositories`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Failed to create repository');
-      const result = await response.json();
-      return result.repository;
-    },
-    onSuccess: () => {
-      toast.success("Repository created successfully");
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to create repository: ${error.message}`);
-    }
-  });
+  const createRepository = useMutation(
+    orpc.repositories.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Repository created successfully");
+        onSuccess();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create repository: ${error.message}`);
+      }
+    })
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createRepository.mutate(formData);
+    createRepository.mutate({
+      projectId,
+      ...formData
+    });
   };
 
   return (
@@ -250,38 +245,30 @@ function CreateAgentForm({ onSuccess }: { onSuccess: () => void }) {
     claudeConfigDir: ''
   });
 
-  const createAgent = useMutation({
-    mutationFn: async (data: typeof formData) => {
-      const agentSettings = data.agentType === 'CLAUDE_CODE' && data.claudeConfigDir 
-        ? { CLAUDE_CONFIG_DIR: data.claudeConfigDir }
-        : {};
-
-      const response = await fetch('/api/v2/agents', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: data.name,
-          agentType: data.agentType,
-          maxConcurrencyLimit: data.maxConcurrencyLimit,
-          agentSettings
-        })
-      });
-      if (!response.ok) throw new Error('Failed to create agent');
-      const result = await response.json();
-      return result.agent;
-    },
-    onSuccess: () => {
-      toast.success("Agent created successfully");
-      onSuccess();
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to create agent: ${error.message}`);
-    }
-  });
+  const createAgent = useMutation(
+    orpc.userAgents.create.mutationOptions({
+      onSuccess: () => {
+        toast.success("Agent created successfully");
+        onSuccess();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to create agent: ${error.message}`);
+      }
+    })
+  );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createAgent.mutate(formData);
+    const agentSettings = formData.agentType === 'CLAUDE_CODE' && formData.claudeConfigDir 
+      ? { CLAUDE_CONFIG_DIR: formData.claudeConfigDir }
+      : {};
+    
+    createAgent.mutate({
+      name: formData.name,
+      agentType: formData.agentType,
+      maxConcurrencyLimit: formData.maxConcurrencyLimit,
+      agentSettings
+    });
   };
 
   return (
@@ -372,28 +359,20 @@ export function ProjectSettingsV2({
   const [showCreateAgentForm, setShowCreateAgentForm] = useState(false);
 
   // Fetch repositories for this project
-  const { data: repositories, isLoading: loadingRepositories } = useQuery({
-    queryKey: ['v2-repositories', project.id],
-    queryFn: async () => {
-      const response = await fetch(`/api/v2/projects/${project.id}/repositories?includeTaskCounts=true`);
-      if (!response.ok) throw new Error('Failed to fetch repositories');
-      const data = await response.json();
-      return data.repositories || [];
-    },
-    enabled: open
-  });
+  const { data: repositories, isLoading: loadingRepositories } = useQuery(
+    orpc.repositories.list.queryOptions({
+      input: { projectId: project.id },
+      enabled: open
+    })
+  );
 
   // Fetch user agents
-  const { data: agents, isLoading: loadingAgents } = useQuery({
-    queryKey: ['v2-agents'],
-    queryFn: async () => {
-      const response = await fetch('/api/v2/agents?includeTaskCounts=true');
-      if (!response.ok) throw new Error('Failed to fetch agents');
-      const data = await response.json();
-      return data.agents || [];
-    },
-    enabled: open
-  });
+  const { data: agents, isLoading: loadingAgents } = useQuery(
+    orpc.userAgents.list.queryOptions({
+      input: { includeTaskCounts: true },
+      enabled: open
+    })
+  );
 
   const updateProject = useMutation({
     mutationFn: async (updates: { name: string; description: string }) => {
@@ -413,39 +392,29 @@ export function ProjectSettingsV2({
     },
   });
 
-  const deleteRepository = useMutation({
-    mutationFn: async (repositoryId: string) => {
-      const response = await fetch(`/api/v2/repositories/${repositoryId}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) throw new Error('Failed to delete repository');
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast.success("Repository deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ['v2-repositories', project.id] });
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to delete repository: ${error.message}`);
-    }
-  });
+  const deleteRepository = useMutation(
+    orpc.repositories.delete.mutationOptions({
+      onSuccess: () => {
+        toast.success("Repository deleted successfully");
+        queryClient.invalidateQueries({ queryKey: ['repositories', 'list', { input: { projectId: project.id } }] });
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to delete repository: ${error.message}`);
+      }
+    })
+  );
 
-  const deleteAgent = useMutation({
-    mutationFn: async (agentId: string) => {
-      const response = await fetch(`/api/v2/agents/${agentId}`, {
-        method: 'DELETE'
-      });
-      if (!response.ok) throw new Error('Failed to delete agent');
-      return await response.json();
-    },
-    onSuccess: () => {
-      toast.success("Agent deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ['v2-agents'] });
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to delete agent: ${error.message}`);
-    }
-  });
+  const deleteAgent = useMutation(
+    orpc.userAgents.delete.mutationOptions({
+      onSuccess: () => {
+        toast.success("Agent deleted successfully");
+        queryClient.invalidateQueries({ queryKey: ['userAgents', 'list'] });
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to delete agent: ${error.message}`);
+      }
+    })
+  );
 
   const handleSave = () => {
     updateProject.mutate({
@@ -553,7 +522,7 @@ export function ProjectSettingsV2({
                         <RepositoryCard
                           key={repository.id}
                           repository={repository}
-                          onDelete={(id) => deleteRepository.mutate(id)}
+                          onDelete={(id) => deleteRepository.mutate({ id })}
                         />
                       ))}
                     </div>
@@ -607,7 +576,7 @@ export function ProjectSettingsV2({
                         <AgentCard
                           key={agent.id}
                           agent={agent}
-                          onDelete={(id) => deleteAgent.mutate(id)}
+                          onDelete={(id) => deleteAgent.mutate({ id })}
                         />
                       ))}
                     </div>

@@ -165,29 +165,20 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   });
 
   // Fetch available repositories
-  const { data: repositories = [] } = useQuery({
-    queryKey: ['v2-repositories', task?.projectId],
-    queryFn: async () => {
-      if (!task?.projectId) return [];
-      const response = await fetch(`/api/v2/projects/${task.projectId}/repositories`);
-      if (!response.ok) throw new Error('Failed to fetch repositories');
-      const data = await response.json();
-      return data.repositories || [];
-    },
-    enabled: !!task?.projectId
-  });
+  const { data: repositories = [] } = useQuery(
+    orpc.repositories.list.queryOptions({
+      input: { projectId: task?.projectId || '' },
+      enabled: !!task?.projectId
+    })
+  );
 
   // Fetch available agents
-  const { data: agents = [] } = useQuery({
-    queryKey: ['v2-agents'],
-    queryFn: async () => {
-      const response = await fetch('/api/v2/agents');
-      if (!response.ok) throw new Error('Failed to fetch agents');
-      const data = await response.json();
-      return data.agents || [];
-    },
-    enabled: open
-  });
+  const { data: agents = [] } = useQuery(
+    orpc.userAgents.list.queryOptions({
+      input: { includeTaskCounts: false },
+      enabled: open
+    })
+  );
 
   // Fetch available actors (Note: actors endpoint may need to be implemented)
   const { data: actors = [] } = useQuery({
