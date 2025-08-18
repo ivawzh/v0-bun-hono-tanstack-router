@@ -389,23 +389,18 @@ export function ProjectSettingsV2({
     })
   );
 
-  const updateProject = useMutation({
-    mutationFn: async (updates: { name: string; description: string }) => {
-      // TODO: Replace with V2 API
-      return orpc.projects.update.mutate({
-        id: project.id,
-        ...updates
-      });
-    },
-    onSuccess: () => {
-      toast.success("Project settings updated successfully");
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
-      onSuccess?.();
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to update project: ${error.message}`);
-    },
-  });
+  const updateProject = useMutation(
+    orpc.projects.update.mutationOptions({
+      onSuccess: () => {
+        toast.success("Project settings updated successfully");
+        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        onSuccess?.();
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update project: ${error.message}`);
+      },
+    })
+  );
 
   const deleteRepository = useMutation(
     orpc.repositories.delete.mutationOptions({
@@ -433,6 +428,7 @@ export function ProjectSettingsV2({
 
   const handleSave = () => {
     updateProject.mutate({
+      id: project.id,
       name: name,
       description: description,
     });
