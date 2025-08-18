@@ -1,8 +1,3 @@
-/**
- * V2 Agent Orchestrator Function Modules
- * Function-based orchestrator replacing class-based architecture
- */
-
 import { db } from '../../db';
 import { eq, and, or, ne, desc, asc } from 'drizzle-orm';
 import * as schema from '../../db/schema/index';
@@ -67,7 +62,7 @@ export async function getReadyTasks(): Promise<TaskWithPriority[]> {
 
   // Filter tasks that have all dependencies completed
   const readyTasks: TaskWithPriority[] = [];
-  
+
   for (const task of allTasks) {
     const hasUncompletedDependencies = await checkTaskDependencies(task.id);
     if (!hasUncompletedDependencies) {
@@ -86,7 +81,7 @@ export async function getReadyTasks(): Promise<TaskWithPriority[]> {
     const statusOrder = { doing: 1, todo: 2, loop: 3 };
     const aStatusOrder = statusOrder[a.status as keyof typeof statusOrder] || 4;
     const bStatusOrder = statusOrder[b.status as keyof typeof statusOrder] || 4;
-    
+
     if (aStatusOrder !== bStatusOrder) {
       return aStatusOrder - bStatusOrder;
     }
@@ -236,7 +231,7 @@ export async function selectBestAgent(
   const assignedAgentIds = assignedAgents.map(ta => ta.agentId);
 
   // Filter available agents to only those assigned to this task
-  const eligibleAgents = availableAgents.filter(agent => 
+  const eligibleAgents = availableAgents.filter(agent =>
     assignedAgentIds.includes(agent.agentId)
   );
 
@@ -249,7 +244,7 @@ export async function selectBestAgent(
     if (a.currentLoad !== b.currentLoad) {
       return a.currentLoad - b.currentLoad;
     }
-    
+
     // Prefer agents that haven't been used recently
     const aTime = a.lastTaskPushedAt?.getTime() || 0;
     const bTime = b.lastTaskPushedAt?.getTime() || 0;
@@ -358,9 +353,9 @@ export async function assignTaskToAgent(
     return { success: true };
   } catch (error) {
     console.error('Failed to assign task to agent:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
@@ -390,8 +385,8 @@ export async function returnTaskToLoop(taskId: string): Promise<{ success: boole
       .orderBy(desc(schema.tasks.columnOrder));
 
     // Calculate new column order (bottom of loop column)
-    const lastOrder = loopTasks.length > 0 ? 
-      parseFloat(loopTasks[0].columnOrder) : 
+    const lastOrder = loopTasks.length > 0 ?
+      parseFloat(loopTasks[0].columnOrder) :
       1000;
     const newOrder = (lastOrder + 1000).toString();
 
@@ -410,9 +405,9 @@ export async function returnTaskToLoop(taskId: string): Promise<{ success: boole
     return { success: true };
   } catch (error) {
     console.error('Failed to return task to loop:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
 }
@@ -430,16 +425,16 @@ export async function checkAndAssignTasks(): Promise<{
   try {
     // Get available agents
     const availableAgents = await getAvailableAgents();
-    
+
     if (availableAgents.length === 0) {
       return { assigned: 0, errors: [] };
     }
 
     // Check if regular tasks are available
     const hasRegularTasks = await hasRegularTasksAvailable();
-    
+
     let tasksToProcess: TaskWithPriority[];
-    
+
     if (hasRegularTasks) {
       // Prioritize regular tasks (todo, doing)
       tasksToProcess = await getReadyTasks();
@@ -452,25 +447,25 @@ export async function checkAndAssignTasks(): Promise<{
     for (const task of tasksToProcess) {
       // Check repository capacity
       const repoCapacity = await getRepositoryCapacity(task.mainRepositoryId);
-      
+
       if (!repoCapacity || !repoCapacity.isAvailable) {
         continue; // Repository at capacity
       }
 
       // Find best agent for this task
       const selectedAgentId = await selectBestAgent(task.id, availableAgents);
-      
+
       if (!selectedAgentId) {
         continue; // No suitable agent available
       }
 
       // Assign task
       const result = await assignTaskToAgent(task.id, selectedAgentId, task.mainRepositoryId);
-      
+
       if (result.success) {
         assigned++;
         console.log(`🤖 Assigned task ${task.id} to agent ${selectedAgentId}`);
-        
+
         // Remove agent from available list if at capacity
         const agentIndex = availableAgents.findIndex(a => a.agentId === selectedAgentId);
         if (agentIndex >= 0) {
@@ -492,39 +487,19 @@ export async function checkAndAssignTasks(): Promise<{
     return { assigned, errors };
   } catch (error) {
     console.error('Orchestration error:', error);
-    return { 
-      assigned, 
-      errors: [...errors, error instanceof Error ? error.message : 'Unknown error'] 
+    return {
+      assigned,
+      errors: [...errors, error instanceof Error ? error.message : 'Unknown error']
     };
   }
 }
 
 /**
- * Get orchestration status for debugging
+ * Initialize orchestrator (startup function)
  */
-export async function getOrchestrationStatus() {
-  const readyTasks = await getReadyTasks();
-  const availableAgents = await getAvailableAgents();
-  const hasRegular = await hasRegularTasksAvailable();
-  const loopTasks = await getLoopTasks();
+export async function startOrchestrator(): Promise<void> {
+  console.log('🤖 Initializing Agent Orchestrator...');
 
-  return {
-    schemaVersion: 'v2',
-    orchestratorEnabled: true,
-    readyTasksCount: readyTasks.length,
-    availableAgentsCount: availableAgents.length,
-    hasRegularTasks: hasRegular,
-    loopTasksCount: loopTasks.length,
-    timestamp: new Date().toISOString()
-  };
-}
-
-/**
- * Initialize V2 orchestrator (startup function)
- */
-export async function initializeV2Orchestrator(): Promise<void> {
-  console.log('🤖 Initializing V2 Agent Orchestrator...');
-  
   // Set up periodic task checking
   const checkInterval = setInterval(async () => {
     try {
@@ -541,26 +516,26 @@ export async function initializeV2Orchestrator(): Promise<void> {
   }, 5000); // Check every 5 seconds
 
   // Store interval globally for cleanup
-  global.__v2OrchestatorInterval = checkInterval;
-  
-  console.log('🤖 V2 Agent Orchestrator initialized');
+  global.__orchestatorInterval = checkInterval;
+
+  console.log('🤖 Agent Orchestrator initialized');
 }
 
 /**
- * Shutdown V2 orchestrator (cleanup function)
+ * Shutdown orchestrator (cleanup function)
  */
-export async function shutdownV2Orchestrator(): Promise<void> {
-  console.log('🤖 Shutting down V2 Agent Orchestrator...');
-  
-  if (global.__v2OrchestatorInterval) {
-    clearInterval(global.__v2OrchestatorInterval);
-    global.__v2OrchestatorInterval = undefined;
+export async function shutdownOrchestrator(): Promise<void> {
+  console.log('🤖 Shutting down Agent Orchestrator...');
+
+  if (global.__orchestatorInterval) {
+    clearInterval(global.__orchestatorInterval);
+    global.__orchestatorInterval = undefined;
   }
-  
-  console.log('🤖 V2 Agent Orchestrator shutdown complete');
+
+  console.log('🤖 Agent Orchestrator shutdown complete');
 }
 
 // Global type declaration for cleanup
 declare global {
-  var __v2OrchestatorInterval: NodeJS.Timeout | undefined;
+  var __orchestatorInterval: NodeJS.Timeout | undefined;
 }

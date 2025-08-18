@@ -20,7 +20,7 @@ import { randomUUID } from "crypto";
 import agentsRouter from "./routers/v2/agents";
 import repositoriesRouter from "./routers/v2/repositories";
 import tasksRouter from "./routers/v2/tasks";
-import { initializeV2Orchestrator, shutdownV2Orchestrator } from "./agents/v2/orchestrator";
+import { startOrchestrator, shutdownOrchestrator } from "./agents/v2/orchestrator";
 
 const app = new Hono();
 
@@ -235,19 +235,19 @@ console.log(`🚀 Solo Unicorn server starting on port ${port}`);
 console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 
 // Initialize V2 Orchestrator on startup
-initializeV2Orchestrator();
+startOrchestrator();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
-  shutdownV2Orchestrator();
+  shutdownOrchestrator();
   wsManager.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
-  shutdownV2Orchestrator();
+  shutdownOrchestrator();
   wsManager.shutdown();
   process.exit(0);
 });

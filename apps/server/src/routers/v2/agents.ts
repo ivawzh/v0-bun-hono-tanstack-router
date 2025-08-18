@@ -20,16 +20,6 @@ import { requireAgentOwnership } from '../../lib/auth-v2';
 
 const agentsRouter = new Hono();
 
-// Feature flag check middleware
-agentsRouter.use('*', async (c, next) => {
-  if (!useV2APIs()) {
-    return c.json({ 
-      error: 'V2 Agents API is not enabled', 
-      hint: 'Set USE_V2_APIS=true to enable' 
-    }, 400);
-  }
-  await next();
-});
 
 // Input validation schemas
 const createAgentSchema = z.object({

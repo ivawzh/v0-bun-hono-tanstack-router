@@ -13,23 +13,13 @@ import {
   updateRepository,
   deleteRepository,
   setDefaultRepository,
-  getRepositoriesWithTaskCounts,
+  getRepositoriesWithCounts,
   isRepositoryAvailable
 } from '../../services/v2/repositories';
 import { requireProjectAccess, requireRepositoryAccess } from '../../lib/auth-v2';
 
 const repositoriesRouter = new Hono();
 
-// Feature flag check middleware
-repositoriesRouter.use('*', async (c, next) => {
-  if (!useV2APIs()) {
-    return c.json({ 
-      error: 'V2 Repositories API is not enabled', 
-      hint: 'Set USE_V2_APIS=true to enable' 
-    }, 400);
-  }
-  await next();
-});
 
 // Input validation schemas
 const createRepositorySchema = z.object({
@@ -57,7 +47,7 @@ repositoriesRouter.get('/projects/:projectId/repositories', requireProjectAccess
     
     let repositories;
     if (includeTaskCounts) {
-      repositories = await getRepositoriesWithTaskCounts(projectId);
+      repositories = await getRepositoriesWithCounts(projectId);
     } else {
       repositories = await getProjectRepositories(projectId);
     }
