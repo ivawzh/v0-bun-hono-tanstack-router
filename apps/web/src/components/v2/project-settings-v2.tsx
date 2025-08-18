@@ -208,7 +208,7 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
                 <HelpCircle className="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" />
               </TooltipTrigger>
               <TooltipContent side="right" className="max-w-xs">
-                <p>Absolute path to your repository directory. To find your repository path, navigate to your project folder in the terminal and run <code className="bg-muted px-1 py-0.5 rounded text-xs">pwd</code></p>
+                <p>Absolute path to your repository directory. To find your repository path, navigate to your project folder in the terminal and run <code className="bg-slate-800 text-green-400 px-1 py-0.5 rounded text-xs font-mono">pwd</code></p>
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
