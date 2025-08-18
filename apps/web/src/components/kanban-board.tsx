@@ -456,26 +456,20 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   );
 
   // Fetch repositories for this project
-  const { data: repositories } = useQuery({
-    queryKey: ["repositories", projectId],
-    queryFn: async () => {
-      const response = await fetch(`/api/v2/projects/${projectId}/repositories`);
-      if (!response.ok) throw new Error('Failed to fetch repositories');
-      return response.json();
-    },
-    enabled: !!projectId
-  });
+  const { data: repositories } = useQuery(
+    orpc.repositories.list.queryOptions({
+      input: { projectId },
+      enabled: !!projectId
+    })
+  );
 
-  // Fetch agents for this project
-  const { data: agents } = useQuery({
-    queryKey: ["agents", projectId],
-    queryFn: async () => {
-      const response = await fetch('/api/v2/agents');
-      if (!response.ok) throw new Error('Failed to fetch agents');
-      return response.json();
-    },
-    enabled: !!projectId
-  });
+  // Fetch agents for current user
+  const { data: agents } = useQuery(
+    orpc.userAgents.list.queryOptions({
+      input: { includeTaskCounts: false },
+      enabled: !!projectId
+    })
+  );
 
   // Fetch actors for this project
   const { data: actors } = useQuery(
@@ -924,6 +918,21 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }, []);
 
   const handleCreateTask = async () => {
+    // Check if project has required setup
+    if (!repositories || repositories.length === 0) {
+      toast.error("No repositories configured");
+      setShowNewTaskDialog(false);
+      setShowProjectSettings(true);
+      return;
+    }
+    
+    if (!agents || agents.length === 0) {
+      toast.error("No agents configured");
+      setShowNewTaskDialog(false);
+      setShowProjectSettings(true);
+      return;
+    }
+    
     if (!newTask.rawTitle || !newTask.mainRepositoryId || !newTask.assignedAgentIds?.length) {
       toast.error("Please fill in all required fields (title, repository, and agent)");
       return;
@@ -1048,6 +1057,17 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => {
+                            // Check if project has required setup before opening dialog
+                            if (!repositories || repositories.length === 0 || !agents || agents.length === 0) {
+                              if (!repositories || repositories.length === 0) {
+                                toast.error("Please configure repositories first");
+                              } else if (!agents || agents.length === 0) {
+                                toast.error("Please configure agents first");
+                              }
+                              setShowProjectSettings(true);
+                              return;
+                            }
+                            
                             setNewTaskColumn(column.id);
                             setShowNewTaskDialog(true);
                           }}

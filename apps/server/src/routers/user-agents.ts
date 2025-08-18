@@ -1,0 +1,134 @@
+import { o, protectedProcedure } from "../lib/orpc";
+import * as v from "valibot";
+import { db } from "../db";
+import { userAgents } from "../db/schema";
+import { eq, and, desc } from "drizzle-orm";
+
+export const userAgentsRouter = o.router({
+  list: protectedProcedure
+    .input(v.object({
+      includeTaskCounts: v.optional(v.boolean(), false)
+    }))
+    .handler(async ({ context, input }) => {
+      const results = await db
+        .select()
+        .from(userAgents)
+        .where(eq(userAgents.userId, context.user.id))
+        .orderBy(desc(userAgents.createdAt));
+      
+      // TODO: Add task counts if requested
+      return results;
+    }),
+    
+  get: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const result = await db
+        .select()
+        .from(userAgents)
+        .where(
+          and(
+            eq(userAgents.id, input.id),
+            eq(userAgents.userId, context.user.id)
+          )
+        )
+        .limit(1);
+      
+      if (result.length === 0) {
+        throw new Error("Agent not found or unauthorized");
+      }
+      
+      return result[0];
+    }),
+    
+  create: protectedProcedure
+    .input(v.object({
+      name: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
+      agentType: v.picklist(['CLAUDE_CODE', 'CURSOR_CLI', 'OPENCODE']),
+      agentSettings: v.optional(v.record(v.string(), v.any()), {}),
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(10)), 1)
+    }))
+    .handler(async ({ context, input }) => {
+      const newAgent = await db
+        .insert(userAgents)
+        .values({
+          userId: context.user.id,
+          name: input.name,
+          agentType: input.agentType,
+          agentSettings: input.agentSettings,
+          maxConcurrencyLimit: input.maxConcurrencyLimit
+        })
+        .returning();
+      
+      return newAgent[0];
+    }),
+    
+  update: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(100))),
+      agentSettings: v.optional(v.record(v.string(), v.any())),
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(10)))
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const agent = await db
+        .select()
+        .from(userAgents)
+        .where(
+          and(
+            eq(userAgents.id, input.id),
+            eq(userAgents.userId, context.user.id)
+          )
+        )
+        .limit(1);
+      
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
+      }
+      
+      const updates: any = { updatedAt: new Date() };
+      
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.agentSettings !== undefined) updates.agentSettings = input.agentSettings;
+      if (input.maxConcurrencyLimit !== undefined) updates.maxConcurrencyLimit = input.maxConcurrencyLimit;
+      
+      const updated = await db
+        .update(userAgents)
+        .set(updates)
+        .where(eq(userAgents.id, input.id))
+        .returning();
+      
+      return updated[0];
+    }),
+    
+  delete: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const agent = await db
+        .select()
+        .from(userAgents)
+        .where(
+          and(
+            eq(userAgents.id, input.id),
+            eq(userAgents.userId, context.user.id)
+          )
+        )
+        .limit(1);
+      
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
+      }
+      
+      // TODO: Check if any tasks are using this agent
+      // For now, allow deletion (tasks will need to handle null agent)
+      await db.delete(userAgents).where(eq(userAgents.id, input.id));
+      
+      return { success: true };
+    })
+});

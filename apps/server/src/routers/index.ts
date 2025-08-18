@@ -3,6 +3,8 @@ import { projectsRouter } from "./projects";
 // import { tasksRouter } from "./tasks";
 // import { repoAgentsRouter } from "./repo-agents";
 import { actorsRouter } from "./actors";
+import { repositoriesRouter } from "./repositories";
+import { userAgentsRouter } from "./user-agents";
 import { authRouter } from "./auth";
 
 export const appRouter = o.router({
@@ -22,6 +24,8 @@ export const appRouter = o.router({
   // Temporarily disabled V1 routers during V2 migration
   // repoAgents: repoAgentsRouter,
   actors: actorsRouter,
+  repositories: repositoriesRouter,
+  userAgents: userAgentsRouter,
   // tasks: tasksRouter,
 });
 export type AppRouter = typeof appRouter;

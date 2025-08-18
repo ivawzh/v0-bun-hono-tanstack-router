@@ -30,6 +30,16 @@ Solo Unicorn is a comprehensive project management system designed for solo deve
 - Database migrations: `bun run db:push` (in apps/server)
 - Run type checks: `bun typecheck`
 
+## API Communication Guidelines
+
+**All web-to-server communication MUST use oRPC for type safety and consistency.**
+
+- ✅ **Web ↔ Server**: Use oRPC endpoints (`orpc.routers.endpoint`)
+- ✅ **Server ↔ Server**: Can use direct HTTP/REST APIs or internal function calls
+- ❌ **Web ↔ Server**: Do NOT use fetch() calls to REST endpoints
+
+This ensures type safety, automatic request/response validation, and consistent error handling across the frontend.
+
 ## Database Migration
 
 When database schema changes are needed:
