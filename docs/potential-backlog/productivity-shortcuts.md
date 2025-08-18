@@ -4,7 +4,7 @@
 
 Supercharge Solo Unicorn with power-user features including comprehensive keyboard shortcuts, bulk operations, quick filters, and advanced navigation that enables experienced developers to manage large numbers of tasks with lightning speed.
 
-**Priority**: Phase 1 (High Impact, Low Effort)  
+**Priority**: Phase 1 (High Impact, Low Effort)
 **User Impact**: 4/5 | **Effort**: 2/5 | **Magic**: 3/5 | **Mobile**: 2/5
 
 ## Current Power User Limitations
@@ -16,7 +16,7 @@ Supercharge Solo Unicorn with power-user features including comprehensive keyboa
 4. **No Command Palette**: No quick way to execute commands or find features
 
 ### Bulk Operation Challenges
-- **Individual Updates**: Must edit each task's priority/status separately  
+- **Individual Updates**: Must edit each task's priority/status separately
 - **No Multi-Select**: Can't select and operate on multiple tasks at once
 - **Repetitive Creation**: Creating similar tasks requires full form each time
 - **No Batch Actions**: Archive, delete, or move operations are one-by-one
@@ -62,14 +62,14 @@ interface TaskShortcuts {
   'Ctrl+D': 'duplicate-task'              // Duplicate current
   'Ctrl+A': 'select-all-visible'          // Select all in column
   'Ctrl+Shift+A': 'select-all-project'    // Select all in project
-  
+
   // Priority shortcuts
   '1': 'set-priority-1'                   // Set to P1 (lowest)
   '2': 'set-priority-2'                   // Set to P2
   '3': 'set-priority-3'                   // Set to P3 (medium)
   '4': 'set-priority-4'                   // Set to P4
   '5': 'set-priority-5'                   // Set to P5 (highest)
-  
+
   // Status shortcuts
   'T': 'move-to-todo'                     // Move to Todo
   'D': 'move-to-doing'                    // Move to Doing
@@ -87,7 +87,7 @@ interface BoardShortcuts {
   'ArrowDown': 'next-task'                // Focus next task
   'Tab': 'next-interactive-element'      // Standard tab navigation
   'Shift+Tab': 'previous-interactive'    // Reverse tab navigation
-  
+
   'Ctrl+1': 'focus-todo-column'          // Jump to Todo
   'Ctrl+2': 'focus-doing-column'         // Jump to Doing
   'Ctrl+3': 'focus-done-column'          // Jump to Done
@@ -103,7 +103,7 @@ interface TaskSelection {
   mode: 'single' | 'multi' | 'range'
   selectedTasks: string[]                 // Task IDs
   lastSelected: string | null             // For range selection
-  
+
   // Selection methods
   clickSelect: (taskId: string, withCtrl: boolean) => void
   rangeSelect: (fromId: string, toId: string) => void
@@ -154,12 +154,12 @@ interface CommandPalette {
   'new task': () => openTaskCreation()
   'settings': () => openProjectSettings()
   'switch project': () => showProjectSwitcher()
-  
+
   // Smart search
   'find p1': () => filterByPriority(1)
   'show blocked': () => filterByBlockedTasks()
   'my tasks today': () => filterByDateAndAssignment()
-  
+
   // Bulk operations
   'select all p5': () => selectTasksByPriority(5)
   'archive done': () => bulkArchiveCompletedTasks()
@@ -189,7 +189,7 @@ created:today
 updated:last-week
 due:tomorrow
 
-# Assignment filters  
+# Assignment filters
 agent:"Claude Code"
 actor:"Backend Developer"
 author:ai
@@ -225,7 +225,7 @@ interface QuickTemplates {
     title: 'Bug: ',
     description: 'Steps to reproduce:\n1. \n\nExpected:\n\nActual:\n',
     priority: 4,
-    stage: 'refine'
+    stage: 'clarify'
   },
   '/feature': {
     title: 'Feature: ',
@@ -237,7 +237,7 @@ interface QuickTemplates {
     title: 'Documentation: ',
     description: 'Document [feature/process] to help [audience]\n\nSections needed:\n- ',
     priority: 2,
-    stage: 'refine'
+    stage: 'clarify'
   }
 }
 ```
@@ -273,7 +273,7 @@ interface QuickTemplates {
 ```typescript
 class KeyboardShortcutManager {
   private shortcuts = new Map<string, ShortcutHandler>()
-  
+
   registerGlobalShortcuts(shortcuts: GlobalShortcuts): void
   registerContextualShortcuts(context: string, shortcuts: ContextShortcuts): void
   handleKeyboardEvent(event: KeyboardEvent): boolean
@@ -285,7 +285,7 @@ class KeyboardShortcutManager {
 ```typescript
 class BulkOperationsManager {
   private selection = new Set<string>()
-  
+
   selectTasks(taskIds: string[], mode: SelectionMode): void
   executeBulkAction(action: BulkAction, taskIds: string[]): Promise<Result>
   createUndoSnapshot(action: BulkAction): UndoSnapshot
@@ -297,7 +297,7 @@ class BulkOperationsManager {
 ```typescript
 class CommandPaletteEngine {
   private commands = new Map<string, Command>()
-  
+
   registerCommand(name: string, handler: CommandHandler): void
   search(query: string): CommandResult[]
   executeCommand(command: string, args?: any[]): Promise<void>
@@ -331,7 +331,7 @@ class CommandPaletteEngine {
 - Simple multi-select with visual feedback
 - Command palette core infrastructure
 
-### Phase 1B: Power Features (Week 2)  
+### Phase 1B: Power Features (Week 2)
 - Bulk operations for common actions
 - Advanced search syntax and filtering
 - Template system and quick creation

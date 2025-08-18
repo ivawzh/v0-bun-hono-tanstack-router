@@ -13,8 +13,8 @@ Solo Unicorn provides comprehensive real-time synchronization across all connect
    - No badge - Task not ready or agent not available
 
 2. **Stage Progress Indicators** update live:
-   - Refine ●○○ - AI analyzing and clarifying requirements
-   - Plan ●●○ - AI creating implementation strategy  
+   - clarify ●○○ - AI analyzing and clarifying requirements
+   - Plan ●●○ - AI creating implementation strategy
    - Execute ●●● - AI implementing the solution
 
 3. **Task Movement** happens automatically:
@@ -44,13 +44,13 @@ sequenceDiagram
     participant S as Solo Unicorn Server
     participant WS as WebSocket Server
     participant Bun as Bun Runtime
-    
+
     S->>WS: Initialize WebSocket server on startup
     WS->>WS: Setup client connection map
     WS->>WS: Start ping interval (30 seconds)
     WS->>Bun: Register WebSocket handlers
     Bun->>WS: WebSocket server ready on port 8500/ws
-    
+
     Note over WS: Ready to accept client connections
 ```
 
@@ -60,14 +60,14 @@ sequenceDiagram
     participant UI as Frontend
     participant WS as WebSocket Server
     participant DB as Database
-    
+
     UI->>WS: Connect to ws://localhost:8500/ws
     WS->>WS: Generate unique client ID
     WS->>UI: Send connection.established message
     UI->>WS: Subscribe to project updates
     WS->>WS: Store project subscription for client
     WS->>UI: Send subscription.confirmed message
-    
+
     Note over UI,WS: Client ready for real-time updates
 ```
 
@@ -75,23 +75,23 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     participant Action as User/AI Action
-    participant DB as Database  
+    participant DB as Database
     participant WS as WebSocket Server
     participant UI1 as User 1 Browser
     participant UI2 as User 2 Browser
     participant UI3 as User 3 Browser
-    
-    Action->>DB: UPDATE task SET status='doing', stage='refine'
+
+    Action->>DB: UPDATE task SET status='doing', stage='clarify'
     DB->>Action: Confirm database update
     Action->>WS: broadcastFlush(projectId)
-    
+
     WS->>UI1: Send flush message (subscribed to project)
-    WS->>UI2: Send flush message (subscribed to project)  
+    WS->>UI2: Send flush message (subscribed to project)
     WS->>UI3: Skip (not subscribed to this project)
-    
+
     UI1->>UI1: Invalidate queries, refetch data
     UI2->>UI2: Invalidate queries, refetch data
-    
+
     Note over UI1,UI2: Both users see changes instantly
 ```
 
@@ -103,14 +103,14 @@ sequenceDiagram
     participant DB as Database
     participant WS as WebSocket Server
     participant UI as Frontend
-    
-    AI->>MCP: task_update(isAiWorking=true, stage='refine')
+
+    AI->>MCP: task_update(isAiWorking=true, stage='clarify')
     MCP->>DB: UPDATE task SET isAiWorking=true, aiWorkingSince=NOW()
     MCP->>WS: broadcastFlush(projectId)
     WS->>UI: Send flush message
     UI->>UI: Query invalidation triggers refetch
     UI->>UI: Show "AI in work" badge with pulsing animation
-    
+
     Note over UI: User sees immediate AI activity feedback
 ```
 
@@ -120,12 +120,12 @@ sequenceDiagram
     participant UI as Frontend
     participant WS as WebSocket Server
     participant Timer as Reconnect Timer
-    
+
     Note over UI,WS: Connection lost
     WS--xUI: Connection dropped
     UI->>UI: Show disconnected indicator
     UI->>Timer: Start reconnection attempts
-    
+
     loop Exponential backoff retry
         Timer->>UI: Attempt reconnection
         UI->>WS: Try to reconnect
@@ -183,7 +183,7 @@ interface WebSocketMessage {
   type: 'connection.established' | 'subscription.confirmed' | 'flush' | 'ping' | 'pong';
   data: {
     clientId?: string;
-    projectId?: string; 
+    projectId?: string;
     timestamp: string;
   };
 }
@@ -206,28 +206,28 @@ interface ClientSubscription {
 const useWebSocket = (projectId: string) => {
   const [isConnected, setIsConnected] = useState(false);
   const [ws, setWs] = useState<WebSocket | null>(null);
-  
+
   useEffect(() => {
     const connect = () => {
       const wsUrl = 'ws://localhost:8500/ws';
       const websocket = new WebSocket(wsUrl);
-      
+
       websocket.onopen = () => {
         setIsConnected(true);
         setWs(websocket);
-        
+
         // Subscribe to project updates
         websocket.send(JSON.stringify({
           type: 'subscribe',
           projectId: projectId
         }));
       };
-      
+
       websocket.onmessage = (event) => {
         const message = JSON.parse(event.data);
         handleWebSocketMessage(message);
       };
-      
+
       websocket.onclose = () => {
         setIsConnected(false);
         setWs(null);
@@ -235,7 +235,7 @@ const useWebSocket = (projectId: string) => {
         setTimeout(connect, getReconnectDelay());
       };
     };
-    
+
     connect();
   }, [projectId]);
 };
@@ -251,11 +251,11 @@ const handleWebSocketMessage = (message: WebSocketMessage) => {
       queryClient.invalidateQueries(['projects', message.data.projectId]);
       queryClient.invalidateQueries(['tasks', message.data.projectId]);
       break;
-      
+
     case 'connection.established':
       console.log('WebSocket connected:', message.data.clientId);
       break;
-      
+
     case 'ping':
       // Respond to server ping to keep connection alive
       if (ws) {
@@ -272,7 +272,7 @@ const handleWebSocketMessage = (message: WebSocketMessage) => {
 ```typescript
 interface AIActivityBadgeProps {
   ready: boolean | null;
-  isAiWorking: boolean | null;  
+  isAiWorking: boolean | null;
   status: string;
 }
 
@@ -286,7 +286,7 @@ export function AIActivityBadge({ ready, isAiWorking, status }: AIActivityBadgeP
       </Badge>
     );
   }
-  
+
   // Task ready and queued for AI pickup
   if (status === "todo" && ready === true && !isAiWorking) {
     return (
@@ -296,7 +296,7 @@ export function AIActivityBadge({ ready, isAiWorking, status }: AIActivityBadgeP
       </Badge>
     );
   }
-  
+
   return null; // No badge for other states
 }
 ```
@@ -308,15 +308,15 @@ const getBadgeState = (task: Task) => {
   // 1. AI Working (green, pulsing) - agent actively processing
   // 2. Queueing (blue) - ready and waiting for pickup
   // 3. No badge - not ready or completed
-  
+
   if (task.isAiWorking && task.status !== 'done') {
     return 'ai-working';
   }
-  
+
   if (task.ready && task.status === 'todo' && !task.isAiWorking) {
     return 'queueing';
   }
-  
+
   return 'none';
 };
 ```
@@ -325,15 +325,15 @@ const getBadgeState = (task: Task) => {
 ```typescript
 const StageIndicator = ({ stage }: { stage: string | null }) => {
   const stages = {
-    refine: { dots: '●○○', color: 'purple' },
-    plan: { dots: '●●○', color: 'pink' },  
+    clarify: { dots: '●○○', color: 'purple' },
+    plan: { dots: '●●○', color: 'pink' },
     execute: { dots: '●●●', color: 'blue' }
   };
-  
+
   if (!stage || !stages[stage]) return null;
-  
+
   const { dots, color } = stages[stage];
-  
+
   return (
     <span className={`text-${color}-600 font-mono`}>
       Stage: {stage} {dots}
@@ -348,28 +348,28 @@ const StageIndicator = ({ stage }: { stage: string | null }) => {
 ```typescript
 const updateTaskMutation = useMutation({
   mutationFn: orpc.tasks.update.mutate,
-  
+
   onMutate: async (variables) => {
     // Cancel outgoing refetches to avoid overwriting optimistic update
     await queryClient.cancelQueries(['tasks']);
-    
+
     // Snapshot the previous value for rollback
     const previousTasks = queryClient.getQueryData(['tasks']);
-    
+
     // Optimistically update to the new value
     queryClient.setQueryData(['tasks'], (old) => {
       return updateTaskInList(old, variables);
     });
-    
+
     return { previousTasks };
   },
-  
+
   onError: (err, variables, context) => {
     // Rollback to previous state on error
     queryClient.setQueryData(['tasks'], context.previousTasks);
     toast.error('Update failed - changes reverted');
   },
-  
+
   onSettled: () => {
     // Always refetch after mutation to ensure consistency
     queryClient.invalidateQueries(['tasks']);
@@ -383,13 +383,13 @@ const updateTaskMutation = useMutation({
 const handleOptimisticConflict = (optimisticData, serverData) => {
   // Server data takes precedence over optimistic updates
   // But preserve any newer optimistic changes made after server data timestamp
-  
+
   const mergedData = {
     ...serverData,
     // Keep local optimistic changes if they're newer
     ...getNewerOptimisticChanges(optimisticData, serverData.updatedAt)
   };
-  
+
   return mergedData;
 };
 ```
@@ -424,7 +424,7 @@ websocket.onmessage = (event) => {
 ```typescript
 const ConnectionStatusIndicator = () => {
   const { isConnected, isReconnecting } = useWebSocketStatus();
-  
+
   if (isReconnecting) {
     return (
       <Badge variant="outline" className="bg-yellow-100 text-yellow-800">
@@ -432,7 +432,7 @@ const ConnectionStatusIndicator = () => {
       </Badge>
     );
   }
-  
+
   if (!isConnected) {
     return (
       <Badge variant="outline" className="bg-red-100 text-red-800">
@@ -440,7 +440,7 @@ const ConnectionStatusIndicator = () => {
       </Badge>
     );
   }
-  
+
   return (
     <Badge variant="outline" className="bg-green-100 text-green-800">
       🟢 Live
@@ -467,7 +467,7 @@ const batchedBroadcast = debounce((projectId) => {
 // Smart invalidation - only refetch what's actually displayed
 const handleFlushMessage = (message) => {
   const { projectId } = message.data;
-  
+
   // Only invalidate if user is viewing the affected project
   if (currentProjectId === projectId) {
     queryClient.invalidateQueries(['tasks', projectId]);
@@ -482,7 +482,7 @@ const handleFlushMessage = (message) => {
 const cleanupDeadConnections = () => {
   const now = Date.now();
   const TIMEOUT = 60000; // 1 minute
-  
+
   for (const [clientId, client] of clients.entries()) {
     if (now - (client.lastPing || 0) > TIMEOUT) {
       clients.delete(clientId);
@@ -509,7 +509,7 @@ const attemptReconnect = () => {
     console.error('Max reconnection attempts reached');
     return;
   }
-  
+
   setTimeout(() => {
     reconnectAttempts++;
     connect();
@@ -523,12 +523,12 @@ const attemptReconnect = () => {
 const useFallbackPolling = (enabled: boolean) => {
   useEffect(() => {
     if (!enabled) return;
-    
+
     const interval = setInterval(() => {
       // Poll for updates every 5 seconds as fallback
       queryClient.invalidateQueries(['tasks']);
     }, 5000);
-    
+
     return () => clearInterval(interval);
   }, [enabled]);
 };
@@ -541,11 +541,11 @@ const useFallbackPolling = (enabled: boolean) => {
 // MCP server broadcasts after task updates
 export async function updateTask(taskId: string, updates: any) {
   const result = await db.update(tasks).set(updates).where(eq(tasks.id, taskId));
-  
+
   // Broadcast changes to all connected clients
   const task = await db.query.tasks.findFirst({ where: eq(tasks.id, taskId) });
   broadcastFlush(task.projectId);
-  
+
   return result;
 }
 ```

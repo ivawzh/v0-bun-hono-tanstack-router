@@ -7,7 +7,7 @@ export const dateSchema = v.pipe(v.string(), v.isoDateTime());
 
 // Task related schemas (with loop column support)
 export const taskStatusSchema = v.picklist(["todo", "doing", "done", "loop"]);
-export const taskStageSchema = v.picklist(["refine", "plan", "execute", "loop"]);
+export const taskStageSchema = v.picklist(["clarify", "plan", "execute", "loop"]);
 
 
 // Repository related schemas

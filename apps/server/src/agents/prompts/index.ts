@@ -3,34 +3,27 @@
  * Centralized prompt generation for different task stages
  */
 
-import { generateRefinePrompt } from './refine';
+import { generateRefinePrompt } from './clarify';
 import { generatePlanPrompt } from './plan';
 import { generateExecutePrompt } from './execute';
 import { generateLoopPrompt } from './loop';
+import { actors, projects, tasks } from '../../db/schema';
 
-export interface TaskContext {
-  id: string;
-  projectId: string;
-  rawTitle: string;
-  rawDescription?: string;
-  refinedTitle?: string;
-  refinedDescription?: string;
-  plan?: any;
-  priority: string;
-  attachments?: any[];
-  actorDescription?: string;
-  projectMemory?: string;
-  repoPath: string;
+export type Task = typeof tasks.$inferSelect;
+export type PromptParams = {
+  task: Task;
+  actor: typeof actors.$inferSelect;
+  project: typeof projects.$inferSelect;
 }
 
-export type TaskStage = 'refine' | 'plan' | 'execute' | 'loop';
+export type TaskStage = 'clarify' | 'plan' | 'execute' | 'loop';
 
 /**
  * Generate prompt for any stage of task execution
  */
-export function generatePrompt(stage: TaskStage, context: TaskContext): string {
+export function generatePrompt(stage: TaskStage, context: PromptParams): string {
   switch (stage) {
-    case 'refine':
+    case 'clarify':
       return generateRefinePrompt(context);
     case 'plan':
       return generatePlanPrompt(context);

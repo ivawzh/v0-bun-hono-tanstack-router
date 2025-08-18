@@ -34,7 +34,7 @@ Solo Unicorn's task management system provides comprehensive CRUD operations for
 1. **Visual priority badges** on task cards (P1-P5)
 2. **Color-coded indicators**:
    - P1 (Gray): Lowest priority
-   - P2 (Blue): Low priority  
+   - P2 (Blue): Low priority
    - P3 (Yellow): Medium priority (default)
    - P4 (Orange): High priority
    - P5 (Red): Highest priority
@@ -67,7 +67,7 @@ sequenceDiagram
     participant DB as Database
     participant FS as File Storage
     participant WS as WebSocket
-    
+
     U->>UI: Fill task creation form
     UI->>UI: Validate form data and attachments
     alt Has attachments
@@ -93,7 +93,7 @@ sequenceDiagram
     participant S as Server
     participant DB as Database
     participant WS as WebSocket
-    
+
     U->>UI: Edit task field (priority, status, ready, etc.)
     UI->>UI: Optimistic update
     UI->>S: PUT /api/tasks/update
@@ -116,7 +116,7 @@ sequenceDiagram
     participant S as Server
     participant FS as File Storage
     participant DB as Database
-    
+
     U->>UI: Drag & drop files onto task
     UI->>UI: Validate file types and sizes
     UI->>S: POST /api/tasks/{taskId}/attachments
@@ -149,31 +149,31 @@ tasks {
   projectId: uuid (FK to projects.id)
   repoAgentId: uuid (FK to repoAgents.id)
   actorId: uuid (FK to actors.id, nullable)
-  
+
   -- Human input
   rawTitle: text (not null)
   rawDescription: text (nullable)
-  
+
   -- AI generated
   refinedTitle: text (nullable)
   refinedDescription: text (nullable)
   plan: jsonb (default {})
-  
+
   -- Status management
   status: text (todo/doing/done/loop, default 'todo')
-  stage: text (refine/plan/execute/loop, nullable)
+  stage: text (clarify/plan/execute/loop, nullable)
   priority: integer (1-5, default 3)
   columnOrder: text (decimal string for drag & drop)
   ready: boolean (default false)
-  
+
   -- AI coordination
   isAiWorking: boolean (default false)
   aiWorkingSince: timestamp (nullable)
   author: text (human/ai, default 'human')
-  
+
   -- Attachments
   attachments: jsonb (default [], array of metadata objects)
-  
+
   createdAt: timestamp
   updatedAt: timestamp
 }
@@ -242,7 +242,7 @@ const priorityConfig = {
 const SUPPORTED_TYPES = [
   // Images
   'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp',
-  // Documents  
+  // Documents
   'application/pdf', 'text/plain', 'text/markdown',
   // Code files
   'text/javascript', 'application/json', 'text/html',
@@ -311,12 +311,12 @@ const updateMutation = useMutation({
     // Cancel outgoing queries and snapshot current state
     await queryClient.cancelQueries(['tasks']);
     const previousTasks = queryClient.getQueryData(['tasks']);
-    
+
     // Apply optimistic update
     queryClient.setQueryData(['tasks'], (old) => {
       return applyTaskUpdate(old, variables);
     });
-    
+
     return { previousTasks };
   },
   onError: (err, variables, context) => {
@@ -355,7 +355,7 @@ const updateMutation = useMutation({
 
 ### Default Task Ordering
 ```sql
-ORDER BY 
+ORDER BY
   tasks.status,                           -- Column grouping (todo/doing/done)
   tasks.priority DESC,                    -- Higher priority first (5→4→3→2→1)
   CAST(tasks.columnOrder AS DECIMAL),     -- Manual drag & drop position

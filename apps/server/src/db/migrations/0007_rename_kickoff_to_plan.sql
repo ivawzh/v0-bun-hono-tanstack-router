@@ -8,5 +8,5 @@ ALTER TABLE "tasks" DROP CONSTRAINT "tasks_stage_check";
 UPDATE "tasks" SET "stage" = 'plan' WHERE "stage" = 'kickoff';
 
 -- Add the new stage constraint with 'plan' instead of 'kickoff'
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_stage_check" 
-CHECK ("stage" IS NULL OR "stage" IN ('refine', 'plan', 'execute'));
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_stage_check"
+CHECK ("stage" IS NULL OR "stage" IN ('clarify', 'plan', 'execute'));

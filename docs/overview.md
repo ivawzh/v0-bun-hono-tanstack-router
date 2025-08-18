@@ -4,7 +4,7 @@
 
 Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-column board where agents automatically pick up and complete work.
 
-- AI agents autonomously refine, plan, execute and loop tasks
+- AI agents autonomously clarify, plan, execute and loop tasks
 - Create project, configure repo, agents, and start tasking
 
 ## Tech stack
@@ -50,7 +50,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 - **Regular tasks**: Todo → Doing → Done
 - **Loop tasks**: Loop → Doing → Loop (infinite cycle)
-- Doing has 3 stages: Refine → Plan → Execute
+- Doing has 3 stages: clarify → Plan → Execute
 - Loop has 1 stage: loop (never changes)
 - Must have repo agent assigned
 - Optional actor assignment
@@ -64,7 +64,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
 **Focus**: Deliver functional features that solve real user problems
-**Methodology**: Refine → Plan → Execute with clear documentation of decisions
+**Methodology**: clarify → Plan → Execute with clear documentation of decisions
 **Values**: Simplicity, reliability, user experience, maintainable code
 
 ## Project Setup UX
@@ -97,7 +97,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 Agents automatically pick up ready cards in priority order (5-1, then card order within column).
 
-**Stage 1: Refine**
+**Stage 1: clarify**
 
 - Agent understands and refines the raw title/description
 - Updates card with refined title and refined description

@@ -29,7 +29,7 @@ The Solo Unicorn task lifecycle represents the complete journey from human task 
 ### AI-Driven Progression
 1. **Orchestrator scans** for ready tasks every second
 2. **AI picks up** highest priority ready task for available agent type
-3. **Automatic progression** through refine → plan → execute stages
+3. **Automatic progression** through clarify → plan → execute stages
 4. **Real-time updates** show current stage and AI activity
 5. **Completion** moves task to "Done" column automatically
 
@@ -45,7 +45,7 @@ sequenceDiagram
     participant O as Orchestrator
     participant AI as AI Agent
     participant MCP as MCP Server
-    
+
     %% Task Creation
     H->>UI: Create task with raw details
     UI->>S: POST /api/tasks/create
@@ -53,7 +53,7 @@ sequenceDiagram
     DB->>S: Return task ID
     S->>UI: Return task data
     UI->>UI: Show task in Todo column
-    
+
     %% Human Marks Ready
     H->>UI: Check "ready" checkbox
     UI->>S: PUT /api/tasks/update (ready=true)
@@ -61,24 +61,24 @@ sequenceDiagram
     DB->>S: Confirm update
     S->>UI: Return updated task
     UI->>UI: Show ready indicator
-    
+
     %% AI Orchestrator Picks Up Task
     Note over O: Scans every second for ready tasks
     O->>DB: Query ready tasks for available agents
     DB->>O: Return highest priority ready task
     O->>AI: Create session with task context
-    AI->>MCP: task_update(status=doing, stage=refine, isAiWorking=true)
+    AI->>MCP: task_update(status=doing, stage=clarify, isAiWorking=true)
     MCP->>DB: UPDATE task status and stage
     MCP->>UI: Broadcast real-time update
-    UI->>UI: Move task to Doing column, show Refine stage
-    
-    %% Refine Stage
+    UI->>UI: Move task to Doing column, show clarify stage
+
+    %% clarify Stage
     AI->>AI: Analyze raw title and description
     AI->>MCP: task_update(refinedTitle, refinedDescription, stage=plan)
     MCP->>DB: UPDATE refined fields, advance to plan stage
     MCP->>UI: Broadcast update
     UI->>UI: Show Plan stage indicator
-    
+
     %% Plan Stage
     AI->>AI: Generate solution options and select approach
     AI->>AI: Create detailed implementation plan
@@ -92,7 +92,7 @@ sequenceDiagram
         MCP->>DB: UPDATE plan field, advance to execute
         MCP->>UI: Show Execute stage indicator
     end
-    
+
     %% Execute Stage
     AI->>AI: Follow implementation plan
     AI->>AI: Write code, make commits
@@ -107,15 +107,15 @@ sequenceDiagram
 stateDiagram-v2
     [*] --> Todo : Human creates task
     Todo --> Todo : Human edits (ready=false)
-    Todo --> Refine : AI picks up (ready=true)
-    Refine --> Plan : AI completes refinement
+    Todo --> clarify : AI picks up (ready=true)
+    clarify --> Plan : AI completes refinement
     Plan --> Execute : AI creates manageable plan
     Plan --> Done : AI splits complex plan into subtasks
     Execute --> Done : AI completes implementation
     Done --> [*] : Task completed
-    
+
     note right of Todo : ready=false by default
-    note right of Refine : AI analyzes raw input
+    note right of clarify : AI analyzes raw input
     note right of Plan : AI creates implementation plan
     note right of Execute : AI implements solution
 ```
@@ -127,7 +127,7 @@ flowchart TD
     B -->|≤6 steps AND ≤600 lines| C[Continue to Execute]
     B -->|>6 steps OR >600 lines| D[Split into Subtasks]
     D --> E[Create Subtask 1]
-    D --> F[Create Subtask 2]  
+    D --> F[Create Subtask 2]
     D --> G[Create Subtask N]
     E --> H[Set Dependencies]
     F --> H
@@ -143,7 +143,7 @@ flowchart TD
 ```sql
 tasks {
   status: text -- 'todo', 'doing', 'done', 'loop'
-  stage: text -- 'refine', 'plan', 'execute', null (only when status='doing')
+  stage: text -- 'clarify', 'plan', 'execute', null (only when status='doing')
   ready: boolean -- Human control for AI pickup
   isAiWorking: boolean -- AI activity indicator
   aiWorkingSince: timestamp -- When AI started working
@@ -162,7 +162,7 @@ tasks {
   },
   "after_refine": {
     "rawTitle": "user login",
-    "rawDescription": "need login page", 
+    "rawDescription": "need login page",
     "refinedTitle": "Implement user authentication with email/password",
     "refinedDescription": "Create login page, authentication service, and session management",
     "status": "doing",
@@ -174,7 +174,7 @@ tasks {
       "spec": "Implement Google OAuth integration...",
       "steps": ["Create auth service", "Build login UI", "Add session management"]
     },
-    "status": "doing", 
+    "status": "doing",
     "stage": "execute"
   },
   "after_execute": {
@@ -187,11 +187,11 @@ tasks {
 
 ## AI Prompt Templates
 
-### Refine Stage Prompt (`apps/server/src/agents/prompts/index.ts:23-50`)
+### clarify Stage Prompt (`apps/server/src/agents/prompts/index.ts:23-50`)
 - **Purpose**: Convert raw human input into clear, actionable requirements
 - **Input**: Raw title, raw description, actor context, project memory
 - **Output**: Refined title and description with clear scope
-- **MCP Calls**: Start with `task_update(status=doing, stage=refine, isAiWorking=true)`, finish with stage transition to "plan"
+- **MCP Calls**: Start with `task_update(status=doing, stage=clarify, isAiWorking=true)`, finish with stage transition to "plan"
 
 ### Plan Stage Prompt (`apps/server/src/agents/prompts/index.ts:53-102`)
 - **Purpose**: Create comprehensive implementation plan with solution evaluation
@@ -218,7 +218,7 @@ tasks {
 task_update({
   taskId: string,
   status?: 'todo' | 'doing' | 'done' | 'loop',
-  stage?: 'refine' | 'plan' | 'execute' | null,
+  stage?: 'clarify' | 'plan' | 'execute' | null,
   isAiWorking?: boolean,
   refinedTitle?: string,
   refinedDescription?: string,
@@ -237,7 +237,7 @@ task_create({
   refinedDescription: string,
   plan?: object,
   priority: number,
-  stage: 'execute', // Skip refine/plan for subtasks
+  stage: 'execute', // Skip clarify/plan for subtasks
   dependsOn: string[] // Dependency chain
 })
 ```
@@ -261,17 +261,17 @@ sequenceDiagram
     participant AI as AI Agent
     participant MCP as MCP Server
     participant DB as Database
-    
+
     AI->>MCP: task_create(subtask1, dependsOn=[])
     MCP->>DB: INSERT subtask1
     DB->>MCP: Return subtask1.id
-    
+
     AI->>MCP: task_create(subtask2, dependsOn=[subtask1.id])
     MCP->>DB: INSERT subtask2
     MCP->>DB: INSERT dependency(subtask2 → subtask1)
-    
+
     AI->>MCP: task_create(subtask3, dependsOn=[subtask2.id])
-    MCP->>DB: INSERT subtask3  
+    MCP->>DB: INSERT subtask3
     MCP->>DB: INSERT dependency(subtask3 → subtask2)
 ```
 

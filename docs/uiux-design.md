@@ -14,10 +14,10 @@ Simple, clean board with essential workflow columns including iterative Loop:
 +-------------------------------------------------------------------------------------------------------------------------------+
 |  Todo                   |  Doing                  |  Done                   |  Loop                   |
 |  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|
-|  | [P1] Task A         ||  | [P2] Task C (Refine)||  | [P3] Task E         ||  | [∞] Brainstorm      ||
+|  | [P1] Task A         ||  | [P2] Task C (clarify)||  | [P3] Task E         ||  | [∞] Brainstorm      ||
 |  | Main Repo (Claude)  ||  | Main Repo (Claude)  ||  | Frontend (OpenCode) ||  | ideas & document    ||
 |  | Default Actor       ||  | Custom Actor        ||  | Default Actor       ||  | Main Repo (Claude)  ||
-|  | Ready [☑]   📎2     ||  | Stage: Refine ●○○   ||  | Completed 2h ago    ||  | Stage: loop ♻️      ||
+|  | Ready [☑]   📎2     ||  | Stage: clarify ●○○   ||  | Completed 2h ago    ||  | Stage: loop ♻️      ||
 |  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||
 |  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|
 |  ┌─────────────────────┐|  ┌─────────────────────┐|                         |  ┌─────────────────────┐|
@@ -43,7 +43,7 @@ Simple, clean board with essential workflow columns including iterative Loop:
 **Doing Cards:**
 - Priority and title (refined if available)
 - Repo Agent
-- Stage indicator: Refine ●○○, Kickoff ●●○, Execute ●●●
+- Stage indicator: clarify ●○○, Kickoff ●●○, Execute ●●●
 - Progress info
 - Delete button
 
@@ -176,7 +176,7 @@ Click any card to open simplified drawer:
 1. **Create**: Human creates task with raw title/description
 2. **Ready**: Human marks task ready when prepared
 3. **Pickup**: Agent automatically picks up highest priority ready task
-4. **Refine**: Agent updates with refined title/description
+4. **clarify**: Agent updates with refined title/description
 5. **Plan**: Agent creates solution options and plan
 6. **Execute**: Agent implements the plan
 7. **Done**: Task completed ✓
@@ -184,7 +184,7 @@ Click any card to open simplified drawer:
 **Loop Tasks:**
 1. **Create**: Human creates repeatable task directly in Loop column
 2. **Pickup**: Agent picks Loop task when Todo/Doing are empty
-3. **Execute**: Task moves to Doing with stage="loop" (no Refine/Plan stages)
+3. **Execute**: Task moves to Doing with stage="loop" (no clarify/Plan stages)
 4. **Return**: After completion, task returns to bottom of Loop column
 5. **Cycle**: Process repeats infinitely ♻️
 

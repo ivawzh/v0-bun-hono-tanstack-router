@@ -42,7 +42,7 @@ The Solo Unicorn Kanban board provides a visual, interactive interface for manag
 **Doing Column Cards:**
 - Priority and refined title
 - Repo agent and actor info
-- Stage progress indicator (Refine ●○○, Plan ●●○, Execute ●●●)
+- Stage progress indicator (clarify ●○○, Plan ●●○, Execute ●●●)
 - AI working status with real-time badge
 - Reset agent button (available after 1 minute)
 - Delete action
@@ -80,7 +80,7 @@ sequenceDiagram
     participant S as Server
     participant DB as Database
     participant WS as WebSocket
-    
+
     U->>UI: Navigate to /projects/{projectId}
     UI->>S: GET /api/projects/getWithTasks
     S->>DB: SELECT project with tasks, repo agents, actors
@@ -101,11 +101,11 @@ sequenceDiagram
     participant S as Server
     participant DB as Database
     participant WS as WebSocket
-    
+
     U->>DND: Start dragging task card
     DND->>UI: onDragStart event
     UI->>UI: Set active dragging state, visual feedback
-    
+
     U->>DND: Drop task in new position
     DND->>UI: onDragEnd event with source/target
     UI->>UI: Calculate new column order values
@@ -126,7 +126,7 @@ sequenceDiagram
     participant WS as WebSocket
     participant UI1 as User 1 UI
     participant UI2 as User 2 UI
-    
+
     AI->>MCP: task_update(status=doing, stage=plan)
     MCP->>DB: UPDATE task status and stage
     MCP->>WS: broadcastFlush(task update)
@@ -134,7 +134,7 @@ sequenceDiagram
     WS->>UI2: WebSocket message with task changes
     UI1->>UI1: Update task card, move to Doing column
     UI2->>UI2: Update task card, move to Doing column
-    
+
     Note over UI1,UI2: Both users see changes instantly
 ```
 
@@ -145,7 +145,7 @@ flowchart TD
     B -->|Top of Column| C[Order = firstTask.order / 2]
     B -->|Bottom of Column| D[Order = lastTask.order + 1000]
     B -->|Between Tasks| E[Order = (prevTask.order + nextTask.order) / 2]
-    
+
     C --> F[Update Database]
     D --> F
     E --> F
@@ -171,19 +171,19 @@ function calculateNewOrder(targetIndex, targetTasks) {
   if (targetTasks.length === 0) {
     return "1000"; // First task in empty column
   }
-  
+
   if (targetIndex === 0) {
     // Insert at top
     const firstOrder = parseFloat(targetTasks[0].columnOrder);
     return (firstOrder / 2).toString();
   }
-  
+
   if (targetIndex >= targetTasks.length) {
     // Insert at bottom
     const lastOrder = parseFloat(targetTasks[targetTasks.length - 1].columnOrder);
     return (lastOrder + 1000).toString();
   }
-  
+
   // Insert between two tasks
   const prevOrder = parseFloat(targetTasks[targetIndex - 1].columnOrder);
   const nextOrder = parseFloat(targetTasks[targetIndex].columnOrder);
@@ -194,7 +194,7 @@ function calculateNewOrder(targetIndex, targetTasks) {
 ### Task Sorting Algorithm
 ```sql
 -- Database ordering query
-ORDER BY 
+ORDER BY
   tasks.status,                           -- Column grouping
   tasks.priority DESC,                    -- Higher priority first (5 > 4 > 3 > 2 > 1)
   CAST(tasks.columnOrder AS DECIMAL),     -- Manual drag & drop order
@@ -216,7 +216,7 @@ import {
 import { SortableContext, useSortable } from "@dnd-kit/sortable";
 
 // Task cards use useSortable for drag functionality
-const { attributes, listeners, setNodeRef, transform, transition, isDragging } = 
+const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
   useSortable({ id: task.id });
 
 // Board handles drag end events for position updates
@@ -229,8 +229,8 @@ const handleDragEnd = (event: DragEndEvent) => {
 ```typescript
 // WebSocket connection for live updates
 const { data: project } = useQuery(
-  orpc.projects.getWithTasks.queryOptions({ 
-    input: { id: projectId } 
+  orpc.projects.getWithTasks.queryOptions({
+    input: { id: projectId }
   })
 );
 
@@ -252,15 +252,15 @@ const reorderMutation = useMutation({
   onMutate: async (variables) => {
     // Cancel outgoing refetches
     await queryClient.cancelQueries(['tasks']);
-    
+
     // Snapshot previous value
     const previousTasks = queryClient.getQueryData(['tasks']);
-    
+
     // Optimistically update to new value
     queryClient.setQueryData(['tasks'], (old) => {
       return applyReorderOptimistically(old, variables);
     });
-    
+
     return { previousTasks };
   },
   onError: (err, variables, context) => {
@@ -287,7 +287,7 @@ const statusColumns = [
     color: 'bg-gray-100 text-gray-700'
   },
   {
-    id: 'doing', 
+    id: 'doing',
     title: 'Doing',
     icon: Play,
     description: 'Tasks currently being processed by AI agents',
@@ -295,7 +295,7 @@ const statusColumns = [
   },
   {
     id: 'done',
-    title: 'Done', 
+    title: 'Done',
     icon: CheckCircle,
     description: 'Completed tasks',
     color: 'bg-green-100 text-green-700'
@@ -359,8 +359,8 @@ interface TaskActions {
 ### Stage Progress Indicators
 ```typescript
 const stageIndicators = {
-  refine: "●○○",  // First stage
-  plan: "●●○",    // Second stage  
+  clarify: "●○○",  // First stage
+  plan: "●●○",    // Second stage
   execute: "●●●"  // Final stage
 };
 ```

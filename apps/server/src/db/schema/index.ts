@@ -93,7 +93,7 @@ export const tasks = pgTable("tasks", {
 
   // Status and stage
   status: text("status").notNull().default("todo"), // todo, doing, done, loop
-  stage: text("stage"), // refine, plan, execute, loop
+  stage: text("stage"), // clarify, plan, execute, loop
 
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest

@@ -1,8 +1,17 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories } from "../db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import {
+  tasks,
+  projects,
+  repositories,
+  agents,
+  actors,
+  taskDependencies,
+  taskAgents,
+  taskAdditionalRepositories
+} from "../db/schema/v2";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import {
   saveAttachment,
@@ -16,7 +25,7 @@ const taskStatusEnum = v.picklist(["todo", "doing", "done", "loop"]);
 const taskStageEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop"]));
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
-export const tasksRouter = o.router({
+export const tasksV2Router = o.router({
   list: protectedProcedure
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid())
@@ -38,6 +47,7 @@ export const tasksRouter = o.router({
         throw new Error("Project not found or unauthorized");
       }
 
+      // Get tasks with main repository, actor, and assigned agents
       const results = await db
         .select({
           task: tasks,
@@ -55,9 +65,42 @@ export const tasksRouter = o.router({
           desc(tasks.createdAt)
         );
 
+      // Fetch all assigned agents for all tasks
+      const taskIds = results.map(r => r.task.id);
+      const allTaskAgents = taskIds.length > 0 ? await db
+        .select({
+          taskId: taskAgents.taskId,
+          agent: agents
+        })
+        .from(taskAgents)
+        .innerJoin(agents, eq(taskAgents.agentId, agents.id))
+        .where(inArray(taskAgents.taskId, taskIds)) : [];
+
+      // Fetch all additional repositories for all tasks
+      const allAdditionalRepos = taskIds.length > 0 ? await db
+        .select({
+          taskId: taskAdditionalRepositories.taskId,
+          repository: repositories
+        })
+        .from(taskAdditionalRepositories)
+        .innerJoin(repositories, eq(taskAdditionalRepositories.repositoryId, repositories.id))
+        .where(inArray(taskAdditionalRepositories.taskId, taskIds)) : [];
+
+      // Group by task ID
+      const agentsByTask = allTaskAgents.reduce((acc, item) => {
+        if (!acc[item.taskId]) acc[item.taskId] = [];
+        acc[item.taskId].push(item.agent);
+        return acc;
+      }, {} as Record<string, any[]>);
+
+      const additionalReposByTask = allAdditionalRepos.reduce((acc, item) => {
+        if (!acc[item.taskId]) acc[item.taskId] = [];
+        acc[item.taskId].push(item.repository);
+        return acc;
+      }, {} as Record<string, any[]>);
+
       // Fetch dependencies for all tasks in the project
-      const allTaskIds = results.map(r => r.task.id);
-      const dependencies = await db
+      const dependencies = taskIds.length > 0 ? await db
         .select({
           taskId: taskDependencies.taskId,
           dependsOnTaskId: taskDependencies.dependsOnTaskId,
@@ -70,7 +113,7 @@ export const tasksRouter = o.router({
         })
         .from(taskDependencies)
         .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
-        .where(sql`${taskDependencies.taskId} = ANY(${allTaskIds})`);
+        .where(inArray(taskDependencies.taskId, taskIds)) : [];
 
       // Group dependencies by task ID
       const dependenciesByTask = dependencies.reduce((acc, dep) => {
@@ -85,6 +128,10 @@ export const tasksRouter = o.router({
         ...r.task,
         mainRepository: r.mainRepository,
         actor: r.actor,
+        assignedAgents: agentsByTask[r.task.id] || [],
+        additionalRepositories: additionalReposByTask[r.task.id] || [],
+        assignedAgentIds: (agentsByTask[r.task.id] || []).map((agent: any) => agent.id),
+        additionalRepositoryIds: (additionalReposByTask[r.task.id] || []).map((repo: any) => repo.id),
         dependencies: dependenciesByTask[r.task.id] || []
       }));
     }),
@@ -117,31 +164,29 @@ export const tasksRouter = o.router({
         throw new Error("Task not found or unauthorized");
       }
 
-      const taskId = result[0].task.id;
-
-      // Fetch additional repositories
-      const additionalRepos = await db
-        .select({ repository: repositories })
-        .from(taskAdditionalRepositories)
-        .innerJoin(repositories, eq(taskAdditionalRepositories.repositoryId, repositories.id))
-        .where(eq(taskAdditionalRepositories.taskId, taskId));
-
       // Fetch assigned agents
-      const assignedAgentsData = await db
+      const assignedAgents = await db
         .select({ agent: agents })
         .from(taskAgents)
         .innerJoin(agents, eq(taskAgents.agentId, agents.id))
-        .where(eq(taskAgents.taskId, taskId));
+        .where(eq(taskAgents.taskId, input.id));
+
+      // Fetch additional repositories
+      const additionalRepositories = await db
+        .select({ repository: repositories })
+        .from(taskAdditionalRepositories)
+        .innerJoin(repositories, eq(taskAdditionalRepositories.repositoryId, repositories.id))
+        .where(eq(taskAdditionalRepositories.taskId, input.id));
 
       return {
         ...result[0].task,
         project: result[0].project,
         mainRepository: result[0].mainRepository,
         actor: result[0].actor,
-        additionalRepositories: additionalRepos.map(r => r.repository),
-        additionalRepositoryIds: additionalRepos.map(r => r.repository.id),
-        assignedAgents: assignedAgentsData.map(a => a.agent),
-        assignedAgentIds: assignedAgentsData.map(a => a.agent.id)
+        assignedAgents: assignedAgents.map(a => a.agent),
+        additionalRepositories: additionalRepositories.map(r => r.repository),
+        assignedAgentIds: assignedAgents.map(a => a.agent.id),
+        additionalRepositoryIds: additionalRepositories.map(r => r.repository.id)
       };
     }),
 
@@ -149,15 +194,15 @@ export const tasksRouter = o.router({
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid()),
       mainRepositoryId: v.pipe(v.string(), v.uuid()),
+      assignedAgentIds: v.array(v.pipe(v.string(), v.uuid())),
       additionalRepositoryIds: v.optional(v.array(v.pipe(v.string(), v.uuid())), []),
-      assignedAgentIds: v.optional(v.array(v.pipe(v.string(), v.uuid())), []),
       actorId: v.optional(v.pipe(v.string(), v.uuid())),
       rawTitle: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
       rawDescription: v.optional(v.string()),
       priority: v.optional(prioritySchema, 3),
       attachments: v.optional(v.array(v.any()), []),
-      status: v.optional(taskStatusEnum, "todo"), // Allow creating tasks directly in loop column
-      stage: v.optional(taskStageEnum) // Allow explicit stage assignment on creation
+      status: v.optional(taskStatusEnum, "todo"),
+      stage: v.optional(taskStageEnum)
     }))
     .handler(async ({ context, input }) => {
       // Verify project ownership
@@ -177,7 +222,7 @@ export const tasksRouter = o.router({
       }
 
       // Verify main repository belongs to project
-      const mainRepo = await db
+      const mainRepository = await db
         .select()
         .from(repositories)
         .where(
@@ -188,18 +233,18 @@ export const tasksRouter = o.router({
         )
         .limit(1);
 
-      if (mainRepo.length === 0) {
+      if (mainRepository.length === 0) {
         throw new Error("Main repository not found or doesn't belong to project");
       }
 
-      // Verify additional repositories belong to project (if provided)
-      if (input.additionalRepositoryIds && input.additionalRepositoryIds.length > 0) {
+      // Verify additional repositories belong to project
+      if (input.additionalRepositoryIds.length > 0) {
         const additionalRepos = await db
           .select()
           .from(repositories)
           .where(
             and(
-              sql`${repositories.id} = ANY(${input.additionalRepositoryIds})`,
+              inArray(repositories.id, input.additionalRepositoryIds),
               eq(repositories.projectId, input.projectId)
             )
           );
@@ -209,14 +254,14 @@ export const tasksRouter = o.router({
         }
       }
 
-      // Verify assigned agents belong to user (if provided)
-      if (input.assignedAgentIds && input.assignedAgentIds.length > 0) {
+      // Verify assigned agents belong to user
+      if (input.assignedAgentIds.length > 0) {
         const assignedAgents = await db
           .select()
           .from(agents)
           .where(
             and(
-              sql`${agents.id} = ANY(${input.assignedAgentIds})`,
+              inArray(agents.id, input.assignedAgentIds),
               eq(agents.userId, context.user.id)
             )
           );
@@ -255,6 +300,7 @@ export const tasksRouter = o.router({
         }
       }
 
+      // Create the task
       const newTask = await db
         .insert(tasks)
         .values({
@@ -273,24 +319,24 @@ export const tasksRouter = o.router({
 
       const taskId = newTask[0].id;
 
-      // Insert additional repositories
-      if (input.additionalRepositoryIds && input.additionalRepositoryIds.length > 0) {
-        const additionalRepoInserts = input.additionalRepositoryIds.map(repoId => ({
-          taskId,
-          repositoryId: repoId
-        }));
-
-        await db.insert(taskAdditionalRepositories).values(additionalRepoInserts);
+      // Create agent assignments
+      if (input.assignedAgentIds.length > 0) {
+        await db.insert(taskAgents).values(
+          input.assignedAgentIds.map(agentId => ({
+            taskId,
+            agentId
+          }))
+        );
       }
 
-      // Insert assigned agents
-      if (input.assignedAgentIds && input.assignedAgentIds.length > 0) {
-        const agentInserts = input.assignedAgentIds.map(agentId => ({
-          taskId,
-          agentId
-        }));
-
-        await db.insert(taskAgents).values(agentInserts);
+      // Create additional repository assignments
+      if (input.additionalRepositoryIds.length > 0) {
+        await db.insert(taskAdditionalRepositories).values(
+          input.additionalRepositoryIds.map(repositoryId => ({
+            taskId,
+            repositoryId
+          }))
+        );
       }
 
       // Broadcast flush to invalidate all queries for this project
@@ -313,10 +359,7 @@ export const tasksRouter = o.router({
       ready: v.optional(v.boolean()),
       attachments: v.optional(v.array(v.any())),
       columnOrder: v.optional(v.string()),
-      // V2 fields
       mainRepositoryId: v.optional(v.pipe(v.string(), v.uuid())),
-      additionalRepositoryIds: v.optional(v.array(v.pipe(v.string(), v.uuid()))),
-      assignedAgentIds: v.optional(v.array(v.pipe(v.string(), v.uuid()))),
       actorId: v.optional(v.pipe(v.string(), v.uuid()))
     }))
     .handler(async ({ context, input }) => {
@@ -353,8 +396,6 @@ export const tasksRouter = o.router({
       if (input.ready !== undefined) updates.ready = input.ready;
       if (input.attachments !== undefined) updates.attachments = input.attachments;
       if (input.columnOrder !== undefined) updates.columnOrder = input.columnOrder;
-      
-      // V2 fields
       if (input.mainRepositoryId !== undefined) updates.mainRepositoryId = input.mainRepositoryId;
       if (input.actorId !== undefined) updates.actorId = input.actorId;
 
@@ -364,46 +405,10 @@ export const tasksRouter = o.router({
         .where(eq(tasks.id, input.id))
         .returning();
 
-      const updatedTask = updated[0];
-
-      // Handle additional repositories update
-      if (input.additionalRepositoryIds !== undefined) {
-        // Delete existing additional repositories
-        await db
-          .delete(taskAdditionalRepositories)
-          .where(eq(taskAdditionalRepositories.taskId, input.id));
-
-        // Insert new additional repositories
-        if (input.additionalRepositoryIds.length > 0) {
-          const additionalRepoInserts = input.additionalRepositoryIds.map(repoId => ({
-            taskId: input.id,
-            repositoryId: repoId
-          }));
-          await db.insert(taskAdditionalRepositories).values(additionalRepoInserts);
-        }
-      }
-
-      // Handle assigned agents update
-      if (input.assignedAgentIds !== undefined) {
-        // Delete existing agent assignments
-        await db
-          .delete(taskAgents)
-          .where(eq(taskAgents.taskId, input.id));
-
-        // Insert new agent assignments
-        if (input.assignedAgentIds.length > 0) {
-          const agentInserts = input.assignedAgentIds.map(agentId => ({
-            taskId: input.id,
-            agentId
-          }));
-          await db.insert(taskAgents).values(agentInserts);
-        }
-      }
-
       // Broadcast flush to invalidate all queries for this project
       broadcastFlush(task[0].project.id);
 
-      return updatedTask;
+      return updated[0];
     }),
 
   delete: protectedProcedure
@@ -431,8 +436,67 @@ export const tasksRouter = o.router({
         throw new Error("Task not found or unauthorized");
       }
 
-      // Delete task (no cascading needed in simplified model)
+      // Delete task (cascading will handle related records)
       await db.delete(tasks).where(eq(tasks.id, input.id));
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return { success: true };
+    }),
+
+  updateAssignments: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      assignedAgentIds: v.array(v.pipe(v.string(), v.uuid())),
+      additionalRepositoryIds: v.array(v.pipe(v.string(), v.uuid()))
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.id),
+            eq(projects.ownerId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Remove existing agent assignments
+      await db.delete(taskAgents).where(eq(taskAgents.taskId, input.id));
+
+      // Remove existing additional repository assignments
+      await db.delete(taskAdditionalRepositories).where(eq(taskAdditionalRepositories.taskId, input.id));
+
+      // Create new agent assignments
+      if (input.assignedAgentIds.length > 0) {
+        await db.insert(taskAgents).values(
+          input.assignedAgentIds.map(agentId => ({
+            taskId: input.id,
+            agentId
+          }))
+        );
+      }
+
+      // Create new additional repository assignments
+      if (input.additionalRepositoryIds.length > 0) {
+        await db.insert(taskAdditionalRepositories).values(
+          input.additionalRepositoryIds.map(repositoryId => ({
+            taskId: input.id,
+            repositoryId
+          }))
+        );
+      }
 
       // Broadcast flush to invalidate all queries for this project
       broadcastFlush(task[0].project.id);
@@ -557,199 +621,7 @@ export const tasksRouter = o.router({
       return { success: true, updated: updatedTasks };
     }),
 
-  updateStage: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid()),
-      stage: taskStageEnum
-    }))
-    .handler(async ({ context, input }) => {
-      // Verify ownership
-      const task = await db
-        .select({
-          task: tasks,
-          project: projects
-        })
-        .from(tasks)
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
-          )
-        )
-        .limit(1);
-
-      if (task.length === 0) {
-        throw new Error("Task not found or unauthorized");
-      }
-
-      const updated = await db
-        .update(tasks)
-        .set({
-          stage: input.stage,
-          updatedAt: new Date()
-        })
-        .where(eq(tasks.id, input.id))
-        .returning();
-
-      // Broadcast flush to invalidate all queries for this project
-      broadcastFlush(task[0].project.id);
-
-      return updated[0];
-    }),
-
-  uploadAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      file: v.object({
-        buffer: v.any(), // Buffer or Uint8Array
-        originalName: v.string(),
-        type: v.string(),
-        size: v.number()
-      })
-    }))
-    .handler(async ({ context, input }) => {
-      try {
-        // Verify task ownership
-        const task = await db
-          .select({
-            task: tasks,
-            project: projects
-          })
-          .from(tasks)
-          .innerJoin(projects, eq(tasks.projectId, projects.id))
-          .where(
-            and(
-              eq(tasks.id, input.taskId),
-              eq(projects.ownerId, context.user.id)
-            )
-          )
-          .limit(1);
-
-        if (task.length === 0) {
-          throw new Error("Task not found or unauthorized");
-        }
-
-        const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-
-        // Validate total size
-        await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
-
-        // Save attachment file
-        const attachment = await saveAttachment(input.taskId, input.file);
-
-        // Update task with new attachment
-        const updatedAttachments = [...existingAttachments, attachment];
-
-        const updated = await db
-          .update(tasks)
-          .set({
-            attachments: updatedAttachments,
-            updatedAt: new Date()
-          })
-          .where(eq(tasks.id, input.taskId))
-          .returning();
-
-        // Broadcast flush to invalidate all queries for this project
-        broadcastFlush(task[0].project.id);
-
-        return attachment;
-      } catch (error) {
-        console.error('Upload attachment error:', error);
-        throw error;
-      }
-    }),
-
-  deleteAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      attachmentId: v.pipe(v.string(), v.uuid())
-    }))
-    .handler(async ({ context, input }) => {
-      // Verify task ownership
-      const task = await db
-        .select({
-          task: tasks,
-          project: projects
-        })
-        .from(tasks)
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .where(
-          and(
-            eq(tasks.id, input.taskId),
-            eq(projects.ownerId, context.user.id)
-          )
-        )
-        .limit(1);
-
-      if (task.length === 0) {
-        throw new Error("Task not found or unauthorized");
-      }
-
-      const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-
-      // Delete the file
-      await deleteAttachment(input.taskId, input.attachmentId, attachments);
-
-      // Remove from task attachments
-      const updatedAttachments = attachments.filter(a => a.id !== input.attachmentId);
-
-      await db
-        .update(tasks)
-        .set({
-          attachments: updatedAttachments,
-          updatedAt: new Date()
-        })
-        .where(eq(tasks.id, input.taskId));
-
-      // Broadcast flush to invalidate all queries for this project
-      broadcastFlush(task[0].project.id);
-
-      return { success: true };
-    }),
-
-  getAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      attachmentId: v.pipe(v.string(), v.uuid())
-    }))
-    .handler(async ({ context, input }) => {
-      // Verify task ownership
-      const task = await db
-        .select({
-          task: tasks,
-          project: projects
-        })
-        .from(tasks)
-        .innerJoin(projects, eq(tasks.projectId, projects.id))
-        .where(
-          and(
-            eq(tasks.id, input.taskId),
-            eq(projects.ownerId, context.user.id)
-          )
-        )
-        .limit(1);
-
-      if (task.length === 0) {
-        throw new Error("Task not found or unauthorized");
-      }
-
-      const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-      const attachment = attachments.find(a => a.id === input.attachmentId);
-
-      if (!attachment) {
-        throw new Error("Attachment not found");
-      }
-
-      const buffer = await getAttachmentFile(input.taskId, input.attachmentId, attachments);
-
-      return {
-        buffer,
-        metadata: attachment
-      };
-    }),
-
-  resetAgent: protectedProcedure
+  resetAI: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
     }))
@@ -789,5 +661,5 @@ export const tasksRouter = o.router({
       broadcastFlush(task[0].project.id);
 
       return updated[0];
-    }),
+    })
 });

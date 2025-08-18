@@ -96,7 +96,7 @@ function registerMcpTools(server: McpServer) {
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
         status: z.enum(["todo", "doing", "done", "loop"]).optional(),
-        stage: z.enum(["refine", "plan", "execute", "loop"]).optional().nullable(),
+        stage: z.enum(["clarify", "plan", "execute", "loop"]).optional().nullable(),
         isAiWorking: z.boolean().optional(),
       },
     },
@@ -648,7 +648,7 @@ function registerMcpTools(server: McpServer) {
             status: taskStatus,
             stage: taskStage,
             author: "ai",
-            ready: stage ? true : false, // AI tasks that skip refine are automatically ready
+            ready: stage ? true : false, // AI tasks that skip clarify are automatically ready
           })
           .returning();
 

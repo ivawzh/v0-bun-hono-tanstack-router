@@ -40,7 +40,7 @@ sequenceDiagram
     participant F as Frontend
     participant S as Server
     participant DB as Database
-    
+
     U->>F: Fill actor form and submit
     F->>S: POST /api/actors/create
     S->>S: Verify project ownership
@@ -58,7 +58,7 @@ sequenceDiagram
 sequenceDiagram
     participant S as Server
     participant DB as Database
-    
+
     Note over S: Only one default actor per project
     S->>DB: Check if setting new default
     alt New default actor
@@ -74,7 +74,7 @@ sequenceDiagram
     participant U as User
     participant S as Server
     participant DB as Database
-    
+
     U->>S: Request delete actor
     S->>DB: Check if actor is default
     alt Deleting default actor
@@ -97,7 +97,7 @@ sequenceDiagram
     participant A as Actor
     participant P as Prompt Generator
     participant AI as AI Agent
-    
+
     T->>A: Reference actor by ID (or null for default)
     P->>A: Fetch actor description
     alt Specific actor assigned
@@ -145,7 +145,7 @@ Values: [Technical and business priorities]
     "isDefault": true
   },
   "frontend_specialist": {
-    "name": "Frontend Specialist", 
+    "name": "Frontend Specialist",
     "description": "Expert in React, TypeScript, and modern frontend tooling. Focuses on component reusability, accessibility, and responsive design. Prioritizes user experience and performance optimization.",
     "isDefault": false
   },
@@ -196,13 +196,13 @@ const actorDescription = task.actor?.description || defaultActorDescription;
 ```
 
 ### Stage-Specific Usage
-- **Refine Stage**: Actor guides interpretation of user requirements
+- **clarify Stage**: Actor guides interpretation of user requirements
 - **Plan Stage**: Actor influences solution selection and approach
 - **Execute Stage**: Actor shapes implementation style and priorities
 
 ### Default Actor Fallback
 ```typescript
-const defaultActorDescription = 
+const defaultActorDescription =
   'Startup founder and fullstack software engineer focused on speed to market. ' +
   'Think small. Ignore performance, cost, and scalability. ' +
   'Basic auth and access control is still essential. ' +

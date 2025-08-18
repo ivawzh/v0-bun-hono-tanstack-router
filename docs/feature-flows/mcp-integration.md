@@ -10,7 +10,7 @@ Solo Unicorn implements a Model Context Protocol (MCP) server that enables AI ag
 1. **AI agent receives task** through orchestrator assignment
 2. **Agent connects to MCP server** with authentication token
 3. **Real-time status updates** appear on Kanban board as agent works
-4. **Stage progression** shows through visual indicators (Refine → Plan → Execute)
+4. **Stage progression** shows through visual indicators (clarify → Plan → Execute)
 5. **Task completion** automatically moves card to Done column
 6. **Project memory updates** persist learnings for future tasks
 
@@ -149,7 +149,7 @@ interface MCPTools {
     refinedDescription: z.string().optional(),
     plan: z.any().optional(),
     status: z.enum(["todo", "doing", "done", "loop"]).optional(),
-    stage: z.enum(["refine", "plan", "execute", "loop"]).nullable().optional(),
+    stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional(),
     isAiWorking: z.boolean().optional()
   }
 }
@@ -256,7 +256,7 @@ const taskUpdateSchema = z.object({
   refinedDescription: z.string().optional(),
   plan: z.any().optional(),
   status: z.enum(["todo", "doing", "done", "loop"]).optional(),
-  stage: z.enum(["refine", "plan", "execute", "loop"]).nullable().optional(),
+  stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional(),
   isAiWorking: z.boolean().optional()
 });
 ```

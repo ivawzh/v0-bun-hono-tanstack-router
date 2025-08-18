@@ -76,19 +76,19 @@ CREATE TABLE "sessions" (
 );
 
 -- Add constraints
-ALTER TABLE "repo_agents" ADD CONSTRAINT "repo_agents_status_check" 
+ALTER TABLE "repo_agents" ADD CONSTRAINT "repo_agents_status_check"
 CHECK ("status" IN ('idle', 'active', 'rate_limited', 'error'));
 
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_status_check" 
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_status_check"
 CHECK ("status" IN ('todo', 'doing', 'done'));
 
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_stage_check" 
-CHECK ("stage" IS NULL OR "stage" IN ('refine', 'kickoff', 'execute'));
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_stage_check"
+CHECK ("stage" IS NULL OR "stage" IN ('clarify', 'kickoff', 'execute'));
 
-ALTER TABLE "tasks" ADD CONSTRAINT "tasks_priority_check" 
+ALTER TABLE "tasks" ADD CONSTRAINT "tasks_priority_check"
 CHECK ("priority" IN ('P1', 'P2', 'P3', 'P4', 'P5'));
 
-ALTER TABLE "sessions" ADD CONSTRAINT "sessions_status_check" 
+ALTER TABLE "sessions" ADD CONSTRAINT "sessions_status_check"
 CHECK ("status" IN ('starting', 'active', 'completed', 'failed'));
 
 -- Create indexes for performance

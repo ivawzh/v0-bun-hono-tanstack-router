@@ -10,9 +10,9 @@ The AI Agent Orchestrator is the central system that manages automatic task assi
 1. **User marks task as ready** via checkbox on task card
 2. **Task becomes eligible** for AI pickup (visual indicator changes)
 3. **Orchestrator automatically detects** ready tasks within 1 second
-4. **Task moves to "Doing" status** with "Refine" stage indicator
+4. **Task moves to "Doing" status** with "clarify" stage indicator
 5. **Real-time AI activity badge** shows agent is working
-6. **Progress updates** show stage transitions (Refine → Plan → Execute)
+6. **Progress updates** show stage transitions (clarify → Plan → Execute)
 7. **Task completion** automatically moves to "Done" column
 
 ### Agent Status Indicators
@@ -216,11 +216,11 @@ sequenceDiagram
     participant AI as AI Agent
     participant MCP as MCP Server
 
-    O->>PT: Generate prompt for task stage (refine/plan/execute)
+    O->>PT: Generate prompt for task stage (clarify/plan/execute)
     PT->>O: Return stage-specific prompt with context
     O->>CC: createSession with project path and prompt
     CC->>AI: Start new coding session with task context
-    AI->>MCP: task_update(status=doing, stage=refine, isAiWorking=true)
+    AI->>MCP: task_update(status=doing, stage=clarify, isAiWorking=true)
     MCP->>O: Broadcast real-time update
     CC->>O: Return session ID for tracking
 ```
@@ -337,7 +337,7 @@ sequenceDiagram
     O->>DB: Query loop tasks for agent type
     alt Loop tasks available
         O->>DB: SELECT top priority loop task
-        O->>DB: UPDATE status='doing', stage='refine'
+        O->>DB: UPDATE status='doing', stage='clarify'
         O->>O: Assign loop task to agent
         Note over LT: Loop task automatically continues work
     else No loop tasks

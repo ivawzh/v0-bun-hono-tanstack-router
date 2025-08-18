@@ -4,7 +4,7 @@
 
 Transform task creation from a multi-step dialog flow into a magical, instant experience through a floating action button with voice input, smart defaults, and contextual intelligence.
 
-**Priority**: Phase 1 (High Impact, Low Effort)  
+**Priority**: Phase 1 (High Impact, Low Effort)
 **User Impact**: 5/5 | **Effort**: 2/5 | **Magic**: 5/5 | **Mobile**: 5/5
 
 ## Current Friction Points
@@ -53,7 +53,7 @@ User Flow:
 4. **Enter/Click**: Task created with smart defaults
 5. **Success**: Subtle animation + toast confirmation
 
-### Mobile Experience  
+### Mobile Experience
 1. **FAB Touch**: Haptic feedback + voice recorder opens
 2. **Hold to Record**: Visual waveform indicator
 3. **Release**: Processing spinner → Task created
@@ -82,10 +82,10 @@ User Flow:
 "low|minor|small" → Priority 1
 "medium|normal" → Priority 3
 
-// Stage detection  
+// Stage detection
 "plan|design|spec" → Stage: plan
 "implement|code|build" → Stage: execute
-"research|investigate" → Stage: refine
+"research|investigate" → Stage: clarify
 
 // Template expansion
 "/bug" → "Bug: [title]" + bug template
