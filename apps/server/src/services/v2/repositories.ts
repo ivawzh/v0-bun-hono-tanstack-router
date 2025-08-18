@@ -113,8 +113,8 @@ export async function deleteRepository(repositoryId: string) {
 
   // Check if repository is used in additional repos
   const additionalRepoUsage = await db.select()
-    .from(schema.taskRepositories)
-    .where(eq(schema.taskRepositories.repositoryId, repositoryId))
+    .from(schema.taskAdditionalRepositories)
+    .where(eq(schema.taskAdditionalRepositories.repositoryId, repositoryId))
     .limit(1);
 
   if (additionalRepoUsage.length > 0) {
@@ -178,9 +178,9 @@ export async function getRepositoriesWithCounts(projectId: string) {
       .where(eq(schema.tasks.mainRepositoryId, repository.id));
 
     const additionalTasks = await db.select()
-      .from(schema.taskRepositories)
-      .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskRepositories.taskId))
-      .where(eq(schema.taskRepositories.repositoryId, repository.id));
+      .from(schema.taskAdditionalRepositories)
+      .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAdditionalRepositories.taskId))
+      .where(eq(schema.taskAdditionalRepositories.repositoryId, repository.id));
 
     const activeTasks = await db.select()
       .from(schema.tasks)
@@ -219,10 +219,10 @@ export async function isRepositoryAvailable(repositoryId: string): Promise<boole
     ));
 
   const additionalTasks = await db.select()
-    .from(schema.taskRepositories)
-    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskRepositories.taskId))
+    .from(schema.taskAdditionalRepositories)
+    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAdditionalRepositories.taskId))
     .where(and(
-      eq(schema.taskRepositories.repositoryId, repositoryId),
+      eq(schema.taskAdditionalRepositories.repositoryId, repositoryId),
       eq(schema.tasks.isAiWorking, true)
     ));
 
@@ -249,10 +249,10 @@ export async function updateRepositoryLastTaskPushed(repositoryId: string) {
 export async function addRepositoryToTask(taskId: string, repositoryId: string) {
   // Check if assignment already exists
   const existing = await db.select()
-    .from(schema.taskRepositories)
+    .from(schema.taskAdditionalRepositories)
     .where(and(
-      eq(schema.taskRepositories.taskId, taskId),
-      eq(schema.taskRepositories.repositoryId, repositoryId)
+      eq(schema.taskAdditionalRepositories.taskId, taskId),
+      eq(schema.taskAdditionalRepositories.repositoryId, repositoryId)
     ))
     .limit(1);
 
@@ -260,7 +260,7 @@ export async function addRepositoryToTask(taskId: string, repositoryId: string) 
     return existing[0];
   }
 
-  const assignment = await db.insert(schema.taskRepositories).values({
+  const assignment = await db.insert(schema.taskAdditionalRepositories).values({
     taskId,
     repositoryId
   }).returning();
@@ -272,10 +272,10 @@ export async function addRepositoryToTask(taskId: string, repositoryId: string) 
  * Remove additional repository from task
  */
 export async function removeRepositoryFromTask(taskId: string, repositoryId: string) {
-  const removed = await db.delete(schema.taskRepositories)
+  const removed = await db.delete(schema.taskAdditionalRepositories)
     .where(and(
-      eq(schema.taskRepositories.taskId, taskId),
-      eq(schema.taskRepositories.repositoryId, repositoryId)
+      eq(schema.taskAdditionalRepositories.taskId, taskId),
+      eq(schema.taskAdditionalRepositories.repositoryId, repositoryId)
     ))
     .returning();
 
@@ -288,11 +288,11 @@ export async function removeRepositoryFromTask(taskId: string, repositoryId: str
 export async function getTaskAdditionalRepositories(taskId: string) {
   const repositoriesWithTask = await db.select({
     repository: schema.repositories,
-    assignment: schema.taskRepositories
+    assignment: schema.taskAdditionalRepositories
   })
     .from(schema.repositories)
-    .innerJoin(schema.taskRepositories, eq(schema.taskRepositories.repositoryId, schema.repositories.id))
-    .where(eq(schema.taskRepositories.taskId, taskId))
+    .innerJoin(schema.taskAdditionalRepositories, eq(schema.taskAdditionalRepositories.repositoryId, schema.repositories.id))
+    .where(eq(schema.taskAdditionalRepositories.taskId, taskId))
     .orderBy(schema.repositories.name);
 
   return repositoriesWithTask.map(row => row.repository);

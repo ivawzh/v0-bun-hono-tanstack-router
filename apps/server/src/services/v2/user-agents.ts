@@ -5,7 +5,7 @@
 
 import { db } from '../../db';
 import { eq, and } from 'drizzle-orm';
-import * as v2Schema from '../../db/schema/v2';
+import * as schema from '../../db/schema/index';
 
 interface CreateAgentInput {
   userId: string;
@@ -29,22 +29,13 @@ interface AgentStateUpdate {
   lastSessionCompletedAt?: string;
 }
 
-/**
- * Ensure V2 schema is enabled
- */
-function requireV2Schema() {
-  if (!useV2Schema()) {
-    throw new Error('User agents are only available in V2 schema. Enable with USE_V2_SCHEMA=true');
-  }
-}
 
 /**
  * Create a new user-owned agent
  */
 export async function createUserAgent(input: CreateAgentInput) {
-  requireV2Schema();
 
-  const agent = await db.insert(v2Schema.agents).values({
+  const agent = await db.insert(schema.agents).values({
     userId: input.userId,
     name: input.name,
     agentType: input.agentType,
@@ -60,25 +51,23 @@ export async function createUserAgent(input: CreateAgentInput) {
  * Get all agents for a user
  */
 export async function getUserAgents(userId: string) {
-  requireV2Schema();
 
   return await db.select()
-    .from(v2Schema.agents)
-    .where(eq(v2Schema.agents.userId, userId))
-    .orderBy(v2Schema.agents.createdAt);
+    .from(schema.agents)
+    .where(eq(schema.agents.userId, userId))
+    .orderBy(schema.agents.createdAt);
 }
 
 /**
  * Get a specific agent by ID (with ownership check)
  */
 export async function getUserAgent(userId: string, agentId: string) {
-  requireV2Schema();
 
   const agents = await db.select()
-    .from(v2Schema.agents)
+    .from(schema.agents)
     .where(and(
-      eq(v2Schema.agents.id, agentId),
-      eq(v2Schema.agents.userId, userId)
+      eq(schema.agents.id, agentId),
+      eq(schema.agents.userId, userId)
     ))
     .limit(1);
 
@@ -89,16 +78,15 @@ export async function getUserAgent(userId: string, agentId: string) {
  * Update an agent
  */
 export async function updateUserAgent(userId: string, agentId: string, input: UpdateAgentInput) {
-  requireV2Schema();
 
-  const updated = await db.update(v2Schema.agents)
+  const updated = await db.update(schema.agents)
     .set({
       ...input,
       updatedAt: new Date()
     })
     .where(and(
-      eq(v2Schema.agents.id, agentId),
-      eq(v2Schema.agents.userId, userId)
+      eq(schema.agents.id, agentId),
+      eq(schema.agents.userId, userId)
     ))
     .returning();
 
@@ -109,11 +97,10 @@ export async function updateUserAgent(userId: string, agentId: string, input: Up
  * Update agent state (for orchestrator)
  */
 export async function updateAgentState(agentId: string, stateUpdate: AgentStateUpdate) {
-  requireV2Schema();
 
   const agent = await db.select()
-    .from(v2Schema.agents)
-    .where(eq(v2Schema.agents.id, agentId))
+    .from(schema.agents)
+    .where(eq(schema.agents.id, agentId))
     .limit(1);
 
   if (!agent[0]) {
@@ -123,13 +110,13 @@ export async function updateAgentState(agentId: string, stateUpdate: AgentStateU
   const currentState = agent[0].state as Record<string, any> || {};
   const newState = { ...currentState, ...stateUpdate };
 
-  const updated = await db.update(v2Schema.agents)
+  const updated = await db.update(schema.agents)
     .set({
       state: newState,
       lastTaskPushedAt: stateUpdate.lastTaskPushedAt ? new Date(stateUpdate.lastTaskPushedAt) : undefined,
       updatedAt: new Date()
     })
-    .where(eq(v2Schema.agents.id, agentId))
+    .where(eq(schema.agents.id, agentId))
     .returning();
 
   return updated[0];
@@ -139,15 +126,14 @@ export async function updateAgentState(agentId: string, stateUpdate: AgentStateU
  * Delete an agent
  */
 export async function deleteUserAgent(userId: string, agentId: string) {
-  requireV2Schema();
 
   // Check if agent has active tasks
   const activeTasks = await db.select()
-    .from(v2Schema.taskAgents)
-    .innerJoin(v2Schema.tasks, eq(v2Schema.tasks.id, v2Schema.taskAgents.taskId))
+    .from(schema.taskAgents)
+    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAgents.taskId))
     .where(and(
-      eq(v2Schema.taskAgents.agentId, agentId),
-      eq(v2Schema.tasks.isAiWorking, true)
+      eq(schema.taskAgents.agentId, agentId),
+      eq(schema.tasks.isAiWorking, true)
     ))
     .limit(1);
 
@@ -155,10 +141,10 @@ export async function deleteUserAgent(userId: string, agentId: string) {
     throw new Error('Cannot delete agent with active tasks');
   }
 
-  const deleted = await db.delete(v2Schema.agents)
+  const deleted = await db.delete(schema.agents)
     .where(and(
-      eq(v2Schema.agents.id, agentId),
-      eq(v2Schema.agents.userId, userId)
+      eq(schema.agents.id, agentId),
+      eq(schema.agents.userId, userId)
     ))
     .returning();
 
@@ -169,11 +155,10 @@ export async function deleteUserAgent(userId: string, agentId: string) {
  * Check if an agent is available for new tasks
  */
 export async function isAgentAvailable(agentId: string): Promise<boolean> {
-  requireV2Schema();
 
   const agent = await db.select()
-    .from(v2Schema.agents)
-    .where(eq(v2Schema.agents.id, agentId))
+    .from(schema.agents)
+    .where(eq(schema.agents.id, agentId))
     .limit(1);
 
   if (!agent[0]) {
@@ -203,11 +188,11 @@ export async function isAgentAvailable(agentId: string): Promise<boolean> {
 
   // Check current workload
   const activeTaskCount = await db.select()
-    .from(v2Schema.taskAgents)
-    .innerJoin(v2Schema.tasks, eq(v2Schema.tasks.id, v2Schema.taskAgents.taskId))
+    .from(schema.taskAgents)
+    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAgents.taskId))
     .where(and(
-      eq(v2Schema.taskAgents.agentId, agentId),
-      eq(v2Schema.tasks.isAiWorking, true)
+      eq(schema.taskAgents.agentId, agentId),
+      eq(schema.tasks.isAiWorking, true)
     ));
 
   const maxConcurrentTasks = agent[0].maxConcurrencyLimit || 1;
@@ -218,7 +203,6 @@ export async function isAgentAvailable(agentId: string): Promise<boolean> {
  * Get available agents for a user
  */
 export async function getAvailableUserAgents(userId: string) {
-  requireV2Schema();
 
   const userAgents = await getUserAgents(userId);
   const availableAgents = [];
@@ -237,23 +221,22 @@ export async function getAvailableUserAgents(userId: string) {
  * Get agents with their current task counts
  */
 export async function getUserAgentsWithTaskCounts(userId: string) {
-  requireV2Schema();
 
   const agents = await getUserAgents(userId);
   const agentsWithCounts = [];
 
   for (const agent of agents) {
     const activeTaskCount = await db.select()
-      .from(v2Schema.taskAgents)
-      .innerJoin(v2Schema.tasks, eq(v2Schema.tasks.id, v2Schema.taskAgents.taskId))
+      .from(schema.taskAgents)
+      .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAgents.taskId))
       .where(and(
-        eq(v2Schema.taskAgents.agentId, agent.id),
-        eq(v2Schema.tasks.isAiWorking, true)
+        eq(schema.taskAgents.agentId, agent.id),
+        eq(schema.tasks.isAiWorking, true)
       ));
 
     const totalTaskCount = await db.select()
-      .from(v2Schema.taskAgents)
-      .where(eq(v2Schema.taskAgents.agentId, agent.id));
+      .from(schema.taskAgents)
+      .where(eq(schema.taskAgents.agentId, agent.id));
 
     agentsWithCounts.push({
       ...agent,
@@ -270,14 +253,13 @@ export async function getUserAgentsWithTaskCounts(userId: string) {
  * Assign agent to task
  */
 export async function assignAgentToTask(agentId: string, taskId: string) {
-  requireV2Schema();
 
   // Check if assignment already exists
   const existing = await db.select()
-    .from(v2Schema.taskAgents)
+    .from(schema.taskAgents)
     .where(and(
-      eq(v2Schema.taskAgents.agentId, agentId),
-      eq(v2Schema.taskAgents.taskId, taskId)
+      eq(schema.taskAgents.agentId, agentId),
+      eq(schema.taskAgents.taskId, taskId)
     ))
     .limit(1);
 
@@ -285,7 +267,7 @@ export async function assignAgentToTask(agentId: string, taskId: string) {
     return existing[0];
   }
 
-  const assignment = await db.insert(v2Schema.taskAgents).values({
+  const assignment = await db.insert(schema.taskAgents).values({
     agentId,
     taskId
   }).returning();
@@ -297,12 +279,11 @@ export async function assignAgentToTask(agentId: string, taskId: string) {
  * Remove agent from task
  */
 export async function removeAgentFromTask(agentId: string, taskId: string) {
-  requireV2Schema();
 
-  const removed = await db.delete(v2Schema.taskAgents)
+  const removed = await db.delete(schema.taskAgents)
     .where(and(
-      eq(v2Schema.taskAgents.agentId, agentId),
-      eq(v2Schema.taskAgents.taskId, taskId)
+      eq(schema.taskAgents.agentId, agentId),
+      eq(schema.taskAgents.taskId, taskId)
     ))
     .returning();
 
@@ -313,16 +294,15 @@ export async function removeAgentFromTask(agentId: string, taskId: string) {
  * Get tasks assigned to an agent
  */
 export async function getAgentTasks(agentId: string) {
-  requireV2Schema();
 
   const tasksWithAgent = await db.select({
-    task: v2Schema.tasks,
-    assignment: v2Schema.taskAgents
+    task: schema.tasks,
+    assignment: schema.taskAgents
   })
-    .from(v2Schema.tasks)
-    .innerJoin(v2Schema.taskAgents, eq(v2Schema.taskAgents.taskId, v2Schema.tasks.id))
-    .where(eq(v2Schema.taskAgents.agentId, agentId))
-    .orderBy(v2Schema.tasks.priority, v2Schema.tasks.createdAt);
+    .from(schema.tasks)
+    .innerJoin(schema.taskAgents, eq(schema.taskAgents.taskId, schema.tasks.id))
+    .where(eq(schema.taskAgents.agentId, agentId))
+    .orderBy(schema.tasks.priority, schema.tasks.createdAt);
 
   return tasksWithAgent.map(row => row.task);
 }
@@ -331,7 +311,6 @@ export async function getAgentTasks(agentId: string) {
  * Create default agents for a user (helper for migration)
  */
 export async function createDefaultAgentsForUser(userId: string) {
-  requireV2Schema();
 
   // Create a default Claude Code agent
   const claudeAgent = await createUserAgent({

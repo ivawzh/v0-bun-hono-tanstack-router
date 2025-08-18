@@ -192,10 +192,10 @@ export async function getRepositoryCapacity(repositoryId: string): Promise<Repos
     ));
 
   const additionalTasks = await db.select()
-    .from(schema.taskRepositories)
-    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskRepositories.taskId))
+    .from(schema.taskAdditionalRepositories)
+    .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAdditionalRepositories.taskId))
     .where(and(
-      eq(schema.taskRepositories.repositoryId, repositoryId),
+      eq(schema.taskAdditionalRepositories.repositoryId, repositoryId),
       eq(schema.tasks.isAiWorking, true),
       ne(schema.tasks.status, 'done')
     ));

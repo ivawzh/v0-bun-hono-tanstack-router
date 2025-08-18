@@ -124,7 +124,7 @@ export const tasks = pgTable("tasks", {
 });
 
 // Task-Repository many-to-many for additional repos
-export const taskRepositories = pgTable("task_repositories", {
+export const taskAdditionalRepositories = pgTable("task_additional_repositories", {
   id: uuid("id").primaryKey().defaultRandom(),
   taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   repositoryId: uuid("repository_id").notNull().references(() => repositories.id, { onDelete: "cascade" }),
@@ -190,7 +190,7 @@ export const repositoriesRelations = relations(repositories, ({ one, many }) => 
     references: [projects.id]
   }),
   mainTasks: many(tasks),
-  additionalTasks: many(taskRepositories)
+  additionalTasks: many(taskAdditionalRepositories)
 }));
 
 export const actorsRelations = relations(actors, ({ one, many }) => ({
@@ -214,7 +214,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.actorId],
     references: [actors.id]
   }),
-  additionalRepositories: many(taskRepositories),
+  additionalRepositories: many(taskAdditionalRepositories),
   assignedAgents: many(taskAgents),
   dependencies: many(taskDependencies, {
     relationName: "taskDependencies"
@@ -224,13 +224,13 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   })
 }));
 
-export const taskRepositoriesRelations = relations(taskRepositories, ({ one }) => ({
+export const taskAdditionalRepositoriesRelations = relations(taskAdditionalRepositories, ({ one }) => ({
   task: one(tasks, {
-    fields: [taskRepositories.taskId],
+    fields: [taskAdditionalRepositories.taskId],
     references: [tasks.id]
   }),
   repository: one(repositories, {
-    fields: [taskRepositories.repositoryId],
+    fields: [taskAdditionalRepositories.repositoryId],
     references: [repositories.id]
   })
 }));

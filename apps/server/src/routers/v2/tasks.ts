@@ -8,8 +8,7 @@ import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { db } from '../../db';
 import { eq, and, or, inArray } from 'drizzle-orm';
-import * as v1Schema from '../../db/schema/index';
-import * as v2Schema from '../../db/schema/v2';
+import * as schema from '../../db/schema/index';
 import { requireProjectAccess, schemaAwareRoute } from '../../lib/auth-v2';
 import {
   assignAgentToTask,
@@ -61,15 +60,15 @@ tasksRouter.get('/projects/:projectId/tasks', requireProjectAccess(), schemaAwar
     const projectId = c.req.param('projectId');
     
     const tasks = await db.select({
-      task: v1Schema.tasks,
-      repoAgent: v1Schema.repoAgents,
-      actor: v1Schema.actors
+      task: schema.tasks,
+      repoAgent: schema.repoAgents,
+      actor: schema.actors
     })
-      .from(v1Schema.tasks)
-      .leftJoin(v1Schema.repoAgents, eq(v1Schema.repoAgents.id, v1Schema.tasks.repoAgentId))
-      .leftJoin(v1Schema.actors, eq(v1Schema.actors.id, v1Schema.tasks.actorId))
-      .where(eq(v1Schema.tasks.projectId, projectId))
-      .orderBy(v1Schema.tasks.priority, v1Schema.tasks.createdAt);
+      .from(schema.tasks)
+      .leftJoin(schema.repoAgents, eq(schema.repoAgents.id, schema.tasks.repoAgentId))
+      .leftJoin(schema.actors, eq(schema.actors.id, schema.tasks.actorId))
+      .where(eq(schema.tasks.projectId, projectId))
+      .orderBy(schema.tasks.priority, schema.tasks.createdAt);
 
     const tasksWithRelations = tasks.map(row => ({
       ...row.task,
@@ -86,26 +85,26 @@ tasksRouter.get('/projects/:projectId/tasks', requireProjectAccess(), schemaAwar
     const projectId = c.req.param('projectId');
     
     const tasks = await db.select({
-      task: v2Schema.tasks,
-      mainRepository: v2Schema.repositories,
-      actor: v2Schema.actors
+      task: schema.tasks,
+      mainRepository: schema.repositories,
+      actor: schema.actors
     })
-      .from(v2Schema.tasks)
-      .leftJoin(v2Schema.repositories, eq(v2Schema.repositories.id, v2Schema.tasks.mainRepositoryId))
-      .leftJoin(v2Schema.actors, eq(v2Schema.actors.id, v2Schema.tasks.actorId))
-      .where(eq(v2Schema.tasks.projectId, projectId))
-      .orderBy(v2Schema.tasks.priority, v2Schema.tasks.createdAt);
+      .from(schema.tasks)
+      .leftJoin(schema.repositories, eq(schema.repositories.id, schema.tasks.mainRepositoryId))
+      .leftJoin(schema.actors, eq(schema.actors.id, schema.tasks.actorId))
+      .where(eq(schema.tasks.projectId, projectId))
+      .orderBy(schema.tasks.priority, schema.tasks.createdAt);
 
     // Get assigned agents and additional repositories for each task
     const tasksWithRelations = [];
     for (const row of tasks) {
       // Get assigned agents
       const taskAgents = await db.select({
-        agent: v2Schema.agents
+        agent: schema.agents
       })
-        .from(v2Schema.taskAgents)
-        .innerJoin(v2Schema.agents, eq(v2Schema.agents.id, v2Schema.taskAgents.agentId))
-        .where(eq(v2Schema.taskAgents.taskId, row.task.id));
+        .from(schema.taskAgents)
+        .innerJoin(schema.agents, eq(schema.agents.id, schema.taskAgents.agentId))
+        .where(eq(schema.taskAgents.taskId, row.task.id));
 
       // Get additional repositories
       const additionalRepositories = await getTaskAdditionalRepositories(row.task.id);
@@ -136,7 +135,7 @@ tasksRouter.post('/projects/:projectId/tasks',
       const input = c.req.valid('json');
 
       // Create the task
-      const task = await db.insert(v2Schema.tasks).values({
+      const task = await db.insert(schema.tasks).values({
         projectId,
         mainRepositoryId: input.mainRepositoryId,
         actorId: input.actorId,
@@ -163,16 +162,16 @@ tasksRouter.post('/projects/:projectId/tasks',
 
       // Return task with relations
       const mainRepository = await db.select()
-        .from(v2Schema.repositories)
-        .where(eq(v2Schema.repositories.id, input.mainRepositoryId))
+        .from(schema.repositories)
+        .where(eq(schema.repositories.id, input.mainRepositoryId))
         .limit(1);
 
       const assignedAgents = await db.select({
-        agent: v2Schema.agents
+        agent: schema.agents
       })
-        .from(v2Schema.taskAgents)
-        .innerJoin(v2Schema.agents, eq(v2Schema.agents.id, v2Schema.taskAgents.agentId))
-        .where(eq(v2Schema.taskAgents.taskId, createdTask.id));
+        .from(schema.taskAgents)
+        .innerJoin(schema.agents, eq(schema.agents.id, schema.taskAgents.agentId))
+        .where(eq(schema.taskAgents.taskId, createdTask.id));
 
       const additionalRepositories = await getTaskAdditionalRepositories(createdTask.id);
 
@@ -199,7 +198,7 @@ tasksRouter.put('/tasks/:taskId/assignments',
   zValidator('json', updateTaskAssignmentsSchema), 
   async (c) => {
     try {
-      if (!useV2Schema()) {
+      if (!schema()) {
         return c.json({ error: 'Task assignments require V2 schema' }, 400);
       }
 
@@ -208,8 +207,8 @@ tasksRouter.put('/tasks/:taskId/assignments',
 
       // Get current task to verify it exists
       const task = await db.select()
-        .from(v2Schema.tasks)
-        .where(eq(v2Schema.tasks.id, taskId))
+        .from(schema.tasks)
+        .where(eq(schema.tasks.id, taskId))
         .limit(1);
 
       if (!task[0]) {
@@ -218,8 +217,8 @@ tasksRouter.put('/tasks/:taskId/assignments',
 
       // Update agent assignments
       // Remove current assignments
-      await db.delete(v2Schema.taskAgents)
-        .where(eq(v2Schema.taskAgents.taskId, taskId));
+      await db.delete(schema.taskAgents)
+        .where(eq(schema.taskAgents.taskId, taskId));
 
       // Add new assignments
       for (const agentId of input.assignedAgentIds) {
@@ -228,8 +227,8 @@ tasksRouter.put('/tasks/:taskId/assignments',
 
       // Update additional repository assignments
       // Remove current additional repositories
-      await db.delete(v2Schema.taskRepositories)
-        .where(eq(v2Schema.taskRepositories.taskId, taskId));
+      await db.delete(schema.taskAdditionalRepositories)
+        .where(eq(schema.taskAdditionalRepositories.taskId, taskId));
 
       // Add new additional repositories
       for (const repositoryId of input.additionalRepositoryIds) {
@@ -255,8 +254,8 @@ tasksRouter.put('/tasks/:taskId/status',
       const taskId = c.req.param('taskId');
       const input = c.req.valid('json');
 
-      if (useV2Schema()) {
-        const updated = await db.update(v2Schema.tasks)
+      if (schema()) {
+        const updated = await db.update(schema.tasks)
           .set({
             status: input.status,
             stage: input.stage,
@@ -265,7 +264,7 @@ tasksRouter.put('/tasks/:taskId/status',
             aiWorkingSince: input.isAiWorking ? new Date() : null,
             updatedAt: new Date()
           })
-          .where(eq(v2Schema.tasks.id, taskId))
+          .where(eq(schema.tasks.id, taskId))
           .returning();
 
         if (!updated[0]) {
@@ -274,7 +273,7 @@ tasksRouter.put('/tasks/:taskId/status',
 
         return c.json({ task: updated[0] });
       } else {
-        const updated = await db.update(v1Schema.tasks)
+        const updated = await db.update(schema.tasks)
           .set({
             status: input.status,
             stage: input.stage,
@@ -282,7 +281,7 @@ tasksRouter.put('/tasks/:taskId/status',
             aiWorkingSince: input.isAiWorking ? new Date() : null,
             updatedAt: new Date()
           })
-          .where(eq(v1Schema.tasks.id, taskId))
+          .where(eq(schema.tasks.id, taskId))
           .returning();
 
         if (!updated[0]) {
@@ -306,7 +305,7 @@ tasksRouter.get('/tasks/:taskId/assignments', async (c) => {
   try {
     const taskId = c.req.param('taskId');
 
-    if (!useV2Schema()) {
+    if (!schema()) {
       return c.json({ 
         assignedAgents: [], 
         additionalRepositories: [] 
@@ -315,11 +314,11 @@ tasksRouter.get('/tasks/:taskId/assignments', async (c) => {
 
     // Get assigned agents
     const assignedAgents = await db.select({
-      agent: v2Schema.agents
+      agent: schema.agents
     })
-      .from(v2Schema.taskAgents)
-      .innerJoin(v2Schema.agents, eq(v2Schema.agents.id, v2Schema.taskAgents.agentId))
-      .where(eq(v2Schema.taskAgents.taskId, taskId));
+      .from(schema.taskAgents)
+      .innerJoin(schema.agents, eq(schema.agents.id, schema.taskAgents.agentId))
+      .where(eq(schema.taskAgents.taskId, taskId));
 
     // Get additional repositories
     const additionalRepositories = await getTaskAdditionalRepositories(taskId);
@@ -342,15 +341,15 @@ tasksRouter.get('/loop/:projectId', requireProjectAccess(), async (c) => {
   try {
     const projectId = c.req.param('projectId');
 
-    if (useV2Schema()) {
+    if (schema()) {
       const loopTasks = await db.select()
-        .from(v2Schema.tasks)
+        .from(schema.tasks)
         .where(and(
-          eq(v2Schema.tasks.projectId, projectId),
-          eq(v2Schema.tasks.status, 'loop'),
-          eq(v2Schema.tasks.ready, true)
+          eq(schema.tasks.projectId, projectId),
+          eq(schema.tasks.status, 'loop'),
+          eq(schema.tasks.ready, true)
         ))
-        .orderBy(v2Schema.tasks.priority, v2Schema.tasks.createdAt);
+        .orderBy(schema.tasks.priority, schema.tasks.createdAt);
 
       return c.json({ tasks: loopTasks });
     } else {
@@ -371,14 +370,14 @@ tasksRouter.put('/tasks/:taskId/loop-return', async (c) => {
   try {
     const taskId = c.req.param('taskId');
 
-    if (!useV2Schema()) {
+    if (!schema()) {
       return c.json({ error: 'Loop tasks require V2 schema' }, 400);
     }
 
     // Get current highest column order for loop tasks in this project
     const task = await db.select()
-      .from(v2Schema.tasks)
-      .where(eq(v2Schema.tasks.id, taskId))
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, taskId))
       .limit(1);
 
     if (!task[0]) {
@@ -386,12 +385,12 @@ tasksRouter.put('/tasks/:taskId/loop-return', async (c) => {
     }
 
     const loopTasks = await db.select()
-      .from(v2Schema.tasks)
+      .from(schema.tasks)
       .where(and(
-        eq(v2Schema.tasks.projectId, task[0].projectId),
-        eq(v2Schema.tasks.status, 'loop')
+        eq(schema.tasks.projectId, task[0].projectId),
+        eq(schema.tasks.status, 'loop')
       ))
-      .orderBy(v2Schema.tasks.columnOrder);
+      .orderBy(schema.tasks.columnOrder);
 
     // Calculate new column order (bottom of loop column)
     const lastOrder = loopTasks.length > 0 ? 
@@ -399,7 +398,7 @@ tasksRouter.put('/tasks/:taskId/loop-return', async (c) => {
       1000;
     const newOrder = (lastOrder + 1000).toString();
 
-    const updated = await db.update(v2Schema.tasks)
+    const updated = await db.update(schema.tasks)
       .set({
         status: 'loop',
         stage: 'loop',
@@ -408,7 +407,7 @@ tasksRouter.put('/tasks/:taskId/loop-return', async (c) => {
         columnOrder: newOrder,
         updatedAt: new Date()
       })
-      .where(eq(v2Schema.tasks.id, taskId))
+      .where(eq(schema.tasks.id, taskId))
       .returning();
 
     return c.json({ task: updated[0] });

@@ -3,7 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 import { db } from "../db";
-import { projects, tasks, repoAgents, actors, taskDependencies } from "../db/schema";
+import { projects, tasks, repositories, actors, taskDependencies, taskAdditionalRepositories } from "../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { broadcastFlush } from "@/websocket/websocket-server";
 
@@ -439,7 +439,8 @@ function registerMcpTools(server: McpServer) {
       description: "Create a new task and return the created task information including its task ID.",
       inputSchema: {
         projectId: z.string().uuid(),
-        repoAgentId: z.string().uuid(),
+        mainRepositoryId: z.string().uuid(),
+        additionalRepositoryIds: z.array(z.string().uuid()).optional().default([]),
         actorId: z.string().uuid().optional(),
         rawTitle: z.string().min(1).max(255).optional(),
         rawDescription: z.string().optional(),
@@ -451,10 +452,11 @@ function registerMcpTools(server: McpServer) {
         dependsOn: z.array(z.string().uuid()).optional().default([]),
       },
     },
-    async ({ projectId, repoAgentId, actorId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn }, { requestInfo }) => {
+    async ({ projectId, mainRepositoryId, additionalRepositoryIds, actorId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn }, { requestInfo }) => {
       logger.tool("task_create", "start", {
         projectId,
-        repoAgentId,
+        mainRepositoryId,
+        additionalRepositoryIds,
         stage,
         hasRefinedTitle: !!refinedTitle,
         dependencyCount: dependsOn?.length || 0,
@@ -501,19 +503,19 @@ function registerMcpTools(server: McpServer) {
           };
         }
 
-        // Verify repo agent belongs to project
-        const repoAgent = await db.query.repoAgents.findFirst({
+        // Verify main repository belongs to project
+        const mainRepository = await db.query.repositories.findFirst({
           where: and(
-            eq(repoAgents.id, repoAgentId),
-            eq(repoAgents.projectId, projectId)
+            eq(repositories.id, mainRepositoryId),
+            eq(repositories.projectId, projectId)
           ),
         });
 
-        if (!repoAgent) {
+        if (!mainRepository) {
           logger.error("task_create failed", {
-            repoAgentId,
+            mainRepositoryId,
             projectId,
-            reason: "repo agent not found or doesn't belong to project",
+            reason: "main repository not found or doesn't belong to project",
           });
           return {
             content: [
@@ -521,11 +523,43 @@ function registerMcpTools(server: McpServer) {
                 type: "text",
                 text: JSON.stringify({
                   success: false,
-                  error: "Repo agent not found or doesn't belong to project",
+                  error: "Main repository not found or doesn't belong to project",
                 }),
               },
             ],
           };
+        }
+
+        // Verify additional repositories belong to project (if provided)
+        if (additionalRepositoryIds && additionalRepositoryIds.length > 0) {
+          const additionalRepositories = await db
+            .select()
+            .from(repositories)
+            .where(
+              and(
+                sql`${repositories.id} = ANY(${additionalRepositoryIds})`,
+                eq(repositories.projectId, projectId)
+              )
+            );
+
+          if (additionalRepositories.length !== additionalRepositoryIds.length) {
+            logger.error("task_create failed", {
+              additionalRepositoryIds,
+              projectId,
+              reason: "some additional repositories not found or don't belong to project",
+            });
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    success: false,
+                    error: "Some additional repositories not found or don't belong to project",
+                  }),
+                },
+              ],
+            };
+          }
         }
 
         // Verify actor belongs to project (if provided)
@@ -603,7 +637,7 @@ function registerMcpTools(server: McpServer) {
           .insert(tasks)
           .values({
             projectId,
-            repoAgentId,
+            mainRepositoryId,
             actorId,
             rawTitle: rawTitle || refinedTitle || "",
             rawDescription,
@@ -619,6 +653,22 @@ function registerMcpTools(server: McpServer) {
           .returning();
 
         const taskId = newTask[0].id;
+
+        // Create additional repository associations if provided
+        if (additionalRepositoryIds && additionalRepositoryIds.length > 0) {
+          const additionalRepoInserts = additionalRepositoryIds.map(repositoryId => ({
+            taskId,
+            repositoryId,
+          }));
+
+          await db.insert(taskAdditionalRepositories).values(additionalRepoInserts);
+
+          logger.debug("Additional repository associations created", {
+            taskId,
+            additionalRepositoryIds,
+            associationCount: additionalRepoInserts.length,
+          });
+        }
 
         // Create task dependencies if provided
         if (dependsOn && dependsOn.length > 0) {
