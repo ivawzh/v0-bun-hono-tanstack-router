@@ -711,7 +711,7 @@ function registerMcpTools(server: McpServer) {
       } catch (error) {
         logger.error("task_create failed", error, {
           projectId,
-          repoAgentId,
+          mainRepositoryId,
           stage,
         });
         return {

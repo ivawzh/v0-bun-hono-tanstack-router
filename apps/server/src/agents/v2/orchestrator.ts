@@ -361,137 +361,25 @@ export async function assignTaskToAgent(
 }
 
 /**
- * Return loop task to loop column (bottom placement)
+ * Return loop task to loop column (optimized version)
  */
 export async function returnTaskToLoop(taskId: string): Promise<{ success: boolean; error?: string }> {
-  try {
-    // Get task and its project
-    const task = await db.select()
-      .from(schema.tasks)
-      .where(eq(schema.tasks.id, taskId))
-      .limit(1);
-
-    if (!task[0]) {
-      return { success: false, error: 'Task not found' };
-    }
-
-    // Get current loop tasks to calculate new bottom position
-    const loopTasks = await db.select()
-      .from(schema.tasks)
-      .where(and(
-        eq(schema.tasks.projectId, task[0].projectId),
-        eq(schema.tasks.status, 'loop')
-      ))
-      .orderBy(desc(schema.tasks.columnOrder));
-
-    // Calculate new column order (bottom of loop column)
-    const lastOrder = loopTasks.length > 0 ?
-      parseFloat(loopTasks[0].columnOrder) :
-      1000;
-    const newOrder = (lastOrder + 1000).toString();
-
-    // Return task to loop
-    await db.update(schema.tasks)
-      .set({
-        status: 'loop',
-        stage: 'loop',
-        isAiWorking: false,
-        aiWorkingSince: null,
-        columnOrder: newOrder,
-        updatedAt: new Date()
-      })
-      .where(eq(schema.tasks.id, taskId));
-
-    return { success: true };
-  } catch (error) {
-    console.error('Failed to return task to loop:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
-    };
-  }
+  // Import and delegate to optimized implementation
+  const { returnTaskToLoop: optimizedReturn } = await import('./optimized-orchestrator');
+  return optimizedReturn(taskId);
 }
 
 /**
- * Main orchestration function - checks for work and assigns tasks
+ * Main orchestration function - uses optimized queries to minimize N+1 issues
+ * Import and delegate to optimized implementation
  */
 export async function checkAndAssignTasks(): Promise<{
   assigned: number;
   errors: string[];
 }> {
-  const errors: string[] = [];
-  let assigned = 0;
-
-  try {
-    // Get available agents
-    const availableAgents = await getAvailableAgents();
-
-    if (availableAgents.length === 0) {
-      return { assigned: 0, errors: [] };
-    }
-
-    // Check if regular tasks are available
-    const hasRegularTasks = await hasRegularTasksAvailable();
-
-    let tasksToProcess: TaskWithPriority[];
-
-    if (hasRegularTasks) {
-      // Prioritize regular tasks (todo, doing)
-      tasksToProcess = await getReadyTasks();
-    } else {
-      // No regular tasks - use loop tasks
-      tasksToProcess = await getLoopTasks();
-    }
-
-    // Process each task
-    for (const task of tasksToProcess) {
-      // Check repository capacity
-      const repoCapacity = await getRepositoryCapacity(task.mainRepositoryId);
-
-      if (!repoCapacity || !repoCapacity.isAvailable) {
-        continue; // Repository at capacity
-      }
-
-      // Find best agent for this task
-      const selectedAgentId = await selectBestAgent(task.id, availableAgents);
-
-      if (!selectedAgentId) {
-        continue; // No suitable agent available
-      }
-
-      // Assign task
-      const result = await assignTaskToAgent(task.id, selectedAgentId, task.mainRepositoryId);
-
-      if (result.success) {
-        assigned++;
-        console.log(`🤖 Assigned task ${task.id} to agent ${selectedAgentId}`);
-
-        // Remove agent from available list if at capacity
-        const agentIndex = availableAgents.findIndex(a => a.agentId === selectedAgentId);
-        if (agentIndex >= 0) {
-          availableAgents[agentIndex].currentLoad++;
-          if (availableAgents[agentIndex].currentLoad >= availableAgents[agentIndex].maxCapacity) {
-            availableAgents.splice(agentIndex, 1);
-          }
-        }
-      } else {
-        errors.push(result.error || 'Unknown assignment error');
-      }
-
-      // Stop if no more agents available
-      if (availableAgents.length === 0) {
-        break;
-      }
-    }
-
-    return { assigned, errors };
-  } catch (error) {
-    console.error('Orchestration error:', error);
-    return {
-      assigned,
-      errors: [...errors, error instanceof Error ? error.message : 'Unknown error']
-    };
-  }
+  // Import optimized implementation
+  const { checkAndAssignOptimizedTasks } = await import('./optimized-orchestrator');
+  return checkAndAssignOptimizedTasks();
 }
 
 /**
