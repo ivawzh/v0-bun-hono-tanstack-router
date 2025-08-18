@@ -37,7 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Tooltip,
   TooltipContent,
@@ -342,32 +341,19 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
         {task.status !== 'done' && task.status !== 'loop' && (
           <div className="kanban-card-status">
             <div className="kanban-card-ready-toggle">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div 
-                      className="touch-manipulation min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleReady(task.id, !task.ready);
-                      }}
-                    >
-                      <Checkbox
-                        id={`ready-${task.id}`}
-                        checked={task.ready}
-                        onCheckedChange={(checked) => {
-                          onToggleReady(task.id, !!checked);
-                        }}
-                        className="h-5 w-5 data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
-                        aria-label={`Mark task as ${task.ready ? 'not ready' : 'ready'} for AI processing`}
-                      />
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    {task.ready ? "Ready for AI" : "Not ready for AI"}
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Switch
+                id={`ready-${task.id}`}
+                checked={task.ready}
+                onCheckedChange={(checked) => {
+                  onToggleReady(task.id, checked);
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="touch-manipulation min-h-[44px] min-w-[44px] data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-gray-300"
+                aria-label={`Mark task as ${task.ready ? 'not ready' : 'ready'} for AI processing`}
+              />
+              <span className="text-xs text-muted-foreground">
+                {task.ready ? "Ready" : "Not Ready"}
+              </span>
             </div>
           </div>
         )}
@@ -1083,7 +1069,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col sm:max-w-4xl sm:w-[95vw] max-sm:fixed max-sm:inset-0 max-sm:max-w-none max-sm:w-full max-sm:h-full max-sm:rounded-none max-sm:max-h-none">
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col sm:max-w-4xl sm:w-[95vw] max-sm:fixed max-sm:inset-4 max-sm:max-w-none max-sm:w-auto max-sm:h-auto max-sm:rounded-lg max-sm:max-h-[calc(100vh-2rem)]">
           <DialogHeader className="flex-shrink-0 pb-4 max-sm:p-4 max-sm:border-b">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
