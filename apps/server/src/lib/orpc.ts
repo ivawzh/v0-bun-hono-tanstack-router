@@ -24,10 +24,10 @@ const requireAuth = o.middleware(async ({ context, next }) => {
 
 export const protectedProcedure = publicProcedure.use(requireAuth);
 
-// Minimal owner-only guard for day-1 authorization model
+// Minimal owner-only guard for day-1 authorization model (deprecated)
 export const requireOwnerAuth = o.middleware(async ({ context, next }) => {
   const user = context.session?.user;
   if (!user) throw new ORPCError('UNAUTHORIZED');
-  // For day-0, treat any authenticated user as owner; later: check role/claims
+  // For day-0, treat any authenticated user as owner; later: check if user is part of the project.
   return next({ context: { ...context, user } });
 });

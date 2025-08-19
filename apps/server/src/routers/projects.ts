@@ -9,6 +9,7 @@ export const projectsRouter = o.router({
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
       try {
+        // For now, use direct ownership until we migrate existing data
         const userProjects = await db
           .select()
           .from(projects)

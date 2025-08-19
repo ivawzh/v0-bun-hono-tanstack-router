@@ -209,7 +209,7 @@ export const tasksRouter = o.router({
         }
       }
 
-      // Verify assigned agents belong to user (if provided)
+      // Verify assigned agents belong to project (if provided)
       if (input.assignedAgentIds && input.assignedAgentIds.length > 0) {
         const assignedAgents = await db
           .select()
@@ -217,12 +217,12 @@ export const tasksRouter = o.router({
           .where(
             and(
               sql`${agents.id} = ANY(${input.assignedAgentIds})`,
-              eq(agents.userId, context.user.id)
+              eq(agents.projectId, input.projectId)
             )
           );
 
         if (assignedAgents.length !== input.assignedAgentIds.length) {
-          throw new Error("Some assigned agents not found or don't belong to user");
+          throw new Error("Some assigned agents not found or don't belong to project");
         }
       }
 

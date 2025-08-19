@@ -4,15 +4,15 @@ import { db } from "../db";
 import { agents, actors, tasks, projects } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
-// Helper function to get or create agent by type (V2 - user-owned agents)
-async function getOrCreateAgentByType(userId: string, type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
+// Helper function to get or create agent by type (project-based agents)
+async function getOrCreateAgentByType(projectId: string, type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
   let agent = await db.query.agents.findFirst({
-    where: and(eq(agents.userId, userId), eq(agents.agentType, type))
+    where: and(eq(agents.projectId, projectId), eq(agents.agentType, type))
   });
 
   if (!agent) {
     const [newAgent] = await db.insert(agents).values({
-      userId,
+      projectId,
       name: `${type} Agent`,
       agentType: type,
       agentSettings: {},

@@ -79,18 +79,30 @@ export async function checkRepositoryAccess(userId: string, repositoryId: string
 /**
  * Check if user has access to specific agent
  */
-export async function checkAgentAccess(userId: string, agentId: string): Promise<{ hasAccess: boolean, agent?: any }> {
-  const agent = await db.select()
+export async function checkAgentAccess(userId: string, agentId: string): Promise<{ hasAccess: boolean, agent?: any, projectId?: string }> {
+  const agentWithProject = await db.select({
+    agent: schema.agents,
+    project: schema.projects,
+    membership: schema.projectUsers
+  })
     .from(schema.agents)
+    .innerJoin(schema.projects, eq(schema.projects.id, schema.agents.projectId))
+    .innerJoin(schema.projectUsers, eq(schema.projectUsers.projectId, schema.projects.id))
     .where(and(
       eq(schema.agents.id, agentId),
-      eq(schema.agents.userId, userId)
+      eq(schema.projectUsers.userId, userId)
     ))
     .limit(1);
 
+  if (agentWithProject.length === 0) {
+    return { hasAccess: false };
+  }
+
+  const result = agentWithProject[0];
   return {
-    hasAccess: agent.length > 0,
-    agent: agent[0] || null
+    hasAccess: true,
+    agent: result.agent,
+    projectId: result.project.id
   };
 }
 
@@ -164,12 +176,13 @@ export function requireAgentOwnership() {
       return c.json({ error: 'Agent ID required' }, 400);
     }
 
-    const { hasAccess, agent } = await checkAgentAccess(userId, agentId);
+    const { hasAccess, agent, projectId } = await checkAgentAccess(userId, agentId);
     if (!hasAccess) {
       return c.json({ error: 'Agent access denied' }, 403);
     }
 
     c.set('agent', agent);
+    c.set('projectId', projectId);
     await next();
   };
 }
