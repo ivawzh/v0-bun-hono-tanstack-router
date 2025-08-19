@@ -2,7 +2,7 @@ import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
 import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories, projectUsers } from "../db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import {
   saveAttachment,
@@ -70,7 +70,7 @@ export const tasksRouter = o.router({
         })
         .from(taskDependencies)
         .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
-        .where(sql`${taskDependencies.taskId} = ANY(${allTaskIds})`);
+        .where(inArray(taskDependencies.taskId, allTaskIds));
 
       // Group dependencies by task ID
       const dependenciesByTask = dependencies.reduce((acc, dep) => {
@@ -200,7 +200,7 @@ export const tasksRouter = o.router({
           .from(repositories)
           .where(
             and(
-              sql`${repositories.id} = ANY(${input.additionalRepositoryIds})`,
+              inArray(repositories.id, input.additionalRepositoryIds),
               eq(repositories.projectId, input.projectId)
             )
           );
@@ -217,7 +217,7 @@ export const tasksRouter = o.router({
           .from(agents)
           .where(
             and(
-              sql`${agents.id} = ANY(${input.assignedAgentIds})`,
+              inArray(agents.id, input.assignedAgentIds),
               eq(agents.projectId, input.projectId)
             )
           );
