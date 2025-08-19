@@ -6,6 +6,108 @@
 import { spawn } from 'child_process';
 import { generatePrompt, type TaskStage } from './prompts';
 import { registerSession } from './session-registry';
+import { db } from '../db';
+import { eq } from 'drizzle-orm';
+import * as schema from '../db/schema/index';
+import { broadcastFlush } from '../websocket/websocket-server';
+
+/**
+ * Extract rate limit reset time from Claude AI usage limit message
+ */
+function extractRateLimitResetTime(text: string): string | null {
+  try {
+    if (typeof text !== 'string') return null;
+
+    const match = text.match(/Claude AI usage limit reached\|(\d{10,13})/);
+    if (!match) return null;
+
+    let timestampMs = parseInt(match[1], 10);
+    if (!Number.isFinite(timestampMs)) return null;
+    if (timestampMs < 1e12) timestampMs *= 1000; // seconds → ms
+
+    const reset = new Date(timestampMs);
+    return reset.toISOString();
+  } catch (error) {
+    console.error('Error extracting rate limit reset time:', error);
+    return null;
+  }
+}
+
+/**
+ * Handle rate limit detection and agent update
+ */
+async function handleRateLimit(line: string, agentId: string): Promise<void> {
+  const rateLimitResetTime = extractRateLimitResetTime(line);
+  if (rateLimitResetTime) {
+    console.log('🚫 Claude rate limit detected, updating agent');
+    try {
+      await db
+        .update(schema.agents)
+        .set({
+          rateLimitResetAt: new Date(rateLimitResetTime),
+          updatedAt: new Date()
+        })
+        .where(eq(schema.agents.id, agentId));
+    } catch (error) {
+      console.error('Failed to update agent rate limit:', error);
+    }
+  }
+}
+
+/**
+ * Update task session state when session ID is captured
+ */
+async function updateTaskSessionStarted(
+  taskId: string, 
+  agentId: string, 
+  sessionId: string, 
+  projectId: string
+): Promise<void> {
+  try {
+    await db
+      .update(schema.tasks)
+      .set({
+        lastAgentSessionId: sessionId,
+        agentSessionStatus: 'ACTIVE',
+        activeAgentId: agentId,
+        lastAgentSessionStartedAt: new Date(),
+        updatedAt: new Date()
+      })
+      .where(eq(schema.tasks.id, taskId));
+    
+    // Broadcast to invalidate frontend queries
+    broadcastFlush(projectId);
+    console.log(`✅ Updated task ${taskId} with session ${sessionId}`);
+  } catch (error) {
+    console.error('Failed to update task session state:', error);
+  }
+}
+
+/**
+ * Update task when session completes
+ */
+async function updateTaskSessionCompleted(
+  taskId: string, 
+  projectId: string, 
+  exitCode: number
+): Promise<void> {
+  try {
+    await db
+      .update(schema.tasks)
+      .set({
+        agentSessionStatus: 'NON_ACTIVE',
+        activeAgentId: null,
+        updatedAt: new Date()
+      })
+      .where(eq(schema.tasks.id, taskId));
+    
+    // Broadcast to invalidate frontend queries
+    broadcastFlush(projectId);
+    console.log(`✅ Task ${taskId} session completed with exit code ${exitCode}`);
+  } catch (error) {
+    console.error('Failed to update task completion state:', error);
+  }
+}
 
 export interface SpawnOptions {
   sessionId: string;
@@ -96,18 +198,58 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     childProcess.stdin.write(prompt);
     childProcess.stdin.end();
 
+    let capturedSessionId: string | null = null;
+
     // Set up error handling
     childProcess.on('error', (error) => {
       console.error(`Claude CLI spawn error for session ${sessionId}:`, error);
     });
 
-    // Log output for debugging (optional)
-    childProcess.stdout.on('data', (data) => {
-      console.log(`Claude CLI output [${sessionId}]:`, data.toString());
+    // Handle stdout (streaming JSON responses)
+    childProcess.stdout.on('data', async (data) => {
+      const rawOutput = data.toString();
+      console.log(`Claude CLI output [${sessionId}]:`, rawOutput);
+
+      const lines = rawOutput.split('\n').filter(line => line.trim());
+
+      for (const line of lines) {
+        try {
+          const response = JSON.parse(line);
+          console.log('📄 Parsed JSON response:', response);
+
+          // Capture session ID if it's in the response
+          if (response.session_id && !capturedSessionId) {
+            capturedSessionId = response.session_id;
+            console.log('📝 Captured session ID:', capturedSessionId);
+
+            // Update task with captured session ID and ACTIVE status
+            await updateTaskSessionStarted(taskId, agentId, capturedSessionId, projectId);
+          }
+
+          // Check for rate limit in JSON response
+          await handleRateLimit(line, agentId);
+        } catch (parseError: any) {
+          // If not JSON, check for rate limit in raw text
+          await handleRateLimit(line, agentId);
+        }
+      }
     });
 
-    childProcess.stderr.on('data', (data) => {
-      console.error(`Claude CLI stderr [${sessionId}]:`, data.toString());
+    // Handle stderr
+    childProcess.stderr.on('data', async (data) => {
+      const errorMessage = data.toString();
+      console.error(`Claude CLI stderr [${sessionId}]:`, errorMessage);
+
+      // Check for rate limit in stderr
+      await handleRateLimit(errorMessage, agentId);
+    });
+
+    // Handle process completion
+    childProcess.on('close', async (code) => {
+      console.log(`Claude CLI process [${sessionId}] exited with code ${code}`);
+
+      // Update task status to NON_ACTIVE when process completes
+      await updateTaskSessionCompleted(taskId, projectId, code || 0);
     });
 
     // Allow process to run detached
