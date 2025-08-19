@@ -60,16 +60,17 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       // Add Claude config directory if specified
       ...(claudeConfigDir && { CLAUDE_CONFIG_DIR: claudeConfigDir }),
       // Session tracking
-      SOLO_UNICORN_SESSION_ID: sessionId,
-      SOLO_UNICORN_TASK_ID: taskId,
+      SESSION_ID: sessionId,
+      REPOSITORY_PATH: repositoryPath,
       SOLO_UNICORN_PROJECT_ID: projectId,
+      SOLO_UNICORN_AGENT_ID: agentId,
+      SOLO_UNICORN_TASK_ID: taskId,
       // Hook configuration
       CLAUDE_HOOK_SESSION_START: '/home/iw/.solo-unicorn/hooks/session-start.sh',
       CLAUDE_HOOK_SESSION_END: '/home/iw/.solo-unicorn/hooks/session-end.sh',
       CLAUDE_HOOK_RATE_LIMIT: '/home/iw/.solo-unicorn/hooks/rate-limit.sh',
       // Solo Unicorn server configuration
       SOLO_UNICORN_URL: process.env.SOLO_UNICORN_URL || 'http://localhost:8500',
-      CLAUDE_CODE_UI_AUTH_TOKEN: process.env.CLAUDE_CODE_UI_AUTH_TOKEN
     };
 
     // Register session in file-based registry
