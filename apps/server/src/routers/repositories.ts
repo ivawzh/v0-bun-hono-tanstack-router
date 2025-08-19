@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { repositories, projects } from "../db/schema";
+import { repositories, projects, projectUsers } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export const repositoriesRouter = o.router({
@@ -10,19 +10,19 @@ export const repositoriesRouter = o.router({
       projectId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
       
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
       
@@ -47,10 +47,11 @@ export const repositoriesRouter = o.router({
         })
         .from(repositories)
         .innerJoin(projects, eq(repositories.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(repositories.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -71,19 +72,19 @@ export const repositoriesRouter = o.router({
       maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(10)), 1)
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
       
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
       
@@ -131,10 +132,11 @@ export const repositoriesRouter = o.router({
         })
         .from(repositories)
         .innerJoin(projects, eq(repositories.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(repositories.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -185,10 +187,11 @@ export const repositoriesRouter = o.router({
         })
         .from(repositories)
         .innerJoin(projects, eq(repositories.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(repositories.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);

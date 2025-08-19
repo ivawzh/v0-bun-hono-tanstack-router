@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { actors, projects } from "../db/schema";
+import { actors, projects, projectUsers } from "../db/schema";
 import { eq, and, desc, ne } from "drizzle-orm";
 
 export const actorsRouter = o.router({
@@ -10,19 +10,19 @@ export const actorsRouter = o.router({
       projectId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
       
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
       
@@ -47,10 +47,11 @@ export const actorsRouter = o.router({
         })
         .from(actors)
         .innerJoin(projects, eq(actors.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(actors.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -70,19 +71,19 @@ export const actorsRouter = o.router({
       isDefault: v.optional(v.boolean(), false)
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
       
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
       
@@ -128,10 +129,11 @@ export const actorsRouter = o.router({
         })
         .from(actors)
         .innerJoin(projects, eq(actors.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(actors.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -181,10 +183,11 @@ export const actorsRouter = o.router({
         })
         .from(actors)
         .innerJoin(projects, eq(actors.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(actors.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);

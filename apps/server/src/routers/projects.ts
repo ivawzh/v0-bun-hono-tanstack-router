@@ -1,6 +1,6 @@
 import * as v from "valibot";
 import { db } from "../db";
-import { projects, repositories, agents, actors, tasks } from "../db/schema";
+import { projects, repositories, agents, actors, tasks, projectUsers } from "../db/schema";
 import { eq, and, desc, getTableColumns } from "drizzle-orm";
 import { protectedProcedure, o } from "../lib/orpc";
 
@@ -9,13 +9,15 @@ export const projectsRouter = o.router({
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
       try {
-        // For now, use direct ownership until we migrate existing data
+        // Get projects through membership
         const userProjects = await db
-          .select()
+          .select({ project: projects })
           .from(projects)
-          .where(eq(projects.ownerId, context.user.id))
+          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+          .where(eq(projectUsers.userId, context.user.id))
           .orderBy(desc(projects.createdAt));
-        return userProjects;
+        
+        return userProjects.map(row => row.project);
       } catch (err: any) {
         console.error("projects.list failed", {
           userId: context.user?.id,
@@ -31,22 +33,23 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      const project = await db
-        .select()
+      const result = await db
+        .select({ project: projects })
         .from(projects)
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (result.length === 0) {
         throw new Error("Project not found");
       }
 
-      return project[0];
+      return result[0].project;
     }),
 
   create: protectedProcedure
@@ -84,6 +87,22 @@ export const projectsRouter = o.router({
       memory: v.optional(v.any())
     }))
     .handler(async ({ context, input }) => {
+      // Check if user has access to this project
+      const membership = await db
+        .select()
+        .from(projectUsers)
+        .where(
+          and(
+            eq(projectUsers.projectId, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (membership.length === 0) {
+        throw new Error("Project not found or unauthorized");
+      }
+
       const updates: any = { updatedAt: new Date() };
       if (input.name !== undefined) updates.name = input.name;
       if (input.description !== undefined) updates.description = input.description;
@@ -92,17 +111,8 @@ export const projectsRouter = o.router({
       const updated = await db
         .update(projects)
         .set(updates)
-        .where(
-          and(
-            eq(projects.id, input.id),
-            eq(projects.ownerId, context.user.id)
-          )
-        )
+        .where(eq(projects.id, input.id))
         .returning();
-
-      if (updated.length === 0) {
-        throw new Error("Project not found or unauthorized");
-      }
 
       return updated[0];
     }),
@@ -113,19 +123,19 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      // First check if project exists and user owns it
-      const project = await db
+      // Check if user has access to this project
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.id),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
 
@@ -150,20 +160,23 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      const project = await db
-        .select()
+      const result = await db
+        .select({ project: projects })
         .from(projects)
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (result.length === 0) {
         throw new Error("Project not found");
       }
+
+      const project = result[0].project;
 
       // Get counts
       const repositoryCount = await db
@@ -186,7 +199,7 @@ export const projectsRouter = o.router({
         .where(eq(tasks.projectId, input.id));
 
       return {
-        ...project[0],
+        ...project,
         stats: {
           repositories: repositoryCount.length,
           actors: actorCount.length,
@@ -206,20 +219,23 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      const project = await db
-        .select()
+      const result = await db
+        .select({ project: projects })
         .from(projects)
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(projects.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (result.length === 0) {
         throw new Error("Project not found");
       }
+
+      const project = result[0].project;
 
       // Get all tasks for this project
       const projectTasks = await db
@@ -229,7 +245,7 @@ export const projectsRouter = o.router({
         .orderBy(desc(tasks.createdAt));
 
       return {
-        ...project[0],
+        ...project,
         tasks: projectTasks
       };
     }),

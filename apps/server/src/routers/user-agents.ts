@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { agents, projects } from "../db/schema";
+import { agents, projects, projectUsers } from "../db/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 export const agentsRouter = o.router({
@@ -18,7 +18,8 @@ export const agentsRouter = o.router({
         })
         .from(agents)
         .innerJoin(projects, eq(agents.projectId, projects.id))
-        .where(eq(projects.ownerId, context.user.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(eq(projectUsers.userId, context.user.id))
         .orderBy(desc(agents.createdAt));
       
       // TODO: Add task counts if requested
@@ -40,7 +41,7 @@ export const agentsRouter = o.router({
         .where(
           and(
             eq(agents.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -68,7 +69,7 @@ export const agentsRouter = o.router({
         .where(
           and(
             eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -110,7 +111,7 @@ export const agentsRouter = o.router({
         .where(
           and(
             eq(agents.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -150,7 +151,7 @@ export const agentsRouter = o.router({
         .where(
           and(
             eq(agents.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);

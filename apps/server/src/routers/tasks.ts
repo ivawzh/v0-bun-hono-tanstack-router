@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories } from "../db/schema";
+import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories, projectUsers } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import {
@@ -22,19 +22,19 @@ export const tasksRouter = o.router({
       projectId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
 
@@ -103,12 +103,13 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .leftJoin(repositories, eq(tasks.mainRepositoryId, repositories.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -160,19 +161,19 @@ export const tasksRouter = o.router({
       stage: v.optional(taskStageEnum) // Allow explicit stage assignment on creation
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
 
@@ -328,10 +329,11 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -419,10 +421,11 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -454,10 +457,11 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -491,19 +495,19 @@ export const tasksRouter = o.router({
       }))
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db
+      // Verify project membership
+      const membership = await db
         .select()
-        .from(projects)
+        .from(projectUsers)
         .where(
           and(
-            eq(projects.id, input.projectId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
 
-      if (project.length === 0) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
 
@@ -571,10 +575,11 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -618,10 +623,11 @@ export const tasksRouter = o.router({
           })
           .from(tasks)
           .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
           .where(
             and(
               eq(tasks.id, input.taskId),
-              eq(projects.ownerId, context.user.id)
+              eq(projectUsers.userId, context.user.id)
             )
           )
           .limit(1);
@@ -677,7 +683,7 @@ export const tasksRouter = o.router({
         .where(
           and(
             eq(tasks.id, input.taskId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -725,7 +731,7 @@ export const tasksRouter = o.router({
         .where(
           and(
             eq(tasks.id, input.taskId),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
@@ -762,10 +768,11 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.id),
-            eq(projects.ownerId, context.user.id)
+            eq(projectUsers.userId, context.user.id)
           )
         )
         .limit(1);
