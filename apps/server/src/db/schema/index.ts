@@ -44,7 +44,8 @@ export const agents = pgTable("agents", {
   agentSettings: jsonb("agent_settings").default({}).notNull(), // { CLAUDE_CONFIG_DIR, etc. }
   maxConcurrencyLimit: integer("max_concurrency_limit").default(1), // User configurable concurrency limit per agent
   lastTaskPushedAt: timestamp("last_task_pushed_at"), // Track when agent last got assigned a task
-  state: jsonb("state").default({}).notNull(), // Current state tracking (rate limits, etc.)
+  rateLimitResetAt: timestamp("rate_limit_reset_at"), // Direct field for rate limit reset time
+  state: jsonb("state").default({}).notNull(), // Current state tracking (non-rate limit data)
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
@@ -104,11 +105,17 @@ export const tasks = pgTable("tasks", {
   // Ready flag (replaces auto-start)
   ready: boolean("ready").default(false),
 
-  // AI working flag
-  isAiWorking: boolean("is_ai_working").default(false),
+  // Agent session status for new session management
+  agentSessionStatus: text("agent_session_status").notNull().default("NON_ACTIVE"), // NON_ACTIVE, PUSHING, ACTIVE
 
-  // AI working timestamp (when isAiWorking was set to true)
-  aiWorkingSince: timestamp("ai_working_since"),
+  // Active agent reference for direct agent lookup
+  activeAgentId: uuid("active_agent_id").references(() => agents.id),
+
+  // Last pushed timestamp for rate limiting
+  lastPushedAt: timestamp("last_pushed_at"),
+
+  // Last agent session started timestamp
+  lastAgentSessionStartedAt: timestamp("last_agent_session_started_at"),
 
   // Task authorship (human or ai)
   author: text("author").notNull().default("human"), // human, ai

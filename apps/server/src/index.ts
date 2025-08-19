@@ -8,7 +8,8 @@ import { registerMcpHttp } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { wsManager, handleWebSocketMessage, broadcastFlush } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
-import { startOrchestrator, shutdownOrchestrator } from "./agents/v2/orchestrator";
+import { startTaskMonitoring } from "./agents/task-monitor";
+import agentCallbackRoutes from "./routers/agent-callbacks";
 import { requireClaudeCodeUIAuth } from './lib/guards';
 import { db } from "./db";
 import { agents, projects, taskAgents, tasks } from "./db/schema";
@@ -27,6 +28,9 @@ app.use("/*", cors({
 
 // Mount OAuth callback routes
 app.route("/api/oauth", oauthCallbackRoutes);
+
+// Mount agent callback routes
+app.route("/api/agent-callbacks", agentCallbackRoutes);
 
 // V2 API routes are now handled through oRPC endpoints
 
@@ -194,151 +198,6 @@ app.get("/api/tasks/:taskId/attachments/:attachmentId/download", async (c) => {
   }
 });
 
-// Claude Code UI callback endpoints (server-to-server)
-// Session started callback
-app.post("/api/claude-code-ui/session-started", requireClaudeCodeUIAuth, async (c) => {
-  try {
-    const body = await c.req.json();
-    const { sessionId, agentType, soloUnicornParams, resumed } = body;
-
-    console.log('🟢 Claude Code UI session started callback:', {
-      sessionId,
-      agentType,
-      resumed,
-      taskId: soloUnicornParams?.taskId,
-      projectId: soloUnicornParams?.projectId
-    });
-
-    if (!soloUnicornParams?.taskId || !soloUnicornParams?.projectId) {
-      return c.json({ error: 'Missing taskId or projectId in soloUnicornParams' }, 400);
-    }
-
-    // Update task to mark AI as working
-    await db
-      .update(tasks)
-      .set({
-        isAiWorking: true,
-        aiWorkingSince: new Date(),
-        lastAgentSessionId: sessionId,
-        updatedAt: new Date()
-      })
-      .where(eq(tasks.id, soloUnicornParams.taskId));
-
-    console.log('✅ Updated task AI working status:', soloUnicornParams.taskId);
-
-    // Broadcast flush to refresh real-time updates
-    broadcastFlush(soloUnicornParams.projectId);
-
-    return c.json({ success: true, message: 'Session started callback processed' });
-  } catch (error) {
-    console.error('❌ Session started callback error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
-  }
-});
-
-// Session ended callback
-app.post("/api/claude-code-ui/session-ended", requireClaudeCodeUIAuth, async (c) => {
-  try {
-    const body = await c.req.json();
-    const { sessionId, agentType, soloUnicornParams, exitCode, success } = body;
-
-    console.log('🔴 Claude Code UI session ended callback:', {
-      sessionId,
-      agentType,
-      exitCode,
-      success,
-      taskId: soloUnicornParams?.taskId,
-      projectId: soloUnicornParams?.projectId
-    });
-
-    if (!soloUnicornParams?.taskId || !soloUnicornParams?.projectId) {
-      return c.json({ error: 'Missing taskId or projectId in soloUnicornParams' }, 400);
-    }
-
-    // Update task to mark AI as no longer working
-    await db
-      .update(tasks)
-      .set({
-        isAiWorking: false,
-        aiWorkingSince: null,
-        lastAgentSessionId: sessionId,
-        updatedAt: new Date()
-      })
-      .where(eq(tasks.id, soloUnicornParams.taskId));
-
-    console.log('✅ Updated task AI stopped working status:', soloUnicornParams.taskId, { exitCode, success });
-
-    // Broadcast flush to refresh real-time updates
-    broadcastFlush(soloUnicornParams.projectId);
-
-    return c.json({ success: true, message: 'Session ended callback processed' });
-  } catch (error) {
-    console.error('❌ Session ended callback error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
-  }
-});
-
-// Rate limited callback
-app.post("/api/claude-code-ui/rate-limited", requireClaudeCodeUIAuth, async (c) => {
-  try {
-    const body = await c.req.json();
-    const { sessionId, agentType, soloUnicornParams, rateLimitResetAt } = body;
-
-    console.log('🚫 Claude Code UI rate limited callback:', {
-      sessionId,
-      agentType,
-      rateLimitResetAt,
-      taskId: soloUnicornParams?.taskId,
-      projectId: soloUnicornParams?.projectId
-    });
-
-    if (!soloUnicornParams?.taskId || !soloUnicornParams?.projectId) {
-      return c.json({ error: 'Missing taskId or projectId in soloUnicornParams' }, 400);
-    }
-
-    // Update task to mark AI as no longer working due to rate limit
-    await db
-      .update(tasks)
-      .set({
-        isAiWorking: false,
-        aiWorkingSince: null,
-        lastAgentSessionId: sessionId,
-        updatedAt: new Date()
-      })
-      .where(eq(tasks.id, soloUnicornParams.taskId));
-
-    // Find assigned agents for this task and update their rate limit state
-    const assignedAgents = await db
-      .select({ agentId: taskAgents.agentId })
-      .from(taskAgents)
-      .where(eq(taskAgents.taskId, soloUnicornParams.taskId));
-
-    // Update each assigned agent's state with rate limit info
-    for (const assignment of assignedAgents) {
-      await db
-        .update(agents)
-        .set({
-          state: sql`${JSON.stringify(rateLimitResetAt)}::jsonb')`,
-          updatedAt: new Date()
-        })
-        .where(eq(agents.id, assignment.agentId));
-    }
-
-    console.log('✅ Updated task and agent rate limit status:', {
-      taskId: soloUnicornParams.taskId,
-      agentsUpdated: assignedAgents.length,
-      rateLimitResetAt
-    });
-
-    // Broadcast flush to refresh real-time updates
-    broadcastFlush(soloUnicornParams.projectId);
-
-    return c.json({ success: true, message: 'Rate limited callback processed' });
-  } catch (error) {
-    console.error('❌ Rate limited callback error:', error);
-    return c.json({ error: 'Internal server error' }, 500);
-  }
-});
 
 // Mount MCP Streamable HTTP endpoint at /mcp (stateless integration)
 async function initializeMcp() {
@@ -356,20 +215,18 @@ const port = process.env.PORT || 8500;
 console.log(`🚀 Solo Unicorn server starting on port ${port}`);
 console.log(`🔌 WebSocket server enabled at ws://localhost:${port}`);
 
-// Initialize V2 Orchestrator on startup
-startOrchestrator();
+// Initialize task monitoring system on startup
+startTaskMonitoring();
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
-  shutdownOrchestrator();
   wsManager.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
-  shutdownOrchestrator();
   wsManager.shutdown();
   process.exit(0);
 });

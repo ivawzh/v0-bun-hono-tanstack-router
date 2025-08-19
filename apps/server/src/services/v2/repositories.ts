@@ -4,7 +4,7 @@
  */
 
 import { db } from '../../db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 import * as schema from '../../db/schema/index';
 
 interface CreateRepositoryInput {
@@ -103,7 +103,10 @@ export async function deleteRepository(repositoryId: string) {
     .from(schema.tasks)
     .where(and(
       eq(schema.tasks.mainRepositoryId, repositoryId),
-      eq(schema.tasks.isAiWorking, true)
+      or(
+        eq(schema.tasks.agentSessionStatus, 'PUSHING'),
+        eq(schema.tasks.agentSessionStatus, 'ACTIVE')
+      )
     ))
     .limit(1);
 
@@ -186,7 +189,10 @@ export async function getRepositoriesWithCounts(projectId: string) {
       .from(schema.tasks)
       .where(and(
         eq(schema.tasks.mainRepositoryId, repository.id),
-        eq(schema.tasks.isAiWorking, true)
+        or(
+          eq(schema.tasks.agentSessionStatus, 'PUSHING'),
+          eq(schema.tasks.agentSessionStatus, 'ACTIVE')
+        )
       ));
 
     const activeTaskCount = activeTasks.length;
@@ -215,7 +221,10 @@ export async function isRepositoryAvailable(repositoryId: string): Promise<boole
     .from(schema.tasks)
     .where(and(
       eq(schema.tasks.mainRepositoryId, repositoryId),
-      eq(schema.tasks.isAiWorking, true)
+      or(
+        eq(schema.tasks.agentSessionStatus, 'PUSHING'),
+        eq(schema.tasks.agentSessionStatus, 'ACTIVE')
+      )
     ));
 
   const additionalTasks = await db.select()
@@ -223,7 +232,10 @@ export async function isRepositoryAvailable(repositoryId: string): Promise<boole
     .innerJoin(schema.tasks, eq(schema.tasks.id, schema.taskAdditionalRepositories.taskId))
     .where(and(
       eq(schema.taskAdditionalRepositories.repositoryId, repositoryId),
-      eq(schema.tasks.isAiWorking, true)
+      or(
+        eq(schema.tasks.agentSessionStatus, 'PUSHING'),
+        eq(schema.tasks.agentSessionStatus, 'ACTIVE')
+      )
     ));
 
   const activeTaskCount = mainTasks.length + additionalTasks.length;

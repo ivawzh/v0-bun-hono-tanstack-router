@@ -7,19 +7,8 @@ import { projects, tasks, repositories, actors, taskDependencies, taskAdditional
 import { eq, and, sql } from "drizzle-orm";
 import { broadcastFlush } from "@/websocket/websocket-server";
 
-// Import the improved orchestrator for integration
-let orchestrator: any = null;
-
-// Function to set orchestrator instance (called from main app)
-export function setOrchestrator(orch: any) {
-  orchestrator = orch;
-  logger.info("MCP server integrated with improved orchestrator");
-}
-
-// Function to get orchestrator instance
-export function getOrchestrator() {
-  return orchestrator;
-}
+// Import task pushing for integration
+import { triggerTaskPush } from '../agents/task-monitor';
 
 // Logging utilities for debug and history tracing
 const logger = {
@@ -236,65 +225,6 @@ function registerMcpTools(server: McpServer) {
             },
           ],
         };
-      }
-    }
-  );
-
-  // Register agent_rateLimit tool
-  server.registerTool("agent_rateLimit",
-    {
-      title: "Agent Rate Limit",
-      description: "Mark the agent as rate limited with an optional resolve time.",
-      inputSchema: {
-        agentClientType: z.enum(["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]),
-        resolveAt: z.string().datetime(),
-      },
-    },
-    async ({ agentClientType, resolveAt }, { requestInfo }) => {
-      const agentIdHeader = requestInfo?.headers?.["x-agent-id"];
-      const agentId = Array.isArray(agentIdHeader)
-        ? agentIdHeader[0]
-        : agentIdHeader;
-
-      logger.tool("agent_rateLimit", "start", { agentId, agentClientType, resolveAt });
-
-      try {
-        assertBearer(requestInfo?.headers?.authorization);
-
-        if (!agentId) {
-          logger.tool("agent_rateLimit", "failed", {
-            reason: "missing_agent_id",
-            agentClientType,
-          });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: false,
-                  message: "Agent ID header required",
-                }),
-              },
-            ],
-          };
-        }
-
-        // Note: Rate limit status is now tracked in agentClients.state, not repoAgents.status
-        // The rate limit information will be updated via claude-code-client.ts
-        logger.debug('Rate limit info received, will be handled by claude-code-client.ts');
-
-        logger.tool("agent_rateLimit", "success", {
-          agentId,
-          agentClientType,
-          resolveAt,
-        });
-
-        return {
-          content: [{ type: "text", text: JSON.stringify({ success: true }) }],
-        };
-      } catch (error) {
-        logger.error("agent_rateLimit failed", error, { agentId, agentClientType });
-        throw error;
       }
     }
   );

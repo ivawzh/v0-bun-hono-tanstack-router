@@ -774,12 +774,12 @@ export const tasksRouter = o.router({
         throw new Error("Task not found or unauthorized");
       }
 
-      // Reset AI working status and clear timestamp
+      // Reset agent session status
       const updated = await db
         .update(tasks)
         .set({
-          isAiWorking: false,
-          aiWorkingSince: null,
+          agentSessionStatus: 'NON_ACTIVE',
+          activeAgentId: null,
           updatedAt: new Date()
         })
         .where(eq(tasks.id, input.id))
