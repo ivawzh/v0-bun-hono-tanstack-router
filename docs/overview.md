@@ -14,17 +14,28 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - Server: Hono + oRPC (apps/server)
 - Runtime: Bun
 - ORM: Drizzle
-- Database: Local PostgreSQL
+- Database: PostgreSQL
 - Validation: Valibot
 - MCP: stateless http @modelcontextprotocol/sdk/server/mcp
 - WebSocket: Bun std `Bun.serve({ websocket })`
+- Auth: Monster Auth
 
 ## Database Implementation
 
-- Local PostgreSQL only (no cloud production deployment)
-- Prefer jsonb for flexible fields (`metadata`, `plan`, `config`)
+- PostgreSQL
+- Prefer jsonb for flexible fields (`state`, `plan`, `config`)
 - Minimal normalization - evolve as needed
-- Fresh migrations - can delete and recreate database
+
+## Facts
+
+1. **Current Usage Pattern**: Primarily using Claude Code agent client type, which remains the most powerful option
+2. **Claude Code Max Subscription**: Monthly access with unknown rate limits (hourly, daily, or monthly) that change without notice
+3. **Claude Code Capabilities**:
+   - Supports additional working directories for multi-repo access and all-in-one manipulation
+   - Rate limit refresh times are provided when limits are hit
+   - Can switch accounts via `CLAUDE_CONFIG_DIR` environment variable
+4. **Conflict Management Philosophy**: Easier to maintain one active session per repo to avoid git conflicts, but should be configurable
+5. **Rate Limit Handling**: Need to re-feed ongoing tasks when rate limits refresh
 
 ## Core Entities
 
@@ -32,18 +43,26 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 - Single board per project (no separate board entity)
 - Project memory stored in database (viewable/editable by human)
-- Contains configured repo agents and actors
+- Contains configured repos, agents and actors
+- **Authorization-First**: All operations secured with project-user authorization
 
-### Repo Agent
+### Repo
 
-- Combination of repository path + coding client (e.g., Claude Code, OpenCode)
-- Examples: `/home/repos/todo` + Claude Code, `/home/repos/calendar` + Claude Code
-- Only one active session per coding client type (rate limit enforcement)
+- Repo path is a directory on the filesystem.
+- configurable concurrency limit
+- `lastTaskPushedAt` to avoid spamming
+
+## Agent
+
+- The only agent type is Claude Code
+- configurable concurrency limit
+- `lastTaskPushedAt` to avoid spamming
+- `agentSettings` to store fields like CLAUDE_CONFIG_DIR. CLAUDE_CONFIG_DIR basically represents Claude Code account, so that we can switch agent (i.e. Claude Code account) while one agent is rate limited. This is also why task can have multiple agents assigned.
 
 ### Actor
 
 - Describes agent mindset, principles, focus, methodology, values
-- Not bound to repo agent - assigned per card
+- Not bound to repo or agent - assigned per task
 - Default Actor for unspecified tasks
 
 ### Task (Card)
@@ -52,28 +71,17 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - **Loop tasks**: Loop → Doing → Loop (infinite cycle)
 - Doing has 3 stages: clarify → Plan → Execute
 - Loop has 1 stage: loop (never changes)
-- Must have repo agent assigned
+- Must have repo(s) and agent(s) assigned
+- Optional additional repos for multi codebases manipulation at once.
 - Optional actor assignment
 - "Ready" checkbox replaces auto-start/start agent buttons
-
-## Default Actor
-
-**Role**: Full-Stack Engineering Agent
-**Mindset**: Pragmatic problem-solver focused on working solutions over perfect code
-**Principles**:
-
-- **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
-**Focus**: Deliver functional features that solve real user problems
-**Methodology**: clarify → Plan → Execute with clear documentation of decisions
-**Values**: Simplicity, reliability, user experience, maintainable code
 
 ## Project Setup UX
 
 1. **Create Project**: Simple name and description
-2. **Configure Repo Agents**:
-   - Add repository path + coding client combinations
-   - Each repo agent represents one coding environment
-   - Examples: "Main Repo (Claude Code)", "Frontend (OpenCode)"
+2. **Configure Repos and Agents**:
+   - Add repository path. E.g. Todo app at "/home/repos/todo"
+   - Add agent. E.g. "Claude Code"
 3. **Configure Actors** (Optional):
    - Define agent personalities/methodologies
    - Assign to specific cards or use default
@@ -89,7 +97,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 - Write raw title and optional raw description
 - Add optional attachments
-- Select repo agent (mandatory - limit 1 per card)
+- Select repo and agent
 - Optionally select actor (or use default)
 - Tick "Ready" checkbox when ready for AI pickup
 
@@ -108,9 +116,11 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 
 - List solution options and rank them
 - Select final solution approach
-- Write spec if needed
-- Store all plan work in card for reference
-- Final solution and spec stored in card's `plan` field
+- Write spec
+- Step breakdown
+- Evaluate size and complexity.
+  - If it's too big, split it into smaller tasks. Move this task to Done.
+  - If not too big, store plan (final solution, spec, step breakdown) in card's `plan` field.
 - Interaction via MCP
 
 **Stage 3: Execute**
@@ -167,30 +177,6 @@ erDiagram
     Repositories ||--o{ TaskRepositories : additional_repos
     Tasks ||--o{ TaskRepositories : uses_repos
 ```
-
-## Code Agent Management
-
-### Claude Code UI
-
-Claude Code UI is a open source project. It support not only Claude Code but other agent clients like Cursor CLI. We have cloned Claude Code UI to local and modified it. We aim to keep pulling its latest upstream version so that we gets all its up-to-dated features. We aim to make minimum modificaftions so that reduce conflicts during new version pull.
-
-- CCU originally uses its WebSocket server to communicate with code agent shell, CCU server and CCU UI.
-- Now we modified and added basic auth (bearer header of env var `CLAUDE_CODE_UI_AUTH_TOKEN`) to its websocket server.
-- Solo Unicorn server connects to CCU websocket.
-- Solo Unicorn push tasks to CCU via its ws.
-
-### Solo Unicorn MCP Server
-
-- Solo Unicorn provides MCP server for code agents (e.g. CCU) to communicate back.
-- MCP tools includes:
-  - create task
-  - Update task
-  - Report agent rate limited
-  - Update project memory
-
-## API Endpoints
-
-**Authentication**: All routes protected by Monster Auth
 
 ## Implementation Notes
 

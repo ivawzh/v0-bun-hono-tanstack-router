@@ -35,10 +35,10 @@ export const projectUsers = pgTable("project_users", {
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
-// Agents table (replaces agentClients, now user-owned)
+// Agents table (replaces agentClients, now project-owned)
 export const agents = pgTable("agents", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
   name: text("name").notNull(), // Auto-generated or user-defined
   agentType: agentClientTypeEnum("agent_type").notNull().default("CLAUDE_CODE"),
   agentSettings: jsonb("agent_settings").default({}).notNull(), // { CLAUDE_CONFIG_DIR, etc. }
@@ -150,8 +150,7 @@ export const taskDependencies = pgTable("task_dependencies", {
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
-  projectMemberships: many(projectUsers),
-  agents: many(agents)
+  projectMemberships: many(projectUsers)
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -162,6 +161,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   projectUsers: many(projectUsers),
   repositories: many(repositories),
   actors: many(actors),
+  agents: many(agents),
   tasks: many(tasks)
 }));
 
@@ -177,9 +177,9 @@ export const projectUsersRelations = relations(projectUsers, ({ one }) => ({
 }));
 
 export const agentsRelations = relations(agents, ({ one, many }) => ({
-  user: one(users, {
-    fields: [agents.userId],
-    references: [users.id]
+  project: one(projects, {
+    fields: [agents.projectId],
+    references: [projects.id]
   }),
   taskAssignments: many(taskAgents)
 }));
