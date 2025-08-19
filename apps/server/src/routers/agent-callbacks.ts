@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
-import { pingSession, unregisterSession, getSession } from '../agents/session-registry';
+import { pingSession, unregisterActiveSession, getActiveSession } from '../agents/session-registry';
 import { triggerTaskPush, getMonitoringStatus } from '../agents/task-monitor';
 import { requireClaudeCodeUIAuth } from '../lib/guards';
 
@@ -41,12 +41,12 @@ const rateLimitedSchema = z.object({
 app.post('/session-started', requireClaudeCodeUIAuth, zValidator('json', sessionStartedSchema), async (c) => {
   try {
     const { sessionId, workingDirectory, timestamp } = c.req.valid('json');
-    
+
     console.log(`📡 Session started callback: ${sessionId} in ${workingDirectory}`);
 
     // Get session data from registry
-    const sessionData = await getSession(sessionId);
-    
+    const sessionData = await getActiveSession(sessionId);
+
     if (!sessionData) {
       console.warn(`⚠️  Session ${sessionId} not found in registry`);
       return c.json({ success: false, error: 'Session not found in registry' }, 404);
@@ -80,9 +80,9 @@ app.post('/session-started', requireClaudeCodeUIAuth, zValidator('json', session
 
   } catch (error) {
     console.error('❌ Session started callback failed:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
 });
@@ -94,12 +94,12 @@ app.post('/session-started', requireClaudeCodeUIAuth, zValidator('json', session
 app.post('/session-completed', requireClaudeCodeUIAuth, zValidator('json', sessionCompletedSchema), async (c) => {
   try {
     const { sessionId, workingDirectory, timestamp } = c.req.valid('json');
-    
+
     console.log(`📡 Session completed callback: ${sessionId}`);
 
     // Get session data from registry
-    const sessionData = await getSession(sessionId);
-    
+    const sessionData = await getActiveSession(sessionId);
+
     if (!sessionData) {
       console.warn(`⚠️  Session ${sessionId} not found in registry`);
       return c.json({ success: false, error: 'Session not found in registry' }, 404);
@@ -117,7 +117,7 @@ app.post('/session-completed', requireClaudeCodeUIAuth, zValidator('json', sessi
       .returning();
 
     // Remove session from registry
-    await unregisterSession(sessionId);
+    await unregisterActiveSession(sessionId);
 
     console.log(`✅ Session ${sessionId} completed and cleaned up`);
 
@@ -132,9 +132,9 @@ app.post('/session-completed', requireClaudeCodeUIAuth, zValidator('json', sessi
 
   } catch (error) {
     console.error('❌ Session completed callback failed:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
 });
@@ -146,12 +146,12 @@ app.post('/session-completed', requireClaudeCodeUIAuth, zValidator('json', sessi
 app.post('/rate-limited', requireClaudeCodeUIAuth, zValidator('json', rateLimitedSchema), async (c) => {
   try {
     const { sessionId, resetTimestamp, workingDirectory, timestamp } = c.req.valid('json');
-    
+
     console.log(`📡 Rate limited callback: ${sessionId}, reset at ${resetTimestamp}`);
 
     // Get session data from registry
-    const sessionData = await getSession(sessionId);
-    
+    const sessionData = await getActiveSession(sessionId);
+
     if (!sessionData) {
       console.warn(`⚠️  Session ${sessionId} not found in registry`);
       return c.json({ success: false, error: 'Session not found in registry' }, 404);
@@ -177,21 +177,21 @@ app.post('/rate-limited', requireClaudeCodeUIAuth, zValidator('json', rateLimite
       .where(eq(schema.tasks.id, sessionData.taskId));
 
     // Remove session from registry since it's no longer active
-    await unregisterSession(sessionId);
+    await unregisterActiveSession(sessionId);
 
     console.log(`✅ Rate limit processed for agent ${sessionData.agentId}, reset at ${resetTimestamp}`);
 
     // Schedule task pushing for when rate limit expires
     const resetTime = new Date(resetTimestamp);
     const delay = resetTime.getTime() - Date.now();
-    
+
     if (delay > 0 && delay < 24 * 60 * 60 * 1000) { // Only schedule if within 24 hours
       setTimeout(() => {
         triggerTaskPush().catch(error => {
           console.error('❌ Failed to trigger task push after rate limit expiry:', error);
         });
       }, delay);
-      
+
       console.log(`⏰ Scheduled task push in ${Math.round(delay / 60000)} minutes when rate limit expires`);
     }
 
@@ -199,9 +199,9 @@ app.post('/rate-limited', requireClaudeCodeUIAuth, zValidator('json', rateLimite
 
   } catch (error) {
     console.error('❌ Rate limited callback failed:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
 });
@@ -219,9 +219,9 @@ app.post('/trigger-push', requireClaudeCodeUIAuth, async (c) => {
     });
   } catch (error) {
     console.error('❌ Manual task push trigger failed:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
 });
@@ -235,9 +235,9 @@ app.get('/status', async (c) => {
     return c.json(status);
   } catch (error) {
     console.error('❌ Get monitoring status failed:', error);
-    return c.json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
     }, 500);
   }
 });

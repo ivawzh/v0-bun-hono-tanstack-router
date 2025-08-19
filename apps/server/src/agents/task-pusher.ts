@@ -7,7 +7,7 @@ import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { findNextAssignableTask, selectBestAvailableAgent, type TaskWithContext } from './task-finder';
 import { spawnClaudeSession, generateSessionId } from './claude-spawner';
-import { registerSession } from './session-registry';
+import { registerActiveSession } from './session-registry';
 
 // Global lock to prevent concurrent task pushing
 let globalPushLock = false;
@@ -31,7 +31,7 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
     // Recursive push loop
     while (true) {
       const taskWithContext = await findNextAssignableTask();
-      
+
       if (!taskWithContext) {
         // No more assignable tasks
         break;
@@ -39,7 +39,7 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
 
       // Select best available agent
       const selectedAgent = selectBestAvailableAgent(taskWithContext.assignedAgents);
-      
+
       if (!selectedAgent) {
         // No available agents for this task
         errors.push(`No available agents for task ${taskWithContext.task.id}`);
@@ -48,11 +48,11 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
 
       // Attempt to push task to agent
       const pushResult = await pushTaskToAgent(taskWithContext, selectedAgent);
-      
+
       if (pushResult.success) {
         totalPushed++;
         console.log(`✅ Pushed task ${taskWithContext.task.id} to agent ${selectedAgent.id}`);
-        
+
         // Continue loop to check for more tasks
         continue;
       } else {
@@ -77,7 +77,7 @@ async function pushTaskToAgent(
   selectedAgent: any
 ): Promise<{ success: boolean; error?: string }> {
   const { task, mainRepository, actor, project } = taskWithContext;
-  
+
   try {
     const sessionId = generateSessionId();
     const now = new Date();

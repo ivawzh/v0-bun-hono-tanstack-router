@@ -19,15 +19,19 @@ export interface SessionData {
   claudeConfigDir?: string;
 }
 
-const REGISTRY_DIR = join(homedir(), '.solo-unicorn', 'sessions');
+const ACTIVE_SESSIONS_DIR = join(homedir(), '.solo-unicorn', 'sessions', 'active');
+const COMPLETED_SESSIONS_DIR = join(homedir(), '.solo-unicorn', 'sessions', 'completed');
 
 /**
  * Initialize session registry directory
  */
 export async function initSessionRegistry(): Promise<void> {
   try {
-    if (!existsSync(REGISTRY_DIR)) {
-      await mkdir(REGISTRY_DIR, { recursive: true });
+    if (!existsSync(ACTIVE_SESSIONS_DIR)) {
+      await mkdir(ACTIVE_SESSIONS_DIR, { recursive: true });
+    }
+    if (!existsSync(COMPLETED_SESSIONS_DIR)) {
+      await mkdir(COMPLETED_SESSIONS_DIR, { recursive: true });
     }
   } catch (error) {
     console.error('Failed to initialize session registry:', error);
@@ -38,15 +42,27 @@ export async function initSessionRegistry(): Promise<void> {
 /**
  * Register a new agent session
  */
-export async function registerSession(sessionData: SessionData): Promise<void> {
+export async function registerActiveSession(sessionData: SessionData): Promise<void> {
   await initSessionRegistry();
-  
-  const sessionFile = join(REGISTRY_DIR, `${sessionData.sessionId}.json`);
+
+  const sessionFile = join(ACTIVE_SESSIONS_DIR, `${sessionData.sessionId}.json`);
   const data = {
     ...sessionData,
     lastPing: new Date().toISOString()
   };
-  
+
+  await writeFile(sessionFile, JSON.stringify(data, null, 2));
+}
+
+export async function registerCompletedSession(sessionData: SessionData): Promise<void> {
+  await initSessionRegistry();
+
+  const sessionFile = join(COMPLETED_SESSIONS_DIR, `${sessionData.sessionId}.json`);
+  const data = {
+    ...sessionData,
+    lastPing: new Date().toISOString()
+  };
+
   await writeFile(sessionFile, JSON.stringify(data, null, 2));
 }
 
@@ -55,9 +71,9 @@ export async function registerSession(sessionData: SessionData): Promise<void> {
  */
 export async function pingSession(sessionId: string): Promise<void> {
   await initSessionRegistry();
-  
-  const sessionFile = join(REGISTRY_DIR, `${sessionId}.json`);
-  
+
+  const sessionFile = join(ACTIVE_SESSIONS_DIR, `${sessionId}.json`);
+
   if (existsSync(sessionFile)) {
     const data = JSON.parse(await readFile(sessionFile, 'utf-8'));
     data.lastPing = new Date().toISOString();
@@ -66,13 +82,13 @@ export async function pingSession(sessionId: string): Promise<void> {
 }
 
 /**
- * Remove session from registry
+ * Remove session from registry. Idempotent.
  */
-export async function unregisterSession(sessionId: string): Promise<void> {
+export async function unregisterActiveSession(sessionId: string): Promise<void> {
   await initSessionRegistry();
-  
-  const sessionFile = join(REGISTRY_DIR, `${sessionId}.json`);
-  
+
+  const sessionFile = join(ACTIVE_SESSIONS_DIR, `${sessionId}.json`);
+
   if (existsSync(sessionFile)) {
     await unlink(sessionFile);
   }
@@ -83,27 +99,27 @@ export async function unregisterSession(sessionId: string): Promise<void> {
  */
 export async function getAllActiveSessions(): Promise<SessionData[]> {
   await initSessionRegistry();
-  
+
   try {
-    const files = await readdir(REGISTRY_DIR);
+    const files = await readdir(ACTIVE_SESSIONS_DIR);
     const sessions: SessionData[] = [];
-    
+
     for (const file of files) {
       if (file.endsWith('.json')) {
         try {
-          const sessionFile = join(REGISTRY_DIR, file);
+          const sessionFile = join(ACTIVE_SESSIONS_DIR, file);
           const data = JSON.parse(await readFile(sessionFile, 'utf-8'));
           sessions.push(data);
         } catch (error) {
           console.warn(`Failed to read session file ${file}:`, error);
           // Clean up corrupted files
           try {
-            await unlink(join(REGISTRY_DIR, file));
+            await unlink(join(ACTIVE_SESSIONS_DIR, file));
           } catch {}
         }
       }
     }
-    
+
     return sessions;
   } catch (error) {
     console.error('Failed to get active sessions:', error);
@@ -112,17 +128,50 @@ export async function getAllActiveSessions(): Promise<SessionData[]> {
 }
 
 /**
+ * Get all completed sessions
+ */
+export async function getAllCompletedSessions(): Promise<SessionData[]> {
+  await initSessionRegistry();
+
+  try {
+    const files = await readdir(COMPLETED_SESSIONS_DIR);
+    const sessions: SessionData[] = [];
+
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        try {
+          const sessionFile = join(COMPLETED_SESSIONS_DIR, file);
+          const data = JSON.parse(await readFile(sessionFile, 'utf-8'));
+          sessions.push(data);
+        } catch (error) {
+          console.warn(`Failed to read session file ${file}:`, error);
+          // Clean up corrupted files
+          try {
+            await unlink(join(COMPLETED_SESSIONS_DIR, file));
+          } catch {}
+        }
+      }
+    }
+
+    return sessions;
+  } catch (error) {
+    console.error('Failed to get completed sessions:', error);
+    return [];
+  }
+}
+
+/**
  * Get session by ID
  */
-export async function getSession(sessionId: string): Promise<SessionData | null> {
+export async function getActiveSession(sessionId: string): Promise<SessionData | null> {
   await initSessionRegistry();
-  
-  const sessionFile = join(REGISTRY_DIR, `${sessionId}.json`);
-  
+
+  const sessionFile = join(ACTIVE_SESSIONS_DIR, `${sessionId}.json`);
+
   if (!existsSync(sessionFile)) {
     return null;
   }
-  
+
   try {
     const data = JSON.parse(await readFile(sessionFile, 'utf-8'));
     return data;
@@ -151,19 +200,19 @@ export async function getSessionsForTask(taskId: string): Promise<SessionData[]>
 /**
  * Clean up stale sessions (older than specified minutes)
  */
-export async function cleanupStaleSessions(staleMinutes = 60): Promise<number> {
+export async function cleanupStaleSessions(staleMinutes = 120): Promise<number> {
   const allSessions = await getAllActiveSessions();
   const staleThreshold = Date.now() - (staleMinutes * 60 * 1000);
   let cleanedCount = 0;
-  
+
   for (const session of allSessions) {
     const lastPingTime = session.lastPing ? new Date(session.lastPing).getTime() : new Date(session.startedAt).getTime();
-    
+
     if (lastPingTime < staleThreshold) {
-      await unregisterSession(session.sessionId);
+      await unregisterActiveSession(session.sessionId);
       cleanedCount++;
     }
   }
-  
+
   return cleanedCount;
 }

@@ -6,26 +6,28 @@
 import { db } from '../db';
 import { eq, and, ne, or, lt, sql } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
-import { getAllActiveSessions, cleanupStaleSessions } from './session-registry';
+import { getAllActiveSessions, cleanupStaleSessions, getAllCompletedSessions } from './session-registry';
 import { tryPushTasks } from './task-pusher';
 
 /**
  * Check for orphaned tasks and recover them
  * Called on server startup and periodically
  */
-export async function checkOrphanedTasks(): Promise<{ recovered: number; errors: string[] }> {
+export async function checkOutSyncedTasks(): Promise<{ recovered: number; errors: string[] }> {
   const errors: string[] = [];
   let recovered = 0;
 
   try {
-    console.log('🔍 Checking for orphaned tasks...');
+    console.log('🔍 Checking for out-of-sync tasks...');
 
     // Get all sessions from file registry
     const activeSessions = await getAllActiveSessions();
+    const completedSessions = await getAllCompletedSessions();
     const activeSessionIds = new Set(activeSessions.map(s => s.sessionId));
+    const completedSessionIds = new Set(completedSessions.map(s => s.sessionId));
 
     // Find tasks that think they're active but have no registry entry
-    const potentialOrphans = await db
+    const potentialOutSyncedTasks = await db
       .select()
       .from(schema.tasks)
       .where(
@@ -38,11 +40,11 @@ export async function checkOrphanedTasks(): Promise<{ recovered: number; errors:
         )
       );
 
-    for (const task of potentialOrphans) {
+    for (const task of potentialOutSyncedTasks) {
+      const hasCompletedSession = task.lastAgentSessionId && completedSessionIds.has(task.lastAgentSessionId);
       const hasActiveSession = task.lastAgentSessionId && activeSessionIds.has(task.lastAgentSessionId);
-      
-      if (!hasActiveSession) {
-        // Task is orphaned - reset to NON_ACTIVE
+      if (hasCompletedSession || !hasActiveSession) {
+        // Task is completed or lost - reset to NON_ACTIVE
         await db
           .update(schema.tasks)
           .set({
@@ -51,19 +53,19 @@ export async function checkOrphanedTasks(): Promise<{ recovered: number; errors:
             updatedAt: new Date()
           })
           .where(eq(schema.tasks.id, task.id));
-        
+
         recovered++;
-        console.log(`🔧 Recovered orphaned task: ${task.id}`);
+        console.log(`🔧 Recovered a task: ${task.id}. It was ${hasCompletedSession ? 'completed (a completed session was found)' : 'lost (no active or completed session was found)'}.`);
       }
     }
 
-    console.log(`✅ Orphan check complete. Recovered ${recovered} tasks.`);
+    console.log(`✅ Out-of-sync tasks check complete. Recovered ${recovered} tasks.`);
     return { recovered, errors };
 
   } catch (error) {
     const errorMsg = error instanceof Error ? error.message : 'Unknown error';
     errors.push(errorMsg);
-    console.error('❌ Orphan check failed:', error);
+    console.error('❌ Out-of-sync tasks check failed:', error);
     return { recovered, errors };
   }
 }
@@ -76,7 +78,7 @@ export function startTaskMonitoring(): void {
   console.log('🔍 Starting task monitoring system...');
 
   // Initial orphan check on startup
-  checkOrphanedTasks().then(result => {
+  checkOutSyncedTasks().then(result => {
     if (result.recovered > 0) {
       console.log(`🔧 Initial recovery: ${result.recovered} orphaned tasks`);
       // Try to push tasks after recovery
@@ -86,7 +88,7 @@ export function startTaskMonitoring(): void {
 
   // Periodic orphan checking (every 2 minutes)
   setInterval(async () => {
-    const result = await checkOrphanedTasks();
+    const result = await checkOutSyncedTasks();
     if (result.recovered > 0) {
       // Try to push tasks after recovery
       tryPushTasks();
@@ -136,7 +138,7 @@ export async function triggerTaskPush(): Promise<{ pushed: number; errors: strin
  */
 export async function getMonitoringStatus() {
   const activeSessions = await getAllActiveSessions();
-  
+
   const activeTasksCount = await db
     .select({ count: sql<number>`COUNT(*)`.as('count') })
     .from(schema.tasks)

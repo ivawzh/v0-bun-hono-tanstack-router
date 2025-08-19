@@ -5,7 +5,7 @@
 
 import { spawn } from 'child_process';
 import { generatePrompt, type TaskStage } from './prompts';
-import { registerSession } from './session-registry';
+import { registerActiveSession, registerCompletedSession, unregisterActiveSession } from './session-registry';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
@@ -58,9 +58,9 @@ async function handleRateLimit(line: string, agentId: string): Promise<void> {
  * Update task session state when session ID is captured
  */
 async function updateTaskSessionStarted(
-  taskId: string, 
-  agentId: string, 
-  sessionId: string, 
+  taskId: string,
+  agentId: string,
+  sessionId: string,
   projectId: string
 ): Promise<void> {
   try {
@@ -74,7 +74,7 @@ async function updateTaskSessionStarted(
         updatedAt: new Date()
       })
       .where(eq(schema.tasks.id, taskId));
-    
+
     // Broadcast to invalidate frontend queries
     broadcastFlush(projectId);
     console.log(`✅ Updated task ${taskId} with session ${sessionId}`);
@@ -87,8 +87,8 @@ async function updateTaskSessionStarted(
  * Update task when session completes
  */
 async function updateTaskSessionCompleted(
-  taskId: string, 
-  projectId: string, 
+  taskId: string,
+  projectId: string,
   exitCode: number
 ): Promise<void> {
   try {
@@ -100,7 +100,7 @@ async function updateTaskSessionCompleted(
         updatedAt: new Date()
       })
       .where(eq(schema.tasks.id, taskId));
-    
+
     // Broadcast to invalidate frontend queries
     broadcastFlush(projectId);
     console.log(`✅ Task ${taskId} session completed with exit code ${exitCode}`);
@@ -110,7 +110,7 @@ async function updateTaskSessionCompleted(
 }
 
 export interface SpawnOptions {
-  sessionId: string;
+  sessionId?: string;
   taskId: string;
   agentId: string;
   projectId: string;
@@ -141,6 +141,8 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       stage,
       taskData
     } = options;
+
+    let capturedSessionId = sessionId;
 
     // Generate the appropriate prompt for the task stage
     const prompt = generatePrompt(stage, taskData);
@@ -175,17 +177,6 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       SOLO_UNICORN_URL: process.env.SOLO_UNICORN_URL || 'http://localhost:8500',
     };
 
-    // Register session in file-based registry
-    await registerSession({
-      sessionId,
-      taskId,
-      agentId,
-      projectId,
-      repositoryPath,
-      startedAt: new Date().toISOString(),
-      claudeConfigDir
-    });
-
     // Spawn Claude CLI process
     const childProcess = spawn('claude', claudeArgs, {
       cwd: repositoryPath,
@@ -198,8 +189,6 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     childProcess.stdin.write(prompt);
     childProcess.stdin.end();
 
-    let capturedSessionId: string | null = null;
-
     // Set up error handling
     childProcess.on('error', (error) => {
       console.error(`Claude CLI spawn error for session ${sessionId}:`, error);
@@ -207,10 +196,9 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
 
     // Handle stdout (streaming JSON responses)
     childProcess.stdout.on('data', async (data) => {
-      const rawOutput = data.toString();
-      console.log(`Claude CLI output [${sessionId}]:`, rawOutput);
+      const rawOutput = data?.toString() as string || '';
 
-      const lines = rawOutput.split('\n').filter(line => line.trim());
+      const lines = rawOutput.split('\n').filter((line: string) => line.trim());
 
       for (const line of lines) {
         try {
@@ -223,7 +211,18 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
             console.log('📝 Captured session ID:', capturedSessionId);
 
             // Update task with captured session ID and ACTIVE status
-            await updateTaskSessionStarted(taskId, agentId, capturedSessionId, projectId);
+            await updateTaskSessionStarted(taskId, agentId, response.session_id, projectId);
+
+            // Register session in file-based registry
+            await registerActiveSession({
+              sessionId: response.session_id,
+              taskId,
+              agentId,
+              projectId,
+              repositoryPath,
+              startedAt: new Date().toISOString(),
+              claudeConfigDir
+            });
           }
 
           // Check for rate limit in JSON response
@@ -248,8 +247,24 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     childProcess.on('close', async (code) => {
       console.log(`Claude CLI process [${sessionId}] exited with code ${code}`);
 
-      // Update task status to NON_ACTIVE when process completes
-      await updateTaskSessionCompleted(taskId, projectId, code || 0);
+      await Promise.all([
+        // Update task status to NON_ACTIVE when process completes
+        await updateTaskSessionCompleted(taskId, projectId, code || 0),
+
+        // Unregister active session
+        unregisterActiveSession(sessionId!),
+
+        // Register session in file-based registry
+        await registerCompletedSession({
+          sessionId: sessionId!,
+          taskId,
+          agentId,
+          projectId,
+          repositoryPath,
+          startedAt: new Date().toISOString(),
+          claudeConfigDir
+        }),
+      ]);
     });
 
     // Allow process to run detached
