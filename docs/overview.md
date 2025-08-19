@@ -67,6 +67,8 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 ### Task (Card)
 
+- `ready` checkbox to mark ready for AI pickup
+- `stage` controls what prompt to use. Eventually, we might allow user to create and modify stage and prompt.
 - **Regular tasks**: Todo → Doing → Done
 - **Loop tasks**: Loop → Doing → Loop (infinite cycle)
 - Doing has 3 stages: clarify → Plan → Execute
@@ -74,7 +76,6 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - Must have repo(s) and agent(s) assigned
 - Optional additional repos for multi codebases manipulation at once.
 - Optional actor assignment
-- "Ready" checkbox replaces auto-start/start agent buttons
 
 ## Project Setup UX
 
@@ -177,6 +178,26 @@ erDiagram
     Repositories ||--o{ TaskRepositories : additional_repos
     Tasks ||--o{ TaskRepositories : uses_repos
 ```
+
+## Server-to-Agent Communication
+
+### Claude Code UI
+
+- We extended its HTTP API, added endpoints with basic auth (bearer header of env var `CLAUDE_CODE_UI_AUTH_TOKEN`)
+- Solo Unicorn server pushs tasks to CCU via via these endpoints.
+
+### Solo Unicorn HTTP callback endpoints
+
+- When Solo Unicorn pushs tasks, there are callback URLs in the push payload.
+- We modified CCU to call these callback endpoints when task is started, completed, or rate limited.
+
+### Solo Unicorn MCP Server
+
+- Solo Unicorn provides MCP server for code agents (e.g. CCU) to communicate back.
+- MCP tools includes:
+  - Create task
+  - Update task
+  - Update project memory
 
 ## Implementation Notes
 
