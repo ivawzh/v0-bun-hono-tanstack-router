@@ -9,11 +9,9 @@ import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { wsManager, handleWebSocketMessage, broadcastFlush } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
 import { startTaskMonitoring } from "./agents/task-monitor";
-import agentCallbackRoutes from "./routers/agent-callbacks";
-import { requireClaudeCodeUIAuth } from './lib/guards';
 import { db } from "./db";
-import { agents, projects, taskAgents, tasks } from "./db/schema";
-import { and, eq, sql } from "drizzle-orm";
+import { projects, tasks } from "./db/schema";
+import { and, eq } from "drizzle-orm";
 import { getAttachmentFile, saveAttachment, validateTotalAttachmentSize } from "./utils/file-storage";
 import { onError } from "@orpc/server";
 
@@ -29,9 +27,6 @@ app.use("/*", cors({
 
 // Mount OAuth callback routes
 app.route("/api/oauth", oauthCallbackRoutes);
-
-// Mount agent callback routes
-app.route("/api/agent-callbacks", agentCallbackRoutes);
 
 // V2 API routes are now handled through oRPC endpoints
 

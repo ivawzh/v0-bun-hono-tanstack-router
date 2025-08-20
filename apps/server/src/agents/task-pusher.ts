@@ -8,21 +8,80 @@ import * as schema from '../db/schema/index';
 import { findNextAssignableTask, selectBestAvailableAgent, type TaskWithContext } from './task-finder';
 import { spawnClaudeSession } from './claude-spawner';
 
-// Global lock to prevent concurrent task pushing
-let globalPushLock = false;
+// Hot-reload-safe global lock using globalThis with automatic cleanup
+declare global {
+  var __soloUnicornTaskPushLock: {
+    locked: boolean;
+    timestamp: number;
+    moduleVersion: string;
+  } | undefined;
+}
+
+const MODULE_VERSION = Date.now().toString(); // Unique per hot reload
+const LOCK_TIMEOUT_MS = 10000; // 10 second safety timeout
+
+function acquireGlobalLock(): boolean {
+  const now = Date.now();
+
+  // Check if lock exists and is stale (older than timeout or from different module version)
+  if (globalThis.__soloUnicornTaskPushLock) {
+    const lock = globalThis.__soloUnicornTaskPushLock;
+    const isStale = (now - lock.timestamp) > LOCK_TIMEOUT_MS;
+    const isDifferentModule = lock.moduleVersion !== MODULE_VERSION;
+
+    if (isStale || isDifferentModule) {
+      console.warn('⚠️ Clearing stale task push lock', {
+        isStale,
+        isDifferentModule,
+        age: now - lock.timestamp,
+        lockModuleVersion: lock.moduleVersion,
+        currentModuleVersion: MODULE_VERSION
+      });
+      globalThis.__soloUnicornTaskPushLock = undefined;
+    } else if (lock.locked) {
+      return false; // Lock is active and fresh
+    }
+  }
+
+  // Acquire lock
+  globalThis.__soloUnicornTaskPushLock = {
+    locked: true,
+    timestamp: now,
+    moduleVersion: MODULE_VERSION
+  };
+
+  return true;
+}
+
+function releaseGlobalLock(): void {
+  if (globalThis.__soloUnicornTaskPushLock?.moduleVersion === MODULE_VERSION) {
+    globalThis.__soloUnicornTaskPushLock.locked = false;
+  }
+}
+
+function isLocked(): boolean {
+  if (!globalThis.__soloUnicornTaskPushLock) return false;
+
+  const lock = globalThis.__soloUnicornTaskPushLock;
+  const now = Date.now();
+  const isStale = (now - lock.timestamp) > LOCK_TIMEOUT_MS;
+  const isDifferentModule = lock.moduleVersion !== MODULE_VERSION;
+
+  if (isStale || isDifferentModule) {
+    return false; // Treat stale/different module locks as unlocked
+  }
+
+  return lock.locked;
+}
 
 /**
  * Main recursive task pushing function with global locking
  */
 export async function tryPushTasks(): Promise<{ pushed: number; errors: string[] }> {
-  // Check global lock
-  if (globalPushLock) {
-    console.log('🚀 ❌ [tryPushTasks] already in progress');
-    return { pushed: 0, errors: ['[tryPushTasks] already in progress'] };
+  // Check and acquire global lock
+  if (!acquireGlobalLock()) {
+    return { pushed: 0, errors: ['🚧 [tryPushTasks] already in progress'] };
   }
-
-  // Acquire global lock
-  globalPushLock = true;
 
   try {
     const errors: string[] = [];
@@ -69,7 +128,7 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
 
   } finally {
     // Always release global lock
-    globalPushLock = false;
+    releaseGlobalLock();
   }
 }
 
@@ -167,13 +226,15 @@ async function pushTaskToAgent(
  * Check if task pushing is currently locked
  */
 export function isPushingLocked(): boolean {
-  return globalPushLock;
+  return isLocked();
 }
 
 /**
  * Force release the global lock (emergency use only)
  */
 export function forceReleaseLock(): void {
-  globalPushLock = false;
-  console.warn('⚠️  Global push lock forcefully released');
+  if (globalThis.__soloUnicornTaskPushLock) {
+    globalThis.__soloUnicornTaskPushLock.locked = false;
+    console.warn('⚠️  Global push lock forcefully released');
+  }
 }

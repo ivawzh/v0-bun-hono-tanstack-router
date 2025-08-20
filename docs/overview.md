@@ -183,28 +183,18 @@ erDiagram
 
 ### Direct Claude Code Process Spawning
 
-Solo Unicorn spawns Claude Code as standalone processes:
+Solo Unicorn invokes Claude Code via its SDK:
 
-- **Process Management**: Solo Unicorn directly spawns `claude` CLI processes for each task
 - **Environment Variables**: Each spawned process gets task-specific environment variables (`SOLO_UNICORN_TASK_ID`, `SOLO_UNICORN_AGENT_ID`,  etc.)
 - **Working Directory**: Processes are spawned in the repository's working directory
+- **Rate Limit Hook**: Read session result and detect if Claude Code hits rate limits. If so, update agent and tasks status.
 
 ### Claude Code Hook System
 
 Hook scripts track session lifecycle and maintain synchronization:
 
-- **Session Start Hook** (`~/.solo-unicorn/hooks/session-start.sh`): Called when Claude Code session begins
-- **Session End Hook** (`~/.solo-unicorn/hooks/session-end.sh`): Called when Claude Code session completes
-- **Rate Limit Hook** (`~/.solo-unicorn/hooks/rate-limit.sh`): Called when Claude Code hits rate limits
-- **File Registry**: Hooks maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
-
-### Solo Unicorn HTTP Callback Endpoints
-
-Hook scripts call these endpoints to report session status:
-
-- **`/api/agent-callbacks/session-started`**: Updates task status to ACTIVE when session begins
-- **`/api/agent-callbacks/session-completed`**: Updates task status to NON_ACTIVE when session ends
-- **`/api/agent-callbacks/rate-limited`**: Handles rate limit events and schedules retries
+- **Session Start Hook**: Called when Claude Code session begins. Update task agent session info and maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
+- **Session End Hook**: Called when Claude Code session completes. Update task agent session info and maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
 
 ### Solo Unicorn MCP Server
 
@@ -231,3 +221,4 @@ Claude Code UI by default is monitoring the session file in `~/.claude/projects`
 ## Implementation Notes
 
 - all AI prompts must be stored at `apps/server/src/agents/prompts`
+- Use `startHotReloadSafeInterval()` instead of `setInterval()` for Bun hot reload compatibility

@@ -22,7 +22,12 @@ import path from "path";
 import { promises as fs } from "fs";
 import fsSync from "fs";
 import os from "os";
-import { query } from "@anthropic-ai/claude-code";
+import {
+  query,
+  type Options,
+  type PermissionMode,
+} from "@anthropic-ai/claude-code";
+import { match, P } from "ts-pattern";
 
 // Use cross-spawn on Windows for better command execution
 const spawnFunction = process.platform === "win32" ? crossSpawn : spawn;
@@ -36,7 +41,7 @@ export interface SpawnOptions {
   claudeConfigDir?: string;
   stage: TaskStage;
   model?: string;
-  permissionMode?: string;
+  permissionMode?: PermissionMode;
   taskData: {
     task: schema.Task;
     actor?: schema.Actor | null;
@@ -63,8 +68,6 @@ export async function spawnClaudeSession(
     } = options;
     const { task } = taskData;
 
-    let capturedSessionId = sessionId;
-
     // Generate the appropriate prompt for the task stage
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
@@ -83,7 +86,30 @@ export async function spawnClaudeSession(
       repositoryPath
     );
     const prompt = stagePrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
-    const mcpConfig = getMcpConfig();
+
+    // Prepare environment variables
+    const env = {
+      ...process.env,
+      // Add Claude config directory if specified
+      ...(claudeConfigDir && { CLAUDE_CONFIG_DIR: claudeConfigDir }),
+      // Session tracking
+      ...(sessionId && { SESSION_ID: sessionId }),
+      REPOSITORY_PATH: repositoryPath,
+      SOLO_UNICORN_PROJECT_ID: projectId,
+      SOLO_UNICORN_AGENT_ID: agentId,
+      SOLO_UNICORN_TASK_ID: taskId,
+    };
+
+    const mcpServers = {
+      "solo-unicorn": {
+        type: "http",
+        url: "http://localhost:8500/mcp",
+        headers: {
+          Authorization: `Bearer ${process.env.CLAUDE_CODE_UI_AUTH_TOKEN}`,
+          Accept: "application/json, text/event-stream",
+        },
+      },
+    } satisfies Options["mcpServers"];
 
     const defaultToolsSettings = {
       allowedTools: [
@@ -106,33 +132,114 @@ export async function spawnClaudeSession(
         "mcp__solo-unicorn",
       ],
       disallowedTools: [],
-      skipPermissions: true
-    }
-
-    // Prepare environment variables
-    const env = {
-      ...process.env,
-      // Add Claude config directory if specified
-      ...(claudeConfigDir && { CLAUDE_CONFIG_DIR: claudeConfigDir }),
-      // Session tracking
-      ...(sessionId && { SESSION_ID: sessionId }),
-      REPOSITORY_PATH: repositoryPath,
-      SOLO_UNICORN_PROJECT_ID: projectId,
-      SOLO_UNICORN_AGENT_ID: agentId,
-      SOLO_UNICORN_TASK_ID: taskId,
-      // Hook configuration
-      CLAUDE_HOOK_SESSION_START:
-        "/home/iw/.solo-unicorn/hooks/session-start.sh",
-      CLAUDE_HOOK_SESSION_END: "/home/iw/.solo-unicorn/hooks/session-end.sh",
-      CLAUDE_HOOK_RATE_LIMIT: "/home/iw/.solo-unicorn/hooks/rate-limit.sh",
-      // Solo Unicorn server configuration
-      SOLO_UNICORN_URL: process.env.SOLO_UNICORN_URL || "http://localhost:8500",
+      skipPermissions: true,
     };
 
-    query({
-      prompt,
-      options: {  },
-    });
+    // Use Claude Code SDK with streaming JSON
+    try {
+      console.log(`🚀 Starting Claude Code session for task ${taskId}. [${task.stage}] ${taskData.task.rawTitle || taskData.task.refinedTitle}`);
+
+      for await (const message of query({
+        prompt,
+        options: {
+          resume: sessionId || undefined,
+          allowedTools: defaultToolsSettings.allowedTools,
+          disallowedTools: defaultToolsSettings.disallowedTools,
+          permissionMode: options.permissionMode || "bypassPermissions",
+          model: options.model || "sonnet",
+          mcpServers,
+          cwd: repositoryPath,
+          env,
+          hooks: {
+            SessionStart: [
+              {
+                hooks: [
+                  async (input, toolUseID, options) => {
+                    console.log(
+                      "SessionStart hook called. ",
+                      task.stage,
+                      task.rawTitle || task.refinedTitle,
+                    );
+
+                    await Promise.all([
+                      // Update task with captured session ID and ACTIVE status
+                      await updateTaskSessionStarted(
+                        taskId,
+                        agentId,
+                        input.session_id,
+                        projectId
+                      ),
+
+                      // Register session in file-based registry
+                      await registerActiveSession({
+                        sessionId: input.session_id,
+                        taskId,
+                        agentId,
+                        projectId,
+                        repositoryPath,
+                        startedAt: new Date().toISOString(),
+                        claudeConfigDir,
+                      }),
+                    ]);
+
+                    return { continue: true };
+                  },
+                ],
+              },
+            ],
+            Stop: [
+              {
+                hooks: [
+                  async (input, toolUseID, options) => {
+                    console.log("[Claude Code] Stop hook called. ", task.stage, task.rawTitle || task.refinedTitle);
+                    await Promise.all([
+                      // Update task status to NON_ACTIVE when process completes
+                      await updateTaskSessionCompleted(taskId, projectId, 0),
+
+                      // Register session in file-based registry
+                      await registerCompletedSession({
+                        sessionId: input.session_id,
+                        taskId,
+                        agentId,
+                        projectId,
+                        repositoryPath,
+                        startedAt: new Date().toISOString(),
+                        claudeConfigDir,
+                      }),
+                    ]);
+                    return { continue: true };
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      })) {
+        try {
+          match(message)
+          .with({ type: "result", result: P.string }, (msg) => {
+            detectAndHandleRateLimit(msg.result, agentId);
+          })
+          .with({ permission_denials: P.select() }, (denials) => {
+            if (denials.length > 0) {
+              console.error("[Claude Code] Permission denials:", denials);
+            }
+          })
+          .otherwise(() => {})
+        } catch (parseError) {
+          console.error("[Claude Code] Error processing SDK message:", parseError);
+        }
+      }
+    } catch (error) {
+      console.error(`[Claude Code] error for task ${taskId}:`, error);
+
+      // Handle rate limit detection in error messages
+      if (error instanceof Error) {
+        await detectAndHandleRateLimit(error.message, agentId);
+      }
+
+      throw error;
+    }
 
     // // Use Claude Code CLI as a child process
     // spawnClaudeChildProcess({
@@ -149,18 +256,15 @@ export async function spawnClaudeSession(
     //   claudeConfigDir,
     // });
 
-
-
     return { success: true };
   } catch (error) {
-    console.error("Failed to spawn Claude CLI session:", error);
+    console.error("[Claude Code] Failed to spawn Claude CLI session:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown spawn error",
     };
   }
 }
-
 
 /**
  * Extract rate limit reset time from Claude AI usage limit message
@@ -179,7 +283,7 @@ function extractRateLimitResetTime(text: string): string | null {
     const reset = new Date(timestampMs);
     return reset.toISOString();
   } catch (error) {
-    console.error("Error extracting rate limit reset time:", error);
+    console.error("[Claude Code] Error extracting rate limit reset time:", error);
     return null;
   }
 }
@@ -187,10 +291,10 @@ function extractRateLimitResetTime(text: string): string | null {
 /**
  * Handle rate limit detection and agent update
  */
-async function handleRateLimit(line: string, agentId: string): Promise<void> {
+async function detectAndHandleRateLimit(line: string, agentId: string): Promise<void> {
   const rateLimitResetTime = extractRateLimitResetTime(line);
   if (rateLimitResetTime) {
-    console.log("🚫 Claude rate limit detected, updating agent");
+    console.log("[Claude Code] 🚫 Claude rate limit detected, updating agent");
     try {
       await db
         .update(schema.agents)
@@ -200,7 +304,7 @@ async function handleRateLimit(line: string, agentId: string): Promise<void> {
         })
         .where(eq(schema.agents.id, agentId));
     } catch (error) {
-      console.error("Failed to update agent rate limit:", error);
+      console.error("[Claude Code] Failed to update agent rate limit:", error);
     }
   }
 }
@@ -212,7 +316,7 @@ async function updateTaskSessionStarted(
   taskId: string,
   agentId: string,
   sessionId: string,
-  projectId: string,
+  projectId: string
 ): Promise<void> {
   try {
     await db
@@ -230,7 +334,7 @@ async function updateTaskSessionStarted(
     broadcastFlush(projectId);
     console.log(`✅ Updated task ${taskId} with session ${sessionId}`);
   } catch (error) {
-    console.error("Failed to update task session state:", error);
+    console.error("[Claude Code] Failed to update task session state:", error);
   }
 }
 
@@ -258,7 +362,7 @@ async function updateTaskSessionCompleted(
       `✅ Task ${taskId} session completed with exit code ${exitCode}`
     );
   } catch (error) {
-    console.error("Failed to update task completion state:", error);
+    console.error("[Claude Code] Failed to update task completion state:", error);
   }
 }
 
@@ -297,7 +401,7 @@ async function processTaskImagesPrompt(
       await fs.writeFile(filepath, Buffer.from(base64Data, "base64"));
       tempImagePaths.push(filepath);
     } catch (error) {
-      console.error("Failed to process image attachment", error, {
+      console.error("[Claude Code] Failed to process image attachment", error, {
         taskId,
         attachmentId: attachment.id,
         filename: attachment.filename,
@@ -313,9 +417,9 @@ async function processTaskImagesPrompt(
   return null;
 }
 
-function getMcpConfig() {
+function getMcpConfigPath() {
   let hasMcpServers = false;
-  const claudeConfigPath = path.join(os.homedir(), '.claude.json');
+  const claudeConfigPath = path.join(os.homedir(), ".claude.json");
 
   // Check Claude config for MCP servers
   if (fsSync.existsSync(claudeConfigPath)) {
@@ -359,7 +463,7 @@ function getMcpConfig() {
 
   if (hasMcpServers) {
     // Use Claude config file if it has MCP servers
-    let configPath = null;
+    let configPath = undefined;
 
     if (fsSync.existsSync(claudeConfigPath)) {
       try {
@@ -391,149 +495,154 @@ function getMcpConfig() {
     if (configPath) {
       console.log(`📡 Adding MCP config: ${configPath}`);
     } else {
-      console.log("⚠️ MCP servers detected but no valid config file found");
+      console.log("[Claude Code] ⚠️ MCP servers detected but no valid config file found");
     }
 
-    return configPath
+    return configPath;
   }
 }
 
 type SpawnClaudeChildProcessArgs = {
-  prompt: string,
-  sessionId?: string,
-  mcpConfig: string | null | undefined,
-  env: Record<string, string>,
-  repositoryPath: string
-  model?: string
-  permissionMode?: string
-  taskId: string
-  agentId: string
-  projectId: string
-  claudeConfigDir?: string
-}
-function spawnClaudeChildProcess(args:SpawnClaudeChildProcessArgs) {
+  prompt: string;
+  sessionId?: string;
+  env: Record<string, string>;
+  repositoryPath: string;
+  model?: string;
+  permissionMode?: string;
+  taskId: string;
+  agentId: string;
+  projectId: string;
+  claudeConfigDir?: string;
+};
+function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
+  const mcpConfigPath = getMcpConfigPath();
 
-    // Prepare Claude CLI command
-    const claudeArgs: string[] = [
-      "--print",
-      args.prompt,
-      "--output-format",
-      "stream-json",
-    ];
+  // Prepare Claude CLI command
+  const claudeArgs: string[] = [
+    "--print",
+    args.prompt,
+    "--output-format",
+    "stream-json",
+  ];
 
-    // Add resume flag if resuming an existing session
-    if (args.sessionId) {
-      claudeArgs.push("--resume", args.sessionId);
-    }
+  // Add resume flag if resuming an existing session
+  if (args.sessionId) {
+    claudeArgs.push("--resume", args.sessionId);
+  }
 
-    if (args.model) {
-      claudeArgs.push("--model", args.model || 'sonnet');
-    }
+  if (args.model) {
+    claudeArgs.push("--model", args.model || "sonnet");
+  }
 
-    if (args.mcpConfig) {
-      claudeArgs.push("--mcp-config", args.mcpConfig);
-    }
+  if (mcpConfigPath) {
+    claudeArgs.push("--mcp-config", mcpConfigPath);
+  }
 
-    if (args.permissionMode && args.permissionMode !== 'default') {
-      claudeArgs.push('--permission-mode', args.permissionMode);
-    }
+  if (args.permissionMode && args.permissionMode !== "default") {
+    claudeArgs.push("--permission-mode", args.permissionMode);
+  }
 
-    // Spawn Claude CLI process
-    const childProcess = spawnFunction("claude", claudeArgs, {
-      cwd: args.repositoryPath,
-      env: args.env,
-      stdio: "pipe", // We'll handle I/O separately
-      detached: true, // Allow process to run independently
-    });
+  // Spawn Claude CLI process
+  const childProcess = spawnFunction("claude", claudeArgs, {
+    cwd: args.repositoryPath,
+    env: args.env,
+    stdio: "pipe", // We'll handle I/O separately
+    detached: true, // Allow process to run independently
+  });
 
-    // Send initial prompt to Claude
-    childProcess.stdin?.write(args.prompt);
-    childProcess.stdin?.end();
+  // Send initial prompt to Claude
+  childProcess.stdin?.write(args.prompt);
+  childProcess.stdin?.end();
 
-    // Set up error handling
-    childProcess.on("error", (error) => {
-      console.error(`Claude CLI spawn error for session ${args.sessionId}:`, error);
-    });
-
-    // Handle stdout (streaming JSON responses)
-    childProcess.stdout?.on("data", async (data) => {
-      const rawOutput = (data?.toString() as string) || "";
-
-      const lines = rawOutput.split("\n").filter((line: string) => line.trim());
-
-      for (const line of lines) {
-        try {
-          const response = JSON.parse(line);
-          console.log("📄 Parsed JSON response:", response);
-
-          // Capture session ID if it's in the response
-          if (response.session_id && !args.sessionId) {
-            args.sessionId = response.session_id;
-            console.log("📝 Captured session ID:", args.sessionId);
-
-            // Update task with captured session ID and ACTIVE status
-            await updateTaskSessionStarted(
-              args.taskId,
-              args.agentId,
-              response.session_id,
-              args.projectId
-            );
-
-            // Register session in file-based registry
-            await registerActiveSession({
-              sessionId: response.session_id,
-              taskId: args.taskId,
-              agentId: args.agentId,
-              projectId: args.projectId,
-              repositoryPath: args.repositoryPath,
-              startedAt: new Date().toISOString(),
-              claudeConfigDir: args.claudeConfigDir,
-            });
-          }
-
-          // Check for rate limit in JSON response
-          await handleRateLimit(line, args.agentId);
-        } catch (parseError: any) {
-          // If not JSON, check for rate limit in raw text
-          await handleRateLimit(line, args.agentId);
-        }
-      }
-    });
-
-    // Handle stderr
-    childProcess.stderr?.on("data", async (data) => {
-      const errorMessage = data.toString();
-      console.error(`Claude CLI stderr [${args.sessionId}]:`, errorMessage);
-
-      // Check for rate limit in stderr
-      await handleRateLimit(errorMessage, args.agentId);
-    });
-
-    // Handle process completion
-    childProcess.on("close", async (code) => {
-      console.log(`Claude CLI process [${args.sessionId}] exited with code ${code}`);
-
-      await Promise.all([
-        // Update task status to NON_ACTIVE when process completes
-        await updateTaskSessionCompleted(args.taskId, args.projectId, code || 0),
-
-        // Register session in file-based registry
-        await registerCompletedSession({
-          sessionId: args.sessionId!,
-          taskId: args.taskId,
-          agentId: args.agentId,
-          projectId: args.projectId,
-          repositoryPath: args.repositoryPath,
-          startedAt: new Date().toISOString(),
-          claudeConfigDir: args.claudeConfigDir,
-        }),
-      ]);
-    });
-
-    // Allow process to run detached
-    childProcess.unref();
-
-    console.log(
-      `🚀 Spawned Claude CLI session ${args.sessionId} for task ${args.taskId}`
+  // Set up error handling
+  childProcess.on("error", (error) => {
+    console.error(
+      `Claude CLI spawn error for session ${args.sessionId}:`,
+      error
     );
+  });
+
+  // Handle stdout (streaming JSON responses)
+  childProcess.stdout?.on("data", async (data) => {
+    const rawOutput = (data?.toString() as string) || "";
+
+    const lines = rawOutput.split("\n").filter((line: string) => line.trim());
+
+    for (const line of lines) {
+      try {
+        const response = JSON.parse(line);
+        console.log("[Claude Code] 📄 Parsed JSON response:", response);
+
+        // Capture session ID if it's in the response
+        if (response.session_id && !args.sessionId) {
+          args.sessionId = response.session_id;
+          console.log("[Claude Code] 📝 Captured session ID:", args.sessionId);
+
+          // Update task with captured session ID and ACTIVE status
+          await updateTaskSessionStarted(
+            args.taskId,
+            args.agentId,
+            response.session_id,
+            args.projectId
+          );
+
+          // Register session in file-based registry
+          await registerActiveSession({
+            sessionId: response.session_id,
+            taskId: args.taskId,
+            agentId: args.agentId,
+            projectId: args.projectId,
+            repositoryPath: args.repositoryPath,
+            startedAt: new Date().toISOString(),
+            claudeConfigDir: args.claudeConfigDir,
+          });
+        }
+
+        // Check for rate limit in JSON response
+        await detectAndHandleRateLimit(line, args.agentId);
+      } catch (parseError: any) {
+        // If not JSON, check for rate limit in raw text
+        await detectAndHandleRateLimit(line, args.agentId);
+      }
+    }
+  });
+
+  // Handle stderr
+  childProcess.stderr?.on("data", async (data) => {
+    const errorMessage = data.toString();
+    console.error(`Claude CLI stderr [${args.sessionId}]:`, errorMessage);
+
+    // Check for rate limit in stderr
+    await detectAndHandleRateLimit(errorMessage, args.agentId);
+  });
+
+  // Handle process completion
+  childProcess.on("close", async (code) => {
+    console.log(
+      `Claude CLI process [${args.sessionId}] exited with code ${code}`
+    );
+
+    await Promise.all([
+      // Update task status to NON_ACTIVE when process completes
+      await updateTaskSessionCompleted(args.taskId, args.projectId, code || 0),
+
+      // Register session in file-based registry
+      await registerCompletedSession({
+        sessionId: args.sessionId!,
+        taskId: args.taskId,
+        agentId: args.agentId,
+        projectId: args.projectId,
+        repositoryPath: args.repositoryPath,
+        startedAt: new Date().toISOString(),
+        claudeConfigDir: args.claudeConfigDir,
+      }),
+    ]);
+  });
+
+  // Allow process to run detached
+  childProcess.unref();
+
+  console.log(
+    `🚀 Spawned Claude CLI session ${args.sessionId} for task ${args.taskId}`
+  );
 }
