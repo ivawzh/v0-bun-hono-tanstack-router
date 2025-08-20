@@ -62,7 +62,7 @@ sequenceDiagram
     UI->>UI: Validate file types and sizes (client-side)
     
     loop For each file
-        UI->>S: POST /api/tasks/upload-attachment (multipart/form-data)
+        UI->>S: oRPC tasks.uploadAttachment({taskId, file})
         S->>S: Server-side validation (type, size, filename)
         S->>FS: Generate UUID filename and save to .solo-unicorn/attachments/{taskId}/
         FS->>S: Return file path and metadata
@@ -242,33 +242,40 @@ function sanitizeFilename(filename: string): string {
 - **Size limits** prevent storage abuse
 - **Content-Type headers** set correctly for downloads
 
-## API Endpoints
+## oRPC Procedures
 
-### Upload Endpoint
-```http
-POST /api/tasks/upload-attachment
-Content-Type: multipart/form-data
-
-taskId: string (UUID)
-file: File (binary data)
+### Upload Attachment
+```typescript
+client.tasks.uploadAttachment({
+  taskId: string (UUID),
+  file: File
+})
 ```
 
-### Download Endpoint
-```http
-GET /api/tasks/{taskId}/attachments/{attachmentId}
-Response: File stream with appropriate Content-Type
+### Download Attachment
+```typescript
+client.tasks.downloadAttachment({
+  taskId: string (UUID),
+  attachmentId: string (UUID)
+})
+// Returns: { buffer: ArrayBuffer, metadata: AttachmentMetadata }
 ```
 
-### Delete Endpoint
-```http
-DELETE /api/tasks/{taskId}/attachments/{attachmentId}
-Response: {"success": true}
+### Delete Attachment
+```typescript
+client.tasks.deleteAttachment({
+  taskId: string (UUID),
+  attachmentId: string (UUID)
+})
+// Returns: { success: true }
 ```
 
 ### List Attachments (via task query)
-```http
-GET /api/tasks/get?id={taskId}
-Response: Task object with attachments array
+```typescript
+client.tasks.get({
+  id: string (taskId)
+})
+// Returns: Task object with attachments array
 ```
 
 ## Frontend Components
@@ -298,7 +305,7 @@ interface TaskAttachmentUploadProps {
 }
 
 // Features:
-// - Multipart form data upload
+// - oRPC type-safe file upload
 // - Sequential file upload with progress
 // - Query invalidation after upload
 // - Error handling and retry logic
@@ -335,58 +342,49 @@ interface AttachmentPreviewProps {
 
 ## File Upload Implementation
 
-### Multipart Form Data Handling
+### oRPC File Handling
 ```typescript
-// Frontend upload with FormData
+// Frontend upload with oRPC client
 const uploadMutation = useMutation({
   mutationFn: async (file: AttachmentFile) => {
-    const formData = new FormData();
-    formData.append('taskId', taskId);
-    formData.append('file', file.file);
-    
-    const response = await fetch(`${baseUrl}/api/tasks/upload-attachment`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include'
+    // Use oRPC client for type-safe file upload
+    const result = await client.tasks.uploadAttachment({
+      taskId,
+      file: file.file
     });
     
-    if (!response.ok) {
-      throw new Error(`Upload failed: ${response.statusText}`);
-    }
-    
-    return response.json();
+    return result;
   }
 });
 ```
 
 ### Server-side Upload Processing
 ```typescript
-// Hono.js route handler for file uploads
-app.post('/upload-attachment', async (c) => {
-  const body = await c.req.formData();
-  const taskId = body.get('taskId') as string;
-  const file = body.get('file') as File;
-  
-  // Validate file
-  const sanitizedName = validateFile({
-    size: file.size,
-    type: file.type,
-    name: file.name
-  });
-  
-  // Save to file system
-  const buffer = await file.arrayBuffer();
-  const metadata = await saveAttachment(taskId, {
-    buffer: new Uint8Array(buffer),
-    originalName: file.name,
-    type: file.type,
-    size: file.size
-  });
-  
-  // Update database
-  await updateTaskAttachments(taskId, metadata);
-  
-  return c.json(metadata);
+// oRPC procedure for file uploads
+uploadAttachment: protectedProcedure
+  .input(z.object({
+    taskId: z.string().uuid(),
+    file: z.instanceof(File)
+  }))
+  .handler(async ({ context, input }) => {
+    // Convert File to buffer
+    const buffer = await input.file.arrayBuffer();
+    
+    // Verify task ownership with project membership
+    await verifyTaskOwnership(input.taskId, context.user.id);
+    
+    // Validate total size and save attachment
+    const attachment = await saveAttachment(input.taskId, {
+      buffer: new Uint8Array(buffer),
+      originalName: input.file.name,
+      type: input.file.type,
+      size: input.file.size
+    });
+    
+    // Update task with new attachment
+    await updateTaskAttachments(input.taskId, attachment);
+    
+    return { attachment };
 });
 ```
 
