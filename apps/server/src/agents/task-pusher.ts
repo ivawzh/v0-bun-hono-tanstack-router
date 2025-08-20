@@ -17,7 +17,8 @@ let globalPushLock = false;
 export async function tryPushTasks(): Promise<{ pushed: number; errors: string[] }> {
   // Check global lock
   if (globalPushLock) {
-    return { pushed: 0, errors: ['Task pushing already in progress'] };
+    console.log('🚀 ❌ [tryPushTasks] already in progress');
+    return { pushed: 0, errors: ['[tryPushTasks] already in progress'] };
   }
 
   // Acquire global lock
@@ -50,7 +51,7 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
 
       if (pushResult.success) {
         totalPushed++;
-        console.log(`✅ Pushed task ${taskWithContext.task.id} to agent ${selectedAgent.id}`);
+        console.log(`🚀 ✅ Pushed task ${taskWithContext.task.id} to agent ${selectedAgent.id}`);
 
         // Continue loop to check for more tasks
         continue;
@@ -58,6 +59,10 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
         errors.push(pushResult.error || 'Unknown push error');
         break; // Stop on errors to avoid infinite loop
       }
+    }
+
+    if (errors.length > 0) {
+      console.error('🚀 ❌ [tryPushTasks] errors:', errors);
     }
 
     return { pushed: totalPushed, errors };

@@ -167,8 +167,8 @@ tasks {
   ready: boolean (default false)
 
   -- AI coordination
-  isAiWorking: boolean (default false)
-  aiWorkingSince: timestamp (nullable)
+  agentSessionStatus: text ('NON_ACTIVE'/'PUSHING'/'ACTIVE', default 'NON_ACTIVE')
+  lastAgentSessionStartedAt: timestamp (nullable)
   author: text (human/ai, default 'human')
 
   -- Attachments

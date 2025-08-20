@@ -9,8 +9,9 @@ import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { pingSession, registerCompletedSession, getActiveSession } from '../agents/session-registry';
-import { triggerTaskPush, getMonitoringStatus } from '../agents/task-monitor';
+import { getMonitoringStatus } from '../agents/task-monitor';
 import { requireClaudeCodeUIAuth } from '../lib/guards';
+import { tryPushTasks } from '@/agents/task-pusher';
 
 const app = new Hono();
 
@@ -122,7 +123,7 @@ app.post('/session-completed', requireClaudeCodeUIAuth, zValidator('json', sessi
 
     // Trigger task pushing to assign new tasks
     setImmediate(() => {
-      triggerTaskPush().catch(error => {
+      tryPushTasks().catch(error => {
         console.error('❌ Failed to trigger task push after session completion:', error);
       });
     });
@@ -185,7 +186,7 @@ app.post('/rate-limited', requireClaudeCodeUIAuth, zValidator('json', rateLimite
 
     if (delay > 0 && delay < 24 * 60 * 60 * 1000) { // Only schedule if within 24 hours
       setTimeout(() => {
-        triggerTaskPush().catch(error => {
+        tryPushTasks().catch(error => {
           console.error('❌ Failed to trigger task push after rate limit expiry:', error);
         });
       }, delay);
@@ -209,7 +210,7 @@ app.post('/rate-limited', requireClaudeCodeUIAuth, zValidator('json', rateLimite
  */
 app.post('/trigger-push', requireClaudeCodeUIAuth, async (c) => {
   try {
-    const result = await triggerTaskPush();
+    const result = await tryPushTasks();
     return c.json({
       success: true,
       pushed: result.pushed,

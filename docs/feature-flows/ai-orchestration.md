@@ -155,7 +155,7 @@ LEFT JOIN actors a ON t.actorId = a.id
 INNER JOIN projects p ON t.projectId = p.id
 WHERE
   t.ready = true
-  AND t.isAiWorking = false
+  AND t.agentSessionStatus = 'NON_ACTIVE'
   AND t.status != 'done'
   AND t.status != 'loop'
   AND ac.type = 'CLAUDE_CODE'
@@ -220,7 +220,7 @@ sequenceDiagram
     PT->>O: Return stage-specific prompt with context
     O->>CC: createSession with project path and prompt
     CC->>AI: Start new coding session with task context
-    AI->>MCP: task_update(status=doing, stage=clarify, isAiWorking=true)
+    AI->>MCP: task_update(status=doing, stage=clarify, agentSessionStatus='ACTIVE')
     MCP->>O: Broadcast real-time update
     CC->>O: Return session ID for tracking
 ```
@@ -354,7 +354,7 @@ INNER JOIN agentClients ac ON ra.agentClientId = ac.id
 WHERE
   t.status = 'loop'
   AND t.stage = 'loop'
-  AND t.isAiWorking = false
+  AND t.agentSessionStatus = 'NON_ACTIVE'
   AND ac.type = 'CLAUDE_CODE'
   AND ra.isPaused = false
 ORDER BY t.priority DESC, t.columnOrder, t.createdAt

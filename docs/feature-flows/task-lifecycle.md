@@ -67,7 +67,7 @@ sequenceDiagram
     O->>DB: Query ready tasks for available agents
     DB->>O: Return highest priority ready task
     O->>AI: Create session with task context
-    AI->>MCP: task_update(status=doing, stage=clarify, isAiWorking=true)
+    AI->>MCP: task_update(status=doing, stage=clarify, agentSessionStatus='ACTIVE')
     MCP->>DB: UPDATE task status and stage
     MCP->>UI: Broadcast real-time update
     UI->>UI: Move task to Doing column, show clarify stage
@@ -96,7 +96,7 @@ sequenceDiagram
     %% Execute Stage
     AI->>AI: Follow implementation plan
     AI->>AI: Write code, make commits
-    AI->>MCP: task_update(status=done, stage=null, isAiWorking=false)
+    AI->>MCP: task_update(status=done, stage=null, agentSessionStatus='NON_ACTIVE')
     MCP->>DB: UPDATE task completion
     MCP->>UI: Broadcast completion
     UI->>UI: Move task to Done column
@@ -145,8 +145,8 @@ tasks {
   status: text -- 'todo', 'doing', 'done', 'loop'
   stage: text -- 'clarify', 'plan', 'execute', null (only when status='doing')
   ready: boolean -- Human control for AI pickup
-  isAiWorking: boolean -- AI activity indicator
-  aiWorkingSince: timestamp -- When AI started working
+  agentSessionStatus: text -- AI activity indicator ('NON_ACTIVE'/'PUSHING'/'ACTIVE')
+  lastAgentSessionStartedAt: timestamp -- When AI started working
 }
 ```
 
@@ -180,7 +180,7 @@ tasks {
   "after_execute": {
     "status": "done",
     "stage": null,
-    "isAiWorking": false
+    "agentSessionStatus": "NON_ACTIVE"
   }
 }
 ```
@@ -191,7 +191,7 @@ tasks {
 - **Purpose**: Convert raw human input into clear, actionable requirements
 - **Input**: Raw title, raw description, actor context, project memory
 - **Output**: Refined title and description with clear scope
-- **MCP Calls**: Start with `task_update(status=doing, stage=clarify, isAiWorking=true)`, finish with stage transition to "plan"
+- **MCP Calls**: Start with `task_update(status=doing, stage=clarify, agentSessionStatus='ACTIVE')`, finish with stage transition to "plan"
 
 ### Plan Stage Prompt (`apps/server/src/agents/prompts/index.ts:53-102`)
 - **Purpose**: Create comprehensive implementation plan with solution evaluation
@@ -219,7 +219,7 @@ task_update({
   taskId: string,
   status?: 'todo' | 'doing' | 'done' | 'loop',
   stage?: 'clarify' | 'plan' | 'execute' | null,
-  isAiWorking?: boolean,
+  agentSessionStatus?: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE',
   refinedTitle?: string,
   refinedDescription?: string,
   plan?: object
@@ -278,7 +278,7 @@ sequenceDiagram
 ## Priority and Ordering
 
 ### Task Selection Algorithm
-1. **Ready status**: `ready=true` AND `isAiWorking=false`
+1. **Ready status**: `ready=true` AND `agentSessionStatus='NON_ACTIVE'`
 2. **Status priority**: `doing` tasks before `todo` tasks
 3. **Priority level**: 5 (highest) to 1 (lowest)
 4. **Column order**: Manual drag & drop position within status

@@ -355,7 +355,7 @@ export const tasksRouter = o.router({
       if (input.ready !== undefined) updates.ready = input.ready;
       if (input.attachments !== undefined) updates.attachments = input.attachments;
       if (input.columnOrder !== undefined) updates.columnOrder = input.columnOrder;
-      
+
       // V2 fields
       if (input.mainRepositoryId !== undefined) updates.mainRepositoryId = input.mainRepositoryId;
       if (input.actorId !== undefined) updates.actorId = input.actorId;

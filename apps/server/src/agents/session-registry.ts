@@ -215,9 +215,9 @@ export async function getSessionsForTask(taskId: string): Promise<SessionData[]>
 }
 
 /**
- * Clean up stale sessions (older than specified minutes)
+ * Clean up stale active sessions (older than specified minutes)
  */
-export async function cleanupStaleSessions(staleMinutes = 120): Promise<number> {
+export async function cleanupStaleActiveSessions(staleMinutes = 120): Promise<number> {
   const allSessions = await getAllActiveSessions();
   const staleThreshold = Date.now() - (staleMinutes * 60 * 1000);
   let cleanedCount = 0;
@@ -232,4 +232,24 @@ export async function cleanupStaleSessions(staleMinutes = 120): Promise<number> 
   }
 
   return cleanedCount;
+}
+
+/**
+ * Purge completed sessions
+ */
+export async function purgeCompletedSessions(): Promise<void> {
+  await initSessionRegistry();
+
+  try {
+    const files = await readdir(COMPLETED_SESSIONS_DIR);
+    for (const file of files) {
+      if (file.endsWith('.json')) {
+        await unlink(join(COMPLETED_SESSIONS_DIR, file));
+      }
+    }
+    console.log(`🗑️ Purged ${files.length} completed sessions`);
+  } catch (error) {
+    console.error('Failed to purge completed sessions:', error);
+    throw error;
+  }
 }

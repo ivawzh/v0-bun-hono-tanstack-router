@@ -150,7 +150,7 @@ interface MCPTools {
     plan: z.any().optional(),
     status: z.enum(["todo", "doing", "done", "loop"]).optional(),
     stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional(),
-    isAiWorking: z.boolean().optional()
+    agentSessionStatus: z.enum(['NON_ACTIVE', 'PUSHING', 'ACTIVE']).optional()
   }
 }
 ```
@@ -257,7 +257,7 @@ const taskUpdateSchema = z.object({
   plan: z.any().optional(),
   status: z.enum(["todo", "doing", "done", "loop"]).optional(),
   stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional(),
-  isAiWorking: z.boolean().optional()
+  agentSessionStatus: z.enum(['NON_ACTIVE', 'PUSHING', 'ACTIVE']).optional()
 });
 ```
 
@@ -405,8 +405,8 @@ const transport = new StreamableHTTPServerTransport({
 ### Database Optimization
 ```sql
 -- Optimized task queries with proper indexing
-CREATE INDEX idx_tasks_ready_working ON tasks(ready, isAiWorking)
-WHERE ready = true AND isAiWorking = false;
+CREATE INDEX idx_tasks_ready_working ON tasks(ready, agentSessionStatus)
+WHERE ready = true AND agentSessionStatus = 'NON_ACTIVE';
 
 CREATE INDEX idx_tasks_project_status ON tasks(projectId, status);
 CREATE INDEX idx_task_dependencies_task ON taskDependencies(taskId);

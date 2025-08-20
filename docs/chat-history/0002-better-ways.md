@@ -10,10 +10,10 @@
 > Some concerns:
 > - I use bun dev server a lot. even for start:prod it is using bun dev.
 > - at hot reload it might hot reload and lose memory of state.
-> - at hot reload we might miss callbacks. it happened before the API server crashed but Claude Code in child process keeps going. So that when Claude Code calls back, API missed it, then task.isAiWorking is out of sync.
+> - at hot reload we might miss callbacks. it happened before the API server crashed but Claude Code in child process keeps going. So that when Claude Code calls back, API missed it, then task.agentSessionStatus is out of sync.
 > - because the background job is every second. And there is delay between job assigning task and task db record got updated. There is a chance that we creating multiple sessions for the same task.
 >
-> Currently i am relying on task.lastAgentSessionId and task.isAiWorking to keep track of free repo and agent. maybe not the most effective way.
+> Currently i am relying on task.lastAgentSessionId and task.agentSessionStatus to keep track of free repo and agent. maybe not the most effective way.
 
 ## Current Problems
 

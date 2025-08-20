@@ -194,14 +194,14 @@ interface CreateTaskForm {
 V2 introduces significant simplifications and improvements:
 
 1. **Function-Based Modules**: Replace classes with pure functions for better testability
-2. **Simplified Session Tracking**: Use `tasks.isAiWorking` as primary indicator instead of complex state
+2. **Simplified Session Tracking**: Use `tasks.agentSessionStatus` as primary indicator instead of complex state
 3. **Dual Concurrency Limits**: Both repositories and agents have configurable concurrency limits
 4. **Enhanced Delay Handling**: Utilize `lastTaskPushedAt` timestamps for startup delays
 
 ### Key Components
 
-1. **Repository Session Tracking**: Monitor active sessions per repository using `isAiWorking`
-2. **Agent Session Tracking**: Monitor active sessions per agent using `isAiWorking`
+1. **Repository Session Tracking**: Monitor active sessions per repository using `agentSessionStatus`
+2. **Agent Session Tracking**: Monitor active sessions per agent using `agentSessionStatus`
 3. **Delay Compensation**: Use `lastTaskPushedAt` on both agents and repositories
 4. **Rate Limit Management**: Simplified rate limit checking without complex timestamps
 
@@ -230,13 +230,13 @@ This function determines how many tasks are currently using a specific repositor
    - The task has the repository listed in its `taskRepositories` (additional repos)
 
 2. **Active Session Indicators**: Only count tasks that meet ALL conditions:
-   - `isAiWorking = true` (agent is currently working on this task)
+   - `agentSessionStatus = 'ACTIVE'` (agent is currently working on this task)
    - `status != 'done'` (task is not completed)
    - Task must be assigned to at least one agent (via `taskAgents` table)
 
-3. **Key Insight**: We rely on `isAiWorking` as the primary indicator rather than tracking separate session states. This is simpler and more reliable because:
-   - When orchestrator assigns a task, it immediately sets `isAiWorking = true`
-   - When agent completes work, it uses MCP to set `isAiWorking = false`
+3. **Key Insight**: We rely on `agentSessionStatus` as the primary indicator rather than tracking separate session states. This is simpler and more reliable because:
+   - When orchestrator assigns a task, it immediately sets `agentSessionStatus = 'ACTIVE'`
+   - When agent completes work, it uses MCP to set `agentSessionStatus = 'NON_ACTIVE'`
    - No complex timing logic or state transitions needed
 
 4. **Repository Usage Counting**: A repository is "occupied" by any task that references it, regardless of whether it's the main repo or additional repo for that task.
@@ -247,7 +247,7 @@ This function determines how many tasks a specific agent is currently working on
 
 1. **Task Selection Criteria**: Find all tasks where:
    - The agent is assigned to the task (via `taskAgents` table)
-   - `isAiWorking = true` (agent is actively working)
+   - `agentSessionStatus = 'ACTIVE'` (agent is actively working)
    - `status != 'done'` (task is not completed)
 
 2. **Agent Workload Tracking**: Simple count of concurrent tasks per agent
@@ -281,7 +281,7 @@ Agent availability also considers rate limit status stored in `agents.state`:
 
 1. **Rate Limit Check**: If `state.rateLimitResetAt` exists and is in the future, agent is unavailable
 2. **Simplified State**: V2 removes `lastMessagedAt`, `lastSessionCreatedAt`, `lastSessionCompletedAt` - these proved unreliable
-3. **Focus on Core Indicators**: Primary reliance on `isAiWorking` and `lastTaskPushedAt` for accurate state tracking
+3. **Focus on Core Indicators**: Primary reliance on `agentSessionStatus` and `lastTaskPushedAt` for accurate state tracking
 
 ### Repository Session Vacancy Calculation
 
@@ -363,7 +363,7 @@ class EnhancedAgentOrchestrator {
                 )
             )
           ),
-          eq(tasks.isAiWorking, true), // Only working tasks count as active sessions
+          eq(tasks.agentSessionStatus, 'ACTIVE'), // Only working tasks count as active sessions
           ne(tasks.status, 'done')
         )
       );
@@ -372,7 +372,7 @@ class EnhancedAgentOrchestrator {
       taskId: task.id,
       agentId: agent.id,
       agentSessionId: task.lastAgentSessionId,
-      startedAt: task.aiWorkingSince || task.updatedAt,
+      startedAt: task.lastAgentSessionStartedAt || task.updatedAt,
       lastMcpUpdate: this.getLastMcpUpdateTime(task.id),
       status: this.determineSessionStatus(task, agent)
     }));
@@ -383,7 +383,7 @@ class EnhancedAgentOrchestrator {
    */
   private determineSessionStatus(task: Task, agent: Agent): SessionInfo['status'] {
     const now = new Date();
-    const workingSince = task.aiWorkingSince || task.updatedAt;
+    const workingSince = task.lastAgentSessionStartedAt || task.updatedAt;
     const timeSinceStart = now.getTime() - workingSince.getTime();
 
     // If no agent session ID yet and started recently, it's starting
@@ -506,7 +506,7 @@ private async isAgentAvailable(agent: Agent): Promise<boolean> {
     .where(
       and(
         eq(taskAgents.agentId, agent.id),
-        eq(tasks.isAiWorking, true),
+        eq(tasks.agentSessionStatus, 'ACTIVE'),
         ne(tasks.status, 'done')
       )
     );
@@ -540,8 +540,8 @@ private async assignTaskToAgent(
     await db
       .update(tasks)
       .set({
-        isAiWorking: true,
-        aiWorkingSince: new Date(),
+        agentSessionStatus: 'ACTIVE',
+        lastAgentSessionStartedAt: new Date(),
         status: 'doing',
         stage: task.stage || 'refine'
       })
@@ -570,8 +570,8 @@ private async assignTaskToAgent(
     await db
       .update(tasks)
       .set({
-        isAiWorking: false,
-        aiWorkingSince: null,
+        agentSessionStatus: 'NON_ACTIVE',
+        lastAgentSessionStartedAt: null,
         status: 'todo',
         stage: null
       })

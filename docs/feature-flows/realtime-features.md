@@ -104,8 +104,8 @@ sequenceDiagram
     participant WS as WebSocket Server
     participant UI as Frontend
 
-    AI->>MCP: task_update(isAiWorking=true, stage='clarify')
-    MCP->>DB: UPDATE task SET isAiWorking=true, aiWorkingSince=NOW()
+    AI->>MCP: task_update(agentSessionStatus='ACTIVE', stage='clarify')
+    MCP->>DB: UPDATE task SET agentSessionStatus='ACTIVE', lastAgentSessionStartedAt=NOW()
     MCP->>WS: broadcastFlush(projectId)
     WS->>UI: Send flush message
     UI->>UI: Query invalidation triggers refetch
@@ -272,13 +272,13 @@ const handleWebSocketMessage = (message: WebSocketMessage) => {
 ```typescript
 interface AIActivityBadgeProps {
   ready: boolean | null;
-  isAiWorking: boolean | null;
+  agentSessionStatus: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE' | null;
   status: string;
 }
 
-export function AIActivityBadge({ ready, isAiWorking, status }: AIActivityBadgeProps) {
+export function AIActivityBadge({ ready, agentSessionStatus, status }: AIActivityBadgeProps) {
   // AI actively working - highest priority
-  if (isAiWorking === true) {
+  if (agentSessionStatus === 'ACTIVE') {
     return (
       <Badge className="bg-green-100 text-green-800 border-green-200">
         <Zap className="h-3 w-3 animate-pulse" />
@@ -288,7 +288,7 @@ export function AIActivityBadge({ ready, isAiWorking, status }: AIActivityBadgeP
   }
 
   // Task ready and queued for AI pickup
-  if (status === "todo" && ready === true && !isAiWorking) {
+  if (status === "todo" && ready === true && agentSessionStatus !== 'ACTIVE') {
     return (
       <Badge className="bg-blue-100 text-blue-800 border-blue-200">
         <Clock className="h-3 w-3" />
@@ -309,11 +309,11 @@ const getBadgeState = (task: Task) => {
   // 2. Queueing (blue) - ready and waiting for pickup
   // 3. No badge - not ready or completed
 
-  if (task.isAiWorking && task.status !== 'done') {
+  if (task.agentSessionStatus === 'ACTIVE' && task.status !== 'done') {
     return 'ai-working';
   }
 
-  if (task.ready && task.status === 'todo' && !task.isAiWorking) {
+  if (task.ready && task.status === 'todo' && task.agentSessionStatus !== 'ACTIVE') {
     return 'queueing';
   }
 
