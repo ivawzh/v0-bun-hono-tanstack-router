@@ -59,9 +59,11 @@ function releaseGlobalLock(): void {
 export async function tryPushTasks(): Promise<{ pushed: number; errors: string[] }> {
   // Check and acquire global lock
   if (!acquireGlobalLock()) {
-    // 🚧 tryPushTasks] already in progre
+    // console.log('🚧 tryPushTasks] already in progre');
     return { pushed: 0, errors: [] };
   }
+
+  // console.log('🚀 [tryPushTasks] starting');
 
   try {
     const errors: string[] = [];
@@ -129,6 +131,7 @@ async function pushTaskToAgent(
       .update(schema.tasks)
       .set({
         agentSessionStatus: 'PUSHING',
+        status: 'doing',
         activeAgentId: selectedAgent.id,
         lastPushedAt: now,
         lastAgentSessionStartedAt: now,

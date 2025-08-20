@@ -37,7 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ReadyCheckbox } from "@/components/task/ReadyCheckbox";
 import {
   Tooltip,
   TooltipContent,
@@ -342,15 +341,16 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
         {task.status !== 'done' && task.status !== 'loop' && (
           <div className="kanban-card-status">
             <div className="kanban-card-ready-toggle">
-              <ReadyCheckbox
+              <Switch
                 id={`ready-${task.id}`}
                 checked={task.ready}
                 onCheckedChange={(checked) => {
                   onToggleReady(task.id, checked);
                 }}
-                aria-label={`Mark task as ${task.ready ? 'not ready' : 'ready'} for AI processing`}
+                onClick={(e) => e.stopPropagation()}
+                className="data-[state=checked]:bg-green-600 data-[state=checked]:hover:bg-green-700"
               />
-              <span className="text-xs text-muted-foreground ml-2">
+              <span className="text-xs text-muted-foreground">
                 {task.ready ? "Ready" : "Not Ready"}
               </span>
             </div>
