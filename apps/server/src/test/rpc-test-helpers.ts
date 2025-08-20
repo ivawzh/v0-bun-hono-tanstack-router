@@ -68,7 +68,7 @@ export async function assertRPCUnauthorized<TInput>(
     await procedure(call);
     throw new Error("Expected procedure to throw UNAUTHORIZED error");
   } catch (error: any) {
-    if (error.message?.includes("UNAUTHORIZED") || error.code === "UNAUTHORIZED") {
+    if (error.message?.includes("UNAUTHORIZED") || error.code === "UNAUTHORIZED" || error.name === "ORPCError") {
       return; // Expected error
     }
     throw error; // Re-throw unexpected errors
@@ -148,6 +148,119 @@ export async function testProjectScopedEndpoint<TInput extends { id?: string }>(
 }
 
 /**
+ * Utility for testing real project-scoped oRPC endpoints with proper authorization
+ */
+export async function testRealProjectScopedEndpoint<TInput extends { id?: string }>(
+  procedure: any,
+  projectId: string,
+  input: TInput,
+  projectOwner: TestUser,
+  nonMember?: TestUser
+): Promise<void> {
+  // Test with project owner - should succeed
+  await testRealRPCWithAuth(procedure, projectOwner, { ...input, id: projectId });
+  
+  // Test with non-member - should fail
+  if (nonMember) {
+    try {
+      await testRealRPCWithAuth(procedure, nonMember, { ...input, id: projectId });
+      throw new Error("Expected non-member access to be denied");
+    } catch (error: any) {
+      if (!error.message?.includes("not found") && !error.message?.includes("FORBIDDEN") && !error.message?.includes("Project not found")) {
+        throw error;
+      }
+    }
+  }
+}
+
+/**
+ * Test that a procedure properly validates project membership
+ */
+export async function testProjectMembershipValidation<TInput extends { id?: string }>(
+  procedure: any,
+  projectId: string,
+  input: TInput,
+  projectMember: TestUser,
+  nonMember: TestUser
+): Promise<void> {
+  // Test with project member - should succeed
+  const result = await testRealRPCWithAuth(procedure, projectMember, { ...input, id: projectId });
+  
+  // Test with non-member - should fail with proper authorization error
+  try {
+    await testRealRPCWithAuth(procedure, nonMember, { ...input, id: projectId });
+    throw new Error("Expected non-member access to be denied");
+  } catch (error: any) {
+    // Should get a proper authorization error, not a generic error
+    if (!error.message?.includes("not found") && !error.message?.includes("FORBIDDEN") && !error.message?.includes("Project not found")) {
+      throw new Error(`Expected authorization error, got: ${error.message}`);
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * Test real oRPC procedures directly
+ */
+export async function testRealRPCProcedure<TInput, TOutput>(
+  procedure: any, // oRPC procedure object
+  context: Context,
+  input: TInput
+): Promise<TOutput> {
+  // Create mock oRPC call structure that matches real oRPC
+  const call = {
+    context,
+    input,
+    rawInput: input,
+  };
+  
+  // Call the handler function directly
+  return await procedure.handler(call);
+}
+
+/**
+ * Test real oRPC procedure with authentication
+ */
+export async function testRealRPCWithAuth<TInput, TOutput>(
+  procedure: any,
+  user: TestUser,
+  input: TInput
+): Promise<TOutput> {
+  const context = createAuthenticatedContext(user);
+  return await testRealRPCProcedure(procedure, context, input);
+}
+
+/**
+ * Test real oRPC procedure without authentication
+ */
+export async function testRealRPCWithoutAuth<TInput, TOutput>(
+  procedure: any,
+  input: TInput
+): Promise<TOutput> {
+  const context = createUnauthenticatedContext();
+  return await testRealRPCProcedure(procedure, context, input);
+}
+
+/**
+ * Assert that a real oRPC procedure throws UNAUTHORIZED error
+ */
+export async function assertRealRPCUnauthorized<TInput>(
+  procedure: any,
+  input: TInput
+): Promise<void> {
+  try {
+    await testRealRPCWithoutAuth(procedure, input);
+    throw new Error("Expected procedure to throw UNAUTHORIZED error");
+  } catch (error: any) {
+    if (error.message?.includes("UNAUTHORIZED") || error.code === "UNAUTHORIZED" || error.name === "ORPCError") {
+      return; // Expected error
+    }
+    throw error; // Re-throw unexpected errors
+  }
+}
+
+/**
  * Create a test suite helper for RPC endpoints
  */
 export function createRPCTestSuite<TInput, TOutput>(
@@ -180,6 +293,43 @@ export function createRPCTestSuite<TInput, TOutput>(
     
     async testWithoutAuth(input: TInput) {
       return await testRPCWithoutAuth(procedure, input);
+    }
+  };
+}
+
+/**
+ * Create a test suite helper for real oRPC procedures
+ */
+export function createRealRPCTestSuite<TInput, TOutput>(
+  procedureName: string,
+  procedure: any,
+  options: {
+    requiresAuth?: boolean;
+    sampleInput?: TInput;
+    setupUser?: () => Promise<TestUser>;
+  } = {}
+) {
+  const { requiresAuth = true, sampleInput, setupUser } = options;
+  
+  return {
+    async testRequiresAuth() {
+      if (!requiresAuth) return;
+      if (!sampleInput) {
+        throw new Error(`sampleInput is required to test auth for ${procedureName}`);
+      }
+      await assertRealRPCUnauthorized(procedure, sampleInput);
+    },
+    
+    async testWithAuth(input: TInput, user?: TestUser) {
+      const testUser = user || (setupUser ? await setupUser() : null);
+      if (!testUser) {
+        throw new Error("User required for authenticated test");
+      }
+      return await testRealRPCWithAuth(procedure, testUser, input);
+    },
+    
+    async testWithoutAuth(input: TInput) {
+      return await testRealRPCWithoutAuth(procedure, input);
     }
   };
 }

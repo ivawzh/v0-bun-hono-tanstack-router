@@ -5,48 +5,18 @@
 import { getTestDb } from "./setup";
 import * as schema from "../db/schema";
 
-export interface TestUser {
-  id: string;
-  email: string;
-  displayName: string;
-}
-
-export interface TestProject {
-  id: string;
-  name: string;
-  description: string | null;
-  ownerId: string;
-}
-
-export interface TestRepository {
-  id: string;
-  projectId: string;
-  name: string;
-  repoPath: string;
-  isDefault: boolean;
-}
-
-export interface TestAgent {
-  id: string;
-  projectId: string;
-  name: string;
-  agentType: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE";
-  agentSettings: any;
-}
-
-export interface TestActor {
-  id: string;
-  projectId: string;
-  name: string;
-  description: string;
-  isDefault: boolean;
-}
+// Use actual schema types
+export type TestUser = schema.User;
+export type TestProject = schema.Project;
+export type TestRepository = schema.Repository;
+export type TestAgent = schema.Agent;
+export type TestActor = schema.Actor;
 
 /**
  * Create a test user
  */
 export async function createTestUser(
-  overrides: Partial<Omit<TestUser, "id">> = {}
+  overrides: Partial<Omit<TestUser, "id" | "createdAt" | "updatedAt">> = {}
 ): Promise<TestUser> {
   const db = getTestDb();
   
@@ -69,7 +39,7 @@ export async function createTestUser(
  */
 export async function createTestProject(
   ownerId: string,
-  overrides: Partial<Omit<TestProject, "id" | "ownerId">> = {}
+  overrides: Partial<Omit<TestProject, "id" | "ownerId" | "createdAt" | "updatedAt">> = {}
 ): Promise<TestProject> {
   const db = getTestDb();
   
@@ -104,7 +74,7 @@ export async function createTestProject(
  */
 export async function createTestRepository(
   projectId: string,
-  overrides: Partial<Omit<TestRepository, "id" | "projectId">> = {}
+  overrides: Partial<Omit<TestRepository, "id" | "projectId" | "createdAt" | "updatedAt">> = {}
 ): Promise<TestRepository> {
   const db = getTestDb();
   
@@ -130,7 +100,7 @@ export async function createTestRepository(
  */
 export async function createTestAgent(
   projectId: string,
-  overrides: Partial<Omit<TestAgent, "id" | "projectId">> = {}
+  overrides: Partial<Omit<TestAgent, "id" | "projectId" | "createdAt" | "updatedAt">> = {}
 ): Promise<TestAgent> {
   const db = getTestDb();
   
@@ -157,7 +127,7 @@ export async function createTestAgent(
  */
 export async function createTestActor(
   projectId: string,
-  overrides: Partial<Omit<TestActor, "id" | "projectId">> = {}
+  overrides: Partial<Omit<TestActor, "id" | "projectId" | "createdAt" | "updatedAt">> = {}
 ): Promise<TestActor> {
   const db = getTestDb();
   
@@ -214,11 +184,11 @@ export async function createTestTask(
  * Create a complete test project setup with user, project, repo, agent, and actor
  */
 export async function createCompleteTestSetup(overrides: {
-  user?: Partial<Omit<TestUser, "id">>;
-  project?: Partial<Omit<TestProject, "id" | "ownerId">>;
-  repository?: Partial<Omit<TestRepository, "id" | "projectId">>;
-  agent?: Partial<Omit<TestAgent, "id" | "projectId">>;
-  actor?: Partial<Omit<TestActor, "id" | "projectId">>;
+  user?: Partial<Omit<TestUser, "id" | "createdAt" | "updatedAt">>;
+  project?: Partial<Omit<TestProject, "id" | "ownerId" | "createdAt" | "updatedAt">>;
+  repository?: Partial<Omit<TestRepository, "id" | "projectId" | "createdAt" | "updatedAt">>;
+  agent?: Partial<Omit<TestAgent, "id" | "projectId" | "createdAt" | "updatedAt">>;
+  actor?: Partial<Omit<TestActor, "id" | "projectId" | "createdAt" | "updatedAt">>;
 } = {}) {
   const user = await createTestUser(overrides.user);
   const project = await createTestProject(user.id, overrides.project);
@@ -232,5 +202,137 @@ export async function createCompleteTestSetup(overrides: {
     repository,
     agent,
     actor,
+  };
+}
+
+/**
+ * Create multiple test users for testing multi-user scenarios
+ */
+export async function createTestUsers(count: number, overrides: Partial<Omit<TestUser, "id" | "createdAt" | "updatedAt">>[] = []): Promise<TestUser[]> {
+  const users = [];
+  for (let i = 0; i < count; i++) {
+    const userOverrides = overrides[i] || {};
+    const user = await createTestUser(userOverrides);
+    users.push(user);
+  }
+  return users;
+}
+
+/**
+ * Create a project with multiple members
+ */
+export async function createProjectWithMembers(
+  owner: TestUser,
+  members: TestUser[],
+  overrides: Partial<Omit<TestProject, "id" | "ownerId" | "createdAt" | "updatedAt">> = {}
+): Promise<TestProject> {
+  const db = getTestDb();
+  const project = await createTestProject(owner.id, overrides);
+  
+  // Add members to project
+  for (const member of members) {
+    await db
+      .insert(schema.projectUsers)
+      .values({
+        userId: member.id,
+        projectId: project.id,
+        role: "member",
+      });
+  }
+  
+  return project;
+}
+
+/**
+ * Create a test scenario with multiple projects, users, and tasks
+ */
+export async function createComplexTestScenario() {
+  const [owner, member1, member2, outsider] = await createTestUsers(4, [
+    { displayName: "Project Owner" },
+    { displayName: "Project Member 1" },
+    { displayName: "Project Member 2" },
+    { displayName: "Outsider User" }
+  ]);
+  
+  const project = await createProjectWithMembers(owner, [member1, member2]);
+  const repository = await createTestRepository(project.id, { isDefault: true });
+  const agent = await createTestAgent(project.id);
+  const actor = await createTestActor(project.id);
+  
+  // Create some tasks
+  const todoTask = await createTestTask(project.id, repository.id, {
+    rawTitle: "Todo Task",
+    status: "todo",
+    ready: true,
+    priority: 2,
+  });
+  
+  const doingTask = await createTestTask(project.id, repository.id, {
+    rawTitle: "Doing Task",
+    status: "doing",
+    stage: "plan",
+    priority: 1,
+  });
+  
+  const doneTask = await createTestTask(project.id, repository.id, {
+    rawTitle: "Done Task",
+    status: "done",
+    priority: 3,
+  });
+  
+  return {
+    users: { owner, member1, member2, outsider },
+    project,
+    repository,
+    agent,
+    actor,
+    tasks: { todoTask, doingTask, doneTask },
+  };
+}
+
+/**
+ * Seed database with realistic test data
+ */
+export async function seedTestDatabase(options: {
+  userCount?: number;
+  projectsPerUser?: number;
+  tasksPerProject?: number;
+} = {}) {
+  const { userCount = 3, projectsPerUser = 2, tasksPerProject = 5 } = options;
+  
+  const users = await createTestUsers(userCount);
+  const projects = [];
+  const allTasks = [];
+  
+  for (const user of users) {
+    for (let p = 0; p < projectsPerUser; p++) {
+      const project = await createTestProject(user.id, {
+        name: `${user.displayName}'s Project ${p + 1}`,
+      });
+      const repository = await createTestRepository(project.id);
+      const agent = await createTestAgent(project.id);
+      const actor = await createTestActor(project.id);
+      
+      projects.push({ project, repository, agent, actor, owner: user });
+      
+      // Create tasks for this project
+      for (let t = 0; t < tasksPerProject; t++) {
+        const statuses = ["todo", "doing", "done"] as const;
+        const status = statuses[t % 3];
+        const task = await createTestTask(project.id, repository.id, {
+          rawTitle: `Task ${t + 1} for ${project.name}`,
+          status,
+          priority: Math.floor(Math.random() * 5) + 1,
+          ready: status === "todo" && Math.random() > 0.5,
+        });
+        allTasks.push(task);
+      }
+    }
+  }
+  
+  return {
+    users,
+    projects,
+    tasks: allTasks,
   };
 }
