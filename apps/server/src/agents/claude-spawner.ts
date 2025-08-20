@@ -1,5 +1,5 @@
 /**
- * Direct Claude CLI process spawning
+ * Direct Claude Code process spawning
  * Replaces Claude Code UI dependency
  */
 
@@ -50,7 +50,7 @@ export interface SpawnOptions {
 }
 
 /**
- * Spawn Claude CLI process for a task
+ * Spawn Claude Code process for a task
  */
 export async function spawnClaudeSession(
   options: SpawnOptions
@@ -241,7 +241,7 @@ export async function spawnClaudeSession(
       throw error;
     }
 
-    // // Use Claude Code CLI as a child process
+    // // Use Claude Code CLI as a child process (deprecated)
     // spawnClaudeChildProcess({
     //   prompt,
     //   sessionId: sessionId || undefined,
@@ -258,7 +258,7 @@ export async function spawnClaudeSession(
 
     return { success: true };
   } catch (error) {
-    console.error("[Claude Code] Failed to spawn Claude CLI session:", error);
+    console.error("[Claude Code] Failed to spawn Claude Code session:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown spawn error",
@@ -514,10 +514,11 @@ type SpawnClaudeChildProcessArgs = {
   projectId: string;
   claudeConfigDir?: string;
 };
+
 function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
   const mcpConfigPath = getMcpConfigPath();
 
-  // Prepare Claude CLI command
+  // Prepare Claude Code command
   const claudeArgs: string[] = [
     "--print",
     args.prompt,
@@ -542,7 +543,7 @@ function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
     claudeArgs.push("--permission-mode", args.permissionMode);
   }
 
-  // Spawn Claude CLI process
+  // Spawn Claude Code process
   const childProcess = spawnFunction("claude", claudeArgs, {
     cwd: args.repositoryPath,
     env: args.env,
@@ -557,7 +558,7 @@ function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
   // Set up error handling
   childProcess.on("error", (error) => {
     console.error(
-      `Claude CLI spawn error for session ${args.sessionId}:`,
+      `Claude Code spawn error for session ${args.sessionId}:`,
       error
     );
   });
@@ -610,7 +611,7 @@ function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
   // Handle stderr
   childProcess.stderr?.on("data", async (data) => {
     const errorMessage = data.toString();
-    console.error(`Claude CLI stderr [${args.sessionId}]:`, errorMessage);
+    console.error(`Claude Code stderr [${args.sessionId}]:`, errorMessage);
 
     // Check for rate limit in stderr
     await detectAndHandleRateLimit(errorMessage, args.agentId);
@@ -619,7 +620,7 @@ function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
   // Handle process completion
   childProcess.on("close", async (code) => {
     console.log(
-      `Claude CLI process [${args.sessionId}] exited with code ${code}`
+      `Claude Code process [${args.sessionId}] exited with code ${code}`
     );
 
     await Promise.all([
@@ -643,6 +644,6 @@ function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
   childProcess.unref();
 
   console.log(
-    `🚀 Spawned Claude CLI session ${args.sessionId} for task ${args.taskId}`
+    `🚀 Spawned Claude Code session ${args.sessionId} for task ${args.taskId}`
   );
 }

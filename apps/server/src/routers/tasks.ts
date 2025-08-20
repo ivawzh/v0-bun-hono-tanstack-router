@@ -1,5 +1,6 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
+import { z } from "zod";
 import { db } from "../db";
 import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories, projectUsers } from "../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
@@ -148,18 +149,18 @@ export const tasksRouter = o.router({
     }),
 
   create: protectedProcedure
-    .input(v.object({
-      projectId: v.pipe(v.string(), v.uuid()),
-      mainRepositoryId: v.pipe(v.string(), v.uuid()),
-      additionalRepositoryIds: v.optional(v.array(v.pipe(v.string(), v.uuid())), []),
-      assignedAgentIds: v.optional(v.array(v.pipe(v.string(), v.uuid())), []),
-      actorId: v.optional(v.pipe(v.string(), v.uuid())),
-      rawTitle: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
-      rawDescription: v.optional(v.string()),
-      priority: v.optional(prioritySchema, 3),
-      attachments: v.optional(v.array(v.any()), []),
-      status: v.optional(taskStatusEnum, "todo"), // Allow creating tasks directly in loop column
-      stage: v.optional(taskStageEnum) // Allow explicit stage assignment on creation
+    .input(z.object({
+      projectId: z.string().uuid(),
+      mainRepositoryId: z.string().uuid(),
+      additionalRepositoryIds: z.array(z.string().uuid()).optional().default([]),
+      assignedAgentIds: z.array(z.string().uuid()).optional().default([]),
+      actorId: z.string().uuid().optional(),
+      rawTitle: z.string().min(1).max(255),
+      rawDescription: z.string().optional(),
+      priority: z.number().min(1).max(5).optional().default(3),
+      attachments: z.array(z.instanceof(File)).optional().default([]),
+      status: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
+      stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional()
     }))
     .handler(async ({ context, input }) => {
       // Verify project membership
@@ -257,11 +258,7 @@ export const tasksRouter = o.router({
         }
       }
 
-      // For now, skip attachment processing during task creation
-      // Attachments should be uploaded separately via the upload endpoint
-      // TODO: Implement proper file handling for task creation with attachments
-      let processedAttachments: AttachmentMetadata[] = [];
-
+      // Create task first without attachments
       const newTask = await db
         .insert(tasks)
         .values({
@@ -271,7 +268,7 @@ export const tasksRouter = o.router({
           rawTitle: input.rawTitle,
           rawDescription: input.rawDescription,
           priority: input.priority,
-          attachments: processedAttachments,
+          attachments: [], // Start empty, will be populated after processing files
           status: input.status,
           stage: stageToUse,
           ready: input.status === "loop" ? true : false // Loop tasks are always ready
@@ -279,6 +276,45 @@ export const tasksRouter = o.router({
         .returning();
 
       const taskId = newTask[0].id;
+
+      // Process file attachments after task creation so we have the real task ID
+      let processedAttachments: AttachmentMetadata[] = [];
+      
+      if (input.attachments && input.attachments.length > 0) {
+        for (const file of input.attachments) {
+          try {
+            // Convert File to buffer for processing
+            const buffer = new Uint8Array(await file.arrayBuffer());
+            
+            // Validate total size before processing
+            await validateTotalAttachmentSize(taskId, file.size, processedAttachments);
+            
+            // Save the attachment using the actual task ID
+            const attachment = await saveAttachment(taskId, {
+              buffer: buffer,
+              originalName: file.name,
+              type: file.type,
+              size: file.size
+            });
+            
+            processedAttachments.push(attachment);
+          } catch (error) {
+            console.error('Failed to process file attachment during task creation:', error);
+            // Continue with other attachments
+          }
+        }
+
+        // Update task with processed attachments
+        if (processedAttachments.length > 0) {
+          await db
+            .update(tasks)
+            .set({
+              attachments: processedAttachments,
+              updatedAt: new Date()
+            })
+            .where(eq(tasks.id, taskId));
+        }
+      }
 
       // Insert additional repositories
       if (input.additionalRepositoryIds && input.additionalRepositoryIds.length > 0) {
@@ -303,7 +339,11 @@ export const tasksRouter = o.router({
       // Broadcast flush to invalidate all queries for this project
       broadcastFlush(input.projectId);
 
-      return newTask[0];
+      // Return the task with updated attachments
+      return {
+        ...newTask[0],
+        attachments: processedAttachments
+      };
     }),
 
   update: protectedProcedure
