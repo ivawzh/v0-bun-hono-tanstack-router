@@ -371,7 +371,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                     </Badge>
                     <AIActivityBadge
                       ready={task.ready}
-                      agentSessionStatus={task.agentSessionStatus}
+                      agentSessionStatus={task.agentSessionStatus as "NON_ACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
                       status={task.status}
                     />
                     {currentStage && (
