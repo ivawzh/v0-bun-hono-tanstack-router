@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { cn } from '@/lib/utils'
+import { client } from '@/utils/orpc'
 
 export interface AttachmentMetadata {
   id: string
@@ -67,24 +68,22 @@ export function AttachmentPreview({
 
   const handleDownload = async () => {
     try {
-      // Get the server URL from environment (same as orpc client)
-      const defaultServerUrl = "http://localhost:8500"
-      const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl
-      
-      const response = await fetch(`${baseUrl}/api/tasks/${taskId}/attachments/${attachment.id}/download`, {
-        credentials: 'include'
+      // Use oRPC client for type-safe file download
+      const result = await client.tasks.downloadAttachment({
+        taskId,
+        attachmentId: attachment.id
       })
-      if (response.ok) {
-        const blob = await response.blob()
-        const url = URL.createObjectURL(blob)
-        const link = document.createElement('a')
-        link.href = url
-        link.download = attachment.originalName
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
-        URL.revokeObjectURL(url)
-      }
+      
+      // Convert buffer to blob and create download
+      const blob = new Blob([new Uint8Array(result.buffer)], { type: result.metadata.type })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = result.metadata.originalName
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Failed to download file:', error)
     }
@@ -93,22 +92,18 @@ export function AttachmentPreview({
   const handlePreview = async () => {
     if (attachment.type && attachment.type.startsWith('image/')) {
       try {
-        // Get the server URL from environment (same as orpc client)
-        const defaultServerUrl = "http://localhost:8500"
-        const baseUrl = (import.meta.env.VITE_SERVER_URL as string | undefined) ?? defaultServerUrl
-        
-        const response = await fetch(`${baseUrl}/api/tasks/${taskId}/attachments/${attachment.id}/download`, {
-          credentials: 'include'
+        // Use oRPC client for type-safe file download
+        const result = await client.tasks.downloadAttachment({
+          taskId,
+          attachmentId: attachment.id
         })
-        if (response.ok) {
-          const blob = await response.blob()
-          const url = URL.createObjectURL(blob)
-          setImageUrl(url)
-          setShowPreview(true)
-          setPreviewError(false)
-        } else {
-          setPreviewError(true)
-        }
+        
+        // Convert buffer to blob and create preview URL
+        const blob = new Blob([new Uint8Array(result.buffer)], { type: result.metadata.type })
+        const url = URL.createObjectURL(blob)
+        setImageUrl(url)
+        setShowPreview(true)
+        setPreviewError(false)
       } catch (error) {
         console.error('Failed to load image:', error)
         setPreviewError(true)

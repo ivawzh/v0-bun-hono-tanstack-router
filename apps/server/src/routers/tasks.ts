@@ -662,68 +662,6 @@ export const tasksRouter = o.router({
       return updated[0];
     }),
 
-  uploadAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      file: v.object({
-        buffer: v.any(), // Buffer or Uint8Array
-        originalName: v.string(),
-        type: v.string(),
-        size: v.number()
-      })
-    }))
-    .handler(async ({ context, input }) => {
-      try {
-        // Verify task ownership
-        const task = await db
-          .select({
-            task: tasks,
-            project: projects
-          })
-          .from(tasks)
-          .innerJoin(projects, eq(tasks.projectId, projects.id))
-          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
-          .where(
-            and(
-              eq(tasks.id, input.taskId),
-              eq(projectUsers.userId, context.user.id)
-            )
-          )
-          .limit(1);
-
-        if (task.length === 0) {
-          throw new Error("Task not found or unauthorized");
-        }
-
-        const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-
-        // Validate total size
-        await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
-
-        // Save attachment file
-        const attachment = await saveAttachment(input.taskId, input.file);
-
-        // Update task with new attachment
-        const updatedAttachments = [...existingAttachments, attachment];
-
-        const updated = await db
-          .update(tasks)
-          .set({
-            attachments: updatedAttachments,
-            updatedAt: new Date()
-          })
-          .where(eq(tasks.id, input.taskId))
-          .returning();
-
-        // Broadcast flush to invalidate all queries for this project
-        broadcastFlush(task[0].project.id);
-
-        return attachment;
-      } catch (error) {
-        console.error('Upload attachment error:', error);
-        throw error;
-      }
-    }),
 
   deleteAttachment: protectedProcedure
     .input(v.object({
@@ -857,5 +795,134 @@ export const tasksRouter = o.router({
       broadcastFlush(task[0].project.id);
 
       return updated[0];
+    }),
+
+  // oRPC upload procedure using native File support
+  uploadAttachment: protectedProcedure
+    .input(z.object({
+      taskId: z.string().uuid(),
+      file: z.instanceof(File)
+    }))
+    .handler(async ({ context, input }) => {
+      try {
+        console.log('📎 oRPC attachment upload request received');
+        console.log('📎 Upload details:', {
+          taskId: input.taskId,
+          fileName: input.file.name,
+          fileSize: input.file.size,
+          fileType: input.file.type
+        });
+
+        // Convert File to buffer
+        const buffer = await input.file.arrayBuffer();
+
+        // Verify task ownership with project membership
+        const task = await db
+          .select({
+            task: tasks,
+            project: projects
+          })
+          .from(tasks)
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+          .where(
+            and(
+              eq(tasks.id, input.taskId),
+              eq(projectUsers.userId, context.user.id)
+            )
+          )
+          .limit(1);
+
+        if (task.length === 0) {
+          throw new Error('Task not found or unauthorized');
+        }
+
+        const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+
+        // Validate total size
+        await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
+
+        // Save attachment file
+        console.log('💾 Saving attachment to filesystem...');
+        const attachment = await saveAttachment(input.taskId, {
+          buffer: new Uint8Array(buffer),
+          originalName: input.file.name,
+          type: input.file.type,
+          size: input.file.size
+        });
+        console.log('💾 Attachment saved:', attachment);
+
+        // Update task with new attachment
+        const updatedAttachments = [...existingAttachments, attachment];
+
+        console.log('🗄️ Updating database...');
+        await db
+          .update(tasks)
+          .set({
+            attachments: updatedAttachments,
+            updatedAt: new Date()
+          })
+          .where(eq(tasks.id, input.taskId));
+
+        // Broadcast flush to invalidate all queries for this project
+        broadcastFlush(task[0].project.id);
+
+        console.log('✅ Upload completed successfully');
+        return {
+          attachment,
+          projectId: task[0].project.id
+        };
+      } catch (error) {
+        console.error('Upload error:', error);
+        throw error;
+      }
+    }),
+
+  // New oRPC download procedure matching REST endpoint pattern
+  downloadAttachment: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      attachmentId: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      try {
+        // Verify task ownership with project membership
+        const task = await db
+          .select({
+            task: tasks,
+            project: projects
+          })
+          .from(tasks)
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+          .where(
+            and(
+              eq(tasks.id, input.taskId),
+              eq(projectUsers.userId, context.user.id)
+            )
+          )
+          .limit(1);
+
+        if (task.length === 0) {
+          throw new Error('Task not found or unauthorized');
+        }
+
+        const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+        const attachment = attachments.find(a => a.id === input.attachmentId);
+
+        if (!attachment) {
+          throw new Error('Attachment not found');
+        }
+
+        const buffer = await getAttachmentFile(input.taskId, input.attachmentId, attachments);
+
+        return {
+          buffer,
+          metadata: attachment
+        };
+      } catch (error) {
+        console.error('Download error:', error);
+        throw new Error('File not found');
+      }
     }),
 });

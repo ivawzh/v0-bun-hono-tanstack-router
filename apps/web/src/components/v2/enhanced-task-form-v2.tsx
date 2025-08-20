@@ -18,6 +18,7 @@ import { MultiSelectAgents } from "./multi-select-agents";
 import { MultiSelectRepositories } from "./multi-select-repositories";
 import { TaskCreationWarning } from "./project-setup-warning";
 import { AttachmentDropzone, type AttachmentFile } from "../attachment-dropzone";
+import { client } from '@/utils/orpc';
 
 interface Repository {
   id: string;
@@ -113,42 +114,21 @@ export function EnhancedTaskFormV2({
 
     setIsSubmitting(true);
     try {
-      // Create task via V2 API
-      const response = await fetch(`/api/v2/projects/${projectId}/tasks`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          rawTitle: formData.rawTitle,
-          rawDescription: formData.rawDescription,
-          mainRepositoryId: formData.mainRepositoryId,
-          additionalRepositoryIds: formData.additionalRepositoryIds,
-          assignedAgentIds: formData.assignedAgentIds,
-          actorId: formData.actorId || defaultActor?.id,
-          priority: formData.priority,
-          ready: formData.ready,
-          attachments: [] // File upload will be handled separately
-        })
+      // Create task using oRPC with native File support for attachments
+      const result = await client.tasks.create({
+        projectId: projectId,
+        mainRepositoryId: formData.mainRepositoryId,
+        additionalRepositoryIds: formData.additionalRepositoryIds,
+        assignedAgentIds: formData.assignedAgentIds,
+        actorId: formData.actorId || defaultActor?.id,
+        rawTitle: formData.rawTitle,
+        rawDescription: formData.rawDescription,
+        priority: formData.priority,
+        status: "todo",
+        attachments: formData.attachments.map(file => ({
+          file: file
+        }))
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to create task');
-      }
-
-      const result = await response.json();
-      
-      // If we have file attachments, upload them
-      if (formData.attachments.length > 0) {
-        for (const file of formData.attachments) {
-          const uploadFormData = new FormData();
-          uploadFormData.append('taskId', result.task.id);
-          uploadFormData.append('file', file);
-          
-          await fetch('/api/tasks/upload-attachment', {
-            method: 'POST',
-            body: uploadFormData
-          });
-        }
-      }
 
       // Call the success callback if provided
       await onSubmit({
