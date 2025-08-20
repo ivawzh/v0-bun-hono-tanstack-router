@@ -9,16 +9,19 @@ import { eq, and, ne, or, sql } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { getAllActiveSessions, cleanupStaleActiveSessions, getAllCompletedSessions, purgeCompletedSessions } from './session-registry';
 import { tryPushTasks } from './task-pusher';
-import { Cron } from 'croner';
+import { startHotReloadSafeCron } from '../utils/hot-reload-safe-interval';
 
 const config = {
   sessionCleanupStaleMinutes: 60, // 1 hour
+  taskPushingJobCron: '* * * * * *', // every second
+  outOfSyncCheckingJobCron: '*/2 * * * *', // every 2 minutes
+  sessionCleanupJobCron: '*/10 * * * *', // every 10 minutes
 }
 
 // Store job references for cleanup
-let taskPushingJob: Cron | null = null;
-let outOfSyncCheckingJob: Cron | null = null;
-let sessionCleanupJob: Cron | null = null;
+let taskPushingJob: any = null;
+let outOfSyncCheckingJob: any = null;
+let sessionCleanupJob: any = null;
 
 /**
  * Start monitoring system
@@ -39,40 +42,52 @@ export function startTaskMonitoring(): void {
   });
 
   // Periodic task pushing (every 1 second)
-  taskPushingJob = new Cron('* * * * * *', async () => {
-    try {
-      const result = await tryPushTasks();
-      if (result.pushed > 0) {
-        console.log(`🚀 Pushed ${result.pushed} tasks`);
+  taskPushingJob = startHotReloadSafeCron(
+    'task-pushing',
+    config.taskPushingJobCron,
+    async () => {
+      try {
+        const result = await tryPushTasks();
+        if (result.pushed > 0) {
+          console.log(`🚀 Pushed ${result.pushed} tasks`);
+        }
+        if (result.errors.length > 0) {
+          console.error('❌ Task pushing errors:', result.errors);
+        }
+      } catch (error) {
+        console.error('❌ Task pushing failed:', error);
       }
-      if (result.errors.length > 0) {
-        console.error('❌ Task pushing errors:', result.errors);
-      }
-    } catch (error) {
-      console.error('❌ Task pushing failed:', error);
     }
-  });
+  );
 
   // Periodic out-of-sync task checking (every 2 minutes)
-  outOfSyncCheckingJob = new Cron('*/2 * * * *', async () => {
-    const result = await checkOutSyncedTasks();
-    if (result.recovered > 0) {
-      // Try to push tasks after recovery
-      tryPushTasks();
+  outOfSyncCheckingJob = startHotReloadSafeCron(
+    'out-of-sync-checking',
+    config.outOfSyncCheckingJobCron,
+    async () => {
+      const result = await checkOutSyncedTasks();
+      if (result.recovered > 0) {
+        // Try to push tasks after recovery
+        tryPushTasks();
+      }
     }
-  });
+  );
 
   // Periodic active session registry cleanup (every 10 minutes)
-  sessionCleanupJob = new Cron('*/10 * * * *', async () => {
-    try {
-      const cleaned = await cleanupStaleActiveSessions(config.sessionCleanupStaleMinutes);
-      if (cleaned > 0) {
-        console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
+  sessionCleanupJob = startHotReloadSafeCron(
+    'session-cleanup',
+    config.sessionCleanupJobCron,
+    async () => {
+      try {
+        const cleaned = await cleanupStaleActiveSessions(config.sessionCleanupStaleMinutes);
+        if (cleaned > 0) {
+          console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
+        }
+      } catch (error) {
+        console.error('❌ Session cleanup failed:', error);
       }
-    } catch (error) {
-      console.error('❌ Session cleanup failed:', error);
     }
-  });
+  );
 
   console.log(`🎯 Task monitoring system started successfully`);
   console.log(`  🚀 Task pushing: every 1 second`);
@@ -85,22 +100,36 @@ export function startTaskMonitoring(): void {
  */
 export function stopTaskMonitoring(): void {
   console.log('🛑 Stopping task monitoring system...');
-  
+
+  // Mark jobs as should stop in global state (handled by hot-reload-safe wrapper)
+  const intervals = globalThis.__soloUnicornIntervals;
+  if (intervals) {
+    const taskPushingEntry = intervals.get('task-pushing');
+    if (taskPushingEntry) taskPushingEntry.shouldStop = true;
+    
+    const outOfSyncEntry = intervals.get('out-of-sync-checking');
+    if (outOfSyncEntry) outOfSyncEntry.shouldStop = true;
+    
+    const sessionCleanupEntry = intervals.get('session-cleanup');
+    if (sessionCleanupEntry) sessionCleanupEntry.shouldStop = true;
+  }
+
+  // Also stop the Croner jobs directly if they exist
   if (taskPushingJob) {
     taskPushingJob.stop();
     taskPushingJob = null;
   }
-  
+
   if (outOfSyncCheckingJob) {
     outOfSyncCheckingJob.stop();
     outOfSyncCheckingJob = null;
   }
-  
+
   if (sessionCleanupJob) {
     sessionCleanupJob.stop();
     sessionCleanupJob = null;
   }
-  
+
   console.log('✅ Task monitoring system stopped');
 }
 

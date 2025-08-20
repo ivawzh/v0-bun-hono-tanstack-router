@@ -115,3 +115,55 @@ export function startHotReloadSafeIntervalImmediate(
 ): void {
   startHotReloadSafeInterval(name, fn, intervalMs, true);
 }
+
+/**
+ * Start a hot-reload-safe Croner job that stops previous instances on hot reload
+ * @param name - Human-readable name for logging purposes
+ * @param cronExpression - Cron expression for scheduling
+ * @param fn - Function to execute on cron schedule
+ * @returns Cron job instance (for manual stopping if needed)
+ */
+export function startHotReloadSafeCron(
+  name: string,
+  cronExpression: string,
+  fn: () => Promise<void> | void
+): any {
+  const intervals = globalThis.__soloUnicornIntervals!;
+  
+  // Stop any existing cron job with the same name from previous module versions
+  const existing = intervals.get(name);
+  if (existing && existing.moduleVersion !== MODULE_VERSION) {
+    existing.shouldStop = true;
+    console.log(`🛑 Stopping stale cron job: ${name} (module ${existing.moduleVersion})`);
+  }
+  
+  // Register this cron job
+  intervals.set(name, {
+    moduleVersion: MODULE_VERSION,
+    shouldStop: false
+  });
+  
+  console.log(`🔄 Starting hot-reload-safe cron job: ${name} (${cronExpression}, module ${MODULE_VERSION})`);
+
+  // Import Croner dynamically to avoid issues
+  const { Cron } = require('croner');
+  
+  // Create cron job with wrapper function that checks for staleness
+  const cronJob = new Cron(cronExpression, async () => {
+    // Check if this cron job has been superseded by a newer module version
+    const current = intervals.get(name);
+    if (current?.shouldStop || current?.moduleVersion !== MODULE_VERSION) {
+      console.log(`🛑 Cron job ${name} stopped (superseded by newer module)`);
+      cronJob.stop();
+      return;
+    }
+    
+    try {
+      await fn();
+    } catch (error) {
+      console.error(`❌ Hot-reload-safe cron job '${name}' failed:`, error);
+    }
+  });
+
+  return cronJob;
+}
