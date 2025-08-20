@@ -19,6 +19,8 @@ interface RetryOptions {
   baseDelayMs: number
   maxDelayMs: number
   backoffMultiplier: number
+  timeoutMs?: number
+  fallbackStrategy?: 'conservative' | 'aggressive' | 'minimal'
 }
 
 interface QueuedOperation {
@@ -40,6 +42,10 @@ interface RecoveryStats {
   networkErrors: number
   timeoutErrors: number
   conservativeRefreshes: number
+  circuitBreakerTrips: number
+  lastRecoveryAttempt: number | null
+  avgRecoveryTime: number
+  criticalFailures: number
 }
 
 class CacheRecoveryService {
@@ -54,15 +60,32 @@ class CacheRecoveryService {
     fallbackStrategiesUsed: 0,
     networkErrors: 0,
     timeoutErrors: 0,
-    conservativeRefreshes: 0
+    conservativeRefreshes: 0,
+    circuitBreakerTrips: 0,
+    lastRecoveryAttempt: null,
+    avgRecoveryTime: 0,
+    criticalFailures: 0
   }
 
   private readonly defaultRetryOptions: RetryOptions = {
     maxRetries: 3,
     baseDelayMs: 500,
     maxDelayMs: 5000,
-    backoffMultiplier: 2
+    backoffMultiplier: 2,
+    timeoutMs: 10000,
+    fallbackStrategy: 'conservative'
   }
+
+  // Circuit breaker state
+  private circuitBreakerState: 'CLOSED' | 'OPEN' | 'HALF_OPEN' = 'CLOSED'
+  private circuitBreakerFailures = 0
+  private circuitBreakerLastFailure = 0
+  private readonly circuitBreakerThreshold = 5
+  private readonly circuitBreakerTimeout = 30000 // 30 seconds
+  
+  // Recovery time tracking
+  private recoveryTimes: number[] = []
+  private readonly maxRecoveryTimeHistory = 10
 
   /**
    * Track error types for analytics
@@ -79,14 +102,15 @@ class CacheRecoveryService {
   }
 
   /**
-   * Get contextual fallback strategies based on error type
+   * Get contextual fallback strategies based on error type and strategy preference
    */
   private getFallbackStrategiesForError(
     error: unknown,
     queryClient: QueryClient,
-    description: string
+    description: string,
+    strategy: RetryOptions['fallbackStrategy'] = 'conservative'
   ): Array<{ name: string; execute: () => Promise<void> }> {
-    return [
+    const baseStrategies = [
       {
         name: 'Broad Invalidation',
         execute: () => this.executeBroadInvalidation(queryClient, description)
@@ -100,6 +124,43 @@ class CacheRecoveryService {
         execute: () => this.executeSelectiveReset(queryClient, description)
       }
     ]
+    
+    // Add strategy-specific fallbacks
+    switch (strategy) {
+      case 'minimal':
+        return [
+          {
+            name: 'Minimal Fallback',
+            execute: () => this.executeMinimalFallback(queryClient, description)
+          },
+          ...baseStrategies.slice(0, 1) // Only broad invalidation
+        ]
+        
+      case 'aggressive':
+        return [
+          ...baseStrategies,
+          {
+            name: 'Conservative Refresh',
+            execute: () => this.executeConservativeRefresh(queryClient, description)
+          },
+          {
+            name: 'Full Cache Clear',
+            execute: () => this.executeFullCacheClear(queryClient, description)
+          }
+        ]
+        
+      case 'conservative':
+      default:
+        return baseStrategies
+    }
+  }
+  
+  /**
+   * Execute full cache clear as last resort
+   */
+  private async executeFullCacheClear(queryClient: QueryClient, description: string): Promise<void> {
+    console.warn(`🧹 Full cache clear fallback for: ${description}`)
+    await queryClient.clear()
   }
 
   /**
@@ -117,7 +178,56 @@ class CacheRecoveryService {
   }
 
   /**
-   * Execute cache operation with comprehensive error recovery
+   * Check and manage circuit breaker state
+   */
+  private async checkCircuitBreaker(): Promise<boolean> {
+    const now = Date.now()
+    
+    switch (this.circuitBreakerState) {
+      case 'OPEN':
+        if (now - this.circuitBreakerLastFailure > this.circuitBreakerTimeout) {
+          this.circuitBreakerState = 'HALF_OPEN'
+          console.log('🔧 Circuit breaker moving to HALF_OPEN state')
+          return true
+        }
+        return false
+        
+      case 'HALF_OPEN':
+      case 'CLOSED':
+        return true
+        
+      default:
+        return true
+    }
+  }
+  
+  /**
+   * Handle circuit breaker on operation result
+   */
+  private handleCircuitBreakerResult(success: boolean): void {
+    if (success) {
+      // Reset circuit breaker on success
+      if (this.circuitBreakerState === 'HALF_OPEN') {
+        this.circuitBreakerState = 'CLOSED'
+        this.circuitBreakerFailures = 0
+        console.log('✅ Circuit breaker reset to CLOSED state')
+      }
+    } else {
+      // Track failures
+      this.circuitBreakerFailures++
+      this.circuitBreakerLastFailure = Date.now()
+      
+      // Trip circuit breaker if threshold reached
+      if (this.circuitBreakerFailures >= this.circuitBreakerThreshold) {
+        this.circuitBreakerState = 'OPEN'
+        this.stats.circuitBreakerTrips++
+        console.error('🚨 Circuit breaker OPEN - cache operations temporarily disabled')
+      }
+    }
+  }
+
+  /**
+   * Execute cache operation with comprehensive error recovery and circuit breaker
    */
   async executeWithRecovery<T>(
     queryClient: QueryClient,
@@ -126,31 +236,56 @@ class CacheRecoveryService {
     options: Partial<RetryOptions> = {}
   ): Promise<T> {
     const retryOptions = { ...this.defaultRetryOptions, ...options }
+    const startTime = Date.now()
+    
     this.stats.totalAttempts++
+    this.stats.lastRecoveryAttempt = startTime
 
+    // Check circuit breaker
+    const circuitBreakerOpen = !(await this.checkCircuitBreaker())
+    if (circuitBreakerOpen) {
+      console.warn('⚡ Circuit breaker is OPEN - using emergency fallback')
+      await this.executeEmergencyFallback(queryClient, description)
+      throw new Error(`Circuit breaker OPEN: ${description}`)
+    }
+
+    let lastError: unknown
+    
     for (let attempt = 0; attempt <= retryOptions.maxRetries; attempt++) {
       try {
-        const result = await operation()
+        // Add timeout wrapper if specified
+        const result = retryOptions.timeoutMs 
+          ? await this.withTimeout(operation(), retryOptions.timeoutMs)
+          : await operation()
         
+        // Track successful recovery
         if (attempt > 0) {
           this.stats.successfulRetries++
           console.log(`✅ Cache operation recovered after ${attempt} retries: ${description}`)
         }
         
+        // Update circuit breaker and recovery metrics
+        this.handleCircuitBreakerResult(true)
+        this.updateRecoveryMetrics(startTime)
+        
         return result
       } catch (error) {
+        lastError = error
         const isLastAttempt = attempt === retryOptions.maxRetries
         
         // Track error types for better analytics
         this.trackErrorType(error)
         
+        // Handle critical errors immediately
+        if (this.isCriticalError(error)) {
+          this.stats.criticalFailures++
+          console.error(`🚨 Critical cache error detected: ${description}`, error)
+          await this.handleCriticalError(queryClient, description, error)
+          break
+        }
+        
         if (isLastAttempt) {
-          this.stats.failedOperations++
-          console.error(`❌ Cache operation failed after ${attempt} retries: ${description}`, error)
-          
-          // Try fallback strategies before giving up
-          await this.executeFallbackStrategies(queryClient, description, error)
-          throw error
+          break
         }
 
         // Calculate delay with exponential backoff
@@ -164,7 +299,119 @@ class CacheRecoveryService {
       }
     }
 
+    // All attempts failed
+    this.stats.failedOperations++
+    this.handleCircuitBreakerResult(false)
+    console.error(`❌ Cache operation failed after ${retryOptions.maxRetries} retries: ${description}`, lastError)
+    
+    // Try fallback strategies based on configured strategy
+    await this.executeFallbackStrategies(queryClient, description, lastError, retryOptions.fallbackStrategy)
+    
     throw new Error(`Cache operation failed after all retries: ${description}`)
+  }
+
+  /**
+   * Add timeout wrapper for operations
+   */
+  private withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const timeoutId = setTimeout(() => {
+        reject(new Error(`Operation timeout after ${timeoutMs}ms`))
+      }, timeoutMs)
+      
+      promise
+        .then(resolve)
+        .catch(reject)
+        .finally(() => clearTimeout(timeoutId))
+    })
+  }
+  
+  /**
+   * Check if error is critical and requires immediate handling
+   */
+  private isCriticalError(error: unknown): boolean {
+    if (!error || typeof error !== 'object' || !('message' in error)) return false
+    
+    const message = (error as Error).message.toLowerCase()
+    return (
+      message.includes('memory') ||
+      message.includes('quota') ||
+      message.includes('rate limit') ||
+      message.includes('authentication') ||
+      message.includes('authorization') ||
+      message.includes('cors')
+    )
+  }
+  
+  /**
+   * Handle critical errors with immediate fallback
+   */
+  private async handleCriticalError(
+    queryClient: QueryClient,
+    description: string,
+    error: unknown
+  ): Promise<void> {
+    console.error(`🚨 Handling critical error for: ${description}`, error)
+    
+    // For critical errors, use minimal fallback to avoid cascading failures
+    try {
+      await this.executeMinimalFallback(queryClient, description)
+    } catch (fallbackError) {
+      console.error('❌ Critical error fallback also failed:', fallbackError)
+      // Queue for later retry with higher priority
+      await this.queueCriticalOperation(queryClient, description, error)
+    }
+  }
+  
+  /**
+   * Execute emergency fallback for circuit breaker scenarios
+   */
+  private async executeEmergencyFallback(
+    queryClient: QueryClient,
+    description: string
+  ): Promise<void> {
+    console.log(`🚨 Emergency fallback for circuit breaker: ${description}`)
+    
+    // Use cached data if available, otherwise minimal refresh
+    try {
+      await this.executeMinimalFallback(queryClient, description)
+    } catch (error) {
+      console.warn('⚠️ Emergency fallback failed, using stale cache:', error)
+    }
+  }
+  
+  /**
+   * Execute minimal fallback strategy
+   */
+  private async executeMinimalFallback(
+    queryClient: QueryClient,
+    description: string
+  ): Promise<void> {
+    // Only invalidate the most essential queries to avoid overloading
+    const essentialInvalidations = [
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.projects.all(), 
+        refetchType: 'none' // Don't trigger refetch, just mark stale
+      }),
+    ]
+    
+    await Promise.allSettled(essentialInvalidations)
+  }
+  
+  /**
+   * Update recovery time metrics
+   */
+  private updateRecoveryMetrics(startTime: number): void {
+    const recoveryTime = Date.now() - startTime
+    this.recoveryTimes.push(recoveryTime)
+    
+    // Keep only recent recovery times
+    if (this.recoveryTimes.length > this.maxRecoveryTimeHistory) {
+      this.recoveryTimes.shift()
+    }
+    
+    // Update average
+    this.stats.avgRecoveryTime = this.recoveryTimes.reduce((a, b) => a + b, 0) / this.recoveryTimes.length
   }
 
   /**
@@ -173,21 +420,22 @@ class CacheRecoveryService {
   private async executeFallbackStrategies(
     queryClient: QueryClient,
     originalDescription: string,
-    originalError: unknown
+    originalError: unknown,
+    strategy: RetryOptions['fallbackStrategy'] = 'conservative'
   ): Promise<void> {
-    console.log(`🔄 Executing fallback strategies for: ${originalDescription}`)
+    console.log(`🔄 Executing ${strategy} fallback strategies for: ${originalDescription}`)
     this.stats.fallbackStrategiesUsed++
 
-    // Get contextual fallback strategies based on error type
-    const fallbackStrategies = this.getFallbackStrategiesForError(originalError, queryClient, originalDescription)
+    // Get contextual fallback strategies based on error type and strategy preference
+    const fallbackStrategies = this.getFallbackStrategiesForError(originalError, queryClient, originalDescription, strategy)
 
-    for (const strategy of fallbackStrategies) {
+    for (const strategyItem of fallbackStrategies) {
       try {
-        await strategy.execute()
-        console.log(`✅ Fallback strategy '${strategy.name}' succeeded for: ${originalDescription}`)
+        await strategyItem.execute()
+        console.log(`✅ Fallback strategy '${strategyItem.name}' succeeded for: ${originalDescription}`)
         return // Success, no need to try other strategies
       } catch (error) {
-        console.warn(`⚠️ Fallback strategy '${strategy.name}' failed:`, error)
+        console.warn(`⚠️ Fallback strategy '${strategyItem.name}' failed:`, error)
       }
     }
 
@@ -285,6 +533,38 @@ class CacheRecoveryService {
     }
 
     return patterns
+  }
+
+  /**
+   * Queue critical operation with higher priority
+   */
+  private async queueCriticalOperation(queryClient: QueryClient, description: string, error: unknown): Promise<void> {
+    const operationId = `critical_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+    
+    const queuedOperation: QueuedOperation = {
+      id: operationId,
+      operation: async () => {
+        // For critical operations, use minimal fallback
+        await this.executeMinimalFallback(queryClient, description)
+      },
+      description: `CRITICAL: ${description}`,
+      timestamp: Date.now(),
+      retries: 0,
+      maxRetries: 10 // More retries for critical operations
+    }
+
+    // Add to front of queue for priority processing
+    const entries = Array.from(this.operationQueue.entries())
+    this.operationQueue.clear()
+    this.operationQueue.set(operationId, queuedOperation)
+    entries.forEach(([id, op]) => this.operationQueue.set(id, op))
+    
+    this.stats.queuedOperations++
+    console.error(`🚨 Queued CRITICAL operation: ${description}`)
+    
+    if (!this.isProcessingQueue) {
+      this.startBackgroundProcessing()
+    }
   }
 
   /**
@@ -399,6 +679,10 @@ class CacheRecoveryService {
   reset(): void {
     this.operationQueue.clear()
     this.isProcessingQueue = false
+    this.circuitBreakerState = 'CLOSED'
+    this.circuitBreakerFailures = 0
+    this.circuitBreakerLastFailure = 0
+    this.recoveryTimes = []
     this.stats = {
       totalAttempts: 0,
       successfulRetries: 0,
@@ -408,7 +692,11 @@ class CacheRecoveryService {
       fallbackStrategiesUsed: 0,
       networkErrors: 0,
       timeoutErrors: 0,
-      conservativeRefreshes: 0
+      conservativeRefreshes: 0,
+      circuitBreakerTrips: 0,
+      lastRecoveryAttempt: null,
+      avgRecoveryTime: 0,
+      criticalFailures: 0
     }
   }
 

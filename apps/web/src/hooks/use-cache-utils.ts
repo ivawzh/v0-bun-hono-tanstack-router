@@ -8,7 +8,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { cacheUtils, optimisticUtils, queryKeys, devUtils } from '@/lib/query-keys'
 import { enhancedCacheUtils, cacheRecoveryService } from '@/lib/cache-recovery'
-import { useCallback } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 export function useCacheUtils() {
   const queryClient = useQueryClient()
@@ -315,5 +315,73 @@ export function useProjectCache(projectId: string) {
         [cache, projectId]
       ),
     },
+  }
+}
+
+/**
+ * Hook for monitoring cache health and performance
+ */
+export function useCacheMonitoring() {
+  const queryClient = useQueryClient()
+  const [healthStatus, setHealthStatus] = useState(() => enhancedCacheUtils.getHealthStatus())
+  const [recoveryStats, setRecoveryStats] = useState(() => enhancedCacheUtils.getRecoveryStats())
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setHealthStatus(enhancedCacheUtils.getHealthStatus())
+      setRecoveryStats(enhancedCacheUtils.getRecoveryStats())
+    }, 10000) // Update every 10 seconds
+    
+    return () => clearInterval(interval)
+  }, [])
+  
+  const getCacheMetrics = useCallback(() => {
+    const queries = queryClient.getQueryCache().getAll()
+    return {
+      totalQueries: queries.length,
+      activeQueries: queries.filter(q => q.state.fetchStatus === 'fetching').length,
+      staleQueries: queries.filter(q => q.isStale()).length,
+      errorQueries: queries.filter(q => q.state.status === 'error').length,
+      successQueries: queries.filter(q => q.state.status === 'success').length,
+      memoryUsage: queries.reduce((acc, query) => {
+        // Rough estimation of memory usage
+        return acc + (query.state.data ? JSON.stringify(query.state.data).length : 0)
+      }, 0)
+    }
+  }, [queryClient])
+  
+  const forceHealthCheck = useCallback(() => {
+    const newHealthStatus = enhancedCacheUtils.getHealthStatus()
+    const newRecoveryStats = enhancedCacheUtils.getRecoveryStats()
+    const cacheMetrics = getCacheMetrics()
+    
+    setHealthStatus(newHealthStatus)
+    setRecoveryStats(newRecoveryStats)
+    
+    return {
+      health: newHealthStatus,
+      stats: newRecoveryStats,
+      cache: cacheMetrics,
+      diagnostics: enhancedCacheUtils.getDiagnostics()
+    }
+  }, [getCacheMetrics])
+  
+  return {
+    healthStatus,
+    recoveryStats,
+    getCacheMetrics,
+    forceHealthCheck,
+    
+    // Health indicators
+    isHealthy: healthStatus.status === 'healthy',
+    isDegraded: healthStatus.status === 'degraded',
+    isCritical: healthStatus.status === 'critical',
+    
+    // Recovery actions
+    forceProcessQueue: enhancedCacheUtils.forceProcessQueue,
+    resetRecoveryService: enhancedCacheUtils.resetRecoveryService,
+    emergencyReset: useCallback((reason: string) => 
+      enhancedCacheUtils.emergencyReset(queryClient, reason), [queryClient]
+    )
   }
 }

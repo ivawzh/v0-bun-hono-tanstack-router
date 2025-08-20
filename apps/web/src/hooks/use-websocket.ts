@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { cacheRecoveryService } from '@/lib/cache-recovery';
+import { cacheRecoveryService, enhancedCacheUtils } from '@/lib/cache-recovery';
 
 interface WebSocketMessage {
   type: string;
@@ -13,6 +13,8 @@ interface UseWebSocketOptions {
   onMessage?: (message: WebSocketMessage) => void;
   autoReconnect?: boolean;
   reconnectInterval?: number;
+  maxReconnectAttempts?: number;
+  fallbackStrategy?: 'conservative' | 'aggressive' | 'minimal';
 }
 
 export function useWebSocket(options: UseWebSocketOptions = {}) {
@@ -20,14 +22,148 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     projectId,
     onMessage,
     autoReconnect = true,
-    reconnectInterval = 3000
+    reconnectInterval = 3000,
+    maxReconnectAttempts = 10,
+    fallbackStrategy = 'conservative'
   } = options;
 
   const [isConnected, setIsConnected] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reconnectAttemptsRef = useRef(0);
   const queryClient = useQueryClient();
+  const lastSuccessfulMessageRef = useRef<number>(Date.now());
+
+  // Helper function to handle WebSocket messages with comprehensive error recovery
+  const handleWebSocketMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    switch (message.type) {
+      case 'flush':
+        console.log('🔄 Flushing React Query cache');
+        // Invalidate all queries with error recovery
+        await cacheRecoveryService.executeWithRecovery(
+          queryClient,
+          () => queryClient.invalidateQueries(),
+          'WebSocket flush command',
+          { fallbackStrategy }
+        );
+        break;
+
+      case 'task.updated':
+        await handleTaskUpdatedMessage(message);
+        break;
+
+      case 'project.tasks.updated':
+        await handleProjectTasksUpdatedMessage(message);
+        break;
+
+      case 'cache.invalidate':
+        await handleCacheInvalidateMessage(message);
+        break;
+
+      default:
+        console.log(`📨 Unknown WebSocket message type: ${message.type}`);
+    }
+  }, [queryClient, fallbackStrategy]);
+
+  // Handle task.updated messages
+  const handleTaskUpdatedMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    const { taskId, projectId } = message.data || {};
+    if (!taskId) return;
+
+    console.log('🔄 Invalidating task data:', taskId);
+    
+    // Use enhanced cache utils for better error recovery
+    await enhancedCacheUtils.smartInvalidate(queryClient, {
+      entityType: 'task',
+      entityId: taskId,
+      projectId,
+      action: 'update'
+    });
+  }, [queryClient]);
+
+  // Handle project.tasks.updated messages
+  const handleProjectTasksUpdatedMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    const { projectId } = message.data || {};
+    if (!projectId) return;
+
+    console.log('🔄 Invalidating project tasks:', projectId);
+    
+    await enhancedCacheUtils.invalidateProject(queryClient, projectId);
+  }, [queryClient]);
+
+  // Handle cache.invalidate messages
+  const handleCacheInvalidateMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    const { operations } = message.data || {};
+    if (!operations || !Array.isArray(operations)) return;
+
+    console.log('🔄 Batch invalidating cache:', operations);
+    
+    await enhancedCacheUtils.batchInvalidate(queryClient, operations);
+  }, [queryClient]);
+
+  // Handle WebSocket message processing failures
+  const handleWebSocketFallback = useCallback((message: WebSocketMessage, error: unknown): void => {
+    console.warn(`⚠️ WebSocket message fallback for type: ${message.type}`, error);
+    
+    // Use different fallback strategies based on message type and configuration
+    switch (fallbackStrategy) {
+      case 'aggressive':
+        // For aggressive strategy, trigger broad cache invalidation
+        cacheRecoveryService.executeWithRecovery(
+          queryClient,
+          () => queryClient.invalidateQueries(),
+          `WebSocket fallback: ${message.type}`,
+          { maxRetries: 1, fallbackStrategy: 'aggressive' }
+        ).catch(() => console.error('❌ Aggressive WebSocket fallback failed'));
+        break;
+        
+      case 'minimal':
+        // For minimal strategy, only mark relevant queries as stale
+        cacheRecoveryService.executeWithRecovery(
+          queryClient,
+          () => queryClient.invalidateQueries({ refetchType: 'none' }),
+          `WebSocket fallback: ${message.type}`,
+          { maxRetries: 1, fallbackStrategy: 'minimal' }
+        ).catch(() => console.error('❌ Minimal WebSocket fallback failed'));
+        break;
+        
+      case 'conservative':
+      default:
+        // For conservative strategy, invalidate based on message content
+        if (message.data?.projectId) {
+          enhancedCacheUtils.invalidateProject(queryClient, message.data.projectId)
+            .catch(() => console.error('❌ Conservative WebSocket fallback failed'));
+        } else {
+          // General fallback - invalidate common queries
+          cacheRecoveryService.executeWithRecovery(
+            queryClient,
+            () => Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['projects'] }),
+              queryClient.invalidateQueries({ queryKey: ['tasks'] })
+            ]),
+            `WebSocket fallback: ${message.type}`,
+            { maxRetries: 1, fallbackStrategy: 'conservative' }
+          ).catch(() => console.error('❌ Conservative WebSocket fallback failed'));
+        }
+    }
+  }, [queryClient, fallbackStrategy]);
+
+  // Handle message parsing errors
+  const handleParsingError = useCallback((rawData: string, error: unknown): void => {
+    console.error('Failed to parse WebSocket message:', { rawData, error });
+    
+    // Try to extract useful information from raw data
+    if (rawData.includes('flush')) {
+      console.log('🔄 Detected flush command in malformed message, executing fallback');
+      cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        () => queryClient.invalidateQueries({ refetchType: 'none' }),
+        'Malformed flush command fallback',
+        { maxRetries: 1, fallbackStrategy }
+      ).catch(() => console.error('❌ Parsing error fallback failed'));
+    }
+  }, [queryClient, fallbackStrategy]);
 
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -50,79 +186,27 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         setIsConnected(true);
         setConnectionStatus('connected');
 
-        // Clear any pending reconnection attempts
+        // Clear any pending reconnection attempts and reset counter
         if (reconnectTimeoutRef.current) {
           clearTimeout(reconnectTimeoutRef.current);
           reconnectTimeoutRef.current = null;
         }
+        reconnectAttemptsRef.current = 0;
       };
 
       ws.onmessage = (event) => {
+        lastSuccessfulMessageRef.current = Date.now();
+        
         try {
           const message: WebSocketMessage = JSON.parse(event.data);
           console.log('📨 WebSocket message received:', message);
 
-          // Selective cache invalidation based on message type (with error recovery)
-          if (message.type === 'flush') {
-            console.log('🔄 Flushing React Query cache');
-            // Invalidate all queries with error recovery
-            cacheRecoveryService.executeWithRecovery(
-              queryClient,
-              () => queryClient.invalidateQueries(),
-              'WebSocket flush command'
-            ).catch(error => {
-              console.error('❌ Failed to flush cache via WebSocket:', error);
-              // Trigger emergency reset as last resort
-              cacheRecoveryService.emergencyReset(queryClient, 'WebSocket flush failure')
-                .catch(resetError => console.error('❌ Emergency reset also failed:', resetError));
-            });
-          } else if (message.type === 'task.updated') {
-            // Invalidate specific task data when task is updated remotely
-            const { taskId, projectId } = message.data || {};
-            if (taskId) {
-              console.log('🔄 Invalidating task data:', taskId);
-              
-              const invalidateTask = () => queryClient.invalidateQueries({
-                queryKey: ['tasks', 'detail', taskId],
-              });
-              
-              const invalidateProject = projectId ? () => queryClient.invalidateQueries({
-                queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
-                exact: true,
-              }) : undefined;
-
-              // Execute task invalidation with recovery
-              cacheRecoveryService.executeWithRecovery(
-                queryClient,
-                invalidateTask,
-                `WebSocket task.updated: ${taskId}`
-              ).catch(error => console.error('❌ Failed to invalidate task via WebSocket:', error));
-
-              // Execute project invalidation with recovery if projectId exists
-              if (invalidateProject) {
-                cacheRecoveryService.executeWithRecovery(
-                  queryClient,
-                  invalidateProject,
-                  `WebSocket task.updated project: ${projectId}`
-                ).catch(error => console.error('❌ Failed to invalidate project via WebSocket:', error));
-              }
-            }
-          } else if (message.type === 'project.tasks.updated') {
-            // Invalidate project tasks when tasks are updated remotely
-            const { projectId } = message.data || {};
-            if (projectId) {
-              console.log('🔄 Invalidating project tasks:', projectId);
-              
-              cacheRecoveryService.executeWithRecovery(
-                queryClient,
-                () => queryClient.invalidateQueries({
-                  queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
-                  exact: true,
-                }),
-                `WebSocket project.tasks.updated: ${projectId}`
-              ).catch(error => console.error('❌ Failed to invalidate project tasks via WebSocket:', error));
-            }
-          }
+          // Handle different message types with comprehensive error recovery
+          handleWebSocketMessage(message).catch(error => {
+            console.error('❌ WebSocket message handling failed:', error);
+            // Use fallback strategy based on configuration
+            handleWebSocketFallback(message, error);
+          });
 
           // Call custom message handler if provided
           if (onMessage) {
@@ -130,6 +214,8 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           }
         } catch (error) {
           console.error('Failed to parse WebSocket message:', error);
+          // Attempt to handle as raw text or trigger fallback
+          handleParsingError(event.data, error);
         }
       };
 
@@ -145,12 +231,27 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         wsRef.current = null;
 
         // Attempt to reconnect if enabled and not a clean close
-        if (autoReconnect && !event.wasClean && event.code !== 1000) {
+        if (autoReconnect && !event.wasClean && event.code !== 1000 && reconnectAttemptsRef.current < maxReconnectAttempts) {
           setConnectionStatus('error');
+          reconnectAttemptsRef.current++;
+          
+          // Exponential backoff for reconnection
+          const delay = Math.min(reconnectInterval * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
+          
+          console.log(`🔄 Attempting to reconnect WebSocket (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts}) in ${delay}ms...`);
+          
           reconnectTimeoutRef.current = setTimeout(() => {
-            console.log('🔄 Attempting to reconnect WebSocket...');
             connect();
-          }, reconnectInterval);
+          }, delay);
+        } else if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
+          console.error('❌ Max reconnection attempts reached, triggering fallback cache refresh');
+          // Trigger a conservative cache refresh when WebSocket is permanently disconnected
+          cacheRecoveryService.executeWithRecovery(
+            queryClient,
+            () => queryClient.invalidateQueries({ refetchType: 'none' }),
+            'WebSocket permanent disconnection fallback',
+            { fallbackStrategy: fallbackStrategy }
+          ).catch(error => console.error('❌ Disconnection fallback failed:', error));
         }
       };
 
@@ -206,7 +307,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     return () => {
       disconnect();
     };
-  }, []); // Empty dependency array to only run on mount/unmount
+  }, [connect, disconnect]); // Include connect/disconnect for proper cleanup
 
   // Subscribe to project when projectId changes and we're connected
   useEffect(() => {
@@ -221,11 +322,69 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     }
   }, [projectId, isConnected]); // Remove sendMessage dependency
 
+  // Health monitoring effect
+  useEffect(() => {
+    if (!isConnected) return;
+    
+    const healthCheckInterval = setInterval(() => {
+      const timeSinceLastMessage = Date.now() - lastSuccessfulMessageRef.current;
+      const staleThreshold = 300000; // 5 minutes
+      
+      // If we haven't received any messages for a while, refresh cache conservatively
+      if (timeSinceLastMessage > staleThreshold) {
+        console.log('🏥 WebSocket health check: No recent messages, triggering conservative refresh');
+        cacheRecoveryService.executeWithRecovery(
+          queryClient,
+          () => queryClient.invalidateQueries({ 
+            refetchType: 'none',
+            stale: true 
+          }),
+          'WebSocket health check - stale data refresh',
+          { maxRetries: 1, fallbackStrategy: 'conservative' }
+        ).catch(error => {
+          console.warn('⚠️ Health check cache refresh failed:', error);
+        });
+        
+        // Update timestamp to prevent repeated attempts
+        lastSuccessfulMessageRef.current = Date.now();
+      }
+    }, 60000); // Check every minute
+    
+    return () => clearInterval(healthCheckInterval);
+  }, [isConnected, queryClient, fallbackStrategy]);
+
   return {
     isConnected,
     connectionStatus,
     connect,
     disconnect,
-    sendMessage
+    sendMessage,
+    
+    // Health and recovery utilities
+    health: {
+      reconnectAttempts: reconnectAttemptsRef.current,
+      maxReconnectAttempts,
+      lastSuccessfulMessage: lastSuccessfulMessageRef.current,
+      timeSinceLastMessage: () => Date.now() - lastSuccessfulMessageRef.current,
+    },
+    
+    // Force cache refresh (useful for debugging)
+    forceCacheRefresh: useCallback(async (strategy: 'conservative' | 'aggressive' | 'minimal' = 'conservative') => {
+      console.log(`🔧 Force refreshing cache with ${strategy} strategy`);
+      await cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        () => queryClient.invalidateQueries(),
+        'Manual cache refresh',
+        { fallbackStrategy: strategy }
+      );
+    }, [queryClient]),
+    
+    // Reset connection (force reconnect)
+    resetConnection: useCallback(() => {
+      console.log('🔄 Resetting WebSocket connection');
+      reconnectAttemptsRef.current = 0;
+      disconnect();
+      setTimeout(() => connect(), 1000);
+    }, [connect, disconnect])
   };
 }
