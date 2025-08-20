@@ -190,8 +190,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
       toast.success("Task updated successfully");
       setEditingTitle(false);
       setEditingDescription(false);
-      queryClient.invalidateQueries({ queryKey: ['v2-task', taskId] });
-      queryClient.invalidateQueries({ queryKey: ['v2-project-tasks'] });
+      // Use standardized task invalidation
+      if (task?.projectId) {
+        cache.invalidateTask(taskId!, task.projectId);
+      }
     },
     onError: (error: any) => {
       toast.error(`Failed to update task: ${error.message}`);
@@ -203,7 +205,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     onSuccess: () => {
       toast.success("Task deleted successfully");
       onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: ['v2-project-tasks'] });
+      // Use standardized project task invalidation
+      if (task?.projectId) {
+        cache.invalidateProject(task.projectId);
+      }
     },
     onError: (error: any) => {
       toast.error(`Failed to delete task: ${error.message}`);
@@ -214,7 +219,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   const deleteAttachmentMutation = useMutation(orpc.tasks.deleteAttachment.mutationOptions({
     onSuccess: () => {
       toast.success("Attachment deleted successfully");
-      queryClient.invalidateQueries({ queryKey: ['v2-task', taskId] });
+      // Use standardized attachment invalidation
+      if (task?.projectId) {
+        cache.invalidateAttachments(taskId!);
+      }
     },
     onError: (error: any) => {
       toast.error(`Failed to delete attachment: ${error.message}`);

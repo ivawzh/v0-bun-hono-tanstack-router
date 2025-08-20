@@ -28,7 +28,6 @@ export const projects = pgTable("projects", {
   description: text("description"),
   ownerId: uuid("owner_id").notNull().references(() => users.id),
   memory: jsonb("memory").default({}), // Project context for agents
-  repoConcurrencyLimit: integer("repo_concurrency_limit").default(1),
   settings: jsonb("settings").default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
@@ -61,7 +60,7 @@ export const agents = pgTable("agents", {
   name: text("name").notNull(), // Auto-generated or user-defined
   agentType: agentClientTypeEnum("agent_type").notNull().default("CLAUDE_CODE"),
   agentSettings: jsonb("agent_settings").default({}).notNull(), // { CLAUDE_CONFIG_DIR, etc. }
-  maxConcurrencyLimit: integer("max_concurrency_limit").default(1), // User configurable concurrency limit per agent
+  maxConcurrencyLimit: integer("max_concurrency_limit").default(0), // 0 = limitless, >0 = max concurrent tasks per agent
   lastTaskPushedAt: timestamp("last_task_pushed_at"), // Track when agent last got assigned a task
   rateLimitResetAt: timestamp("rate_limit_reset_at"), // Direct field for rate limit reset time
   state: jsonb("state").default({}).notNull(), // Current state tracking (non-rate limit data)
@@ -76,7 +75,7 @@ export const repositories = pgTable("repositories", {
   name: text("name").notNull(),
   repoPath: text("repo_path").notNull(), // Local filesystem path
   isDefault: boolean("is_default").default(false), // One default per project
-  maxConcurrencyLimit: integer("max_concurrency_limit").default(1), // User configurable concurrency limit per repository
+  maxConcurrencyLimit: integer("max_concurrency_limit").default(1), // 0 = limitless, >0 = max concurrent tasks per repository
   lastTaskPushedAt: timestamp("last_task_pushed_at"), // Track when repo last got assigned a task
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()

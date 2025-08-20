@@ -49,13 +49,13 @@ Build a minimal, local-first task management system for dispatching coding tasks
 ### Repo
 
 - Repo path is a directory on the filesystem.
-- configurable concurrency limit
+- `maxConcurrencyLimit`: 0 = limitless, >0 = max concurrent tasks per repository
 - `lastTaskPushedAt` to avoid spamming
 
 ## Agent
 
 - The only agent type is Claude Code
-- configurable concurrency limit
+- `maxConcurrencyLimit`: 0 = limitless (default), >0 = max concurrent tasks per agent
 - `lastTaskPushedAt` to avoid spamming
 - `agentSettings` to store fields like CLAUDE_CONFIG_DIR. CLAUDE_CONFIG_DIR basically represents Claude Code account, so that we can switch agent (i.e. Claude Code account) while one agent is rate limited. This is also why task can have multiple agents assigned.
 

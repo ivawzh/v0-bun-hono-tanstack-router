@@ -50,14 +50,19 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
             )
         ),
         // Repository not at capacity (embedded subquery)
+        // 0 = limitless, >0 = actual limit
         sql`(
-          SELECT COUNT(*)
-          FROM tasks AS repo_tasks
-          WHERE repo_tasks.main_repository_id = ${schema.tasks.mainRepositoryId}
-            AND repo_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
-            AND repo_tasks.status != 'done'
-        ) < COALESCE(${schema.repositories.maxConcurrencyLimit}, 1)`,
+          COALESCE(${schema.repositories.maxConcurrencyLimit}, 1) = 0
+          OR (
+            SELECT COUNT(*)
+            FROM tasks AS repo_tasks
+            WHERE repo_tasks.main_repository_id = ${schema.tasks.mainRepositoryId}
+              AND repo_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
+              AND repo_tasks.status != 'done'
+          ) < ${schema.repositories.maxConcurrencyLimit}
+        )`,
         // Has at least one available agent (embedded subquery)
+        // 0 = limitless, >0 = actual limit
         sql`EXISTS (
           SELECT 1
           FROM task_agents ta
@@ -65,12 +70,15 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
           WHERE ta.task_id = ${schema.tasks.id}
             AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= NOW())
             AND (
-              SELECT COUNT(*)
-              FROM tasks agent_tasks
-              WHERE agent_tasks.active_agent_id = a.id
-                AND agent_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
-                AND agent_tasks.status != 'done'
-            ) < COALESCE(a.max_concurrency_limit, 1)
+              COALESCE(a.max_concurrency_limit, 0) = 0
+              OR (
+                SELECT COUNT(*)
+                FROM tasks agent_tasks
+                WHERE agent_tasks.active_agent_id = a.id
+                  AND agent_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
+                  AND agent_tasks.status != 'done'
+              ) < a.max_concurrency_limit
+            )
         )`
       )
     )
