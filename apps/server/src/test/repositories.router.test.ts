@@ -13,7 +13,7 @@ import {
   createComplexTestScenario
 } from "./fixtures";
 import { 
-  testRealRPCWithAuth,
+  testProtectedProcedure,
   assertRealRPCUnauthorized,
   testProjectMembershipValidation
 } from "./rpc-test-helpers";
@@ -113,7 +113,7 @@ describe("Repositories Router", () => {
       const repo2 = await createTestRepository(project2.id);
       
       // User1 should only see repositories from their project
-      const user1Repos = await testRealRPCWithAuth(
+      const user1Repos = await testProtectedProcedure(
         repositoriesRouter.list,
         user1,
         { projectId: project1.id }
@@ -123,7 +123,7 @@ describe("Repositories Router", () => {
       expect(user1Repos[0].id).toBe(repo1.id);
       
       // User2 should only see repositories from their project
-      const user2Repos = await testRealRPCWithAuth(
+      const user2Repos = await testProtectedProcedure(
         repositoriesRouter.list,
         user2,
         { projectId: project2.id }
@@ -147,7 +147,7 @@ describe("Repositories Router", () => {
       
       // User2 should not be able to access User1's repository
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           repositoriesRouter.get,
           user2,
           { id: repo1.id }
@@ -169,7 +169,7 @@ describe("Repositories Router", () => {
         maxConcurrencyLimit: 3
       };
       
-      const repository = await testRealRPCWithAuth(
+      const repository = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         repoData
@@ -187,7 +187,7 @@ describe("Repositories Router", () => {
       const project = await createTestProject(user.id);
       
       // Create first repository as default
-      const repo1 = await testRealRPCWithAuth(
+      const repo1 = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -201,7 +201,7 @@ describe("Repositories Router", () => {
       expect(repo1.isDefault).toBe(true);
       
       // Create second repository as default - should unset the first
-      const repo2 = await testRealRPCWithAuth(
+      const repo2 = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -215,7 +215,7 @@ describe("Repositories Router", () => {
       expect(repo2.isDefault).toBe(true);
       
       // Verify first repo is no longer default
-      const updatedRepo1 = await testRealRPCWithAuth(
+      const updatedRepo1 = await testProtectedProcedure(
         repositoriesRouter.get,
         user,
         { id: repo1.id }
@@ -233,7 +233,7 @@ describe("Repositories Router", () => {
       await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
       const repo2 = await createTestRepository(project.id, { name: "Default Repo", isDefault: true });
       
-      const repositories = await testRealRPCWithAuth(
+      const repositories = await testProtectedProcedure(
         repositoriesRouter.list,
         user,
         { projectId: project.id }
@@ -250,7 +250,7 @@ describe("Repositories Router", () => {
       const project = await createTestProject(user.id);
       const repository = await createTestRepository(project.id);
       
-      const retrievedRepo = await testRealRPCWithAuth(
+      const retrievedRepo = await testProtectedProcedure(
         repositoriesRouter.get,
         user,
         { id: repository.id }
@@ -273,7 +273,7 @@ describe("Repositories Router", () => {
         maxConcurrencyLimit: 5
       };
       
-      const updatedRepo = await testRealRPCWithAuth(
+      const updatedRepo = await testProtectedProcedure(
         repositoriesRouter.update,
         user,
         updates
@@ -294,7 +294,7 @@ describe("Repositories Router", () => {
       const repo2 = await createTestRepository(project.id, { name: "Repo 2", isDefault: false });
       
       // Update repo2 to be default
-      const updatedRepo2 = await testRealRPCWithAuth(
+      const updatedRepo2 = await testProtectedProcedure(
         repositoriesRouter.update,
         user,
         {
@@ -306,7 +306,7 @@ describe("Repositories Router", () => {
       expect(updatedRepo2.isDefault).toBe(true);
       
       // Verify repo1 is no longer default
-      const updatedRepo1 = await testRealRPCWithAuth(
+      const updatedRepo1 = await testProtectedProcedure(
         repositoriesRouter.get,
         user,
         { id: repo1.id }
@@ -320,7 +320,7 @@ describe("Repositories Router", () => {
       const project = await createTestProject(user.id);
       const repository = await createTestRepository(project.id);
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         repositoriesRouter.delete,
         user,
         { id: repository.id }
@@ -330,7 +330,7 @@ describe("Repositories Router", () => {
       
       // Verify repository is deleted
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           repositoriesRouter.get,
           user,
           { id: repository.id }
@@ -346,7 +346,7 @@ describe("Repositories Router", () => {
       
       // Test empty path
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -358,7 +358,7 @@ describe("Repositories Router", () => {
       ).rejects.toThrow();
       
       // Test valid path
-      const validRepo = await testRealRPCWithAuth(
+      const validRepo = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -376,7 +376,7 @@ describe("Repositories Router", () => {
       const project = await createTestProject(user.id);
       
       // Test minimum concurrency limit
-      const minRepo = await testRealRPCWithAuth(
+      const minRepo = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -390,7 +390,7 @@ describe("Repositories Router", () => {
       expect(minRepo.maxConcurrencyLimit).toBe(1);
       
       // Test maximum concurrency limit
-      const maxRepo = await testRealRPCWithAuth(
+      const maxRepo = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -410,7 +410,7 @@ describe("Repositories Router", () => {
       
       // Test empty name
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -423,7 +423,7 @@ describe("Repositories Router", () => {
       
       // Test maximum length name (100 characters)
       const longName = "a".repeat(100);
-      const validRepo = await testRealRPCWithAuth(
+      const validRepo = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -438,7 +438,7 @@ describe("Repositories Router", () => {
       // Test too long name (101 characters)
       const tooLongName = "a".repeat(101);
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -457,7 +457,7 @@ describe("Repositories Router", () => {
       const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
       
       try {
-        await testRealRPCWithAuth(repositoriesRouter.get, user, { id: nonExistentId });
+        await testProtectedProcedure(repositoriesRouter.get, user, { id: nonExistentId });
         throw new Error("Should have thrown not found error");
       } catch (error: any) {
         expect(error.message).toContain("Repository not found or unauthorized");
@@ -468,7 +468,7 @@ describe("Repositories Router", () => {
       const user = await createTestUser();
       
       try {
-        await testRealRPCWithAuth(repositoriesRouter.get, user, { id: "invalid-uuid" });
+        await testProtectedProcedure(repositoriesRouter.get, user, { id: "invalid-uuid" });
         throw new Error("Should have thrown validation error");
       } catch (error: any) {
         expect(error.message).toContain("uuid");
@@ -481,7 +481,7 @@ describe("Repositories Router", () => {
       
       // Test missing name
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -497,7 +497,7 @@ describe("Repositories Router", () => {
       
       // Test missing repoPath
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -518,7 +518,7 @@ describe("Repositories Router", () => {
       
       // Test zero concurrency limit (should fail - minValue is 1)
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -535,7 +535,7 @@ describe("Repositories Router", () => {
       
       // Test too high concurrency limit
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -557,7 +557,7 @@ describe("Repositories Router", () => {
       const scenario = await createComplexTestScenario();
       
       // Test that users can access their project's repositories  
-      const userRepos = await testRealRPCWithAuth(
+      const userRepos = await testProtectedProcedure(
         repositoriesRouter.list,
         scenario.users.owner,
         { projectId: scenario.project.id }
@@ -578,7 +578,7 @@ describe("Repositories Router", () => {
       
       // Create multiple repositories concurrently
       const promises = Array.from({ length: 3 }, (_, i) =>
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           repositoriesRouter.create,
           user,
           {
@@ -611,7 +611,7 @@ describe("Repositories Router", () => {
       const repo3 = await createTestRepository(project.id, { name: "Repo 3", isDefault: false });
       
       // List repositories to verify ordering and default state
-      let repos = await testRealRPCWithAuth(
+      let repos = await testProtectedProcedure(
         repositoriesRouter.list,
         user,
         { projectId: project.id }
@@ -620,7 +620,7 @@ describe("Repositories Router", () => {
       expect(repos[0].isDefault).toBe(true); // Default should be first
       
       // Update another repository to be default
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         repositoriesRouter.update,
         user,
         {
@@ -630,7 +630,7 @@ describe("Repositories Router", () => {
       );
       
       // Verify only one repository is default
-      repos = await testRealRPCWithAuth(
+      repos = await testProtectedProcedure(
         repositoriesRouter.list,
         user,
         { projectId: project.id }
@@ -648,7 +648,7 @@ describe("Repositories Router", () => {
       const project = await createTestProject(user.id);
       
       // Create repository
-      const createdRepository = await testRealRPCWithAuth(
+      const createdRepository = await testProtectedProcedure(
         repositoriesRouter.create,
         user,
         {
@@ -664,7 +664,7 @@ describe("Repositories Router", () => {
       expect(createdRepository.isDefault).toBe(true);
       
       // Read repository
-      const readRepository = await testRealRPCWithAuth(
+      const readRepository = await testProtectedProcedure(
         repositoriesRouter.get,
         user,
         { id: createdRepository.id }
@@ -675,7 +675,7 @@ describe("Repositories Router", () => {
       expect(readRepository.maxConcurrencyLimit).toBe(3);
       
       // Update repository
-      const updatedRepository = await testRealRPCWithAuth(
+      const updatedRepository = await testProtectedProcedure(
         repositoriesRouter.update,
         user,
         {
@@ -693,7 +693,7 @@ describe("Repositories Router", () => {
       expect(updatedRepository.maxConcurrencyLimit).toBe(5);
       
       // List should include updated repository
-      const listedRepositories = await testRealRPCWithAuth(
+      const listedRepositories = await testProtectedProcedure(
         repositoriesRouter.list,
         user,
         { projectId: project.id }
@@ -703,7 +703,7 @@ describe("Repositories Router", () => {
       expect(foundRepository?.name).toBe("Updated Lifecycle Repository");
       
       // Delete repository
-      const deleteResult = await testRealRPCWithAuth(
+      const deleteResult = await testProtectedProcedure(
         repositoriesRouter.delete,
         user,
         { id: createdRepository.id }
@@ -713,7 +713,7 @@ describe("Repositories Router", () => {
       
       // Verify deletion
       try {
-        await testRealRPCWithAuth(repositoriesRouter.get, user, { id: createdRepository.id });
+        await testProtectedProcedure(repositoriesRouter.get, user, { id: createdRepository.id });
         throw new Error("Repository should have been deleted");
       } catch (error: any) {
         expect(error.message).toContain("Repository not found or unauthorized");

@@ -18,7 +18,7 @@ import {
   createCompleteTestSetup
 } from "./fixtures";
 import { 
-  testRealRPCWithAuth,
+  testProtectedProcedure,
   assertRealRPCUnauthorized,
   testProjectMembershipValidation
 } from "./rpc-test-helpers";
@@ -95,7 +95,7 @@ describe("Tasks Router", () => {
       });
       
       // User 1 should only see their project's tasks
-      const user1Tasks = await testRealRPCWithAuth(
+      const user1Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user1,
         { projectId: user1Project.id }
@@ -106,7 +106,7 @@ describe("Tasks Router", () => {
       expect(user1Tasks[0].rawTitle).toBe("User 1 Task");
       
       // User 2 should only see their project's tasks
-      const user2Tasks = await testRealRPCWithAuth(
+      const user2Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user2,
         { projectId: user2Project.id }
@@ -122,7 +122,7 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       
       // Owner should be able to access
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.list,
         owner,
         { projectId: project.id }
@@ -130,7 +130,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.list,
           nonMember,
           { projectId: project.id }
@@ -145,7 +145,7 @@ describe("Tasks Router", () => {
       const user = await createTestUser();
       const project = await createTestProject(user.id);
       
-      const tasks = await testRealRPCWithAuth(
+      const tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
         { projectId: project.id }
@@ -180,7 +180,7 @@ describe("Tasks Router", () => {
         columnOrder: "1000"
       });
       
-      const tasks = await testRealRPCWithAuth(
+      const tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
         { projectId: project.id }
@@ -205,7 +205,7 @@ describe("Tasks Router", () => {
         actorId: actor.id
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
@@ -225,11 +225,11 @@ describe("Tasks Router", () => {
       const task = await createTestTask(project.id, repository.id);
       
       // Owner should be able to access
-      await testRealRPCWithAuth(tasksRouter.get, owner, { id: task.id });
+      await testProtectedProcedure(tasksRouter.get, owner, { id: task.id });
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(tasksRouter.get, nonMember, { id: task.id });
+        await testProtectedProcedure(tasksRouter.get, nonMember, { id: task.id });
         throw new Error("Should have been denied access");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -251,7 +251,7 @@ describe("Tasks Router", () => {
         actorId: actor.id
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
@@ -268,7 +268,7 @@ describe("Tasks Router", () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository, agent, actor } = setup;
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.create,
         user,
         {
@@ -299,7 +299,7 @@ describe("Tasks Router", () => {
       const repository = await createTestRepository(project.id);
       
       // Owner should be able to create
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.create,
         owner,
         {
@@ -311,7 +311,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.create,
           nonMember,
           {
@@ -330,7 +330,7 @@ describe("Tasks Router", () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.create,
         user,
         {
@@ -354,7 +354,7 @@ describe("Tasks Router", () => {
       
       // Try to create task in project1 with repo from project2
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.create,
           user1,
           {
@@ -378,7 +378,7 @@ describe("Tasks Router", () => {
       
       // Try to create task in project1 with agent from project2
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.create,
           user1,
           {
@@ -406,7 +406,7 @@ describe("Tasks Router", () => {
         priority: 3
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.update,
         user,
         {
@@ -433,7 +433,7 @@ describe("Tasks Router", () => {
       const task = await createTestTask(project.id, repository.id);
       
       // Owner should be able to update
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.update,
         owner,
         { id: task.id, rawTitle: "Owner Update" }
@@ -441,7 +441,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.update,
           nonMember,
           { id: task.id, rawTitle: "Unauthorized Update" }
@@ -460,7 +460,7 @@ describe("Tasks Router", () => {
       
       const task = await createTestTask(project.id, repository.id);
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.delete,
         user,
         { id: task.id }
@@ -470,7 +470,7 @@ describe("Tasks Router", () => {
       
       // Verify task is deleted
       try {
-        await testRealRPCWithAuth(tasksRouter.get, user, { id: task.id });
+        await testProtectedProcedure(tasksRouter.get, user, { id: task.id });
         throw new Error("Task should have been deleted");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -485,7 +485,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(tasksRouter.delete, nonMember, { id: task.id });
+        await testProtectedProcedure(tasksRouter.delete, nonMember, { id: task.id });
         throw new Error("Should have been denied access");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -501,7 +501,7 @@ describe("Tasks Router", () => {
       const task = await createTestTask(project.id, repository.id, { ready: false });
       
       // Set to ready
-      const result1 = await testRealRPCWithAuth(
+      const result1 = await testProtectedProcedure(
         tasksRouter.toggleReady,
         user,
         { id: task.id, ready: true }
@@ -510,7 +510,7 @@ describe("Tasks Router", () => {
       expect(result1.ready).toBe(true);
       
       // Set to not ready
-      const result2 = await testRealRPCWithAuth(
+      const result2 = await testProtectedProcedure(
         tasksRouter.toggleReady,
         user,
         { id: task.id, ready: false }
@@ -527,7 +527,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.toggleReady,
           nonMember,
           { id: task.id, ready: true }
@@ -556,7 +556,7 @@ describe("Tasks Router", () => {
         status: "todo"
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.updateOrder,
         user,
         {
@@ -580,7 +580,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.updateOrder,
           nonMember,
           {
@@ -605,7 +605,7 @@ describe("Tasks Router", () => {
         stage: "clarify"
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.updateStage,
         user,
         { id: task.id, stage: "execute" }
@@ -622,7 +622,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.updateStage,
           nonMember,
           { id: task.id, stage: "plan" }
@@ -644,7 +644,7 @@ describe("Tasks Router", () => {
         activeAgentId: agent.id
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         tasksRouter.resetAgent,
         user,
         { id: task.id }
@@ -662,7 +662,7 @@ describe("Tasks Router", () => {
       
       // Non-member should be denied
       try {
-        await testRealRPCWithAuth(tasksRouter.resetAgent, nonMember, { id: task.id });
+        await testProtectedProcedure(tasksRouter.resetAgent, nonMember, { id: task.id });
         throw new Error("Should have been denied access");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -698,7 +698,7 @@ describe("Tasks Router", () => {
         
         // Non-member should be denied
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.uploadAttachment,
             nonMember,
             { taskId: task.id, file: fakeFile }
@@ -719,7 +719,7 @@ describe("Tasks Router", () => {
         
         // This should either succeed or fail gracefully with proper error handling
         try {
-          const result = await testRealRPCWithAuth(
+          const result = await testProtectedProcedure(
             tasksRouter.uploadAttachment,
             user,
             { taskId: task.id, file: emptyFile }
@@ -752,7 +752,7 @@ describe("Tasks Router", () => {
         
         for (const file of testFiles) {
           try {
-            const result = await testRealRPCWithAuth(
+            const result = await testProtectedProcedure(
               tasksRouter.uploadAttachment,
               user,
               { taskId: task.id, file }
@@ -785,7 +785,7 @@ describe("Tasks Router", () => {
         
         // User1 cannot upload to User2's task
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.uploadAttachment,
             user1,
             { taskId: task2.id, file: testFile }
@@ -797,7 +797,7 @@ describe("Tasks Router", () => {
         
         // User2 cannot upload to User1's task
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.uploadAttachment,
             user2,
             { taskId: task1.id, file: testFile }
@@ -819,7 +819,7 @@ describe("Tasks Router", () => {
         
         // Non-member should be denied
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.getAttachment,
             nonMember,
             { taskId: task.id, attachmentId }
@@ -838,7 +838,7 @@ describe("Tasks Router", () => {
         
         // Should handle missing attachment properly
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.getAttachment,
             user,
             { taskId: task.id, attachmentId: nonExistentAttachmentId }
@@ -859,7 +859,7 @@ describe("Tasks Router", () => {
         
         // Should validate UUID format
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.getAttachment,
             user,
             { taskId: task.id, attachmentId: "invalid-uuid" }
@@ -884,7 +884,7 @@ describe("Tasks Router", () => {
         
         // Even if user owns both tasks, specific attachment should belong to specific task
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.getAttachment,
             user,
             { taskId: task1.id, attachmentId }
@@ -909,7 +909,7 @@ describe("Tasks Router", () => {
         
         // Non-member should be denied
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.deleteAttachment,
             nonMember,
             { taskId: task.id, attachmentId }
@@ -928,7 +928,7 @@ describe("Tasks Router", () => {
         
         // Should handle missing attachment deletion gracefully
         try {
-          const result = await testRealRPCWithAuth(
+          const result = await testProtectedProcedure(
             tasksRouter.deleteAttachment,
             user,
             { taskId: task.id, attachmentId: nonExistentAttachmentId }
@@ -957,7 +957,7 @@ describe("Tasks Router", () => {
         
         for (const input of invalidInputs) {
           try {
-            await testRealRPCWithAuth(
+            await testProtectedProcedure(
               tasksRouter.deleteAttachment,
               user,
               input
@@ -987,7 +987,7 @@ describe("Tasks Router", () => {
         
         // User1 cannot delete attachments from User2's project
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.deleteAttachment,
             user1,
             { taskId: task2.id, attachmentId }
@@ -999,7 +999,7 @@ describe("Tasks Router", () => {
         
         // User2 cannot delete attachments from User1's project
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.deleteAttachment,
             user2,
             { taskId: task1.id, attachmentId }
@@ -1021,7 +1021,7 @@ describe("Tasks Router", () => {
         
         // Non-member should be denied
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.downloadAttachment,
             nonMember,
             { taskId: task.id, attachmentId }
@@ -1040,7 +1040,7 @@ describe("Tasks Router", () => {
         
         // Should return proper structure or proper error for missing file
         try {
-          const result = await testRealRPCWithAuth(
+          const result = await testProtectedProcedure(
             tasksRouter.downloadAttachment,
             user,
             { taskId: task.id, attachmentId }
@@ -1067,7 +1067,7 @@ describe("Tasks Router", () => {
         
         // Multiple concurrent download attempts should be handled gracefully
         const downloadPromises = Array(3).fill(null).map(() => 
-          testRealRPCWithAuth(
+          testProtectedProcedure(
             tasksRouter.downloadAttachment,
             user,
             { taskId: task.id, attachmentId }
@@ -1106,7 +1106,7 @@ describe("Tasks Router", () => {
         // Should not be able to download non-existent attachment from either task
         for (const task of [task1, task2]) {
           try {
-            await testRealRPCWithAuth(
+            await testProtectedProcedure(
               tasksRouter.downloadAttachment,
               user,
               { taskId: task.id, attachmentId: fakeAttachmentId }
@@ -1135,7 +1135,7 @@ describe("Tasks Router", () => {
         
         try {
           // Upload attachment
-          const uploadResult = await testRealRPCWithAuth(
+          const uploadResult = await testProtectedProcedure(
             tasksRouter.uploadAttachment,
             user,
             { taskId: task.id, file: testFile }
@@ -1144,7 +1144,7 @@ describe("Tasks Router", () => {
           const attachmentId = uploadResult.attachment.id;
           
           // Get attachment metadata
-          const getResult = await testRealRPCWithAuth(
+          const getResult = await testProtectedProcedure(
             tasksRouter.getAttachment,
             user,
             { taskId: task.id, attachmentId }
@@ -1154,7 +1154,7 @@ describe("Tasks Router", () => {
           expect(getResult.metadata.type).toBe("text/plain");
           
           // Download attachment
-          const downloadResult = await testRealRPCWithAuth(
+          const downloadResult = await testProtectedProcedure(
             tasksRouter.downloadAttachment,
             user,
             { taskId: task.id, attachmentId }
@@ -1164,7 +1164,7 @@ describe("Tasks Router", () => {
           expect(downloadResult.metadata.originalName).toBe("test-file.txt");
           
           // Delete attachment
-          const deleteResult = await testRealRPCWithAuth(
+          const deleteResult = await testProtectedProcedure(
             tasksRouter.deleteAttachment,
             user,
             { taskId: task.id, attachmentId }
@@ -1174,7 +1174,7 @@ describe("Tasks Router", () => {
           
           // Verify attachment is deleted
           try {
-            await testRealRPCWithAuth(
+            await testProtectedProcedure(
               tasksRouter.getAttachment,
               user,
               { taskId: task.id, attachmentId }
@@ -1216,7 +1216,7 @@ describe("Tasks Router", () => {
         
         for (const operation of operationsToTest) {
           try {
-            await testRealRPCWithAuth(
+            await testProtectedProcedure(
               tasksRouter[operation.name as keyof typeof tasksRouter],
               user1, // User1 trying to access User2's task
               operation.input as any
@@ -1248,7 +1248,7 @@ describe("Tasks Router", () => {
       });
       
       // User 1 should not see User 2's tasks in list
-      const user1Tasks = await testRealRPCWithAuth(
+      const user1Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user1,
         { projectId: user1Project.id }
@@ -1258,7 +1258,7 @@ describe("Tasks Router", () => {
       
       // User 1 should not be able to access User 2's task
       try {
-        await testRealRPCWithAuth(tasksRouter.get, user1, { id: user2Task.id });
+        await testProtectedProcedure(tasksRouter.get, user1, { id: user2Task.id });
         throw new Error("Should have been denied access");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -1266,7 +1266,7 @@ describe("Tasks Router", () => {
       
       // User 1 should not be able to update User 2's task
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.update,
           user1,
           { id: user2Task.id, rawTitle: "Hacked" }
@@ -1278,7 +1278,7 @@ describe("Tasks Router", () => {
       
       // User 1 should not be able to delete User 2's task
       try {
-        await testRealRPCWithAuth(tasksRouter.delete, user1, { id: user2Task.id });
+        await testProtectedProcedure(tasksRouter.delete, user1, { id: user2Task.id });
         throw new Error("Should have been denied access");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -1297,7 +1297,7 @@ describe("Tasks Router", () => {
       const task2 = await createTestTask(project2.id, repo2.id);
       
       // Project 1 list should not include Project 2 tasks
-      const project1Tasks = await testRealRPCWithAuth(
+      const project1Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
         { projectId: project1.id }
@@ -1306,7 +1306,7 @@ describe("Tasks Router", () => {
       expect(project1Tasks[0].id).toBe(task1.id);
       
       // Project 2 list should not include Project 1 tasks  
-      const project2Tasks = await testRealRPCWithAuth(
+      const project2Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
         { projectId: project2.id }
@@ -1322,7 +1322,7 @@ describe("Tasks Router", () => {
       const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
       
       try {
-        await testRealRPCWithAuth(tasksRouter.get, user, { id: nonExistentId });
+        await testProtectedProcedure(tasksRouter.get, user, { id: nonExistentId });
         throw new Error("Should have thrown not found error");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -1333,7 +1333,7 @@ describe("Tasks Router", () => {
       const user = await createTestUser();
       
       try {
-        await testRealRPCWithAuth(tasksRouter.get, user, { id: "invalid-uuid" });
+        await testProtectedProcedure(tasksRouter.get, user, { id: "invalid-uuid" });
         throw new Error("Should have thrown validation error");
       } catch (error: any) {
         expect(error.message).toContain("uuid");
@@ -1347,7 +1347,7 @@ describe("Tasks Router", () => {
       
       // Test missing title - this should trigger validation error
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.create,
           user,
           {
@@ -1378,7 +1378,7 @@ describe("Tasks Router", () => {
       
       // Test getAttachment with non-existent attachment
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.getAttachment,
           user,
           { taskId: task.id, attachmentId: nonExistentAttachmentId }
@@ -1405,7 +1405,7 @@ describe("Tasks Router", () => {
       });
       
       // Move to doing should set clarify stage
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.updateOrder,
         user,
         {
@@ -1414,7 +1414,7 @@ describe("Tasks Router", () => {
         }
       );
       
-      const updatedTask = await testRealRPCWithAuth(
+      const updatedTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
@@ -1434,7 +1434,7 @@ describe("Tasks Router", () => {
       });
       
       // Move loop task to doing should maintain loop stage
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.updateOrder,
         user,
         {
@@ -1443,7 +1443,7 @@ describe("Tasks Router", () => {
         }
       );
       
-      const updatedTask = await testRealRPCWithAuth(
+      const updatedTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
@@ -1460,7 +1460,7 @@ describe("Tasks Router", () => {
       const { user, project, repository, agent, actor } = setup;
       
       // Create task
-      const createdTask = await testRealRPCWithAuth(
+      const createdTask = await testProtectedProcedure(
         tasksRouter.create,
         user,
         {
@@ -1477,7 +1477,7 @@ describe("Tasks Router", () => {
       expect(createdTask.rawTitle).toBe("Lifecycle Task");
       
       // Read task
-      const readTask = await testRealRPCWithAuth(
+      const readTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: createdTask.id }
@@ -1486,7 +1486,7 @@ describe("Tasks Router", () => {
       expect(readTask.id).toBe(createdTask.id);
       
       // Update task
-      const updatedTask = await testRealRPCWithAuth(
+      const updatedTask = await testProtectedProcedure(
         tasksRouter.update,
         user,
         {
@@ -1501,28 +1501,28 @@ describe("Tasks Router", () => {
       expect(updatedTask.priority).toBe(5);
       
       // Toggle ready status
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.toggleReady,
         user,
         { id: createdTask.id, ready: true }
       );
       
       // Update stage
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.updateStage,
         user,
         { id: createdTask.id, stage: "execute" }
       );
       
       // Reset agent
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.resetAgent,
         user,
         { id: createdTask.id }
       );
       
       // Update order/status
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         tasksRouter.updateOrder,
         user,
         {
@@ -1532,7 +1532,7 @@ describe("Tasks Router", () => {
       );
       
       // Verify final state
-      const finalTask = await testRealRPCWithAuth(
+      const finalTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: createdTask.id }
@@ -1542,7 +1542,7 @@ describe("Tasks Router", () => {
       expect(finalTask.agentSessionStatus).toBe("NON_ACTIVE");
       
       // Delete task
-      const deleteResult = await testRealRPCWithAuth(
+      const deleteResult = await testProtectedProcedure(
         tasksRouter.delete,
         user,
         { id: createdTask.id }
@@ -1568,7 +1568,7 @@ describe("Tasks Router", () => {
       
       for (const malformedUUID of malformedUUIDs) {
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.get,
             user,
             { id: malformedUUID as any }
@@ -1597,7 +1597,7 @@ describe("Tasks Router", () => {
       
       // Test concurrent read operations
       const readPromises = Array(5).fill(null).map(() =>
-        testRealRPCWithAuth(tasksRouter.get, user, { id: task.id })
+        testProtectedProcedure(tasksRouter.get, user, { id: task.id })
       );
       
       const readResults = await Promise.allSettled(readPromises);
@@ -1612,7 +1612,7 @@ describe("Tasks Router", () => {
       
       // Test concurrent update operations
       const updatePromises = Array(3).fill(null).map((_, index) =>
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           tasksRouter.update,
           user,
           {
@@ -1658,7 +1658,7 @@ describe("Tasks Router", () => {
       
       for (const invalidInput of invalidInputs) {
         try {
-          await testRealRPCWithAuth(
+          await testProtectedProcedure(
             tasksRouter.create,
             user,
             {
@@ -1693,7 +1693,7 @@ describe("Tasks Router", () => {
       const longDescription = "B".repeat(10000); // Very long description
       
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.create,
           user,
           {
@@ -1734,7 +1734,7 @@ describe("Tasks Router", () => {
       ];
       
       for (const transition of transitions) {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           tasksRouter.updateOrder,
           user,
           {
@@ -1747,7 +1747,7 @@ describe("Tasks Router", () => {
           }
         );
         
-        const updatedTask = await testRealRPCWithAuth(
+        const updatedTask = await testProtectedProcedure(
           tasksRouter.get,
           user,
           { id: task.id }
@@ -1765,7 +1765,7 @@ describe("Tasks Router", () => {
       const { user, project, repository } = setup;
       
       // Create task with minimal required fields
-      const minimalTask = await testRealRPCWithAuth(
+      const minimalTask = await testProtectedProcedure(
         tasksRouter.create,
         user,
         {
@@ -1783,7 +1783,7 @@ describe("Tasks Router", () => {
       expect(minimalTask.actorId).toBeNull();
       
       // Update with partial fields
-      const partialUpdate = await testRealRPCWithAuth(
+      const partialUpdate = await testProtectedProcedure(
         tasksRouter.update,
         user,
         {

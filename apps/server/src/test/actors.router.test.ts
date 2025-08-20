@@ -13,7 +13,7 @@ import {
   createComplexTestScenario
 } from "./fixtures";
 import { 
-  testRealRPCWithAuth,
+  testProtectedProcedure,
   assertRealRPCUnauthorized,
   testProjectMembershipValidation
 } from "./rpc-test-helpers";
@@ -113,7 +113,7 @@ describe("Actors Router", () => {
       const actor2 = await createTestActor(project2.id);
       
       // User1 should only see actors from their project
-      const user1Actors = await testRealRPCWithAuth(
+      const user1Actors = await testProtectedProcedure(
         actorsRouter.list,
         user1,
         { projectId: project1.id }
@@ -123,7 +123,7 @@ describe("Actors Router", () => {
       expect(user1Actors[0].id).toBe(actor1.id);
       
       // User2 should only see actors from their project
-      const user2Actors = await testRealRPCWithAuth(
+      const user2Actors = await testProtectedProcedure(
         actorsRouter.list,
         user2,
         { projectId: project2.id }
@@ -147,7 +147,7 @@ describe("Actors Router", () => {
       
       // User2 should not be able to access User1's actor
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.get,
           user2,
           { id: actor1.id }
@@ -168,7 +168,7 @@ describe("Actors Router", () => {
         isDefault: true
       };
       
-      const actor = await testRealRPCWithAuth(
+      const actor = await testProtectedProcedure(
         actorsRouter.create,
         user,
         actorData
@@ -185,7 +185,7 @@ describe("Actors Router", () => {
       const project = await createTestProject(user.id);
       
       // Create first actor as default
-      const actor1 = await testRealRPCWithAuth(
+      const actor1 = await testProtectedProcedure(
         actorsRouter.create,
         user,
         {
@@ -199,7 +199,7 @@ describe("Actors Router", () => {
       expect(actor1.isDefault).toBe(true);
       
       // Create second actor as default - should unset the first
-      const actor2 = await testRealRPCWithAuth(
+      const actor2 = await testProtectedProcedure(
         actorsRouter.create,
         user,
         {
@@ -213,7 +213,7 @@ describe("Actors Router", () => {
       expect(actor2.isDefault).toBe(true);
       
       // Verify first actor is no longer default
-      const updatedActor1 = await testRealRPCWithAuth(
+      const updatedActor1 = await testProtectedProcedure(
         actorsRouter.get,
         user,
         { id: actor1.id }
@@ -231,7 +231,7 @@ describe("Actors Router", () => {
       await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
       const actor2 = await createTestActor(project.id, { name: "Default Actor", isDefault: true });
       
-      const actors = await testRealRPCWithAuth(
+      const actors = await testProtectedProcedure(
         actorsRouter.list,
         user,
         { projectId: project.id }
@@ -248,7 +248,7 @@ describe("Actors Router", () => {
       const project = await createTestProject(user.id);
       const actor = await createTestActor(project.id);
       
-      const retrievedActor = await testRealRPCWithAuth(
+      const retrievedActor = await testProtectedProcedure(
         actorsRouter.get,
         user,
         { id: actor.id }
@@ -271,7 +271,7 @@ describe("Actors Router", () => {
         isDefault: true
       };
       
-      const updatedActor = await testRealRPCWithAuth(
+      const updatedActor = await testProtectedProcedure(
         actorsRouter.update,
         user,
         updates
@@ -292,7 +292,7 @@ describe("Actors Router", () => {
       const actor2 = await createTestActor(project.id, { name: "Actor 2", isDefault: false });
       
       // Update actor2 to be default
-      const updatedActor2 = await testRealRPCWithAuth(
+      const updatedActor2 = await testProtectedProcedure(
         actorsRouter.update,
         user,
         {
@@ -304,7 +304,7 @@ describe("Actors Router", () => {
       expect(updatedActor2.isDefault).toBe(true);
       
       // Verify actor1 is no longer default
-      const updatedActor1 = await testRealRPCWithAuth(
+      const updatedActor1 = await testProtectedProcedure(
         actorsRouter.get,
         user,
         { id: actor1.id }
@@ -321,7 +321,7 @@ describe("Actors Router", () => {
       const actor1 = await createTestActor(project.id, { name: "Actor 1", isDefault: false });
       const actor2 = await createTestActor(project.id, { name: "Actor 2", isDefault: true });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         actorsRouter.delete,
         user,
         { id: actor1.id }
@@ -331,7 +331,7 @@ describe("Actors Router", () => {
       
       // Verify actor is deleted
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.get,
           user,
           { id: actor1.id }
@@ -346,7 +346,7 @@ describe("Actors Router", () => {
       
       // Should not be able to delete the only actor
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.delete,
           user,
           { id: actor.id }
@@ -363,7 +363,7 @@ describe("Actors Router", () => {
       const actor2 = await createTestActor(project.id, { name: "Regular Actor", isDefault: false });
       
       // Delete the default actor
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         actorsRouter.delete,
         user,
         { id: actor1.id }
@@ -372,7 +372,7 @@ describe("Actors Router", () => {
       expect(result.success).toBe(true);
       
       // Verify the remaining actor became default
-      const updatedActor2 = await testRealRPCWithAuth(
+      const updatedActor2 = await testProtectedProcedure(
         actorsRouter.get,
         user,
         { id: actor2.id }
@@ -389,7 +389,7 @@ describe("Actors Router", () => {
       
       // Test empty name
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.create,
           user,
           {
@@ -402,7 +402,7 @@ describe("Actors Router", () => {
       
       // Test maximum length name (255 characters)
       const longName = "a".repeat(255);
-      const validActor = await testRealRPCWithAuth(
+      const validActor = await testProtectedProcedure(
         actorsRouter.create,
         user,
         {
@@ -417,7 +417,7 @@ describe("Actors Router", () => {
       // Test too long name (256 characters)
       const tooLongName = "a".repeat(256);
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.create,
           user,
           {
@@ -435,7 +435,7 @@ describe("Actors Router", () => {
       
       // Test empty description
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.create,
           user,
           {
@@ -448,7 +448,7 @@ describe("Actors Router", () => {
       
       // Test valid long description
       const longDescription = "This is a very detailed description of an actor with specific methodologies, focus areas, and expertise. ".repeat(10);
-      const validActor = await testRealRPCWithAuth(
+      const validActor = await testProtectedProcedure(
         actorsRouter.create,
         user,
         {
@@ -467,14 +467,14 @@ describe("Actors Router", () => {
       const scenario = await createComplexTestScenario();
       
       // Test that users can access their project's actors
-      const userActors = await testRealRPCWithAuth(
+      const userActors = await testProtectedProcedure(
         actorsRouter.list,
         scenario.users.owner,
         { projectId: scenario.project.id }
       );
       
       // Test member access to same project
-      const memberActors = await testRealRPCWithAuth(
+      const memberActors = await testProtectedProcedure(
         actorsRouter.list,
         scenario.users.member1,
         { projectId: scenario.project.id }
@@ -489,7 +489,7 @@ describe("Actors Router", () => {
       
       // Test outsider cannot access the project
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.list,
           scenario.users.outsider,
           { projectId: scenario.project.id }
@@ -503,7 +503,7 @@ describe("Actors Router", () => {
       
       // Create multiple actors concurrently
       const promises = Array.from({ length: 3 }, (_, i) =>
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           actorsRouter.create,
           user,
           {
@@ -536,7 +536,7 @@ describe("Actors Router", () => {
       const actor3 = await createTestActor(project.id, { name: "Actor 3", isDefault: false });
       
       // List actors to verify ordering and default state
-      let actors = await testRealRPCWithAuth(
+      let actors = await testProtectedProcedure(
         actorsRouter.list,
         user,
         { projectId: project.id }
@@ -545,7 +545,7 @@ describe("Actors Router", () => {
       expect(actors[0].isDefault).toBe(true); // Default should be first
       
       // Update another actor to be default
-      await testRealRPCWithAuth(
+      await testProtectedProcedure(
         actorsRouter.update,
         user,
         {
@@ -555,7 +555,7 @@ describe("Actors Router", () => {
       );
       
       // Verify only one actor is default
-      actors = await testRealRPCWithAuth(
+      actors = await testProtectedProcedure(
         actorsRouter.list,
         user,
         { projectId: project.id }
@@ -588,7 +588,7 @@ describe("Actors Router", () => {
       // Create all complex actors
       const createdActors = await Promise.all(
         complexActors.map(actor =>
-          testRealRPCWithAuth(
+          testProtectedProcedure(
             actorsRouter.create,
             user,
             {

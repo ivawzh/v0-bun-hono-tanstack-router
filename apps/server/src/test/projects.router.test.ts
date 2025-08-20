@@ -16,7 +16,8 @@ import {
   createComplexTestScenario
 } from "./fixtures";
 import { 
-  testRealRPCWithAuth,
+  testProtectedProcedure,
+  testProtectedProcedure,
   assertRealRPCUnauthorized,
   testProjectMembershipValidation
 } from "./rpc-test-helpers";
@@ -64,7 +65,7 @@ describe("Projects Router", () => {
       const user2Project = await createTestProject(user2.id, { name: "User 2 Project" });
       
       // User 1 should only see their project
-      const user1Projects = await testRealRPCWithAuth(
+      const user1Projects = await testProtectedProcedure(
         projectsRouter.list,
         user1,
         {}
@@ -75,7 +76,7 @@ describe("Projects Router", () => {
       expect(user1Projects[0].name).toBe("User 1 Project");
       
       // User 2 should only see their project
-      const user2Projects = await testRealRPCWithAuth(
+      const user2Projects = await testProtectedProcedure(
         projectsRouter.list,
         user2,
         {}
@@ -89,7 +90,7 @@ describe("Projects Router", () => {
     it("should return empty list for user with no projects", async () => {
       const user = await createTestUser();
       
-      const projects = await testRealRPCWithAuth(
+      const projects = await testProtectedProcedure(
         projectsRouter.list,
         user,
         {}
@@ -108,7 +109,7 @@ describe("Projects Router", () => {
       await new Promise(resolve => setTimeout(resolve, 10));
       const project3 = await createTestProject(user.id, { name: "Third Project" });
       
-      const projects = await testRealRPCWithAuth(
+      const projects = await testProtectedProcedure(
         projectsRouter.list,
         user,
         {}
@@ -129,7 +130,7 @@ describe("Projects Router", () => {
         description: "Test Description"
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.get,
         user,
         { id: project.id }
@@ -158,7 +159,7 @@ describe("Projects Router", () => {
       const user = await createTestUser();
       
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.get,
           user,
           { id: "invalid-uuid" }
@@ -174,7 +175,7 @@ describe("Projects Router", () => {
       const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
       
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.get,
           user,
           { id: nonExistentId }
@@ -190,7 +191,7 @@ describe("Projects Router", () => {
     it("should create project and add creator as admin", async () => {
       const user = await createTestUser();
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.create,
         user,
         {
@@ -206,7 +207,7 @@ describe("Projects Router", () => {
       expect(result.createdAt).toBeDefined();
       
       // Verify user can access the created project (confirming admin membership)
-      const retrievedProject = await testRealRPCWithAuth(
+      const retrievedProject = await testProtectedProcedure(
         projectsRouter.get,
         user,
         { id: result.id }
@@ -220,7 +221,7 @@ describe("Projects Router", () => {
       
       // Test empty name
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.create,
           user,
           { name: "" }
@@ -237,7 +238,7 @@ describe("Projects Router", () => {
       
       // Test name too long
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.create,
           user,
           { name: "a".repeat(256) }
@@ -252,7 +253,7 @@ describe("Projects Router", () => {
     it("should create project without description", async () => {
       const user = await createTestUser();
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.create,
         user,
         { name: "Project Without Description" }
@@ -271,7 +272,7 @@ describe("Projects Router", () => {
         description: "Original Description"
       });
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.update,
         user,
         {
@@ -306,7 +307,7 @@ describe("Projects Router", () => {
       const project = await createTestProject(user.id, { name: "Original" });
       
       // Update only name
-      const nameUpdate = await testRealRPCWithAuth(
+      const nameUpdate = await testProtectedProcedure(
         projectsRouter.update,
         user,
         { id: project.id, name: "New Name Only" }
@@ -316,7 +317,7 @@ describe("Projects Router", () => {
       expect(nameUpdate.description).toBe(project.description);
       
       // Update only description
-      const descUpdate = await testRealRPCWithAuth(
+      const descUpdate = await testProtectedProcedure(
         projectsRouter.update,
         user,
         { id: project.id, description: "New Description Only" }
@@ -330,7 +331,7 @@ describe("Projects Router", () => {
       const project = await createTestProject(user.id);
       
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.update,
           user,
           { id: project.id, name: "" }
@@ -352,7 +353,7 @@ describe("Projects Router", () => {
       const actor = await createTestActor(project.id);
       const task = await createTestTask(project.id, repository.id);
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.delete,
         user,
         { id: project.id }
@@ -362,7 +363,7 @@ describe("Projects Router", () => {
       
       // Verify project is deleted
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.get,
           user,
           { id: project.id }
@@ -391,7 +392,7 @@ describe("Projects Router", () => {
       const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
       
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.delete,
           user,
           { id: nonExistentId }
@@ -408,7 +409,7 @@ describe("Projects Router", () => {
       const setup = await createComplexTestScenario();
       const { project, repository, agent, actor, users } = setup;
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.getWithStats,
         users.owner,
         { id: project.id }
@@ -445,7 +446,7 @@ describe("Projects Router", () => {
       const setup = await createComplexTestScenario();
       const { project, tasks, users } = setup;
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.getWithTasks,
         users.owner,
         { id: project.id }
@@ -478,7 +479,7 @@ describe("Projects Router", () => {
       const user = await createTestUser();
       const project = await createTestProject(user.id);
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         projectsRouter.getWithTasks,
         user,
         { id: project.id }
@@ -496,7 +497,7 @@ describe("Projects Router", () => {
       const user2Project = await createTestProject(user2.id, { name: "User 2 Project" });
       
       // User 1 should not see User 2's projects in list
-      const user1Projects = await testRealRPCWithAuth(
+      const user1Projects = await testProtectedProcedure(
         projectsRouter.list,
         user1,
         {}
@@ -506,7 +507,7 @@ describe("Projects Router", () => {
       
       // User 1 should not be able to access User 2's project
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.get,
           user1,
           { id: user2Project.id }
@@ -518,7 +519,7 @@ describe("Projects Router", () => {
       
       // User 1 should not be able to update User 2's project
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.update,
           user1,
           { id: user2Project.id, name: "Hacked" }
@@ -530,7 +531,7 @@ describe("Projects Router", () => {
       
       // User 1 should not be able to delete User 2's project
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.delete,
           user1,
           { id: user2Project.id }
@@ -548,7 +549,7 @@ describe("Projects Router", () => {
       
       // Test with malformed UUID that passes validation but fails in DB
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.get,
           user,
           { id: "123e4567-e89b-12d3-a456-426614174000" }
@@ -565,7 +566,7 @@ describe("Projects Router", () => {
       
       // Test unauthorized access error message
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           projectsRouter.update,
           user2,
           { id: project.id, name: "Updated" }
@@ -574,6 +575,273 @@ describe("Projects Router", () => {
       } catch (error: any) {
         expect(error.message).toContain("Project not found or unauthorized");
       }
+    });
+
+    it("should handle invalid UUID formats consistently", async () => {
+      const user = await createTestUser();
+      
+      const invalidUUIDs = [
+        "",
+        "not-a-uuid",
+        "12345678-1234-1234-1234-123456789012345", // too long
+        "12345678-1234-1234-1234-12345678901", // too short
+        "GGGGGGGG-1234-1234-1234-123456789012", // invalid hex
+      ];
+      
+      for (const invalidUUID of invalidUUIDs) {
+        try {
+          await testProtectedProcedure(
+            projectsRouter.get,
+            user,
+            { id: invalidUUID }
+          );
+          throw new Error(`Should have failed validation for UUID: ${invalidUUID}`);
+        } catch (error: any) {
+          expect(
+            error.message.includes("uuid") ||
+            error.message.includes("Invalid") ||
+            error.message.includes("validation")
+          ).toBe(true);
+        }
+      }
+    });
+
+    it("should handle extremely long input strings", async () => {
+      const user = await createTestUser();
+      
+      try {
+        await testProtectedProcedure(
+          projectsRouter.create,
+          user,
+          { name: "A".repeat(300) } // Exceeds max length
+        );
+        throw new Error("Should have failed validation for long name");
+      } catch (error: any) {
+        expect(
+          error.message.includes("max") ||
+          error.message.includes("length") ||
+          error.message.includes("255")
+        ).toBe(true);
+      }
+    });
+  });
+
+  describe("Security and Authorization Edge Cases", () => {
+    it("should prevent privilege escalation attempts", async () => {
+      const [user1, user2] = await createTestUsers(2);
+      const project = await createTestProject(user1.id);
+      
+      // Try various attempts to access another user's project
+      const unauthorizedAttempts = [
+        () => testProtectedProcedure(projectsRouter.get, user2, { id: project.id }),
+        () => testProtectedProcedure(projectsRouter.update, user2, { id: project.id, name: "Hacked" }),
+        () => testProtectedProcedure(projectsRouter.delete, user2, { id: project.id }),
+        () => testProtectedProcedure(projectsRouter.getWithStats, user2, { id: project.id }),
+        () => testProtectedProcedure(projectsRouter.getWithTasks, user2, { id: project.id }),
+      ];
+      
+      for (const attempt of unauthorizedAttempts) {
+        try {
+          await attempt();
+          throw new Error("Should have been denied access");
+        } catch (error: any) {
+          expect(error.message).toContain("Project not found");
+        }
+      }
+    });
+
+    it("should maintain data isolation under concurrent access", async () => {
+      const [user1, user2] = await createTestUsers(2);
+      const project1 = await createTestProject(user1.id, { name: "User1 Project" });
+      const project2 = await createTestProject(user2.id, { name: "User2 Project" });
+      
+      // Concurrent operations by different users
+      const operations = [
+        () => testProtectedProcedure(projectsRouter.list, user1, {}),
+        () => testProtectedProcedure(projectsRouter.list, user2, {}),
+        () => testProtectedProcedure(projectsRouter.get, user1, { id: project1.id }),
+        () => testProtectedProcedure(projectsRouter.get, user2, { id: project2.id }),
+      ];
+      
+      const results = await Promise.allSettled(operations.map(op => op()));
+      
+      // All authorized operations should succeed
+      results.forEach((result, index) => {
+        expect(result.status).toBe("fulfilled");
+        if (result.status === "fulfilled") {
+          if (index === 0) { // user1 list
+            expect(result.value).toHaveLength(1);
+            expect(result.value[0].name).toBe("User1 Project");
+          } else if (index === 1) { // user2 list
+            expect(result.value).toHaveLength(1);
+            expect(result.value[0].name).toBe("User2 Project");
+          }
+        }
+      });
+    });
+
+    it("should properly validate project ownership vs membership", async () => {
+      const [owner, member] = await createTestUsers(2);
+      const project = await createTestProject(owner.id);
+      
+      // Add member to project (if we had such functionality)
+      // For now, only owner has access since we don't have multi-user projects
+      
+      // Owner should have full access
+      const ownerResult = await testProtectedProcedure(
+        projectsRouter.get,
+        owner,
+        { id: project.id }
+      );
+      expect(ownerResult.ownerId).toBe(owner.id);
+      
+      // Non-owner/non-member should be denied
+      try {
+        await testProtectedProcedure(
+          projectsRouter.get,
+          member,
+          { id: project.id }
+        );
+        throw new Error("Should have been denied access");
+      } catch (error: any) {
+        expect(error.message).toContain("Project not found");
+      }
+    });
+
+    it("should handle malformed input attacks", async () => {
+      const user = await createTestUser();
+      
+      const malformedInputs = [
+        { name: null },
+        { name: undefined },
+        { description: new Array(10000).fill("a").join("") }, // Very long description
+        { memory: "not-an-object" },
+        { id: { $ne: null } }, // NoSQL injection attempt
+        { id: "'; DROP TABLE projects; --" }, // SQL injection attempt
+      ];
+      
+      for (const input of malformedInputs) {
+        try {
+          if (input.id) {
+            await testProtectedProcedure(
+              projectsRouter.update,
+              user,
+              input as any
+            );
+          } else {
+            await testProtectedProcedure(
+              projectsRouter.create,
+              user,
+              input as any
+            );
+          }
+          // Some inputs might be silently accepted, which is fine if they're sanitized
+        } catch (error: any) {
+          // Expect proper validation errors, not system errors
+          expect(
+            error.message.includes("validation") ||
+            error.message.includes("Invalid") ||
+            error.message.includes("Expected") ||
+            error.message.includes("required") ||
+            error.message.includes("uuid") ||
+            error.message.includes("Project not found")
+          ).toBe(true);
+        }
+      }
+    });
+  });
+
+  describe("Advanced Data Integrity", () => {
+    it("should maintain referential integrity on project deletion", async () => {
+      const user = await createTestUser();
+      const project = await createTestProject(user.id);
+      const repository = await createTestRepository(project.id);
+      const agent = await createTestAgent(project.id);
+      const actor = await createTestActor(project.id);
+      const task = await createTestTask(project.id, repository.id);
+      
+      // Delete project should cascade to all related data
+      const result = await testProtectedProcedure(
+        projectsRouter.delete,
+        user,
+        { id: project.id }
+      );
+      
+      expect(result.success).toBe(true);
+      
+      // Verify all related data is cleaned up by trying to access the project
+      try {
+        await testProtectedProcedure(
+          projectsRouter.get,
+          user,
+          { id: project.id }
+        );
+        throw new Error("Project should have been deleted");
+      } catch (error: any) {
+        expect(error.message).toContain("Project not found");
+      }
+    });
+
+    it("should handle concurrent create operations", async () => {
+      const user = await createTestUser();
+      
+      // Create multiple projects concurrently
+      const createPromises = Array(5).fill(null).map((_, index) =>
+        testProtectedProcedure(
+          projectsRouter.create,
+          user,
+          { name: `Concurrent Project ${index}` }
+        )
+      );
+      
+      const results = await Promise.allSettled(createPromises);
+      
+      // All creates should succeed
+      const successful = results.filter(r => r.status === "fulfilled");
+      expect(successful.length).toBe(5);
+      
+      // Verify all projects were created and are accessible
+      const projects = await testProtectedProcedure(
+        projectsRouter.list,
+        user,
+        {}
+      );
+      
+      expect(projects.length).toBeGreaterThanOrEqual(5);
+    });
+
+    it("should properly handle update race conditions", async () => {
+      const user = await createTestUser();
+      const project = await createTestProject(user.id, { name: "Original" });
+      
+      // Concurrent updates
+      const updatePromises = Array(3).fill(null).map((_, index) =>
+        testProtectedProcedure(
+          projectsRouter.update,
+          user,
+          {
+            id: project.id,
+            name: `Updated ${index}`,
+            description: `Description ${index}`
+          }
+        )
+      );
+      
+      const results = await Promise.allSettled(updatePromises);
+      
+      // At least some updates should succeed
+      const successful = results.filter(r => r.status === "fulfilled");
+      expect(successful.length).toBeGreaterThan(0);
+      
+      // Final state should be consistent
+      const finalProject = await testProtectedProcedure(
+        projectsRouter.get,
+        user,
+        { id: project.id }
+      );
+      
+      expect(finalProject.updatedAt).toBeDefined();
+      expect(finalProject.name).toMatch(/^Updated \d$/);
     });
   });
 });

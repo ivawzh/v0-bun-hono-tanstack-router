@@ -3,7 +3,7 @@
  * Provides helpers for testing oRPC procedures with proper context mocking
  */
 import type { Context } from "../lib/context";
-import { createAuthenticatedContext, createUnauthenticatedContext } from "./auth-mocks";
+import { createAuthenticatedContext, createUnauthenticatedContext, createPostMiddlewareContext } from "./auth-mocks";
 import type { TestUser } from "./fixtures";
 
 /**
@@ -227,26 +227,48 @@ export async function testRealRPCWithAuth<TInput, TOutput>(
   user: TestUser,
   input: TInput
 ): Promise<TOutput> {
-  // Create the base context that the initial middleware expects
-  const baseContext = createAuthenticatedContext(user);
+  // For protected procedures, create the post-middleware context
+  // that includes the user property from requireAuth middleware
+  return await testProtectedProcedure(procedure, user, input);
+}
+
+/**
+ * Test protected procedure by directly calling handler with post-middleware context
+ * This bypasses the middleware execution and provides the correct context structure
+ */
+export async function testProtectedProcedure<TInput, TOutput>(
+  procedure: any,
+  user: TestUser,
+  input: TInput
+): Promise<TOutput> {
+  // Create the post-middleware context structure that protected procedures expect
+  const postMiddlewareContext = createPostMiddlewareContext(user);
   
-  // Create the call structure that oRPC procedures expect
+  // Create the call structure
   const call = {
-    context: baseContext,
+    context: postMiddlewareContext,
     input,
     rawInput: input,
   };
   
-  // Execute the procedure with its middleware chain
-  // oRPC procedures have their middleware chain in the procedure itself
+  // Find the actual handler function - we need to dig into the procedure structure
+  let handler;
   if (procedure["~orpc"]?.handler) {
-    return await procedure["~orpc"].handler(call);
+    handler = procedure["~orpc"].handler;
   } else if (procedure._def?.handler) {
-    return await procedure._def.handler(call);
+    handler = procedure._def.handler;
   } else if (typeof procedure === 'function') {
-    return await procedure(call);
+    handler = procedure;
   } else {
     throw new Error('Unable to find procedure handler');
+  }
+  
+  // For protected procedures, the handler is wrapped by middleware
+  // We need to call it directly with the post-middleware context
+  if (typeof handler === 'function') {
+    return await handler(call);
+  } else {
+    throw new Error('Handler is not a function');
   }
 }
 

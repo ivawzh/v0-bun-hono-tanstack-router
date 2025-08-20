@@ -15,7 +15,7 @@ import {
   createCompleteTestSetup
 } from "./fixtures";
 import { 
-  testRealRPCWithAuth,
+  testProtectedProcedure,
   assertRealRPCUnauthorized,
   testProjectMembershipValidation
 } from "./rpc-test-helpers";
@@ -171,7 +171,7 @@ describe("Agents Router", () => {
       const agent2 = await createTestAgent(project2.id);
       
       // User1 should only see agents from their project
-      const user1Agents = await testRealRPCWithAuth(
+      const user1Agents = await testProtectedProcedure(
         agentsRouter.list,
         user1,
         { projectId: project1.id }
@@ -181,7 +181,7 @@ describe("Agents Router", () => {
       expect(user1Agents[0].id).toBe(agent1.id);
       
       // User2 should only see agents from their project
-      const user2Agents = await testRealRPCWithAuth(
+      const user2Agents = await testProtectedProcedure(
         agentsRouter.list,
         user2,
         { projectId: project2.id }
@@ -205,7 +205,7 @@ describe("Agents Router", () => {
       
       // User2 should not be able to access User1's agent
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           agentsRouter.get,
           user2,
           { id: agent1.id }
@@ -227,7 +227,7 @@ describe("Agents Router", () => {
         maxConcurrencyLimit: 2
       };
       
-      const agent = await testRealRPCWithAuth(
+      const agent = await testProtectedProcedure(
         agentsRouter.create,
         user,
         agentData
@@ -249,7 +249,7 @@ describe("Agents Router", () => {
       await new Promise(resolve => setTimeout(resolve, 10)); // Small delay
       const agent2 = await createTestAgent(project.id, { name: "Agent 2" });
       
-      const agents = await testRealRPCWithAuth(
+      const agents = await testProtectedProcedure(
         agentsRouter.list,
         user,
         { projectId: project.id }
@@ -266,7 +266,7 @@ describe("Agents Router", () => {
       const project = await createTestProject(user.id);
       const agent = await createTestAgent(project.id);
       
-      const retrievedAgent = await testRealRPCWithAuth(
+      const retrievedAgent = await testProtectedProcedure(
         agentsRouter.get,
         user,
         { id: agent.id }
@@ -289,7 +289,7 @@ describe("Agents Router", () => {
         maxConcurrencyLimit: 5
       };
       
-      const updatedAgent = await testRealRPCWithAuth(
+      const updatedAgent = await testProtectedProcedure(
         agentsRouter.update,
         user,
         updates
@@ -306,7 +306,7 @@ describe("Agents Router", () => {
       const project = await createTestProject(user.id);
       const agent = await createTestAgent(project.id);
       
-      const result = await testRealRPCWithAuth(
+      const result = await testProtectedProcedure(
         agentsRouter.delete,
         user,
         { id: agent.id }
@@ -316,7 +316,7 @@ describe("Agents Router", () => {
       
       // Verify agent is deleted
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           agentsRouter.get,
           user,
           { id: agent.id }
@@ -331,13 +331,13 @@ describe("Agents Router", () => {
       const project = await createTestProject(user.id);
       await createTestAgent(project.id, { name: "Test Agent" });
       
-      const listResult = await testRealRPCWithAuth(
+      const listResult = await testProtectedProcedure(
         agentsRouter.list,
         user,
         { projectId: project.id }
       );
       
-      const listAgentsResult = await testRealRPCWithAuth(
+      const listAgentsResult = await testProtectedProcedure(
         agentsRouter.listAgents,
         user,
         { projectId: project.id }
@@ -351,13 +351,13 @@ describe("Agents Router", () => {
       const project = await createTestProject(user.id);
       const agent = await createTestAgent(project.id);
       
-      const getResult = await testRealRPCWithAuth(
+      const getResult = await testProtectedProcedure(
         agentsRouter.get,
         user,
         { id: agent.id }
       );
       
-      const getAgentResult = await testRealRPCWithAuth(
+      const getAgentResult = await testProtectedProcedure(
         agentsRouter.getAgent,
         user,
         { id: agent.id }
@@ -376,13 +376,13 @@ describe("Agents Router", () => {
         agentType: "CLAUDE_CODE" as const
       };
       
-      const createResult = await testRealRPCWithAuth(
+      const createResult = await testProtectedProcedure(
         agentsRouter.create,
         user,
         agentData
       );
       
-      const createAgentResult = await testRealRPCWithAuth(
+      const createAgentResult = await testProtectedProcedure(
         agentsRouter.createAgent,
         user,
         { ...agentData, name: "Test Agent 2" } // Different name to avoid conflicts
@@ -401,7 +401,7 @@ describe("Agents Router", () => {
       const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
       
       try {
-        await testRealRPCWithAuth(agentsRouter.get, user, { id: nonExistentId });
+        await testProtectedProcedure(agentsRouter.get, user, { id: nonExistentId });
         throw new Error("Should have thrown not found error");
       } catch (error: any) {
         expect(error.message).toContain("Agent not found or unauthorized");
@@ -412,7 +412,7 @@ describe("Agents Router", () => {
       const user = await createTestUser();
       
       try {
-        await testRealRPCWithAuth(agentsRouter.get, user, { id: "invalid-uuid" });
+        await testProtectedProcedure(agentsRouter.get, user, { id: "invalid-uuid" });
         throw new Error("Should have thrown validation error");
       } catch (error: any) {
         expect(error.message).toContain("uuid");
@@ -425,7 +425,7 @@ describe("Agents Router", () => {
       
       // Test missing name
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -445,7 +445,7 @@ describe("Agents Router", () => {
       const { user, project } = setup;
       
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -466,7 +466,7 @@ describe("Agents Router", () => {
       
       // Test negative concurrency limit
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -483,7 +483,7 @@ describe("Agents Router", () => {
       
       // Test too high concurrency limit
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -505,7 +505,7 @@ describe("Agents Router", () => {
       
       // Test name too long
       try {
-        await testRealRPCWithAuth(
+        await testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -526,14 +526,14 @@ describe("Agents Router", () => {
       const scenario = await createComplexTestScenario();
       
       // Test that users can access their project's agents
-      const userAgents = await testRealRPCWithAuth(
+      const userAgents = await testProtectedProcedure(
         agentsRouter.list,
         scenario.users.owner,
         { projectId: scenario.project.id }
       );
       
       // Test member access to same project
-      const memberAgents = await testRealRPCWithAuth(
+      const memberAgents = await testProtectedProcedure(
         agentsRouter.list,
         scenario.users.member1,
         { projectId: scenario.project.id }
@@ -548,7 +548,7 @@ describe("Agents Router", () => {
       
       // Test outsider cannot access the project
       await expect(
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           agentsRouter.list,
           scenario.users.outsider,
           { projectId: scenario.project.id }
@@ -564,7 +564,7 @@ describe("Agents Router", () => {
       const validTypes = ['CLAUDE_CODE', 'CURSOR_CLI', 'OPENCODE'] as const;
       
       for (const agentType of validTypes) {
-        const agent = await testRealRPCWithAuth(
+        const agent = await testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -584,7 +584,7 @@ describe("Agents Router", () => {
       
       // Create multiple agents concurrently
       const promises = Array.from({ length: 3 }, (_, i) =>
-        testRealRPCWithAuth(
+        testProtectedProcedure(
           agentsRouter.create,
           user,
           {
@@ -610,7 +610,7 @@ describe("Agents Router", () => {
       const { user, project } = setup;
       
       // Create agent
-      const createdAgent = await testRealRPCWithAuth(
+      const createdAgent = await testProtectedProcedure(
         agentsRouter.create,
         user,
         {
@@ -625,7 +625,7 @@ describe("Agents Router", () => {
       expect(createdAgent.name).toBe("Lifecycle Agent");
       
       // Read agent
-      const readAgent = await testRealRPCWithAuth(
+      const readAgent = await testProtectedProcedure(
         agentsRouter.get,
         user,
         { id: createdAgent.id }
@@ -635,7 +635,7 @@ describe("Agents Router", () => {
       expect(readAgent.agentSettings).toEqual({ initial: "settings" });
       
       // Update agent
-      const updatedAgent = await testRealRPCWithAuth(
+      const updatedAgent = await testProtectedProcedure(
         agentsRouter.update,
         user,
         {
@@ -651,7 +651,7 @@ describe("Agents Router", () => {
       expect(updatedAgent.maxConcurrencyLimit).toBe(5);
       
       // List should include updated agent
-      const listedAgents = await testRealRPCWithAuth(
+      const listedAgents = await testProtectedProcedure(
         agentsRouter.list,
         user,
         { projectId: project.id }
@@ -661,7 +661,7 @@ describe("Agents Router", () => {
       expect(foundAgent?.name).toBe("Updated Lifecycle Agent");
       
       // Delete agent
-      const deleteResult = await testRealRPCWithAuth(
+      const deleteResult = await testProtectedProcedure(
         agentsRouter.delete,
         user,
         { id: createdAgent.id }
@@ -671,7 +671,7 @@ describe("Agents Router", () => {
       
       // Verify deletion
       try {
-        await testRealRPCWithAuth(agentsRouter.get, user, { id: createdAgent.id });
+        await testProtectedProcedure(agentsRouter.get, user, { id: createdAgent.id });
         throw new Error("Agent should have been deleted");
       } catch (error: any) {
         expect(error.message).toContain("Agent not found or unauthorized");
