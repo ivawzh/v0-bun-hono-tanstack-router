@@ -6,8 +6,26 @@ preload = ["./src/test/setup.ts"]
 # Test environment
 env = { NODE_ENV = "test" }
 
-# Test timeout
+# Test timeout (30 seconds for complex RPC tests)
 timeout = 30000
 
 # Coverage settings (if needed)
 coverage = false
+
+# Test parallelization (adjust based on CI capabilities)
+# For local development, use 1 to avoid database conflicts
+concurrency = 1
+
+# Bail on first failure for faster feedback during development
+bail = 0
+
+# Watch mode settings
+[test.watch]
+# Ignore specific patterns when watching
+ignore = [
+  "node_modules/**",
+  ".git/**",
+  "dist/**",
+  "build/**",
+  "coverage/**"
+]

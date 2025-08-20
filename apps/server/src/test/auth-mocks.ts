@@ -38,6 +38,22 @@ export function createAuthenticatedContext(user: TestUser): Context {
 }
 
 /**
+ * Create an authenticated context with protectedProcedure structure
+ * This mimics what the requireAuth middleware adds to context
+ */
+export function createProtectedContext(user: TestUser) {
+  return {
+    session: {
+      user: {
+        email: user.email,
+        name: user.displayName,
+      },
+    },
+    user: user, // This is what protectedProcedure adds
+  };
+}
+
+/**
  * Create an unauthenticated test context
  */
 export function createUnauthenticatedContext(): Context {
