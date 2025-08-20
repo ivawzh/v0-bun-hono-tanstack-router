@@ -255,7 +255,7 @@ export function useProjectCache(projectId: string) {
         detail: (repoId: string) => cache.queryKeys.repositories.detail(repoId),
       },
       agents: {
-        list: (options?: { includeTaskCounts?: boolean }) => cache.queryKeys.agents.list(options),
+        list: (options?: { includeTaskCounts?: boolean }) => cache.queryKeys.agents.list(projectId, options),
         detail: (agentId: string) => cache.queryKeys.agents.detail(agentId),
       },
       actors: {
