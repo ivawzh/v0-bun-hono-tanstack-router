@@ -68,7 +68,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
           FROM task_agents ta
           INNER JOIN agents a ON a.id = ta.agent_id
           WHERE ta.task_id = ${schema.tasks.id}
-            AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= NOW())
+            AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= CURRENT_TIMESTAMP)
             AND (
               COALESCE(a.max_concurrency_limit, 0) = 0
               OR (
@@ -137,6 +137,8 @@ export function selectBestAvailableAgent(assignedAgents: any[]): any | null {
     return null;
   }
 
+  const now = new Date();
+
   // Sort by:
   // 1. Not rate limited (rate_limit_reset_at is null or in the past)
   // 2. Last task pushed time (oldest first for fair distribution)
@@ -145,7 +147,11 @@ export function selectBestAvailableAgent(assignedAgents: any[]): any | null {
       // Check if agent is not rate limited
       if (agent.rateLimitResetAt) {
         const resetTime = new Date(agent.rateLimitResetAt);
-        return resetTime <= new Date();
+        const isAvailable = resetTime <= now;
+        if (!isAvailable) {
+          console.log(`🚫 Agent ${agent.id} rate limited until ${resetTime.toISOString()}, current time: ${now.toISOString()}`);
+        }
+        return isAvailable;
       }
       return true;
     })
@@ -155,6 +161,17 @@ export function selectBestAvailableAgent(assignedAgents: any[]): any | null {
       const bTime = b.lastTaskPushedAt?.getTime() || 0;
       return aTime - bTime;
     });
+
+  if (eligibleAgents.length === 0) {
+    console.log(`🚫 No eligible agents found out of ${assignedAgents.length} assigned agents`);
+    assignedAgents.forEach(agent => {
+      if (agent.rateLimitResetAt) {
+        console.log(`  - Agent ${agent.id}: rate limited until ${new Date(agent.rateLimitResetAt).toISOString()}`);
+      } else {
+        console.log(`  - Agent ${agent.id}: no rate limit (this should be available)`);
+      }
+    });
+  }
 
   return eligibleAgents[0] || null;
 }

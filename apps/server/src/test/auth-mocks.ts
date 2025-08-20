@@ -44,7 +44,7 @@ export function createAuthenticatedContext(user: TestUser): Context {
     },
     appUser: user,
     context: honoContext,
-  };
+  } as Context;
 }
 
 /**
@@ -73,7 +73,7 @@ export function createUnauthenticatedContext(): Context {
     session: null,
     appUser: null,
     context: honoContext,
-  };
+  } as Context;
 }
 
 /**

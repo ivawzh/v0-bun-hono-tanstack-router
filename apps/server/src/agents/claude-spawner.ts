@@ -18,10 +18,9 @@ import {
   getAttachmentFile,
   type AttachmentMetadata,
 } from "@/utils/file-storage";
-import path from "path";
-import { promises as fs } from "fs";
-import fsSync from "fs";
-import os from "os";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 import {
   query,
   type Options,
@@ -217,7 +216,8 @@ export async function spawnClaudeSession(
       })) {
         try {
           match(message)
-          .with({ type: "result", result: P.string }, (msg) => {
+          .with({ type: "result", subtype: "success", is_error: true, result: P.string }, (msg) => {
+            console.log(`[Claude Code] ⏰‼️‼️‼️ Agent ${agentId} is rate limited:`, msg.result);
             detectAndHandleRateLimit(msg.result, agentId);
           })
           .with({ permission_denials: P.select() }, (denials) => {
@@ -267,21 +267,114 @@ export async function spawnClaudeSession(
 }
 
 /**
+ * Save rate limit message to local file for analysis
+ */
+async function saveRateLimitMessage(message: string): Promise<void> {
+  try {
+    const rateLimitDir = path.join(os.homedir(), '.solo-unicorn');
+    const rateLimitFile = path.join(rateLimitDir, 'rate-limit-messages.json');
+
+    // Ensure directory exists
+    try {
+      await fs.promises.access(rateLimitDir);
+    } catch {
+      await fs.promises.mkdir(rateLimitDir, { recursive: true });
+    }
+
+    // Read existing messages or create empty set
+    let messages: string[] = [];
+    try {
+      await fs.promises.access(rateLimitFile);
+      const fileContent = await fs.promises.readFile(rateLimitFile, 'utf8');
+      messages = JSON.parse(fileContent);
+      if (!Array.isArray(messages)) {
+        messages = [];
+      }
+    } catch (error) {
+      // File doesn't exist or is invalid, start with empty array
+      messages = [];
+    }
+
+    // Add message if not already present (maintain uniqueness)
+    if (!messages.includes(message)) {
+      messages.push(message);
+      messages.sort(); // Keep messages sorted for easier analysis
+
+      // Write back to file
+      await fs.promises.writeFile(rateLimitFile, JSON.stringify(messages, null, 2), 'utf8');
+      console.log(`[Claude Code] 📝 Saved rate limit message: "${message}"`);
+    }
+  } catch (error) {
+    console.error("[Claude Code] Failed to save rate limit message:", error);
+  }
+}
+
+/**
+ * Extract rate limit message text for analysis
+ */
+function extractRateLimitMessage(text: string): string | null {
+  try {
+    if (typeof text !== "string") return null;
+
+    // Generic fallback for any "limit reached" message
+    const genericMatch = text.match(/([^.]*limit reached[^.]*)/i);
+    if (genericMatch) {
+      return genericMatch[1].trim();
+    }
+
+    return null;
+  } catch (error) {
+    console.error("[Claude Code] Error extracting rate limit message:", error);
+    return null;
+  }
+}
+
+/**
  * Extract rate limit reset time from Claude AI usage limit message
  */
 function extractRateLimitResetTime(text: string): string | null {
   try {
     if (typeof text !== "string") return null;
 
-    const match = text.match(/Claude AI usage limit reached\|(\d{10,13})/);
-    if (!match) return null;
+    // Try old format first: "Claude AI usage limit reached|{timestamp}"
+    const oldMatch = text.match(/Claude AI usage limit reached\|(\d{10,13})/);
+    if (oldMatch) {
+      let timestampMs = parseInt(oldMatch[1], 10);
+      if (!Number.isFinite(timestampMs)) return null;
+      if (timestampMs < 1e12) timestampMs *= 1000; // seconds → ms
 
-    let timestampMs = parseInt(match[1], 10);
-    if (!Number.isFinite(timestampMs)) return null;
-    if (timestampMs < 1e12) timestampMs *= 1000; // seconds → ms
+      const reset = new Date(timestampMs);
+      return reset.toISOString();
+    }
 
-    const reset = new Date(timestampMs);
-    return reset.toISOString();
+    // Try new format: "X-hour limit reached ∙ resets Yam/pm"
+    const newMatch = text.match(/limit reached.*?resets\s*(\d{1,2})([ap]m)/i);
+    if (!newMatch) return null;
+
+    const hour = parseInt(newMatch[1], 10);
+    const ampm = newMatch[2].toLowerCase();
+
+    if (hour < 1 || hour > 12) return null;
+
+    // Convert to 24-hour format
+    let hour24 = hour;
+    if (ampm === 'pm' && hour !== 12) {
+      hour24 += 12;
+    } else if (ampm === 'am' && hour === 12) {
+      hour24 = 0;
+    }
+
+    // Create date for today with the specified time
+    const now = new Date();
+    const resetToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour24, 0, 0, 0);
+
+    // If the time has already passed today, assume it's tomorrow
+    let resetDate = resetToday;
+    if (resetToday <= now) {
+      resetDate = new Date(resetToday.getTime() + 24 * 60 * 60 * 1000);
+    }
+
+    return resetDate.toISOString();
   } catch (error) {
     console.error("[Claude Code] Error extracting rate limit reset time:", error);
     return null;
@@ -293,6 +386,8 @@ function extractRateLimitResetTime(text: string): string | null {
  */
 async function detectAndHandleRateLimit(line: string, agentId: string): Promise<void> {
   const rateLimitResetTime = extractRateLimitResetTime(line);
+  const rateLimitCauseMessage = extractRateLimitMessage(line);
+
   if (rateLimitResetTime) {
     console.log("[Claude Code] 🚫 Claude rate limit detected, updating agent");
     try {
@@ -306,6 +401,11 @@ async function detectAndHandleRateLimit(line: string, agentId: string): Promise<
     } catch (error) {
       console.error("[Claude Code] Failed to update agent rate limit:", error);
     }
+  }
+
+  // Save rate limit message for analysis (even if reset time extraction failed)
+  if (rateLimitCauseMessage) {
+    await saveRateLimitMessage(rateLimitCauseMessage);
   }
 }
 
@@ -381,7 +481,7 @@ async function processTaskImagesPrompt(
   const tempImagePaths = [];
   let tempDir = null;
   tempDir = path.join(mainRepoPath, ".tmp", "images", Date.now().toString());
-  await fs.mkdir(tempDir, { recursive: true });
+  await fs.promises.mkdir(tempDir, { recursive: true });
   for (const [index, attachment] of imageAttachments.entries()) {
     try {
       // Get the file buffer using the existing utility
@@ -398,7 +498,7 @@ async function processTaskImagesPrompt(
       const filename = `image_${index}.${extension}`;
       const filepath = path.join(tempDir, filename);
       // Write base64 data to file
-      await fs.writeFile(filepath, Buffer.from(base64Data, "base64"));
+      await fs.promises.writeFile(filepath, Buffer.from(base64Data, "base64"));
       tempImagePaths.push(filepath);
     } catch (error) {
       console.error("[Claude Code] Failed to process image attachment", error, {
@@ -422,10 +522,10 @@ function getMcpConfigPath() {
   const claudeConfigPath = path.join(os.homedir(), ".claude.json");
 
   // Check Claude config for MCP servers
-  if (fsSync.existsSync(claudeConfigPath)) {
+  if (fs.existsSync(claudeConfigPath)) {
     try {
       const claudeConfig = JSON.parse(
-        fsSync.readFileSync(claudeConfigPath, "utf8")
+        fs.readFileSync(claudeConfigPath, "utf8")
       );
 
       // Check global MCP servers
@@ -465,10 +565,10 @@ function getMcpConfigPath() {
     // Use Claude config file if it has MCP servers
     let configPath = undefined;
 
-    if (fsSync.existsSync(claudeConfigPath)) {
+    if (fs.existsSync(claudeConfigPath)) {
       try {
         const claudeConfig = JSON.parse(
-          fsSync.readFileSync(claudeConfigPath, "utf8")
+          fs.readFileSync(claudeConfigPath, "utf8")
         );
 
         // Check if we have any MCP servers (global or project-specific)
