@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { DeleteProjectModal } from "./delete-project-modal";
 
 interface ProjectSettingsV2Props {
   project: {
@@ -251,7 +252,7 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
 }
 
 // Agent creation form
-function CreateAgentForm({ onSuccess }: { onSuccess: () => void }) {
+function CreateAgentForm({ projectId, onSuccess }: { projectId: string; onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     name: '',
     agentType: 'CLAUDE_CODE' as 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE',
@@ -278,6 +279,7 @@ function CreateAgentForm({ onSuccess }: { onSuccess: () => void }) {
       : {};
     
     createAgent.mutate({
+      projectId: projectId,
       name: formData.name,
       agentType: formData.agentType,
       maxConcurrencyLimit: formData.maxConcurrencyLimit,
@@ -372,6 +374,7 @@ export function ProjectSettingsV2({
   const [description, setDescription] = useState(project.description || "");
   const [showCreateRepoForm, setShowCreateRepoForm] = useState(false);
   const [showCreateAgentForm, setShowCreateAgentForm] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   // Fetch repositories for this project
   const { data: repositories, isLoading: loadingRepositories } = useQuery(
@@ -570,6 +573,7 @@ export function ProjectSettingsV2({
                       </CardHeader>
                       <CardContent>
                         <CreateAgentForm 
+                          projectId={project.id}
                           onSuccess={() => setShowCreateAgentForm(false)}
                         />
                       </CardContent>
@@ -612,6 +616,34 @@ export function ProjectSettingsV2({
                 </p>
               </div>
             </div>
+
+            <Separator />
+
+            {/* Danger Zone */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
+              <Card className="border-destructive/50">
+                <CardContent className="pt-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h4 className="font-medium text-sm text-destructive">Delete Project</h4>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Permanently delete this project and all its data. This action cannot be undone.
+                      </p>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => setShowDeleteModal(true)}
+                      className="ml-4"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete Project
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </ScrollArea>
 
@@ -630,6 +662,12 @@ export function ProjectSettingsV2({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      <DeleteProjectModal
+        project={project}
+        open={showDeleteModal}
+        onOpenChange={setShowDeleteModal}
+      />
     </Dialog>
   );
 }
