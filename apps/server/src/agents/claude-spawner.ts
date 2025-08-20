@@ -373,7 +373,7 @@ async function processTaskImagesPrompt(
 ): Promise<string | null> {
   // Filter for image attachments
   const imageAttachments = attachments.filter((attachment) =>
-    attachment.type.startsWith("image/")
+    attachment && attachment.type && attachment.type.startsWith("image/")
   );
   if (imageAttachments.length === 0) {
     return null;
@@ -387,14 +387,14 @@ async function processTaskImagesPrompt(
       // Get the file buffer using the existing utility
       const buffer = await getAttachmentFile(
         taskId,
-        attachment.id,
+        attachment.id!,
         attachments
       );
 
       // Convert to base64
       const base64Data = buffer.toString("base64");
 
-      const extension = attachment.type.split("/")[1] || "png";
+      const extension = attachment.type?.split("/")[1] || "png";
       const filename = `image_${index}.${extension}`;
       const filepath = path.join(tempDir, filename);
       // Write base64 data to file
@@ -403,8 +403,8 @@ async function processTaskImagesPrompt(
     } catch (error) {
       console.error("[Claude Code] Failed to process image attachment", error, {
         taskId,
-        attachmentId: attachment.id,
-        filename: attachment.filename,
+        attachmentId: attachment?.id,
+        filename: attachment?.filename,
       });
       // Continue processing other images even if one fails
     }
