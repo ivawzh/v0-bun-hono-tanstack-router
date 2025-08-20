@@ -727,7 +727,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                               <Label>Additional Repositories</Label>
                               <div className="mt-1">
                                 <MultiSelectRepositories
-                                  repositories={repositories}
+                                  repositories={repositories as Repository[]}
                                   selectedRepositoryIds={task.additionalRepositoryIds || []}
                                   mainRepositoryId={task.mainRepositoryId}
                                   onSelectionChange={handleAdditionalRepositoriesChange}
@@ -751,7 +751,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                               <Label>Assigned Agents</Label>
                               <div className="mt-1">
                                 <MultiSelectAgents
-                                  agents={agents}
+                                  agents={agents as Agent[]}
                                   selectedAgentIds={task.assignedAgentIds || []}
                                   onSelectionChange={handleAssignedAgentsChange}
                                   placeholder="Select agents to work on this task..."
