@@ -227,13 +227,15 @@ export async function testRealRPCWithAuth<TInput, TOutput>(
   user: TestUser,
   input: TInput
 ): Promise<TOutput> {
+  // For protected procedures, simulate what requireAuth middleware does:
+  // It creates a new context with only session and user fields
   const baseContext = createAuthenticatedContext(user);
-  // For protected procedures, simulate what requireAuth middleware does
-  // It transforms the context to add the user field from appUser
+  
   const protectedContext = {
     session: baseContext.session,
-    user: user, // This is what requireAuth middleware creates in the new context
+    user: user, // This is what requireAuth middleware puts in the new context
   };
+  
   return await testRealRPCProcedure(procedure, protectedContext, input);
 }
 
