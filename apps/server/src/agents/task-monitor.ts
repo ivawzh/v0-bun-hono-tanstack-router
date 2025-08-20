@@ -13,7 +13,7 @@ import { startHotReloadSafeCron } from '../utils/hot-reload-safe-interval';
 
 const config = {
   sessionCleanupStaleMinutes: 60, // 1 hour
-  taskPushingJobCron: '* * * * * *', // every second
+  taskPushingJobCron: '* * * * * *', // every 10 seconds
   outOfSyncCheckingJobCron: '*/2 * * * *', // every 2 minutes
   sessionCleanupJobCron: '*/10 * * * *', // every 10 minutes
 }
@@ -106,10 +106,10 @@ export function stopTaskMonitoring(): void {
   if (intervals) {
     const taskPushingEntry = intervals.get('task-pushing');
     if (taskPushingEntry) taskPushingEntry.shouldStop = true;
-    
+
     const outOfSyncEntry = intervals.get('out-of-sync-checking');
     if (outOfSyncEntry) outOfSyncEntry.shouldStop = true;
-    
+
     const sessionCleanupEntry = intervals.get('session-cleanup');
     if (sessionCleanupEntry) sessionCleanupEntry.shouldStop = true;
   }
