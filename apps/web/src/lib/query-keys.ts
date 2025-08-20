@@ -534,16 +534,16 @@ export const devUtils = {
   monitorCachePerformance: (queryClient: QueryClient) => {
     if (process.env.NODE_ENV !== 'development') return
     
-    const originalInvalidateQueries = queryClient.invalidateQueries
+    const originalInvalidateQueries = queryClient.invalidateQueries.bind(queryClient)
     
-    queryClient.invalidateQueries = function(...args: any[]) {
+    queryClient.invalidateQueries = function(filters?: any, options?: any) {
       const start = performance.now()
-      const result = originalInvalidateQueries.apply(this, args)
+      const result = originalInvalidateQueries(filters, options)
       
       if (result instanceof Promise) {
         result.then(() => {
           const duration = performance.now() - start
-          console.log(`⏱️  Cache invalidation took ${duration.toFixed(2)}ms`, args[0])
+          console.log(`⏱️  Cache invalidation took ${duration.toFixed(2)}ms`, filters)
         })
       }
       

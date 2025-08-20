@@ -534,7 +534,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
     onMutate: async (variables) => {
       // Optimistically update the task's ready state
-      const context = await cache.task.optimisticUpdate(projectId, variables.id, (task) => ({
+      const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
         ready: variables.ready
       }));
@@ -557,7 +557,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
     onMutate: async (variables) => {
       // Optimistically update the task's stage
-      const context = await cache.task.optimisticUpdate(projectId, variables.id, (task) => ({
+      const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
         stage: variables.stage
       }));

@@ -793,7 +793,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                         <div className="space-y-2">
                           <ClaudeCodeSessionLink
                             taskId={task.id}
-                            activeSession={task.activeSession}
+                            activeSession={(task as any).activeSession}
                             repoAgentClientType={task.assignedAgents?.[0]?.agentType}
                           />
                         </div>
