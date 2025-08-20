@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useParams } from "@tanstack/react-router";
 import {
   Command,
   CommandEmpty,
@@ -45,6 +45,11 @@ export function ProjectSwitcher() {
   const [newProjectDescription, setNewProjectDescription] = useState("");
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const params = useParams({ strict: false });
+  const urlProjectId = (params as any)?.projectId;
+
+  // Effective selected project: prioritize URL projectId over localStorage
+  const effectiveSelectedProject = urlProjectId || selectedProject;
 
   const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
 
@@ -90,7 +95,7 @@ export function ProjectSwitcher() {
     })
   );
 
-  const selectedProjectData = (projects as any)?.find((p: any) => p.id === selectedProject);
+  const selectedProjectData = (projects as any)?.find((p: any) => p.id === effectiveSelectedProject);
 
   return (
     <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
@@ -132,7 +137,7 @@ export function ProjectSwitcher() {
                     <Check
                       className={cn(
                         "ml-auto h-4 w-4",
-                        selectedProject === project.id
+                        effectiveSelectedProject === project.id
                           ? "opacity-100"
                           : "opacity-0"
                       )}
