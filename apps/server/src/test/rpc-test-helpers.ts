@@ -231,9 +231,10 @@ export async function testRealRPCWithAuth<TInput, TOutput>(
   // It creates a new context with only session and user fields
   const baseContext = createAuthenticatedContext(user);
   
+  // The requireAuth middleware extracts appUser from context and puts it as user
   const protectedContext = {
     session: baseContext.session,
-    user: user, // This is what requireAuth middleware puts in the new context
+    user: baseContext.appUser, // This is what requireAuth middleware puts in the new context (appUser -> user)
   };
   
   return await testRealRPCProcedure(procedure, protectedContext, input);
