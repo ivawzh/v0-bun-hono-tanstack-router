@@ -29,6 +29,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { DeleteProjectModal } from "./delete-project-modal";
+import { ConcurrencySelect } from "@/components/ui/concurrency-select";
 
 interface ProjectSettingsV2Props {
   project: {
@@ -46,14 +47,14 @@ interface ProjectSettingsV2Props {
 function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (id: string) => void }) {
   const cache = useCacheUtils();
   const [isEditingConcurrency, setIsEditingConcurrency] = useState(false);
-  const [concurrencyValue, setConcurrencyValue] = useState(repository.maxConcurrencyLimit || 1);
-  const [tempConcurrencyValue, setTempConcurrencyValue] = useState(repository.maxConcurrencyLimit || 1);
+  const [concurrencyValue, setConcurrencyValue] = useState(repository.maxConcurrencyLimit ?? 0);
+  const [tempConcurrencyValue, setTempConcurrencyValue] = useState(repository.maxConcurrencyLimit ?? 0);
   
   const updateRepository = useMutation(
     orpc.repositories.update.mutationOptions({
       onSuccess: (updatedRepo) => {
         toast.success("Repository updated successfully");
-        setConcurrencyValue(updatedRepo.maxConcurrencyLimit || 1);
+        setConcurrencyValue(updatedRepo.maxConcurrencyLimit ?? 0);
         setIsEditingConcurrency(false);
         cache.invalidateRepository(repository.id, repository.projectId);
       },
@@ -87,8 +88,8 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
   };
 
   const handleSaveConcurrency = () => {
-    if (tempConcurrencyValue < 1 || tempConcurrencyValue > 10) {
-      toast.error("Concurrency limit must be between 1 and 10");
+    if (tempConcurrencyValue !== 0 && (tempConcurrencyValue < 1 || tempConcurrencyValue > 10)) {
+      toast.error("Concurrency limit must be unlimited or between 1 and 10");
       return;
     }
     updateRepository.mutate({
@@ -124,21 +125,10 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
               </p>
               {isEditingConcurrency ? (
                 <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    min="1"
-                    max="10"
+                  <ConcurrencySelect
                     value={tempConcurrencyValue}
-                    onChange={(e) => setTempConcurrencyValue(parseInt(e.target.value) || 1)}
-                    className="h-6 w-16 text-xs px-2"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleSaveConcurrency();
-                      } else if (e.key === 'Escape') {
-                        handleCancelEdit();
-                      }
-                    }}
+                    onValueChange={setTempConcurrencyValue}
+                    className="h-6 w-24 text-xs"
                   />
                   <Button
                     size="sm"
@@ -168,7 +158,7 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
                   onClick={handleStartEdit}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:bg-muted px-1 py-0.5 rounded transition-colors"
                 >
-                  {concurrencyValue}
+                  {concurrencyValue === 0 ? 'Unlimited' : concurrencyValue}
                   <Edit3 className="h-3 w-3" />
                 </button>
               )}
@@ -194,14 +184,14 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
 function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => void }) {
   const cache = useCacheUtils();
   const [isEditingConcurrency, setIsEditingConcurrency] = useState(false);
-  const [concurrencyValue, setConcurrencyValue] = useState(agent.maxConcurrencyLimit || 1);
-  const [tempConcurrencyValue, setTempConcurrencyValue] = useState(agent.maxConcurrencyLimit || 1);
+  const [concurrencyValue, setConcurrencyValue] = useState(agent.maxConcurrencyLimit ?? 0);
+  const [tempConcurrencyValue, setTempConcurrencyValue] = useState(agent.maxConcurrencyLimit ?? 0);
   
   const updateAgent = useMutation(
     orpc.agents.update.mutationOptions({
       onSuccess: (updatedAgent) => {
         toast.success("Agent updated successfully");
-        setConcurrencyValue(updatedAgent.maxConcurrencyLimit || 1);
+        setConcurrencyValue(updatedAgent.maxConcurrencyLimit ?? 0);
         setIsEditingConcurrency(false);
         cache.invalidateAgent(agent.id);
       },
@@ -243,8 +233,8 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
   };
 
   const handleSaveConcurrency = () => {
-    if (tempConcurrencyValue < 1 || tempConcurrencyValue > 10) {
-      toast.error("Concurrency limit must be between 1 and 10");
+    if (tempConcurrencyValue !== 0 && (tempConcurrencyValue < 1 || tempConcurrencyValue > 10)) {
+      toast.error("Concurrency limit must be unlimited or between 1 and 10");
       return;
     }
     updateAgent.mutate({
@@ -275,21 +265,10 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
               </p>
               {isEditingConcurrency ? (
                 <div className="flex items-center gap-1">
-                  <Input
-                    type="number"
-                    min="1"
-                    max="10"
+                  <ConcurrencySelect
                     value={tempConcurrencyValue}
-                    onChange={(e) => setTempConcurrencyValue(parseInt(e.target.value) || 1)}
-                    className="h-6 w-16 text-xs px-2"
-                    autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleSaveConcurrency();
-                      } else if (e.key === 'Escape') {
-                        handleCancelEdit();
-                      }
-                    }}
+                    onValueChange={setTempConcurrencyValue}
+                    className="h-6 w-24 text-xs"
                   />
                   <Button
                     size="sm"
@@ -319,7 +298,7 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
                   onClick={handleStartEdit}
                   className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:bg-muted px-1 py-0.5 rounded transition-colors"
                 >
-                  {concurrencyValue}
+                  {concurrencyValue === 0 ? 'Unlimited' : concurrencyValue}
                   <Edit3 className="h-3 w-3" />
                 </button>
               )}
@@ -352,7 +331,7 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
     name: '',
     repoPath: '',
     isDefault: false,
-    maxConcurrencyLimit: 1
+    maxConcurrencyLimit: 0
   });
 
   const createRepository = useMutation(
@@ -413,15 +392,11 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
 
       <div className="space-y-2">
         <Label htmlFor="concurrency-limit">Max Concurrent Tasks</Label>
-        <Input
-          id="concurrency-limit"
-          type="number"
-          min="1"
-          max="10"
+        <ConcurrencySelect
           value={formData.maxConcurrencyLimit}
-          onChange={(e) => setFormData(prev => ({ 
+          onValueChange={(value) => setFormData(prev => ({ 
             ...prev, 
-            maxConcurrencyLimit: parseInt(e.target.value) 
+            maxConcurrencyLimit: value 
           }))}
         />
       </div>
@@ -443,7 +418,7 @@ function CreateAgentForm({ projectId, onSuccess }: { projectId: string; onSucces
   const [formData, setFormData] = useState({
     name: '',
     agentType: 'CLAUDE_CODE' as 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE',
-    maxConcurrencyLimit: 1,
+    maxConcurrencyLimit: 0,
     claudeConfigDir: ''
   });
 
@@ -508,15 +483,11 @@ function CreateAgentForm({ projectId, onSuccess }: { projectId: string; onSucces
 
       <div className="space-y-2">
         <Label htmlFor="agent-concurrency">Max Concurrent Tasks</Label>
-        <Input
-          id="agent-concurrency"
-          type="number"
-          min="1"
-          max="10"
+        <ConcurrencySelect
           value={formData.maxConcurrencyLimit}
-          onChange={(e) => setFormData(prev => ({ 
+          onValueChange={(value) => setFormData(prev => ({ 
             ...prev, 
-            maxConcurrencyLimit: parseInt(e.target.value) 
+            maxConcurrencyLimit: value 
           }))}
         />
       </div>
