@@ -366,7 +366,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
         )}
         {task.assignedAgents && task.assignedAgents.length > 0 && (
           <div className="text-xs text-muted-foreground mt-1 kanban-card-text">
-            Agents: {task.assignedAgents.map((agent: any) => agent.name).join(", ")}
+            Agents: {task.assignedAgents.map((agent: any) => `${agent.agentType} (${agent.name})`).join(", ")}
           </div>
         )}
         {task.actor && (
