@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, timestamp, jsonb, boolean, integer, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, uuid, timestamp, jsonb, boolean, integer, pgEnum, unique } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export type Task = typeof tasks.$inferSelect;
@@ -7,6 +7,7 @@ export type Repository = typeof repositories.$inferSelect;
 export type Agent = typeof agents.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type User = typeof users.$inferSelect;
+export type Helper = typeof helpers.$inferSelect;
 
 // Enum for agent client types
 export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
@@ -32,6 +33,17 @@ export const projects = pgTable("projects", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
+
+// Helpers table (for system state management like locks)
+export const helpers = pgTable("helpers", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull(),
+  state: jsonb("state").default({}).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
+}, (table) => ({
+  codeUniqueIndex: unique().on(table.code)
+}));
 
 // Project Users table (many-to-many relationship)
 export const projectUsers = pgTable("project_users", {

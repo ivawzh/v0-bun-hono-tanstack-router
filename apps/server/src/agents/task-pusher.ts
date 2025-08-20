@@ -1,5 +1,5 @@
 /**
- * Recursive task pushing with global locking mechanism
+ * Recursive task pushing with database locking mechanism
  */
 
 import { db } from '../db';
@@ -8,58 +8,119 @@ import * as schema from '../db/schema/index';
 import { findNextAssignableTask, selectBestAvailableAgent, type TaskWithContext } from './task-finder';
 import { spawnClaudeSession } from './claude-spawner';
 
-// Hot-reload-safe global lock using globalThis with automatic cleanup
-declare global {
-  var __soloUnicornTaskPushLock: {
-    locked: boolean;
-    timestamp: number;
-    moduleVersion: string;
-  } | undefined;
-}
-
-const MODULE_VERSION = Date.now().toString(); // Unique per hot reload
+// Database-based lock configuration
+const TASK_PUSH_LOCK_CODE = 'TASK_PUSH_LOCK';
 const LOCK_TIMEOUT_MS = 10000; // 10 second safety timeout
+const MODULE_VERSION = Date.now().toString(); // Unique per hot reload
 
-function acquireGlobalLock(): boolean {
-  const now = Date.now();
+async function acquireDatabaseLock(): Promise<boolean> {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + LOCK_TIMEOUT_MS);
 
-  // Check if lock exists and is stale (older than timeout or from different module version)
-  if (globalThis.__soloUnicornTaskPushLock) {
-    const lock = globalThis.__soloUnicornTaskPushLock;
-    const isStale = (now - lock.timestamp) > LOCK_TIMEOUT_MS;
-    const isDifferentModule = lock.moduleVersion !== MODULE_VERSION;
+  try {
+    // Try to get existing lock
+    const existingLock = await db
+      .select()
+      .from(schema.helpers)
+      .where(eq(schema.helpers.code, TASK_PUSH_LOCK_CODE))
+      .limit(1);
 
-    if (isStale || isDifferentModule) {
-      console.warn(`⚠️ Clearing stale task push lock either it exceeded stale timeout (every ${LOCK_TIMEOUT_MS / 1000} seconds) or it is hot reloaded`);
-      globalThis.__soloUnicornTaskPushLock = undefined;
-    } else if (lock.locked) {
-      return false; // Lock is active and fresh
+    if (existingLock.length > 0) {
+      const lock = existingLock[0];
+      const lockState = lock.state as {
+        locked: boolean;
+        timestamp: string;
+        moduleVersion: string;
+        expiresAt: string;
+      };
+
+      const isStale = new Date(lockState.expiresAt) < now;
+      const isDifferentModule = lockState.moduleVersion !== MODULE_VERSION;
+
+      if (isStale || isDifferentModule) {
+        // Update lock with current module
+        await db
+          .update(schema.helpers)
+          .set({
+            state: {
+              locked: true,
+              timestamp: now.toISOString(),
+              moduleVersion: MODULE_VERSION,
+              expiresAt: expiresAt.toISOString()
+            },
+            updatedAt: now
+          })
+          .where(eq(schema.helpers.code, TASK_PUSH_LOCK_CODE));
+        
+        return true;
+      } else if (lockState.locked) {
+        return false; // Lock is active and fresh
+      } else {
+        // Lock exists but not locked, acquire it
+        await db
+          .update(schema.helpers)
+          .set({
+            state: {
+              locked: true,
+              timestamp: now.toISOString(),
+              moduleVersion: MODULE_VERSION,
+              expiresAt: expiresAt.toISOString()
+            },
+            updatedAt: now
+          })
+          .where(eq(schema.helpers.code, TASK_PUSH_LOCK_CODE));
+        
+        return true;
+      }
+    } else {
+      // Create new lock
+      await db
+        .insert(schema.helpers)
+        .values({
+          code: TASK_PUSH_LOCK_CODE,
+          state: {
+            locked: true,
+            timestamp: now.toISOString(),
+            moduleVersion: MODULE_VERSION,
+            expiresAt: expiresAt.toISOString()
+          }
+        });
+      
+      return true;
     }
+  } catch (error) {
+    console.error('Failed to acquire database lock:', error);
+    return false;
   }
-
-  // Acquire lock
-  globalThis.__soloUnicornTaskPushLock = {
-    locked: true,
-    timestamp: now,
-    moduleVersion: MODULE_VERSION
-  };
-
-  return true;
 }
 
-function releaseGlobalLock(): void {
-  if (globalThis.__soloUnicornTaskPushLock?.moduleVersion === MODULE_VERSION) {
-    globalThis.__soloUnicornTaskPushLock.locked = false;
+async function releaseDatabaseLock(): Promise<void> {
+  try {
+    // Update lock to unlocked state but keep module version for tracking
+    await db
+      .update(schema.helpers)
+      .set({
+        state: {
+          locked: false,
+          timestamp: new Date().toISOString(),
+          moduleVersion: MODULE_VERSION,
+          expiresAt: new Date().toISOString() // Set to current time since it's released
+        },
+        updatedAt: new Date()
+      })
+      .where(eq(schema.helpers.code, TASK_PUSH_LOCK_CODE));
+  } catch (error) {
+    console.error('Failed to release database lock:', error);
   }
 }
 
 /**
- * Main recursive task pushing function with global locking
+ * Main recursive task pushing function with database locking
  */
 export async function tryPushTasks(): Promise<{ pushed: number; errors: string[] }> {
-  // Check and acquire global lock
-  if (!acquireGlobalLock()) {
-    // console.log('🚧 tryPushTasks] already in progre');
+  // Check and acquire database lock
+  if (!(await acquireDatabaseLock())) {
+    // console.log('🚧 tryPushTasks] already in progress');
     return { pushed: 0, errors: [] };
   }
 
@@ -109,8 +170,8 @@ export async function tryPushTasks(): Promise<{ pushed: number; errors: string[]
     return { pushed: totalPushed, errors };
 
   } finally {
-    // Always release global lock
-    releaseGlobalLock();
+    // Always release database lock
+    await releaseDatabaseLock();
   }
 }
 
