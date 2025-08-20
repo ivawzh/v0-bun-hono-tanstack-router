@@ -517,7 +517,7 @@ class CacheRecoveryService {
       { pattern: /project[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'projects' },
       { pattern: /task[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'tasks' },
       { pattern: /repository[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'repositories' },
-      { pattern: /agent[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'userAgents' },
+      { pattern: /agent[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'agents' },
       { pattern: /actor[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'actors' },
       { pattern: /attachment[s]?\s*(?:id:?\s*)?([a-f0-9-]+)/gi, entity: 'attachments' },
     ]

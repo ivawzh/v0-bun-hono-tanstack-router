@@ -170,9 +170,9 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   // Fetch available agents
   const { data: agents = [] } = useQuery(
-    orpc.userAgents.list.queryOptions({
-      input: { includeTaskCounts: false },
-      enabled: open
+    orpc.agents.list.queryOptions({
+      input: { projectId: task?.projectId || '', includeTaskCounts: false },
+      enabled: open && !!task?.projectId
     })
   );
 

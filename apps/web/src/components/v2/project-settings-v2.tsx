@@ -198,7 +198,7 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
   const [tempConcurrencyValue, setTempConcurrencyValue] = useState(agent.maxConcurrencyLimit || 1);
   
   const updateAgent = useMutation(
-    orpc.userAgents.update.mutationOptions({
+    orpc.agents.update.mutationOptions({
       onSuccess: (updatedAgent) => {
         toast.success("Agent updated successfully");
         setConcurrencyValue(updatedAgent.maxConcurrencyLimit || 1);
@@ -448,7 +448,7 @@ function CreateAgentForm({ projectId, onSuccess }: { projectId: string; onSucces
   });
 
   const createAgent = useMutation(
-    orpc.userAgents.create.mutationOptions({
+    orpc.agents.create.mutationOptions({
       onSuccess: () => {
         toast.success("Agent created successfully");
         onSuccess();
@@ -573,8 +573,8 @@ export function ProjectSettingsV2({
 
   // Fetch user agents
   const { data: agents, isLoading: loadingAgents } = useQuery(
-    orpc.userAgents.list.queryOptions({
-      input: { includeTaskCounts: true },
+    orpc.agents.list.queryOptions({
+      input: { projectId: project.id, includeTaskCounts: true },
       enabled: open
     })
   );
@@ -605,7 +605,7 @@ export function ProjectSettingsV2({
   );
 
   const deleteAgent = useMutation(
-    orpc.userAgents.delete.mutationOptions({
+    orpc.agents.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Agent deleted successfully");
         cache.invalidateAgent(''); // Pass empty string as we're invalidating all agent lists

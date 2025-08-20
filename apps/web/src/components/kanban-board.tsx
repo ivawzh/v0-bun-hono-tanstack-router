@@ -466,8 +466,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Fetch agents for current user
   const { data: agents } = useQuery(
-    orpc.userAgents.list.queryOptions({
-      input: { includeTaskCounts: false },
+    orpc.agents.list.queryOptions({
+      input: { projectId: projectId!, includeTaskCounts: false },
       enabled: !!projectId
     })
   );
@@ -1223,7 +1223,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 {agents && agents.length === 1 ? (
                   // Auto-selected single agent - show read-only field
                   <div className="flex h-10 w-full rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground max-sm:h-12 max-sm:text-base">
-                    {agents[0].name} ({agents[0].agentType})
+                    {agents[0].agentType} ({agents[0].name})
                     <span className="ml-auto text-xs text-green-600">Auto-selected</span>
                   </div>
                 ) : (
@@ -1238,7 +1238,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                     <SelectContent>
                       {agents?.map((agent: any) => (
                         <SelectItem key={agent.id} value={agent.id}>
-                          {agent.name} ({agent.agentType})
+                          {agent.agentType} ({agent.name})
                         </SelectItem>
                       ))}
                     </SelectContent>

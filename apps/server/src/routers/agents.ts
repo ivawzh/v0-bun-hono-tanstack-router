@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { db } from "../db";
-import { agents, actors, tasks, projects } from "../db/schema";
+import { agents, actors, tasks, projects, projectUsers } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 // Helper function to get or create agent by type (project-based agents)
@@ -37,201 +37,356 @@ function mapClientTypeToAgentType(clientType: "claude_code" | "opencode"): "CLAU
 }
 
 export const agentsRouter = o.router({
-  // Compatibility method for old frontend calls
+  // Project-scoped agents listing
   list: protectedProcedure
-    .input(v.optional(v.object({})))
-    .handler(async ({ context }) => {
-      // Return empty array since agents don't exist in simplified architecture
-      return [];
-    }),
-
-  // Actors Management
-  listActors: protectedProcedure
-    .input(v.object({
-      projectId: v.pipe(v.string(), v.uuid())
-    }))
-    .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db.query.projects.findFirst({
-        where: and(
-          eq(projects.id, input.projectId),
-          eq(projects.ownerId, context.user.id)
-        )
-      });
-
-      if (!project) {
-        throw new Error("Project not found or unauthorized");
-      }
-
-      return await db.query.actors.findMany({
-        where: eq(actors.projectId, input.projectId),
-        orderBy: [desc(actors.isDefault), desc(actors.createdAt)]
-      });
-    }),
-
-  createActor: protectedProcedure
     .input(v.object({
       projectId: v.pipe(v.string(), v.uuid()),
-      name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
-      description: v.pipe(v.string(), v.minLength(1)),
-      isDefault: v.optional(v.boolean(), false)
+      includeTaskCounts: v.optional(v.boolean(), false)
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db.query.projects.findFirst({
-        where: and(
-          eq(projects.id, input.projectId),
-          eq(projects.ownerId, context.user.id)
+      // Verify project access
+      const membership = await db
+        .select()
+        .from(projectUsers)
+        .where(
+          and(
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
+          )
         )
-      });
+        .limit(1);
 
-      if (!project) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
 
-      // If this is being set as default, unset other defaults
-      if (input.isDefault) {
-        await db
-          .update(actors)
-          .set({ isDefault: false })
-          .where(and(
-            eq(actors.projectId, input.projectId),
-            eq(actors.isDefault, true)
-          ));
+      // Get agents for this specific project only
+      const projectAgents = await db
+        .select()
+        .from(agents)
+        .where(eq(agents.projectId, input.projectId))
+        .orderBy(desc(agents.createdAt));
+
+      return projectAgents;
+    }),
+
+  get: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const result = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (result.length === 0) {
+        throw new Error("Agent not found or unauthorized");
       }
 
-      const [newActor] = await db
-        .insert(actors)
+      return result[0].agent;
+    }),
+
+  create: protectedProcedure
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid()),
+      name: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
+      agentType: v.picklist(['CLAUDE_CODE', 'CURSOR_CLI', 'OPENCODE']),
+      agentSettings: v.optional(v.record(v.string(), v.any()), {}),
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10)), 0)
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify project access
+      const membership = await db
+        .select()
+        .from(projectUsers)
+        .where(
+          and(
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (membership.length === 0) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      const newAgent = await db
+        .insert(agents)
         .values({
           projectId: input.projectId,
           name: input.name,
-          description: input.description,
-          isDefault: input.isDefault
+          agentType: input.agentType,
+          agentSettings: input.agentSettings,
+          maxConcurrencyLimit: input.maxConcurrencyLimit
         })
         .returning();
 
-      return newActor;
+      return newAgent[0];
     }),
 
-  updateActor: protectedProcedure
+  update: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid()),
-      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
-      description: v.optional(v.pipe(v.string(), v.minLength(1))),
-      isDefault: v.optional(v.boolean())
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(100))),
+      agentSettings: v.optional(v.record(v.string(), v.any())),
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10)))
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
-      const actor = await db.query.actors.findFirst({
-        where: eq(actors.id, input.id),
-        with: {
-          project: true
-        }
-      });
+      const agent = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
 
-      if (!actor || actor.project.ownerId !== context.user.id) {
-        throw new Error("Actor not found or unauthorized");
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
       }
 
-      // If this is being set as default, unset other defaults
-      if (input.isDefault) {
-        await db
-          .update(actors)
-          .set({ isDefault: false })
-          .where(and(
-            eq(actors.projectId, actor.projectId),
-            eq(actors.isDefault, true)
-          ));
-      }
+      const updates: any = { updatedAt: new Date() };
 
-      const updateData: any = {};
-      if (input.name !== undefined) updateData.name = input.name;
-      if (input.description !== undefined) updateData.description = input.description;
-      if (input.isDefault !== undefined) updateData.isDefault = input.isDefault;
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.agentSettings !== undefined) updates.agentSettings = input.agentSettings;
+      if (input.maxConcurrencyLimit !== undefined) updates.maxConcurrencyLimit = input.maxConcurrencyLimit;
 
-      updateData.updatedAt = new Date();
-
-      const [updated] = await db
-        .update(actors)
-        .set(updateData)
-        .where(eq(actors.id, input.id))
+      const updated = await db
+        .update(agents)
+        .set(updates)
+        .where(eq(agents.id, input.id))
         .returning();
 
-      return updated;
+      return updated[0];
     }),
 
-  deleteActor: protectedProcedure
+  delete: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership through project
-      const actor = await db.query.actors.findFirst({
-        where: eq(actors.id, input.id),
-        with: {
-          project: true
-        }
-      });
+      const agent = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
 
-      if (!actor || actor.project.ownerId !== context.user.id) {
-        throw new Error("Actor not found or unauthorized");
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
       }
 
-      // Check if any tasks are assigned to this actor
-      const tasksUsingActor = await db.query.tasks.findFirst({
-        where: eq(tasks.actorId, input.id)
-      });
+      // TODO: Check if any tasks are using this agent
+      await db.delete(agents).where(eq(agents.id, input.id));
 
-      if (tasksUsingActor) {
-        throw new Error("Cannot delete actor that has assigned tasks");
-      }
-
-      await db.delete(actors).where(eq(actors.id, input.id));
       return { success: true };
     }),
 
-  // Initialize default actor for a project
-  initializeDefaultActor: protectedProcedure
+  // Agents Management 
+  listAgents: protectedProcedure
     .input(v.object({
-      projectId: v.pipe(v.string(), v.uuid())
+      projectId: v.pipe(v.string(), v.uuid()),
+      includeTaskCounts: v.optional(v.boolean(), false)
     }))
     .handler(async ({ context, input }) => {
-      // Verify project ownership
-      const project = await db.query.projects.findFirst({
-        where: and(
-          eq(projects.id, input.projectId),
-          eq(projects.ownerId, context.user.id)
+      // Verify project access
+      const membership = await db
+        .select()
+        .from(projectUsers)
+        .where(
+          and(
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
+          )
         )
-      });
+        .limit(1);
 
-      if (!project) {
+      if (membership.length === 0) {
         throw new Error("Project not found or unauthorized");
       }
 
-      // Check if default actor already exists
-      const existingDefault = await db.query.actors.findFirst({
-        where: and(
-          eq(actors.projectId, input.projectId),
-          eq(actors.isDefault, true)
-        )
-      });
+      // Get agents for this specific project only
+      const projectAgents = await db
+        .select()
+        .from(agents)
+        .where(eq(agents.projectId, input.projectId))
+        .orderBy(desc(agents.createdAt));
 
-      if (existingDefault) {
-        return existingDefault;
+      return projectAgents;
+    }),
+
+  getAgent: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const result = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (result.length === 0) {
+        throw new Error("Agent not found or unauthorized");
       }
 
-      // Create default actor
-      const [defaultActor] = await db
-        .insert(actors)
+      return result[0].agent;
+    }),
+
+  createAgent: protectedProcedure
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid()),
+      name: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
+      agentType: v.picklist(['CLAUDE_CODE', 'CURSOR_CLI', 'OPENCODE']),
+      agentSettings: v.optional(v.record(v.string(), v.any()), {}),
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10)), 0)
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify project access
+      const membership = await db
+        .select()
+        .from(projectUsers)
+        .where(
+          and(
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (membership.length === 0) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      const newAgent = await db
+        .insert(agents)
         .values({
           projectId: input.projectId,
-          name: "Full-Stack Engineering Agent",
-          description: "Pragmatic problem-solver focused on working solutions over perfect code. Thinks Small: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity. Delivers functional features that solve real user problems with simplicity, reliability, and maintainable code.",
-          isDefault: true
+          name: input.name,
+          agentType: input.agentType,
+          agentSettings: input.agentSettings,
+          maxConcurrencyLimit: input.maxConcurrencyLimit
         })
         .returning();
 
-      return defaultActor;
+      return newAgent[0];
+    }),
+
+  updateAgent: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(100))),
+      agentSettings: v.optional(v.record(v.string(), v.any())),
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10)))
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership through project
+      const agent = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
+      }
+
+      const updates: any = { updatedAt: new Date() };
+
+      if (input.name !== undefined) updates.name = input.name;
+      if (input.agentSettings !== undefined) updates.agentSettings = input.agentSettings;
+      if (input.maxConcurrencyLimit !== undefined) updates.maxConcurrencyLimit = input.maxConcurrencyLimit;
+
+      const updated = await db
+        .update(agents)
+        .set(updates)
+        .where(eq(agents.id, input.id))
+        .returning();
+
+      return updated[0];
+    }),
+
+  deleteAgent: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership through project
+      const agent = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
+      }
+
+      // TODO: Check if any tasks are using this agent
+      await db.delete(agents).where(eq(agents.id, input.id));
+
+      return { success: true };
     }),
 
   // Note: Code agent HTTP endpoints moved to MCP server tools

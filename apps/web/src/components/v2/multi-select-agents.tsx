@@ -82,7 +82,7 @@ export function MultiSelectAgents({
               {selectedAgents.length === 0 ? (
                 <span className="text-muted-foreground">{placeholder}</span>
               ) : selectedAgents.length === 1 ? (
-                <span>{selectedAgents[0].name}</span>
+                <span>{selectedAgents[0].agentType} ({selectedAgents[0].name})</span>
               ) : (
                 <span>{selectedAgents.length} agents selected</span>
               )}
@@ -111,10 +111,7 @@ export function MultiSelectAgents({
                     />
                     <div>
                       <div className="flex items-center gap-2">
-                        <span>{agent.name}</span>
-                        <Badge variant="outline" className="text-xs">
-                          {agent.agentType}
-                        </Badge>
+                        <span>{agent.agentType} ({agent.name})</span>
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {getAgentStatusText(agent)}
@@ -150,10 +147,7 @@ export function MultiSelectAgents({
                           <Check className="mr-2 h-4 w-4 opacity-0" />
                           <div>
                             <div className="flex items-center gap-2">
-                              <span>{agent.name}</span>
-                              <Badge variant="outline" className="text-xs">
-                                {agent.agentType}
-                              </Badge>
+                              <span>{agent.agentType} ({agent.name})</span>
                             </div>
                             <div className="text-xs text-muted-foreground">
                               {getAgentStatusText(agent)}
@@ -178,7 +172,7 @@ export function MultiSelectAgents({
               variant="secondary"
               className="flex items-center gap-1 pr-1"
             >
-              <span className="text-xs">{agent.name}</span>
+              <span className="text-xs">{agent.agentType} ({agent.name})</span>
               <Button
                 variant="ghost"
                 size="icon"

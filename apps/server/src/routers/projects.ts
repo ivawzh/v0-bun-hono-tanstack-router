@@ -67,6 +67,16 @@ export const projectsRouter = o.router({
             ownerId: context.user.id,
           })
           .returning();
+
+        // Add the creator to project users
+        await db
+          .insert(projectUsers)
+          .values({
+            userId: context.user.id,
+            projectId: newProject[0].id,
+            role: "admin"
+          });
+
         return newProject[0];
       } catch (err: any) {
         console.error("projects.create failed", {

@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Plus, Settings, Activity } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { faker } from '@faker-js/faker';
 
 interface Agent {
   id: string;
@@ -248,6 +249,11 @@ function CreateAgentForm({
     claudeConfigDir: ''
   });
 
+  const generatePetName = () => {
+    const petName = faker.animal.petName();
+    setFormData(prev => ({ ...prev, name: petName }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -268,13 +274,25 @@ function CreateAgentForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label htmlFor="name">Agent Name</Label>
-        <Input
-          id="name"
-          value={formData.name}
-          onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-          placeholder="My Claude Agent"
-          required
-        />
+        <div className="flex gap-2">
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+            placeholder="My Claude Agent"
+            required
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            onClick={generatePetName}
+            className="shrink-0 px-3 hover:bg-secondary/80 transition-colors"
+            title="Generate a friendly name"
+          >
+            🐾
+          </Button>
+        </div>
       </div>
 
       <div>

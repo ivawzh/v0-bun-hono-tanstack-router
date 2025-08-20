@@ -88,9 +88,9 @@ export const queryKeys = {
 
   // Agents
   agents: {
-    all: () => ['userAgents'] as const,
+    all: () => ['agents'] as const,
     lists: () => [...queryKeys.agents.all(), 'list'] as const,
-    list: (options?: { includeTaskCounts?: boolean }) => [...queryKeys.agents.lists(), { input: options }] as const,
+    list: (projectId: string, options?: { includeTaskCounts?: boolean }) => [...queryKeys.agents.lists(), { projectId, ...options }] as const,
     details: () => [...queryKeys.agents.all(), 'detail'] as const,
     detail: (id: string) => [...queryKeys.agents.details(), id] as const,
   },
@@ -534,7 +534,7 @@ export const devUtils = {
     }
     
     const [entity] = queryKey
-    const validEntities = ['projects', 'tasks', 'repositories', 'userAgents', 'actors', 'attachments', 'auth']
+    const validEntities = ['projects', 'tasks', 'repositories', 'agents', 'actors', 'attachments', 'auth']
     
     if (typeof entity !== 'string' || !validEntities.includes(entity)) {
       console.warn(`⚠️  Query key should start with a valid entity (${validEntities.join(', ')})`, queryKey)

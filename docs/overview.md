@@ -61,6 +61,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 ### Actor
 
+- Basically LLM character card, that is injected into agent prompt
 - Describes agent mindset, principles, focus, methodology, values
 - Not bound to repo or agent - assigned per task
 - Default Actor for unspecified tasks
