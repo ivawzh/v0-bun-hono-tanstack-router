@@ -545,8 +545,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Clear the delete modal state
       setDeleteTaskId(null);
       setTaskToDelete(null);
-      // Don't invalidate immediately - let optimistic update persist
-      // WebSocket events will sync if needed
+      // Use standardized cache invalidation to ensure UI updates
+      cache.invalidate();
       console.log('✅ Task deleted successfully');
     }
   }));
@@ -605,8 +605,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       toast.error("Failed to update task order: " + error.message);
     },
     onSuccess: () => {
-      // Don't invalidate immediately - let optimistic update persist
-      // Real-time updates via WebSocket will sync if needed
+      // Use standardized cache invalidation to ensure consistency
+      cache.invalidate();
       console.log('✅ Task order updated successfully');
     }
   }));

@@ -150,77 +150,49 @@ export const cacheUtils = {
   /**
    * Invalidate all data for a specific project
    */
-  invalidateProject: async (queryClient: QueryClient, projectId: string) => {
-    debugLog('invalidateProject', { projectId })
+  invalidateProject: (queryClient: QueryClient, projectId: string) => {
+    const operations = [
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.projects.withTasks(projectId),
+        exact: true,
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tasks.byProject(projectId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.repositories.byProject(projectId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.actors.byProject(projectId),
+      }),
+    ]
     
-    try {
-      const operations = [
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.projects.withTasks(projectId),
-          exact: true,
-        }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.tasks.byProject(projectId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.repositories.byProject(projectId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.actors.byProject(projectId),
-        }),
-      ]
-      
-      const results = await Promise.allSettled(operations)
-      const failures = results.filter(r => r.status === 'rejected')
-      
-      if (failures.length > 0) {
-        handleCacheError('invalidateProject', failures)
-      }
-      
-      return results
-    } catch (error) {
-      handleCacheError('invalidateProject', error)
-      throw error
-    }
+    return executeCacheOperation('invalidateProject', operations, { projectId })
   },
 
   /**
    * Invalidate task-related queries
    */
-  invalidateTask: async (queryClient: QueryClient, taskId: string, projectId?: string) => {
-    debugLog('invalidateTask', { taskId, projectId })
-    
-    try {
-      const promises = [
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.tasks.detail(taskId),
-        }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.attachments.byTask(taskId),
-        }),
-      ]
+  invalidateTask: (queryClient: QueryClient, taskId: string, projectId?: string) => {
+    const promises = [
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tasks.detail(taskId),
+      }),
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.attachments.byTask(taskId),
+      }),
+    ]
 
-      if (projectId) {
-        promises.push(
-          queryClient.invalidateQueries({
-            queryKey: queryKeys.projects.withTasks(projectId),
-            exact: true,
-          })
-        )
-      }
-
-      const results = await Promise.allSettled(promises)
-      const failures = results.filter(r => r.status === 'rejected')
-      
-      if (failures.length > 0) {
-        handleCacheError('invalidateTask', failures)
-      }
-      
-      return results
-    } catch (error) {
-      handleCacheError('invalidateTask', error)
-      throw error
+    if (projectId) {
+      promises.push(
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.projects.withTasks(projectId),
+          exact: true,
+        })
+      )
     }
+
+    return executeCacheOperation('invalidateTask', promises, { taskId, projectId })
   },
 
   /**
