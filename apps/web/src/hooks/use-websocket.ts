@@ -61,10 +61,35 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           const message: WebSocketMessage = JSON.parse(event.data);
           console.log('📨 WebSocket message received:', message);
 
-          // SIMPLIFIED: Just invalidate all queries on "flush" message
+          // Selective cache invalidation based on message type
           if (message.type === 'flush') {
             console.log('🔄 Flushing React Query cache');
             queryClient.invalidateQueries();
+          } else if (message.type === 'task.updated') {
+            // Invalidate specific task data when task is updated remotely
+            const { taskId, projectId } = message.data || {};
+            if (taskId) {
+              console.log('🔄 Invalidating task data:', taskId);
+              queryClient.invalidateQueries({
+                queryKey: ['tasks', 'detail', taskId],
+              });
+              if (projectId) {
+                queryClient.invalidateQueries({
+                  queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
+                  exact: true,
+                });
+              }
+            }
+          } else if (message.type === 'project.tasks.updated') {
+            // Invalidate project tasks when tasks are updated remotely
+            const { projectId } = message.data || {};
+            if (projectId) {
+              console.log('🔄 Invalidating project tasks:', projectId);
+              queryClient.invalidateQueries({
+                queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
+                exact: true,
+              });
+            }
           }
 
           // Call custom message handler if provided

@@ -73,10 +73,10 @@ interface Repository {
   id: string;
   name: string;
   repoPath: string;
-  isDefault?: boolean | null;
+  isDefault?: boolean;
   isAvailable?: boolean;
   activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
+  maxConcurrencyLimit?: number;
 }
 
 interface Agent {
@@ -85,7 +85,7 @@ interface Agent {
   agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE';
   isAvailable?: boolean;
   activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
+  maxConcurrencyLimit?: number;
 }
 
 interface Actor {
@@ -705,7 +705,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                                   <SelectValue placeholder="Select main repository" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {repositories.map((repo: Repository) => (
+                                  {repositories.map((repo: any) => (
                                     <SelectItem key={repo.id} value={repo.id}>
                                       <div className="flex items-center gap-2">
                                         <FolderOpen className="h-3 w-3" />
@@ -727,7 +727,11 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                               <Label>Additional Repositories</Label>
                               <div className="mt-1">
                                 <MultiSelectRepositories
-                                  repositories={repositories as Repository[]}
+                                  repositories={repositories.map(r => ({
+                                    ...r,
+                                    isDefault: r.isDefault ?? undefined,
+                                    maxConcurrencyLimit: r.maxConcurrencyLimit ?? undefined,
+                                  }))}
                                   selectedRepositoryIds={task.additionalRepositoryIds || []}
                                   mainRepositoryId={task.mainRepositoryId}
                                   onSelectionChange={handleAdditionalRepositoriesChange}
@@ -751,7 +755,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                               <Label>Assigned Agents</Label>
                               <div className="mt-1">
                                 <MultiSelectAgents
-                                  agents={agents as Agent[]}
+                                  agents={agents.map(a => ({
+                                    ...a,
+                                    maxConcurrencyLimit: a.maxConcurrencyLimit ?? undefined,
+                                  }))}
                                   selectedAgentIds={task.assignedAgentIds || []}
                                   onSelectionChange={handleAssignedAgentsChange}
                                   placeholder="Select agents to work on this task..."

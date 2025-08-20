@@ -522,14 +522,35 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       const queryKey = cache.queryKeys.projects.withTasks();
       const cachedData = cache.getCachedData(queryKey);
       if (cachedData) {
-        cache.setCachedData(queryKey, {
-          ...cachedData,
-          tasks: (cachedData as any).tasks.map((task: any) => 
-            task.id.startsWith('temp-') && task.rawTitle === data.rawTitle 
-              ? { ...data, mainRepository: task.mainRepository, assignedAgents: task.assignedAgents, actor: task.actor }
-              : task
-          )
-        });
+        // Find the temporary task and replace it with the real one
+        const tasks = (cachedData as any).tasks || [];
+        const tempTaskIndex = tasks.findIndex((task: any) => 
+          task.id.startsWith('temp-') && task.rawTitle === data.rawTitle
+        );
+        
+        if (tempTaskIndex >= 0) {
+          // Replace temp task with real task data, preserving any display properties
+          const tempTask = tasks[tempTaskIndex];
+          const updatedTasks = [...tasks];
+          updatedTasks[tempTaskIndex] = {
+            ...data,
+            // Preserve relationships that might have been included in optimistic update
+            mainRepository: tempTask.mainRepository || (data as any).mainRepository,
+            assignedAgents: tempTask.assignedAgents || (data as any).assignedAgents,
+            actor: tempTask.actor || (data as any).actor
+          };
+          
+          cache.setCachedData(queryKey, {
+            ...cachedData,
+            tasks: updatedTasks
+          });
+        } else {
+          // Fallback: just add the new task if temp task not found
+          cache.setCachedData(queryKey, {
+            ...cachedData,
+            tasks: [...tasks, data]
+          });
+        }
       }
       console.log('✅ Task created successfully');
     },
