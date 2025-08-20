@@ -53,24 +53,27 @@ export function ProjectSwitcher() {
 
   const { data: projects, isLoading, refetch } = useQuery(orpc.projects.list.queryOptions({ input: {} }));
 
-  // Auto-select first project if none selected and projects exist
+  // Auto-select first project if none selected and projects exist (only when not in project context)
   useEffect(() => {
     if (projects && (projects as any).length > 0) {
-      if (!selectedProject) {
-        const firstProject = (projects as any)[0];
-        setSelectedProject(firstProject.id);
-        localStorage.setItem(SELECTED_PROJECT_KEY, firstProject.id);
-      } else {
-        // Verify selected project still exists
-        const projectExists = (projects as any).some((p: any) => p.id === selectedProject);
-        if (!projectExists && (projects as any).length > 0) {
+      // Only auto-select if we're not viewing a specific project page
+      if (!urlProjectId) {
+        if (!selectedProject) {
           const firstProject = (projects as any)[0];
           setSelectedProject(firstProject.id);
           localStorage.setItem(SELECTED_PROJECT_KEY, firstProject.id);
+        } else {
+          // Verify selected project still exists
+          const projectExists = (projects as any).some((p: any) => p.id === selectedProject);
+          if (!projectExists && (projects as any).length > 0) {
+            const firstProject = (projects as any)[0];
+            setSelectedProject(firstProject.id);
+            localStorage.setItem(SELECTED_PROJECT_KEY, firstProject.id);
+          }
         }
       }
     }
-  }, [projects, selectedProject]);
+  }, [projects, selectedProject, urlProjectId]);
   const createProject = useMutation(
     orpc.projects.create.mutationOptions({
       onSuccess: async (newProject) => {
@@ -124,6 +127,7 @@ export function ProjectSwitcher() {
                   <CommandItem
                     key={project.id}
                     onSelect={() => {
+                      // Update localStorage for persistence when not in project context
                       setSelectedProject(project.id);
                       localStorage.setItem(SELECTED_PROJECT_KEY, project.id);
                       setOpen(false);
