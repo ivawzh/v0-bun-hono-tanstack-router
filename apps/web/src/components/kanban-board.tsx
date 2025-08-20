@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ArrowUp, ArrowDown, ChevronDown
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ChevronDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -407,8 +407,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
   const [resetTaskId, setResetTaskId] = useState<string | null>(null);
   const [taskToReset, setTaskToReset] = useState<any>(null);
-  // Done column sort state - default to newest first (descending)
-  const [doneSortOrder, setDoneSortOrder] = useState<'newest-first' | 'oldest-first'>('newest-first');
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
 
@@ -691,7 +689,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
     // Final sort - special handling for Done column
     if (column.id === 'done') {
-      // Done column: sort by completion time based on user preference
+      // Done column: always sort by completion time newest first (descending)
       // Use a more reliable completion time approach - combination of status and timestamps
       columnTasks = columnTasks.sort((a: any, b: any) => {
         // For done tasks, we'll use updatedAt as the best available completion indicator
@@ -705,19 +703,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         if (timeDiff < 1000) {
           const aCreated = new Date(a.createdAt).getTime();
           const bCreated = new Date(b.createdAt).getTime();
-
-          if (doneSortOrder === 'newest-first') {
-            return bCreated - aCreated;
-          } else {
-            return aCreated - bCreated;
-          }
+          return bCreated - aCreated; // Newest first
         }
 
-        if (doneSortOrder === 'newest-first') {
-          return bTime - aTime; // Newest first (descending)
-        } else {
-          return aTime - bTime; // Oldest first (ascending)
-        }
+        return bTime - aTime; // Newest first (descending)
       });
     } else {
       // Other columns: sort by priority first, then columnOrder
@@ -762,13 +751,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
     // Check if dropped on a different column
     if (statusColumns.some(col => col.id === overId)) {
-      targetStatus = overId;
+      targetStatus = overId as "todo" | "doing" | "done" | "loop";
       targetTasks = groupedTasks[targetStatus];
     } else {
       // Find which column the target task belongs to
       for (const column of statusColumns) {
         if (groupedTasks[column.id].some((t: any) => t.id === overId)) {
-          targetStatus = column.id;
+          targetStatus = column.id as "todo" | "doing" | "done" | "loop";
           targetTasks = groupedTasks[column.id];
           break;
         }
@@ -910,13 +899,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   };
 
-  const handleToggleDoneSort = useCallback(() => {
-    setDoneSortOrder(current => {
-      const newOrder = current === 'newest-first' ? 'oldest-first' : 'newest-first';
-      console.log('Done sort order changed:', current, '->', newOrder);
-      return newOrder;
-    });
-  }, []);
 
   const handleCreateTask = async () => {
     // Check if project has required setup
@@ -1023,38 +1005,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                         <Badge variant="secondary">{columnTasks.length}</Badge>
                       </div>
                       <div className="flex items-center gap-1">
-                        {/* Sort button for Done column */}
-                        {column.id === 'done' && (
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  key="done-sort-toggle"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.preventDefault();
-                                    e.stopPropagation();
-                                    handleToggleDoneSort();
-                                  }}
-                                  className="h-10 w-10 p-0 min-h-[44px] min-w-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
-                                >
-                                  {doneSortOrder === 'newest-first' ? (
-                                    <ArrowDown className="h-4 w-4" />
-                                  ) : (
-                                    <ArrowUp className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {doneSortOrder === 'newest-first'
-                                  ? 'Sorted by newest first (click for oldest first)'
-                                  : 'Sorted by oldest first (click for newest first)'
-                                }
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        )}
                         {/* Add task button */}
                         <Button
                           variant="ghost"

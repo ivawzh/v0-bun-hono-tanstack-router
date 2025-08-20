@@ -41,7 +41,7 @@ const logger = {
   },
   tool: (toolName: string, phase: string, context?: Record<string, any>) => {
     console.log(
-      `[MCP-TOOL] ${new Date().toISOString()} ${toolName}-phase:${phase}`,
+      `[MCP-TOOL] ${new Date().toISOString()} tool:${toolName} phase:${phase}`,
       context ? JSON.stringify(context) : ""
     );
   },
