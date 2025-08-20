@@ -32,8 +32,8 @@ app.route("/api/oauth", oauthCallbackRoutes);
 
 const handler = new RPCHandler(appRouter, {
   interceptors: [
-    onError((error) => {
-      console.error(error)
+    onError((error, options, ...rest) => {
+      console.error(`🚨 [rpc] Error - URL: ${options.request.url.href} | context: ${options.context.appUser} | Error:`, error)
     })
   ]
 });

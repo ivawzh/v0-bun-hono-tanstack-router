@@ -680,6 +680,7 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.taskId),
@@ -728,6 +729,7 @@ export const tasksRouter = o.router({
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
           and(
             eq(tasks.id, input.taskId),
