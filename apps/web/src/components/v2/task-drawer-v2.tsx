@@ -190,9 +190,9 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
       toast.success("Task updated successfully");
       setEditingTitle(false);
       setEditingDescription(false);
-      // Use standardized task invalidation
+      // Use standardized project invalidation for immediate UI updates
       if (task?.projectId) {
-        cache.invalidateTask(taskId!, task.projectId);
+        cache.invalidateProject(task.projectId);
       }
     },
     onError: (error: any) => {
@@ -219,9 +219,9 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   const deleteAttachmentMutation = useMutation(orpc.tasks.deleteAttachment.mutationOptions({
     onSuccess: () => {
       toast.success("Attachment deleted successfully");
-      // Use standardized attachment invalidation
+      // Use standardized project invalidation for immediate UI updates
       if (task?.projectId) {
-        cache.invalidateAttachments(taskId!);
+        cache.invalidateProject(task.projectId);
       }
     },
     onError: (error: any) => {
