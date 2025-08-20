@@ -158,25 +158,16 @@ export const tasksRouter = o.router({
       rawTitle: z.string().min(1).max(255),
       rawDescription: z.string().optional(),
       priority: z.number().min(1).max(5).optional().default(3),
-      attachments: z.array(z.any()).optional().default([]),
+      attachments: z.array(z.object({
+        id: z.string().optional(),
+        file: z.instanceof(File),
+        preview: z.string().optional()
+      })).optional().default([]),
       status: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
       stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional()
     }))
     .handler(async ({ context, input }) => {
-      console.log('Task creation input received:', {
-        projectId: input.projectId,
-        rawTitle: input.rawTitle,
-        attachments: input.attachments?.map((f, i) => {
-          console.log(`Attachment ${i}:`, f, 'constructor:', f.constructor?.name, 'instanceof File:', f instanceof File);
-          return { 
-            name: f?.name, 
-            type: f?.type, 
-            size: f?.size,
-            constructor: f?.constructor?.name,
-            isFile: f instanceof File
-          };
-        })
-      });
+      console.log('Task creation with', input.attachments?.length || 0, 'attachments');
       // Verify project membership
       const membership = await db
         .select()
@@ -295,8 +286,16 @@ export const tasksRouter = o.router({
       let processedAttachments: AttachmentMetadata[] = [];
       
       if (input.attachments && input.attachments.length > 0) {
-        for (const file of input.attachments) {
+        for (const attachmentWrapper of input.attachments) {
           try {
+            // Extract the actual File object from the wrapper
+            const file = attachmentWrapper.file;
+            
+            if (!file || !(file instanceof File)) {
+              console.warn('Skipping invalid attachment - not a File object:', attachmentWrapper);
+              continue;
+            }
+            
             // Convert File to buffer for processing
             const buffer = new Uint8Array(await file.arrayBuffer());
             
