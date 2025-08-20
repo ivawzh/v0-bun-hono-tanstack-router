@@ -3,7 +3,7 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 import { db } from "../db";
-import { projects, tasks, taskDependencies, taskAdditionalRepositories } from "../db/schema";
+import { projects, tasks, taskDependencies, taskAdditionalRepositories, taskAgents } from "../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { broadcastFlush } from "@/websocket/websocket-server";
 
@@ -519,6 +519,25 @@ function registerMcpTools(server: McpServer) {
           });
         }
 
+        // Copy agent assignments from parent task
+        const parentAgents = await db
+          .select({ agentId: taskAgents.agentId })
+          .from(taskAgents)
+          .where(eq(taskAgents.taskId, createdByTaskId));
+        
+        if (parentAgents.length > 0) {
+          const agentAssignments = parentAgents.map(pa => ({
+            taskId,
+            agentId: pa.agentId,
+          }));
+          await db.insert(taskAgents).values(agentAssignments);
+          logger.debug("Agent assignments copied from parent task", {
+            taskId,
+            createdByTaskId,
+            agentCount: parentAgents.length,
+          });
+        }
+
         logger.tool("task_create", "success", {
           taskId,
           rawTitle,
@@ -528,6 +547,7 @@ function registerMcpTools(server: McpServer) {
           status: status,
           stage: stage,
           author: "ai",
+          inheritedAgents: parentAgents.length,
         });
 
         broadcastFlush(projectId);
