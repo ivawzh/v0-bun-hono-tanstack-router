@@ -38,6 +38,7 @@
     "seed:run": "drizzle-migrations seed:run"
   },
   "dependencies": {
+    "@anthropic-ai/claude-code": "^1.0.85",
     "@ai-sdk/google": "^1.2.3",
     "@electric-sql/pglite": "^0.2.11",
     "@modelcontextprotocol/sdk": "^1.17.2",

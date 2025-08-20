@@ -39,9 +39,9 @@ const logger = {
       context ? JSON.stringify(context) : ""
     );
   },
-  tool: (toolName: string, action: string, context?: Record<string, any>) => {
+  tool: (toolName: string, phase: string, context?: Record<string, any>) => {
     console.log(
-      `[MCP-TOOL] ${new Date().toISOString()} ${toolName}.${action}`,
+      `[MCP-TOOL] ${new Date().toISOString()} ${toolName}-phase:${phase}`,
       context ? JSON.stringify(context) : ""
     );
   },
@@ -86,8 +86,9 @@ function registerMcpTools(server: McpServer) {
         agentSessionStatus: z.enum(["NON_ACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
     },
-    async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, agentSessionStatus }, { requestInfo }) => {
-      logger.info(`RequestInfo: `, requestInfo);
+    async (input, { requestInfo }) => {
+      const { taskId, refinedTitle, refinedDescription, plan, status, stage, agentSessionStatus } = input;
+      logger.tool("task_update", "init", { input });
 
       // Prepare initial updates
       const updates: any = { refinedTitle, refinedDescription, plan, status, stage };
@@ -124,11 +125,6 @@ function registerMcpTools(server: McpServer) {
       const filteredUpdates = Object.fromEntries(
         Object.entries(updates).filter(([_, value]) => value !== undefined)
       );
-
-      logger.tool("task_update", "start", {
-        taskId,
-        updates: filteredUpdates,
-      });
 
       try {
         assertBearer(requestInfo?.headers?.authorization);
@@ -177,7 +173,7 @@ function registerMcpTools(server: McpServer) {
           }
 
           filteredUpdates.columnOrder = newColumnOrder;
-          logger.info("Loop task completion - appending to bottom of loop column", {
+          logger.tool("task_update", "loop_task_completion - appending to bottom of loop column", {
             taskId,
             newColumnOrder
           });
@@ -191,9 +187,8 @@ function registerMcpTools(server: McpServer) {
           })
           .where(eq(tasks.id, taskId));
 
-        logger.tool("task_update", "success", {
+        logger.tool("task_update", "successed", {
           taskId,
-          updatedFields: Object.keys(filteredUpdates),
         });
 
         broadcastFlush(task.projectId);
@@ -207,10 +202,7 @@ function registerMcpTools(server: McpServer) {
           ],
         };
       } catch (error) {
-        logger.error("task_update failed", error, {
-          taskId,
-          updates: filteredUpdates,
-        });
+        logger.error("task_update failed", error, { taskId });
         return {
           content: [
             {
@@ -376,13 +368,9 @@ function registerMcpTools(server: McpServer) {
         dependsOn: z.array(z.string().uuid()).optional().default([]),
       },
     },
-    async ({ createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn }, { requestInfo }) => {
-      logger.tool("task_create", "start", {
-        createdByTaskId,
-        stage,
-        hasRefinedTitle: !!refinedTitle,
-        dependencyCount: dependsOn?.length || 0,
-      });
+    async (input, { requestInfo }) => {
+      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn } = input;
+      logger.tool("task_create", "init", { input });
 
       try {
         assertBearer(requestInfo?.headers?.authorization);
@@ -533,6 +521,8 @@ function registerMcpTools(server: McpServer) {
 
         logger.tool("task_create", "success", {
           taskId,
+          rawTitle,
+          refinedTitle,
           projectId,
           createdByTaskId,
           status: status,
