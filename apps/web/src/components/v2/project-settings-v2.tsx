@@ -4,8 +4,10 @@
  */
 
 import { useState } from "react";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCacheUtils } from "@/hooks/use-cache-utils";
 import { orpc } from "@/utils/orpc";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -18,7 +20,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity, HelpCircle } from "lucide-react";
-import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -368,7 +369,7 @@ export function ProjectSettingsV2({
   onSuccess,
   defaultTab = 'repositories',
 }: ProjectSettingsV2Props) {
-  const queryClient = useQueryClient();
+  const cache = useCacheUtils();
 
   const [name, setName] = useState(project.name || "");
   const [description, setDescription] = useState(project.description || "");
@@ -396,7 +397,7 @@ export function ProjectSettingsV2({
     orpc.projects.update.mutationOptions({
       onSuccess: () => {
         toast.success("Project settings updated successfully");
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        cache.invalidateProjectLists();
         onSuccess?.();
       },
       onError: (error: any) => {
@@ -409,7 +410,7 @@ export function ProjectSettingsV2({
     orpc.repositories.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Repository deleted successfully");
-        queryClient.invalidateQueries({ queryKey: ['repositories', 'list', { input: { projectId: project.id } }] });
+        cache.invalidateRepository('', project.id); // Pass empty string for repo ID since we're invalidating by project
       },
       onError: (error: any) => {
         toast.error(`Failed to delete repository: ${error.message}`);
@@ -421,7 +422,7 @@ export function ProjectSettingsV2({
     orpc.userAgents.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Agent deleted successfully");
-        queryClient.invalidateQueries({ queryKey: ['userAgents', 'list'] });
+        cache.invalidateAgent(''); // Pass empty string as we're invalidating all agent lists
       },
       onError: (error: any) => {
         toast.error(`Failed to delete agent: ${error.message}`);

@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Upload, Loader2 } from 'lucide-react'
 import { client } from '@/utils/orpc'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation } from '@tanstack/react-query'
+import { useCacheUtils } from '@/hooks/use-cache-utils'
 
 interface TaskAttachmentUploadProps {
   taskId: string
@@ -12,7 +13,7 @@ interface TaskAttachmentUploadProps {
 
 export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
   const [attachments, setAttachments] = useState<AttachmentFile[]>([])
-  const queryClient = useQueryClient()
+  const cache = useCacheUtils()
 
   const uploadMutation = useMutation({
     mutationFn: async (file: AttachmentFile) => {
@@ -61,8 +62,8 @@ export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
     onSuccess: () => {
       // Clear uploaded attachments
       setAttachments([])
-      // Invalidate task queries to refresh the attachment list
-      queryClient.invalidateQueries({ queryKey: ['projects'] })
+      // Invalidate attachment queries to refresh the attachment list
+      cache.invalidateAttachments(taskId)
     },
     onError: (error) => {
       console.error('Failed to upload attachment:', error)

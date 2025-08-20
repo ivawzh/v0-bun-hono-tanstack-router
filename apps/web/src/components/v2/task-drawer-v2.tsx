@@ -58,6 +58,7 @@ import { getPriorityColors, getPriorityDisplay, getPriorityOptions, type Priorit
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useCacheUtils } from "@/hooks/use-cache-utils";
 import { cn } from "@/lib/utils";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
@@ -149,6 +150,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   const [tempDescription, setTempDescription] = useState("");
 
   const queryClient = useQueryClient();
+  const cache = useCacheUtils();
 
   // Fetch task details using oRPC
   const { data: task, isLoading } = useQuery(

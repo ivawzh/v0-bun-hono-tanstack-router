@@ -6,6 +6,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "@tanstack/react-router";
+import { useCacheUtils } from "@/hooks/use-cache-utils";
 import { orpc } from "@/utils/orpc";
 import {
   Dialog,
@@ -37,7 +38,7 @@ export function DeleteProjectModal({
   onOpenChange,
 }: DeleteProjectModalProps) {
   const [confirmationInput, setConfirmationInput] = useState("");
-  const queryClient = useQueryClient();
+  const cache = useCacheUtils();
   const router = useRouter();
 
   const isNameMatched = confirmationInput === project.name;
@@ -46,7 +47,7 @@ export function DeleteProjectModal({
     orpc.projects.delete.mutationOptions({
       onSuccess: () => {
         toast.success("Project deleted successfully");
-        queryClient.invalidateQueries({ queryKey: ["projects"] });
+        cache.invalidateProjectLists();
         onOpenChange(false);
         // Redirect to projects list
         router.navigate({ to: "/projects" });
