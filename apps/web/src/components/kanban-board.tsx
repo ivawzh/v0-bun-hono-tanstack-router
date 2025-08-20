@@ -492,14 +492,40 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Create task mutation
   const createTaskMutation = useMutation(orpc.tasks.create.mutationOptions({
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      // Cancel any outgoing refetches
+      const queryKey = cache.queryKeys.projects.withTasks();
+      await cache.cancelQueries(queryKey);
+      
+      // Use optimistic update to add task immediately
+      const newTask = {
+        id: 'temp-' + Date.now(), // Temporary ID that will be replaced by server
+        ...variables,
+        refinedTitle: variables.rawTitle,
+        refinedDescription: variables.rawDescription,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        agentSessionStatus: 'NON_ACTIVE' as const,
+        author: 'human' as const,
+        ready: variables.ready ?? false,
+        columnOrder: '1000', // Default order
+      };
+      
+      const context = await cache.task.optimisticAdd(projectId, newTask);
+      return context;
+    },
+    onSuccess: (data) => {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
       clearDraft(); // Clear the auto-saved draft
-      // Use standardized cache invalidation
+      // Invalidate to get the real task data from server
       cache.invalidate();
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context?.previousData && context?.queryKey) {
+        cache.optimistic.rollback(context.queryKey, context.previousData);
+      }
       toast.error("Failed to create task: " + error.message);
     }
   }));
