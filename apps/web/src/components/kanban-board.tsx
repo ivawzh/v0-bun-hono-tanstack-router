@@ -17,7 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { orpc } from "@/utils/orpc";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { useProjectCache } from "@/hooks/use-cache-utils";
 import {
   Dialog,
   DialogContent,
@@ -410,7 +411,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
 
-  const queryClient = useQueryClient();
+  // Project-specific cache utilities
+  const cache = useProjectCache(projectId);
 
   // WebSocket connection for real-time updates
   const { isConnected: wsConnected, connectionStatus } = useWebSocket({
@@ -447,7 +449,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     })
   );
 
-  // Fetch project with tasks
+  // Fetch project with tasks using oRPC but with standardized cache management
   const { data: project, isLoading, refetch } = useQuery(
     orpc.projects.getWithTasks.queryOptions({
       input: { id: projectId },
@@ -494,11 +496,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
       clearDraft(); // Clear the auto-saved draft
-      // Only invalidate this specific project's data
-      queryClient.invalidateQueries({
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true
-      });
+      // Use standardized cache invalidation
+      cache.invalidate();
     },
     onError: (error) => {
       toast.error("Failed to create task: " + error.message);
@@ -508,11 +507,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Toggle ready mutation
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
     onSuccess: () => {
-      // Only invalidate this specific project's data
-      queryClient.invalidateQueries({
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true
-      });
+      // Use standardized cache invalidation
+      cache.invalidate();
     },
     onError: (error) => {
       toast.error("Failed to update task: " + error.message);
@@ -522,11 +518,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Update stage mutation
   const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
     onSuccess: () => {
-      // Only invalidate this specific project's data
-      queryClient.invalidateQueries({
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true
-      });
+      // Use standardized cache invalidation
+      cache.invalidate();
     },
     onError: (error) => {
       toast.error("Failed to update task stage: " + error.message);
@@ -536,41 +529,14 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Delete task mutation
   const deleteTaskMutation = useMutation(orpc.tasks.delete.mutationOptions({
     onMutate: async (variables) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }]
-      });
-
-      // Snapshot the previous value
-      const previousData = queryClient.getQueryData(
-        ["projects", "getWithTasks", { input: { id: projectId } }]
-      );
-
-      // Optimistically remove the task from the UI
-      if (previousData) {
-        queryClient.setQueryData(
-          ["projects", "getWithTasks", { input: { id: projectId } }],
-          (old: any) => {
-            if (!old?.tasks) return old;
-
-            // Remove the deleted task from the tasks array
-            const updatedTasks = old.tasks.filter((task: any) => task.id !== variables.id);
-
-            return { ...old, tasks: updatedTasks };
-          }
-        );
-      }
-
-      // Return a context object with the snapshotted value
-      return { previousData };
+      // Use standardized optimistic removal
+      const context = await cache.task.optimisticRemove(variables.id);
+      return context;
     },
     onError: (error, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ["projects", "getWithTasks", { input: { id: projectId } }],
-          context.previousData
-        );
+      // Use standardized rollback
+      if (context?.previousData && context?.queryKey) {
+        cache.optimistic.rollback(context.queryKey, context.previousData);
       }
       toast.error("Failed to delete task: " + error.message);
     },
@@ -589,11 +555,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const resetAgentMutation = useMutation(orpc.tasks.resetAgent.mutationOptions({
     onSuccess: () => {
       toast.success("AI agent status reset successfully");
-      // Only invalidate this specific project's data
-      queryClient.invalidateQueries({
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }],
-        exact: true
-      });
+      // Use standardized cache invalidation
+      cache.invalidate();
       setResetTaskId(null);
       setTaskToReset(null);
     },
@@ -605,24 +568,19 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Update task order mutation
   const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
     onMutate: async (variables) => {
-      // Cancel any outgoing refetches (so they don't overwrite our optimistic update)
-      await queryClient.cancelQueries({
-        queryKey: ["projects", "getWithTasks", { input: { id: projectId } }]
-      });
+      const queryKey = cache.queryKeys.projects.withTasks();
+      
+      // Cancel any outgoing refetches
+      await cache.cancelQueries(queryKey);
 
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData(
-        ["projects", "getWithTasks", { input: { id: projectId } }]
-      );
+      const previousData = cache.getCachedData(queryKey);
 
       // Optimistically update to the new value
       if (previousData) {
-        queryClient.setQueryData(
-          ["projects", "getWithTasks", { input: { id: projectId } }],
-          (old: any) => {
-          if (!old?.tasks) return old;
-
-          const updatedTasks = old.tasks.map((task: any) => {
+        cache.setCachedData(queryKey, {
+          ...previousData,
+          tasks: (previousData as any).tasks.map((task: any) => {
             const update = variables.tasks.find((u: any) => u.id === task.id);
             if (update) {
               return {
@@ -632,22 +590,17 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               };
             }
             return task;
-          });
-
-          return { ...old, tasks: updatedTasks };
+          }),
         });
       }
 
-      // Return a context object with the snapshotted value
-      return { previousData };
+      // Return context for rollback
+      return { previousData, queryKey };
     },
     onError: (error, variables, context) => {
-      // If the mutation fails, use the context returned from onMutate to roll back
-      if (context?.previousData) {
-        queryClient.setQueryData(
-          ["projects", "getWithTasks", { input: { id: projectId } }],
-          context.previousData
-        );
+      // Use standardized rollback
+      if (context?.previousData && context?.queryKey) {
+        cache.optimistic.rollback(context.queryKey, context.previousData);
       }
       toast.error("Failed to update task order: " + error.message);
     },
