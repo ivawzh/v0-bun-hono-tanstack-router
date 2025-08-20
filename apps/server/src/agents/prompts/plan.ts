@@ -31,18 +31,29 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Count implementation steps (exclude planning/analysis steps)
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
-     * Split into smaller tasks (each <6 steps AND <600 lines)
-     * Use Solo Unicorn MCP tool \`task_create\` for each split task with:
-       - projectId="${project.id}"
-       - repoAgentId=same as current task
-       - actorId=same as current task
-       - refinedTitle=specific task title
-       - refinedDescription=specific task description
-       - plan=specific subtask plan
-       - priority=same as current task
-       - stage="execute" (skip clarify/plan)
-       - dependsOn=[previous split task IDs for dependency chain]
-     * If splitting cards, mark the current task as done via Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", agentSessionStatus="NON_ACTIVE", plan=[from above]
+     * **CRITICAL**: Split into smaller tasks following EXECUTION ORDER
+     * **Step-by-step task creation process:**
+       1. **First task**: Create the foundational/prerequisite task first using \`task_create\`:
+          - createdByTaskId="${task.id}"
+          - refinedTitle="[Step 1 title]"
+          - refinedDescription="[Step 1 description]" 
+          - plan="[Step 1 specific plan]"
+          - priority=${task.priority}
+          - stage="execute"
+          - dependsOnTaskIds=[] (empty - this is the first task)
+       2. **Note the returned task ID** from step 1
+       3. **Second task**: Create next dependent task using \`task_create\`:
+          - Same parameters as step 1
+          - refinedTitle="[Step 2 title]"
+          - refinedDescription="[Step 2 description]"
+          - plan="[Step 2 specific plan]"
+          - dependsOnTaskIds=[task_id_from_step_1]
+       4. **Continue this pattern** for remaining tasks, always referencing previous task IDs
+       5. **Final step**: Mark current task as done using \`task_update\` with:
+          - taskId="${task.id}"
+          - status="done"
+          - agentSessionStatus="NON_ACTIVE"
+          - plan="[summary of all split tasks created]"
 7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", agentSessionStatus="NON_ACTIVE", plan=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}

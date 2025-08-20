@@ -355,7 +355,7 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_create",
     {
       title: "Create a new task",
-      description: "Create a new task and return the created task information including its task ID. The new task will inherit project, repository, and actor settings from the specified parent task.",
+      description: "Create a new task for breaking down complex work into manageable pieces. When splitting tasks, CREATE IN EXECUTION ORDER - the first task to be executed should be created first, then subsequent dependent tasks referencing previous task IDs in dependsOnTaskIds. This ensures proper dependency chains and execution sequencing.",
       inputSchema: {
         createdByTaskId: z.string().uuid(),
         rawTitle: z.string().min(1).max(255).optional(),
@@ -365,11 +365,11 @@ function registerMcpTools(server: McpServer) {
         plan: z.unknown().optional(),
         priority: z.number().min(1).max(5).default(3),
         stage: z.enum(["plan", "execute"]).optional(),
-        dependsOn: z.array(z.string().uuid()).optional().default([]),
+        dependsOnTaskIds: z.array(z.string().uuid()).optional().default([]),
       },
     },
     async (input, { requestInfo }) => {
-      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn } = input;
+      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOnTaskIds: dependsOn } = input;
       logger.tool("task_create", "init", { input });
 
       try {
@@ -536,11 +536,13 @@ function registerMcpTools(server: McpServer) {
           content: [
             {
               type: "text",
-              text: JSON.stringify({
-                success: true,
-                taskId,
-                task: newTask[0],
-              }),
+              text: `Task created successfully! New task ID: ${taskId}
+
+📝 IMPORTANT FOR TASK SPLITTING:
+- Save this task ID: ${taskId}
+- When creating the NEXT dependent task, include this ID in dependsOnTaskIds: ["${taskId}"]
+- Continue this chain for subsequent tasks to ensure proper execution order
+- Tasks will execute in dependency order: prerequisites → dependents`
             },
           ],
         };
