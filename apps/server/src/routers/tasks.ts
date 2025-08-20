@@ -158,11 +158,25 @@ export const tasksRouter = o.router({
       rawTitle: z.string().min(1).max(255),
       rawDescription: z.string().optional(),
       priority: z.number().min(1).max(5).optional().default(3),
-      attachments: z.array(z.instanceof(File)).optional().default([]),
+      attachments: z.array(z.any()).optional().default([]),
       status: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
       stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional()
     }))
     .handler(async ({ context, input }) => {
+      console.log('Task creation input received:', {
+        projectId: input.projectId,
+        rawTitle: input.rawTitle,
+        attachments: input.attachments?.map((f, i) => {
+          console.log(`Attachment ${i}:`, f, 'constructor:', f.constructor?.name, 'instanceof File:', f instanceof File);
+          return { 
+            name: f?.name, 
+            type: f?.type, 
+            size: f?.size,
+            constructor: f?.constructor?.name,
+            isFile: f instanceof File
+          };
+        })
+      });
       // Verify project membership
       const membership = await db
         .select()
