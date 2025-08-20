@@ -10,12 +10,22 @@ import type { TestUser } from "./fixtures";
  * Create a mock Hono context for testing
  */
 function createMockHonoContext(): HonoContext {
+  const headers = new Headers();
+  
   return {
     req: {
       header: () => undefined,
+      raw: {
+        headers: headers,
+      },
     },
     get: () => undefined,
     set: () => {},
+    header: () => {},
+    res: {
+      headers: headers,
+    },
+    env: {},
   } as any;
 }
 

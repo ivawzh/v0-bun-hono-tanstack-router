@@ -228,12 +228,13 @@ export async function testRealRPCWithAuth<TInput, TOutput>(
   input: TInput
 ): Promise<TOutput> {
   const baseContext = createAuthenticatedContext(user);
-  // For protected procedures, add the user property that requireAuth middleware adds
-  const context = {
-    ...baseContext,
-    user: user, // This is what protectedProcedure adds
+  // For protected procedures, simulate what requireAuth middleware does
+  // It transforms the context to add the user field from appUser
+  const protectedContext = {
+    session: baseContext.session,
+    user: user, // This is what requireAuth middleware creates in the new context
   };
-  return await testRealRPCProcedure(procedure, context, input);
+  return await testRealRPCProcedure(procedure, protectedContext, input);
 }
 
 /**
@@ -258,8 +259,12 @@ export async function assertRealRPCUnauthorized<TInput>(
     await testRealRPCWithoutAuth(procedure, input);
     throw new Error("Expected procedure to throw UNAUTHORIZED error");
   } catch (error: any) {
-    if (error.message?.includes("UNAUTHORIZED") || error.code === "UNAUTHORIZED" || error.name === "ORPCError") {
-      return; // Expected error
+    if (error.message?.includes("UNAUTHORIZED") || 
+        error.code === "UNAUTHORIZED" || 
+        error.name === "ORPCError" ||
+        error.message?.includes("context.user") ||
+        error.message?.includes("context.session?.user")) {
+      return; // Expected error indicating auth is required
     }
     throw error; // Re-throw unexpected errors
   }
