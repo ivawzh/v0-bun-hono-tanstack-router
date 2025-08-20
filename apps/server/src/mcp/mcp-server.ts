@@ -536,9 +536,9 @@ function registerMcpTools(server: McpServer) {
           content: [
             {
               type: "text",
-              text: `Task created! ID: ${taskId}
+              text: `Task created! Task ID: ${taskId}
 
-📝 For ordered execution: Use this ID in dependsOnTaskIds for the next task that must run after this one.`
+📝 For ordered execution: Use this task ID in dependsOnTaskIds for the next task that must run after this one.`
             },
           ],
         };

@@ -34,7 +34,7 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
      * Split into smaller tasks using \`task_create\` with:
        - createdByTaskId="${task.id}", refinedTitle, refinedDescription, plan, priority=${task.priority}, stage="execute"
        - **Only use dependsOnTaskIds if tasks must execute in specific order**
-       - For ordered tasks: Create first task with dependsOnTaskIds=[], note returned ID, use it for next task
+       - For ordered tasks: Create first task without dependsOnTaskIds, note returned task ID, use it for next task, e.g. dependsOnTaskIds=[prerequisite_task_id]
        - For parallel tasks: Leave dependsOnTaskIds empty for all
      * Mark current task done: \`task_update\` with taskId="${task.id}", status="done", agentSessionStatus="NON_ACTIVE"
 7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", agentSessionStatus="NON_ACTIVE", plan=[from above]
