@@ -518,8 +518,20 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
       clearDraft(); // Clear the auto-saved draft
-      // Invalidate to get the real task data from server
-      cache.invalidate();
+      // Update the optimistic task with real server data
+      const queryKey = cache.queryKeys.projects.withTasks();
+      const cachedData = cache.getCachedData(queryKey);
+      if (cachedData) {
+        cache.setCachedData(queryKey, {
+          ...cachedData,
+          tasks: (cachedData as any).tasks.map((task: any) => 
+            task.id.startsWith('temp-') && task.rawTitle === data.rawTitle 
+              ? { ...data, mainRepository: task.mainRepository, assignedAgents: task.assignedAgents, actor: task.actor }
+              : task
+          )
+        });
+      }
+      console.log('✅ Task created successfully');
     },
     onError: (error, variables, context) => {
       // Rollback optimistic update
@@ -595,22 +607,35 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Clear the delete modal state
       setDeleteTaskId(null);
       setTaskToDelete(null);
-      // Use standardized cache invalidation to ensure UI updates
-      cache.invalidate();
+      // Don't invalidate - optimistic update should persist unless there are server changes
       console.log('✅ Task deleted successfully');
     }
   }));
 
   // Reset agent mutation
   const resetAgentMutation = useMutation(orpc.tasks.resetAgent.mutationOptions({
+    onMutate: async (variables) => {
+      // Optimistically update the task's agent session status
+      const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
+        ...task,
+        agentSessionStatus: 'NON_ACTIVE',
+        agentSessionId: null,
+        lastAgentSessionStartedAt: null
+      }));
+      return context;
+    },
     onSuccess: () => {
       toast.success("AI agent status reset successfully");
-      // Use standardized cache invalidation
-      cache.invalidate();
       setResetTaskId(null);
       setTaskToReset(null);
+      // Don't invalidate - optimistic update should persist
+      console.log('✅ Agent reset successfully');
     },
-    onError: (error) => {
+    onError: (error, variables, context) => {
+      // Rollback optimistic update on error
+      if (context?.previousData && context?.queryKey) {
+        cache.optimistic.rollback(context.queryKey, context.previousData);
+      }
       toast.error("Failed to reset agent: " + error.message);
     }
   }));
@@ -655,8 +680,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       toast.error("Failed to update task order: " + error.message);
     },
     onSuccess: () => {
-      // Use standardized cache invalidation to ensure consistency
-      cache.invalidate();
+      // Don't invalidate - optimistic update should persist
       console.log('✅ Task order updated successfully');
     }
   }));
