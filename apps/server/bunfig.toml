@@ -1,0 +1,13 @@
+# Bun test configuration
+[test]
+# Test patterns
+preload = ["./src/test/setup.ts"]
+
+# Test environment
+env = { NODE_ENV = "test" }
+
+# Test timeout
+timeout = 30000
+
+# Coverage settings (if needed)
+coverage = false
