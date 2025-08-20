@@ -6,7 +6,7 @@
  */
 
 import { useQueryClient } from '@tanstack/react-query'
-import { cacheUtils, optimisticUtils, queryKeys } from '@/lib/query-keys'
+import { cacheUtils, optimisticUtils, queryKeys, devUtils } from '@/lib/query-keys'
 import { useCallback } from 'react'
 
 export function useCacheUtils() {
@@ -113,6 +113,23 @@ export function useCacheUtils() {
       (taskId: string) => cacheUtils.invalidateAttachments(queryClient, taskId),
       [queryClient]
     ),
+
+    // Development utilities (only available in development)
+    dev: process.env.NODE_ENV === 'development' ? {
+      logActiveQueries: useCallback(() => devUtils.logActiveQueries(queryClient), [queryClient]),
+      clearEntity: useCallback(
+        (entity: keyof typeof queryKeys, id?: string) => devUtils.clearEntity(queryClient, entity, id),
+        [queryClient]
+      ),
+      validateQueryKey: useCallback(
+        (queryKey: readonly unknown[]) => devUtils.validateQueryKey(queryKey),
+        []
+      ),
+      enablePerformanceMonitoring: useCallback(
+        () => devUtils.monitorCachePerformance(queryClient),
+        [queryClient]
+      ),
+    } : undefined,
   }
 }
 
