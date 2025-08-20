@@ -1,6 +1,7 @@
 /**
  * Function-based task monitoring system
  * Handles session status checking and recovery
+ * Uses Croner for simplified job scheduling
  */
 
 import { db } from '../db';
@@ -8,18 +9,20 @@ import { eq, and, ne, or, sql } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { getAllActiveSessions, cleanupStaleActiveSessions, getAllCompletedSessions, purgeCompletedSessions } from './session-registry';
 import { tryPushTasks } from './task-pusher';
-import { startHotReloadSafeInterval, startHotReloadSafeIntervalImmediate } from '../utils/hot-reload-safe-interval';
+import { Cron } from 'croner';
 
 const config = {
-  taskPushingInterval: 1000, // 1 second
-  outOfSyncCheckingInterval: 120000, // 2 minutes
-  sessionCleanupInterval: 600000, // 10 minutes
   sessionCleanupStaleMinutes: 60, // 1 hour
 }
 
+// Store job references for cleanup
+let taskPushingJob: Cron | null = null;
+let outOfSyncCheckingJob: Cron | null = null;
+let sessionCleanupJob: Cron | null = null;
+
 /**
  * Start monitoring system
- * Sets up periodic checking and cleanup
+ * Sets up periodic checking and cleanup using Croner
  */
 export function startTaskMonitoring(): void {
   console.log('🔍 Starting task monitoring system...');
@@ -35,58 +38,70 @@ export function startTaskMonitoring(): void {
     }
   });
 
-  // Periodic out-of-sync task checking (every 2 minutes)
-  startHotReloadSafeInterval(
-    'out-of-sync-checking',
-    async () => {
-      const result = await checkOutSyncedTasks();
-      if (result.recovered > 0) {
-        // Try to push tasks after recovery
-        tryPushTasks();
+  // Periodic task pushing (every 1 second)
+  taskPushingJob = new Cron('* * * * * *', async () => {
+    try {
+      const result = await tryPushTasks();
+      if (result.pushed > 0) {
+        console.log(`🚀 Pushed ${result.pushed} tasks`);
       }
-    },
-    config.outOfSyncCheckingInterval
-  );
+      if (result.errors.length > 0) {
+        console.error('❌ Task pushing errors:', result.errors);
+      }
+    } catch (error) {
+      console.error('❌ Task pushing failed:', error);
+    }
+  });
+
+  // Periodic out-of-sync task checking (every 2 minutes)
+  outOfSyncCheckingJob = new Cron('*/2 * * * *', async () => {
+    const result = await checkOutSyncedTasks();
+    if (result.recovered > 0) {
+      // Try to push tasks after recovery
+      tryPushTasks();
+    }
+  });
 
   // Periodic active session registry cleanup (every 10 minutes)
-  startHotReloadSafeInterval(
-    'session-cleanup',
-    async () => {
-      try {
-        const cleaned = await cleanupStaleActiveSessions(config.sessionCleanupStaleMinutes); // Clean sessions older than 1 hour
-        if (cleaned > 0) {
-          console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
-        }
-      } catch (error) {
-        console.error('❌ Session cleanup failed:', error);
+  sessionCleanupJob = new Cron('*/10 * * * *', async () => {
+    try {
+      const cleaned = await cleanupStaleActiveSessions(config.sessionCleanupStaleMinutes);
+      if (cleaned > 0) {
+        console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
       }
-    },
-    config.sessionCleanupInterval
-  );
-
-  // Periodic task pushing (every 1 second)
-  startHotReloadSafeInterval(
-    'task-pushing',
-    async () => {
-      try {
-        const result = await tryPushTasks();
-        if (result.pushed > 0) {
-          console.log(`🚀 Pushed ${result.pushed} tasks`);
-        }
-        if (result.errors.length > 0) {
-          console.error('❌ Task pushing errors:', result.errors);
-        }
-      } catch (error) {
-        console.error('❌ Task pushing failed:', error);
-      }
-    },
-    config.taskPushingInterval
-  );
+    } catch (error) {
+      console.error('❌ Session cleanup failed:', error);
+    }
+  });
 
   console.log(`🎯 Task monitoring system started successfully`);
-  console.log(`  🚀 Task pushing: every ${config.taskPushingInterval / 1000} seconds`);
-  console.log(`  🔍 Out-of-sync checking: every ${config.outOfSyncCheckingInterval / 1000} seconds`);
-  console.log(`  🧹 Session cleanup: every ${config.sessionCleanupInterval / 1000} seconds (stale > ${config.sessionCleanupStaleMinutes} minutes)`);
+  console.log(`  🚀 Task pushing: every 1 second`);
+  console.log(`  🔍 Out-of-sync checking: every 2 minutes`);
+  console.log(`  🧹 Session cleanup: every 10 minutes (stale > ${config.sessionCleanupStaleMinutes} minutes)`);
+}
+
+/**
+ * Stop monitoring system and clean up jobs
+ */
+export function stopTaskMonitoring(): void {
+  console.log('🛑 Stopping task monitoring system...');
+  
+  if (taskPushingJob) {
+    taskPushingJob.stop();
+    taskPushingJob = null;
+  }
+  
+  if (outOfSyncCheckingJob) {
+    outOfSyncCheckingJob.stop();
+    outOfSyncCheckingJob = null;
+  }
+  
+  if (sessionCleanupJob) {
+    sessionCleanupJob.stop();
+    sessionCleanupJob = null;
+  }
+  
+  console.log('✅ Task monitoring system stopped');
 }
 
 /**

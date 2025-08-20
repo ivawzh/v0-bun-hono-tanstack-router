@@ -8,7 +8,7 @@ import { registerMcpHttp } from "./mcp/mcp-server";
 import { oauthCallbackRoutes } from "./routers/oauth-callback";
 import { wsManager, handleWebSocketMessage, broadcastFlush } from "./websocket/websocket-server";
 import { randomUUID } from "crypto";
-import { startTaskMonitoring } from "./agents/task-monitor";
+import { startTaskMonitoring, stopTaskMonitoring } from "./agents/task-monitor";
 import { db } from "./db";
 import { projects, tasks } from "./db/schema";
 import { and, eq } from "drizzle-orm";
@@ -223,12 +223,14 @@ startTaskMonitoring();
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('🛑 SIGTERM received, shutting down gracefully');
+  stopTaskMonitoring();
   wsManager.shutdown();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('🛑 SIGINT received, shutting down gracefully');
+  stopTaskMonitoring();
   wsManager.shutdown();
   process.exit(0);
 });
