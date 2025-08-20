@@ -3,9 +3,30 @@
  * 
  * This module provides:
  * - Standardized query key generation for all entities
- * - Type-safe invalidation patterns
+ * - Type-safe invalidation patterns with error handling
  * - Cache utility helpers for optimistic updates
- * - Migration utilities for existing hardcoded query keys
+ * - Development debugging utilities
+ * - Performance monitoring (development only)
+ * 
+ * ## Usage Examples:
+ * 
+ * ```typescript
+ * // Basic usage in components
+ * const cache = useCacheUtils()
+ * 
+ * // Standard invalidation
+ * await cache.invalidateProject(projectId)
+ * await cache.invalidateTask(taskId, projectId)
+ * 
+ * // Optimistic updates
+ * const { previousData, queryKey } = await cache.optimistic.updateTaskInProject(
+ *   projectId, taskId, (task) => ({ ...task, status: 'completed' })
+ * )
+ * 
+ * // Development debugging
+ * cache.dev?.logActiveQueries()
+ * cache.dev?.enablePerformanceMonitoring()
+ * ```
  */
 
 import type { QueryClient } from '@tanstack/react-query'
