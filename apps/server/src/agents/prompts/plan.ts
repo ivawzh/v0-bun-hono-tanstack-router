@@ -31,29 +31,12 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Count implementation steps (exclude planning/analysis steps)
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
-     * **CRITICAL**: Split into smaller tasks following EXECUTION ORDER
-     * **Step-by-step task creation process:**
-       1. **First task**: Create the foundational/prerequisite task first using \`task_create\`:
-          - createdByTaskId="${task.id}"
-          - refinedTitle="[Step 1 title]"
-          - refinedDescription="[Step 1 description]" 
-          - plan="[Step 1 specific plan]"
-          - priority=${task.priority}
-          - stage="execute"
-          - dependsOnTaskIds=[] (empty - this is the first task)
-       2. **Note the returned task ID** from step 1
-       3. **Second task**: Create next dependent task using \`task_create\`:
-          - Same parameters as step 1
-          - refinedTitle="[Step 2 title]"
-          - refinedDescription="[Step 2 description]"
-          - plan="[Step 2 specific plan]"
-          - dependsOnTaskIds=[task_id_from_step_1]
-       4. **Continue this pattern** for remaining tasks, always referencing previous task IDs
-       5. **Final step**: Mark current task as done using \`task_update\` with:
-          - taskId="${task.id}"
-          - status="done"
-          - agentSessionStatus="NON_ACTIVE"
-          - plan="[summary of all split tasks created]"
+     * Split into smaller tasks using \`task_create\` with:
+       - createdByTaskId="${task.id}", refinedTitle, refinedDescription, plan, priority=${task.priority}, stage="execute"
+       - **Only use dependsOnTaskIds if tasks must execute in specific order**
+       - For ordered tasks: Create first task with dependsOnTaskIds=[], note returned ID, use it for next task
+       - For parallel tasks: Leave dependsOnTaskIds empty for all
+     * Mark current task done: \`task_update\` with taskId="${task.id}", status="done", agentSessionStatus="NON_ACTIVE"
 7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", agentSessionStatus="NON_ACTIVE", plan=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}

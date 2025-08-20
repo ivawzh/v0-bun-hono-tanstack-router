@@ -355,7 +355,7 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_create",
     {
       title: "Create a new task",
-      description: "Create a new task for breaking down complex work into manageable pieces. When splitting tasks, CREATE IN EXECUTION ORDER - the first task to be executed should be created first, then subsequent dependent tasks referencing previous task IDs in dependsOnTaskIds. This ensures proper dependency chains and execution sequencing.",
+      description: "Create a new task for breaking down complex work. Only use dependsOnTaskIds if tasks must execute in specific order - otherwise leave empty.",
       inputSchema: {
         createdByTaskId: z.string().uuid(),
         rawTitle: z.string().min(1).max(255).optional(),
@@ -536,13 +536,9 @@ function registerMcpTools(server: McpServer) {
           content: [
             {
               type: "text",
-              text: `Task created successfully! New task ID: ${taskId}
+              text: `Task created! ID: ${taskId}
 
-📝 IMPORTANT FOR TASK SPLITTING:
-- Save this task ID: ${taskId}
-- When creating the NEXT dependent task, include this ID in dependsOnTaskIds: ["${taskId}"]
-- Continue this chain for subsequent tasks to ensure proper execution order
-- Tasks will execute in dependency order: prerequisites → dependents`
+📝 For ordered execution: Use this ID in dependsOnTaskIds for the next task that must run after this one.`
             },
           ],
         };
