@@ -507,11 +507,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         updatedAt: new Date().toISOString(),
         agentSessionStatus: 'NON_ACTIVE' as const,
         author: 'human' as const,
-        ready: variables.ready ?? false,
+        ready: true, // Set ready by default for new tasks
         columnOrder: '1000', // Default order
       };
       
-      const context = await cache.task.optimisticAdd(projectId, newTask);
+      const context = await cache.optimistic.addTaskToProject(projectId, newTask);
       return context;
     },
     onSuccess: (data) => {
@@ -532,22 +532,46 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Toggle ready mutation
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
-    onSuccess: () => {
-      // Use standardized cache invalidation
-      cache.invalidate();
+    onMutate: async (variables) => {
+      // Optimistically update the task's ready state
+      const context = await cache.task.optimisticUpdate(projectId, variables.id, (task) => ({
+        ...task,
+        ready: variables.ready
+      }));
+      return context;
     },
-    onError: (error) => {
+    onSuccess: () => {
+      // Don't invalidate immediately - optimistic update should persist
+      console.log('\u2705 Task ready state updated successfully');
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context?.previousData && context?.queryKey) {
+        cache.optimistic.rollback(context.queryKey, context.previousData);
+      }
       toast.error("Failed to update task: " + error.message);
     }
   }));
 
   // Update stage mutation
   const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
-    onSuccess: () => {
-      // Use standardized cache invalidation
-      cache.invalidate();
+    onMutate: async (variables) => {
+      // Optimistically update the task's stage
+      const context = await cache.task.optimisticUpdate(projectId, variables.id, (task) => ({
+        ...task,
+        stage: variables.stage
+      }));
+      return context;
     },
-    onError: (error) => {
+    onSuccess: () => {
+      // Don't invalidate immediately - optimistic update should persist
+      console.log('\u2705 Task stage updated successfully');
+    },
+    onError: (error, variables, context) => {
+      // Rollback optimistic update
+      if (context?.previousData && context?.queryKey) {
+        cache.optimistic.rollback(context.queryKey, context.previousData);
+      }
       toast.error("Failed to update task stage: " + error.message);
     }
   }));
