@@ -17,7 +17,7 @@ import { FolderOpen, Bot, Plus, AlertTriangle } from "lucide-react";
 import { MultiSelectAgents } from "./multi-select-agents";
 import { MultiSelectRepositories } from "./multi-select-repositories";
 import { TaskCreationWarning } from "./project-setup-warning";
-import { AttachmentDropzone } from "../attachment-dropzone";
+import { AttachmentDropzone, type AttachmentFile } from "../attachment-dropzone";
 
 interface Repository {
   id: string;
@@ -175,8 +175,8 @@ export function EnhancedTaskFormV2({
     }
   };
 
-  const handleAttachmentsChange = (attachments: AttachmentFile[]) => {
-    setFormData(prev => ({ ...prev, attachments: attachments.map(att => att.file) }));
+  const handleAttachmentsChange = (files: File[]) => {
+    setFormData(prev => ({ ...prev, attachments: files }));
   };
 
   return (

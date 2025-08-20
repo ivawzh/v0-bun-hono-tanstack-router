@@ -9,9 +9,10 @@ import { useCacheUtils } from '@/hooks/use-cache-utils'
 
 interface TaskAttachmentUploadProps {
   taskId: string
+  projectId?: string
 }
 
-export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
+export function TaskAttachmentUpload({ taskId, projectId }: TaskAttachmentUploadProps) {
   const [attachments, setAttachments] = useState<AttachmentFile[]>([])
   const cache = useCacheUtils()
 
@@ -95,7 +96,12 @@ export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
       setAttachments([])
       
       // Use improved attachment invalidation that handles all related queries
-      await cache.invalidateAttachments(taskId, result?.projectId)
+      // Prioritize passed projectId, then result projectId
+      const targetProjectId = projectId || result?.projectId
+      await cache.invalidateAttachments(taskId, targetProjectId)
+      
+      // Also ensure task details are refreshed to show updated attachment count
+      await cache.invalidateTask(taskId, targetProjectId)
     },
     onError: (error, file, context) => {
       console.error('Failed to upload attachment:', error)

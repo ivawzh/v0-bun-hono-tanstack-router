@@ -240,9 +240,13 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     },
     onSuccess: async () => {
       toast.success("Attachment deleted successfully");
-      // Use specific attachment invalidation for immediate UI updates
+      // Use comprehensive cache invalidation for immediate UI updates
       if (task?.id && task?.projectId) {
-        await cache.invalidateAttachments(task.id, task.projectId);
+        await Promise.all([
+          cache.invalidateAttachments(task.id, task.projectId),
+          cache.invalidateTask(task.id, task.projectId),
+          cache.invalidateProject(task.projectId)
+        ]);
       }
     },
     onError: (error: any, variables, context) => {
@@ -635,7 +639,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                     <TabsContent value="attachments" className="mt-0">
                       <div className="space-y-6">
                         {/* Upload new attachments */}
-                        <TaskAttachmentUpload taskId={task.id} />
+                        <TaskAttachmentUpload taskId={task.id} projectId={task.projectId} />
 
                         {/* Existing attachments */}
                         <AttachmentList
