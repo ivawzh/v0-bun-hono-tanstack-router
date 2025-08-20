@@ -181,23 +181,52 @@ erDiagram
 
 ## Server-to-Agent Communication
 
-### Claude Code UI
+### Direct Claude Code Process Spawning
 
-- We extended its HTTP API, added endpoints with basic auth (bearer header of env var `CLAUDE_CODE_UI_AUTH_TOKEN`)
-- Solo Unicorn server pushs tasks to CCU via via these endpoints.
+Solo Unicorn spawns Claude Code as standalone processes:
 
-### Solo Unicorn HTTP callback endpoints
+- **Process Management**: Solo Unicorn directly spawns `claude` CLI processes for each task
+- **Environment Variables**: Each spawned process gets task-specific environment variables (`SOLO_UNICORN_TASK_ID`, `SOLO_UNICORN_AGENT_ID`,  etc.)
+- **Working Directory**: Processes are spawned in the repository's working directory
 
-- When Solo Unicorn pushs tasks, there are callback URLs in the push payload.
-- We modified CCU to call these callback endpoints when task is started, completed, or rate limited.
+### Claude Code Hook System
+
+Hook scripts track session lifecycle and maintain synchronization:
+
+- **Session Start Hook** (`~/.solo-unicorn/hooks/session-start.sh`): Called when Claude Code session begins
+- **Session End Hook** (`~/.solo-unicorn/hooks/session-end.sh`): Called when Claude Code session completes
+- **Rate Limit Hook** (`~/.solo-unicorn/hooks/rate-limit.sh`): Called when Claude Code hits rate limits
+- **File Registry**: Hooks maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
+
+### Solo Unicorn HTTP Callback Endpoints
+
+Hook scripts call these endpoints to report session status:
+
+- **`/api/agent-callbacks/session-started`**: Updates task status to ACTIVE when session begins
+- **`/api/agent-callbacks/session-completed`**: Updates task status to NON_ACTIVE when session ends
+- **`/api/agent-callbacks/rate-limited`**: Handles rate limit events and schedules retries
 
 ### Solo Unicorn MCP Server
 
-- Solo Unicorn provides MCP server for code agents (e.g. CCU) to communicate back.
-- MCP tools includes:
-  - Create task
-  - Update task
-  - Update project memory
+Claude Code communicates back via MCP tools embedded in prompts:
+
+- **Task Updates**: `mcp__solo-unicorn__task_update` - Update task status, refined title/description, plan
+- **Task Creation**: `mcp__solo-unicorn__task_create` - Create new tasks during execution
+- **Project Memory**: `mcp__solo-unicorn__project_memory_update` - Update shared project context
+
+### Synchronization Strategy
+
+Solo Unicorn maintains task status synchronization through multiple channels:
+
+1. **Database State**: Primary source of truth with `agentSessionStatus` (NON_ACTIVE/PUSHING/ACTIVE)
+2. **File Registry**: Session data persisted in `~/.solo-unicorn/sessions/` JSON files
+3. **HTTP Callbacks**: Real-time status updates from hook scripts
+4. **MCP Tools**: Task updates from within Claude Code sessions
+5. **Monitoring System**: Periodic orphan detection and recovery
+
+### Claude Code UI
+
+Claude Code UI by default is monitoring the session file in `~/.claude/projects` to display session info on its web UI.
 
 ## Implementation Notes
 

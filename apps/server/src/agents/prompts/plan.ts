@@ -45,7 +45,7 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
      * If splitting cards, mark the current task as done via Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", isAiWorking=false, plan=[from above]
 7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", isAiWorking=false, plan=[from above]
 
-**Your Role**: ${actor.description || defaultActorDescription}
+**Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}
 
 **Task to Plan**:

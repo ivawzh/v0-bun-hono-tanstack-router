@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
-import { pingSession, unregisterActiveSession, getActiveSession } from '../agents/session-registry';
+import { pingSession, registerCompletedSession, getActiveSession } from '../agents/session-registry';
 import { triggerTaskPush, getMonitoringStatus } from '../agents/task-monitor';
 import { requireClaudeCodeUIAuth } from '../lib/guards';
 
@@ -116,8 +116,7 @@ app.post('/session-completed', requireClaudeCodeUIAuth, zValidator('json', sessi
       .where(eq(schema.tasks.id, sessionData.taskId))
       .returning();
 
-    // Remove session from registry
-    await unregisterActiveSession(sessionId);
+    await registerCompletedSession(sessionData);
 
     console.log(`✅ Session ${sessionId} completed and cleaned up`);
 
@@ -176,8 +175,7 @@ app.post('/rate-limited', requireClaudeCodeUIAuth, zValidator('json', rateLimite
       })
       .where(eq(schema.tasks.id, sessionData.taskId));
 
-    // Remove session from registry since it's no longer active
-    await unregisterActiveSession(sessionId);
+    await registerCompletedSession(sessionData);
 
     console.log(`✅ Rate limit processed for agent ${sessionData.agentId}, reset at ${resetTimestamp}`);
 

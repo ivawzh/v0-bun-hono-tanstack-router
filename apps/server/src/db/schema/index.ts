@@ -1,6 +1,13 @@
 import { pgTable, text, uuid, timestamp, jsonb, boolean, integer, pgEnum } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
+export type Task = typeof tasks.$inferSelect;
+export type Actor = typeof actors.$inferSelect;
+export type Repository = typeof repositories.$inferSelect;
+export type Agent = typeof agents.$inferSelect;
+export type Project = typeof projects.$inferSelect;
+export type User = typeof users.$inferSelect;
+
 // Enum for agent client types
 export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
 
@@ -93,8 +100,8 @@ export const tasks = pgTable("tasks", {
   plan: jsonb("plan").default({}), // Final solution and spec from plan stage
 
   // Status and stage
-  status: text("status").notNull().default("todo"), // todo, doing, done, loop
-  stage: text("stage"), // clarify, plan, execute, loop
+  status: text("status", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
+  stage: text("stage", { enum: ["clarify", "plan", "execute", "loop"] }),
 
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest
@@ -125,6 +132,9 @@ export const tasks = pgTable("tasks", {
 
   // Agent session tracking
   lastAgentSessionId: text("last_agent_session_id"), // Store agent session ID directly
+
+  // Task creation context (for AI-generated tasks)
+  createdByTaskId: uuid("created_by_task_id"),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
@@ -221,6 +231,12 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
     fields: [tasks.actorId],
     references: [actors.id]
   }),
+  // Reference to parent task that created this one (e.g. for AI-generated tasks)
+  createdByTask: one(tasks, {
+    fields: [tasks.createdByTaskId],
+    references: [tasks.id],
+    relationName: "taskCreator"
+  }),
   additionalRepositories: many(taskAdditionalRepositories),
   assignedAgents: many(taskAgents),
   dependencies: many(taskDependencies, {
@@ -228,6 +244,10 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   }),
   dependents: many(taskDependencies, {
     relationName: "dependentTasks"
+  }),
+  // Reference to parent task that created this one (e.g. for AI-generated tasks)
+  createdTasks: many(tasks, {
+    relationName: "taskCreator"
   })
 }));
 

@@ -4,12 +4,16 @@
  */
 
 import { spawn } from 'child_process';
+import crossSpawn from 'cross-spawn';
 import { generatePrompt, type TaskStage } from './prompts';
-import { registerActiveSession, registerCompletedSession, unregisterActiveSession } from './session-registry';
+import { registerActiveSession, registerCompletedSession } from './session-registry';
 import { db } from '../db';
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { broadcastFlush } from '../websocket/websocket-server';
+
+// Use cross-spawn on Windows for better command execution
+const spawnFunction = process.platform === 'win32' ? crossSpawn : spawn;
 
 /**
  * Extract rate limit reset time from Claude AI usage limit message
@@ -110,18 +114,17 @@ async function updateTaskSessionCompleted(
 }
 
 export interface SpawnOptions {
-  sessionId?: string;
+  sessionId?: string | null;
   taskId: string;
   agentId: string;
   projectId: string;
   repositoryPath: string;
   claudeConfigDir?: string;
-  resumeSessionId?: string;
   stage: TaskStage;
   taskData: {
-    task: any;
-    actor: any;
-    project: any;
+    task: schema.Task;
+    actor?: schema.Actor | null;
+    project: schema.Project;
   };
 }
 
@@ -137,7 +140,6 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       projectId,
       repositoryPath,
       claudeConfigDir,
-      resumeSessionId,
       stage,
       taskData
     } = options;
@@ -147,15 +149,16 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     // Generate the appropriate prompt for the task stage
     const prompt = generatePrompt(stage, taskData);
 
+    if (!prompt || !prompt.trim()) {
+      return { success: false, error: `No prompt generated. Stage: ${stage}, Task ID: ${taskId}. Task title: ${taskData.task.rawTitle || taskData.task.refinedTitle}.` };
+    }
+
     // Prepare Claude CLI command
-    const claudeArgs = [
-      'claude-code',
-      '--cwd', repositoryPath
-    ];
+    const claudeArgs: string[] = ['--print', prompt, '--output-format', 'stream-json', '--verbose'];
 
     // Add resume flag if resuming an existing session
-    if (resumeSessionId) {
-      claudeArgs.push('--resume', resumeSessionId);
+    if (sessionId) {
+      claudeArgs.push('--resume', sessionId);
     }
 
     // Prepare environment variables
@@ -164,7 +167,7 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       // Add Claude config directory if specified
       ...(claudeConfigDir && { CLAUDE_CONFIG_DIR: claudeConfigDir }),
       // Session tracking
-      SESSION_ID: sessionId,
+      ...(sessionId && { SESSION_ID: sessionId }),
       REPOSITORY_PATH: repositoryPath,
       SOLO_UNICORN_PROJECT_ID: projectId,
       SOLO_UNICORN_AGENT_ID: agentId,
@@ -178,7 +181,7 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     };
 
     // Spawn Claude CLI process
-    const childProcess = spawn('claude', claudeArgs, {
+    const childProcess = spawnFunction('claude', claudeArgs, {
       cwd: repositoryPath,
       env,
       stdio: 'pipe', // We'll handle I/O separately
@@ -186,8 +189,8 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     });
 
     // Send initial prompt to Claude
-    childProcess.stdin.write(prompt);
-    childProcess.stdin.end();
+    childProcess.stdin?.write(prompt);
+    childProcess.stdin?.end();
 
     // Set up error handling
     childProcess.on('error', (error) => {
@@ -195,7 +198,7 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     });
 
     // Handle stdout (streaming JSON responses)
-    childProcess.stdout.on('data', async (data) => {
+    childProcess.stdout?.on('data', async (data) => {
       const rawOutput = data?.toString() as string || '';
 
       const lines = rawOutput.split('\n').filter((line: string) => line.trim());
@@ -235,7 +238,7 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
     });
 
     // Handle stderr
-    childProcess.stderr.on('data', async (data) => {
+    childProcess.stderr?.on('data', async (data) => {
       const errorMessage = data.toString();
       console.error(`Claude CLI stderr [${sessionId}]:`, errorMessage);
 
@@ -250,9 +253,6 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       await Promise.all([
         // Update task status to NON_ACTIVE when process completes
         await updateTaskSessionCompleted(taskId, projectId, code || 0),
-
-        // Unregister active session
-        unregisterActiveSession(sessionId!),
 
         // Register session in file-based registry
         await registerCompletedSession({
@@ -280,11 +280,4 @@ export async function spawnClaudeSession(options: SpawnOptions): Promise<{ succe
       error: error instanceof Error ? error.message : 'Unknown spawn error'
     };
   }
-}
-
-/**
- * Generate unique session ID
- */
-export function generateSessionId(): string {
-  return `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 }

@@ -366,12 +366,9 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_create",
     {
       title: "Create a new task",
-      description: "Create a new task and return the created task information including its task ID.",
+      description: "Create a new task and return the created task information including its task ID. The new task will inherit project, repository, and actor settings from the specified parent task.",
       inputSchema: {
-        projectId: z.string().uuid(),
-        mainRepositoryId: z.string().uuid(),
-        additionalRepositoryIds: z.array(z.string().uuid()).optional().default([]),
-        actorId: z.string().uuid().optional(),
+        createdByTaskId: z.string().uuid(),
         rawTitle: z.string().min(1).max(255).optional(),
         rawDescription: z.string().optional(),
         refinedTitle: z.string().min(1).max(255).optional(),
@@ -382,11 +379,9 @@ function registerMcpTools(server: McpServer) {
         dependsOn: z.array(z.string().uuid()).optional().default([]),
       },
     },
-    async ({ projectId, mainRepositoryId, additionalRepositoryIds, actorId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn }, { requestInfo }) => {
+    async ({ createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOn }, { requestInfo }) => {
       logger.tool("task_create", "start", {
-        projectId,
-        mainRepositoryId,
-        additionalRepositoryIds,
+        createdByTaskId,
         stage,
         hasRefinedTitle: !!refinedTitle,
         dependencyCount: dependsOn?.length || 0,
@@ -410,15 +405,25 @@ function registerMcpTools(server: McpServer) {
           };
         }
 
-        // Verify project exists (we can't verify ownership as we don't have user context in MCP)
-        const project = await db.query.projects.findFirst({
-          where: eq(projects.id, projectId),
+        // Fetch the parent task to inherit its properties
+        const parentTask = await db.query.tasks.findFirst({
+          where: eq(tasks.id, createdByTaskId),
+          with: {
+            project: true,
+            mainRepository: true,
+            actor: true,
+            additionalRepositories: {
+              with: {
+                repository: true
+              }
+            }
+          }
         });
 
-        if (!project) {
+        if (!parentTask) {
           logger.error("task_create failed", {
-            projectId,
-            reason: "project not found",
+            createdByTaskId,
+            reason: "parent task not found",
           });
           return {
             content: [
@@ -426,100 +431,18 @@ function registerMcpTools(server: McpServer) {
                 type: "text",
                 text: JSON.stringify({
                   success: false,
-                  error: "Project not found",
+                  error: "Parent task not found",
                 }),
               },
             ],
           };
         }
 
-        // Verify main repository belongs to project
-        const mainRepository = await db.query.repositories.findFirst({
-          where: and(
-            eq(repositories.id, mainRepositoryId),
-            eq(repositories.projectId, projectId)
-          ),
-        });
-
-        if (!mainRepository) {
-          logger.error("task_create failed", {
-            mainRepositoryId,
-            projectId,
-            reason: "main repository not found or doesn't belong to project",
-          });
-          return {
-            content: [
-              {
-                type: "text",
-                text: JSON.stringify({
-                  success: false,
-                  error: "Main repository not found or doesn't belong to project",
-                }),
-              },
-            ],
-          };
-        }
-
-        // Verify additional repositories belong to project (if provided)
-        if (additionalRepositoryIds && additionalRepositoryIds.length > 0) {
-          const additionalRepositories = await db
-            .select()
-            .from(repositories)
-            .where(
-              and(
-                sql`${repositories.id} = ANY(${additionalRepositoryIds})`,
-                eq(repositories.projectId, projectId)
-              )
-            );
-
-          if (additionalRepositories.length !== additionalRepositoryIds.length) {
-            logger.error("task_create failed", {
-              additionalRepositoryIds,
-              projectId,
-              reason: "some additional repositories not found or don't belong to project",
-            });
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: false,
-                    error: "Some additional repositories not found or don't belong to project",
-                  }),
-                },
-              ],
-            };
-          }
-        }
-
-        // Verify actor belongs to project (if provided)
-        if (actorId) {
-          const actor = await db.query.actors.findFirst({
-            where: and(
-              eq(actors.id, actorId),
-              eq(actors.projectId, projectId)
-            ),
-          });
-
-          if (!actor) {
-            logger.error("task_create failed", {
-              actorId,
-              projectId,
-              reason: "actor not found or doesn't belong to project",
-            });
-            return {
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    success: false,
-                    error: "Actor not found or doesn't belong to project",
-                  }),
-                },
-              ],
-            };
-          }
-        }
+        // Extract inherited properties
+        const projectId = parentTask.projectId;
+        const mainRepositoryId = parentTask.mainRepositoryId;
+        const actorId = parentTask.actorId;
+        const additionalRepositoryIds = parentTask.additionalRepositories.map(ar => ar.repositoryId);
 
         // Verify all dependency tasks exist and belong to the same project
         if (dependsOn && dependsOn.length > 0) {
@@ -554,13 +477,7 @@ function registerMcpTools(server: McpServer) {
         }
 
         // Determine task status and stage
-        let taskStatus = "todo";
-        let taskStage = null;
-
-        if (stage) {
-          taskStatus = "doing";
-          taskStage = stage;
-        }
+        const status = "todo";
 
         // Create the task
         const newTask = await db
@@ -569,14 +486,15 @@ function registerMcpTools(server: McpServer) {
             projectId,
             mainRepositoryId,
             actorId,
+            createdByTaskId,
             rawTitle: rawTitle || refinedTitle || "",
             rawDescription,
             refinedTitle,
             refinedDescription,
             plan,
             priority,
-            status: taskStatus,
-            stage: taskStage,
+            status: status,
+            stage: stage,
             author: "ai",
             ready: stage ? true : false, // AI tasks that skip clarify are automatically ready
           })
@@ -619,8 +537,9 @@ function registerMcpTools(server: McpServer) {
         logger.tool("task_create", "success", {
           taskId,
           projectId,
-          status: taskStatus,
-          stage: taskStage,
+          createdByTaskId,
+          status: status,
+          stage: stage,
           author: "ai",
         });
 
@@ -640,8 +559,7 @@ function registerMcpTools(server: McpServer) {
         };
       } catch (error) {
         logger.error("task_create failed", error, {
-          projectId,
-          mainRepositoryId,
+          createdByTaskId,
           stage,
         });
         return {

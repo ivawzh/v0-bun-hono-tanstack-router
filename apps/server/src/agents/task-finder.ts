@@ -7,12 +7,12 @@ import { eq, and, or, ne, desc, asc, sql, notExists } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 
 export interface TaskWithContext {
-  task: any;
-  mainRepository: any;
-  actor: any;
-  project: any;
-  assignedAgents: any[];
-  additionalRepositories: any[];
+  task: schema.Task;
+  mainRepository: schema.Repository;
+  actor?: schema.Actor | null;
+  project: schema.Project;
+  assignedAgents: schema.Agent[];
+  additionalRepositories: schema.Repository[];
 }
 
 /**

@@ -52,6 +52,8 @@ export async function registerActiveSession(sessionData: SessionData): Promise<v
   };
 
   await writeFile(sessionFile, JSON.stringify(data, null, 2));
+
+  await unregisterCompletedSession(sessionData.sessionId);
 }
 
 export async function registerCompletedSession(sessionData: SessionData): Promise<void> {
@@ -64,6 +66,8 @@ export async function registerCompletedSession(sessionData: SessionData): Promis
   };
 
   await writeFile(sessionFile, JSON.stringify(data, null, 2));
+
+  await unregisterActiveSession(sessionData.sessionId);
 }
 
 /**
@@ -84,10 +88,23 @@ export async function pingSession(sessionId: string): Promise<void> {
 /**
  * Remove session from registry. Idempotent.
  */
-export async function unregisterActiveSession(sessionId: string): Promise<void> {
+async function unregisterActiveSession(sessionId: string): Promise<void> {
   await initSessionRegistry();
 
   const sessionFile = join(ACTIVE_SESSIONS_DIR, `${sessionId}.json`);
+
+  if (existsSync(sessionFile)) {
+    await unlink(sessionFile);
+  }
+}
+
+/**
+ * Remove session from registry. Idempotent.
+ */
+async function unregisterCompletedSession(sessionId: string): Promise<void> {
+  await initSessionRegistry();
+
+  const sessionFile = join(COMPLETED_SESSIONS_DIR, `${sessionId}.json`);
 
   if (existsSync(sessionFile)) {
     await unlink(sessionFile);

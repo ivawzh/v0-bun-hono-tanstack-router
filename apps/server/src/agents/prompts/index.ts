@@ -7,13 +7,12 @@ import { generateRefinePrompt } from './clarify';
 import { generatePlanPrompt } from './plan';
 import { generateExecutePrompt } from './execute';
 import { generateLoopPrompt } from './loop';
-import { actors, projects, tasks } from '../../db/schema';
+import { type Actor, type Project, type Task } from '../../db/schema';
 
-export type Task = typeof tasks.$inferSelect;
 export type PromptParams = {
   task: Task;
-  actor: typeof actors.$inferSelect;
-  project: typeof projects.$inferSelect;
+  actor?: Actor | null;
+  project: Project;
 }
 
 export type TaskStage = 'clarify' | 'plan' | 'execute' | 'loop';

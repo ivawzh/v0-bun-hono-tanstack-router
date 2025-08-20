@@ -25,7 +25,7 @@ clarify this raw task.
    - Out-of-scope items if any
 5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="plan", isAiWorking=false, refinedTitle=[from above], refinedDescription=[from above]
 
-**Your Role**: ${actor.description || defaultActorDescription}
+**Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}
 
 **Task to clarify**:

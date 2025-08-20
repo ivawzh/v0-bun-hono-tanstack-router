@@ -15,6 +15,7 @@ import { db } from "./db";
 import { agents, projects, taskAgents, tasks } from "./db/schema";
 import { and, eq, sql } from "drizzle-orm";
 import { getAttachmentFile, saveAttachment, validateTotalAttachmentSize } from "./utils/file-storage";
+import { onError } from "@orpc/server";
 
 const app = new Hono();
 
@@ -34,7 +35,13 @@ app.route("/api/agent-callbacks", agentCallbackRoutes);
 
 // V2 API routes are now handled through oRPC endpoints
 
-const handler = new RPCHandler(appRouter);
+const handler = new RPCHandler(appRouter, {
+  interceptors: [
+    onError((error) => {
+      console.error(error)
+    })
+  ]
+});
 app.use("/rpc/*", async (c, next) => {
   console.log(`🚀 -> "/rpc/*":`, "/rpc/*");
   const context = await createContext({ context: c });

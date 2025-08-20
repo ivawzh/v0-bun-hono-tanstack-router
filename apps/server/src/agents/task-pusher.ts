@@ -6,8 +6,7 @@ import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { findNextAssignableTask, selectBestAvailableAgent, type TaskWithContext } from './task-finder';
-import { spawnClaudeSession, generateSessionId } from './claude-spawner';
-import { registerActiveSession } from './session-registry';
+import { spawnClaudeSession } from './claude-spawner';
 
 // Global lock to prevent concurrent task pushing
 let globalPushLock = false;
@@ -79,7 +78,6 @@ async function pushTaskToAgent(
   const { task, mainRepository, actor, project } = taskWithContext;
 
   try {
-    const sessionId = generateSessionId();
     const now = new Date();
 
     // Update task status atomically
@@ -90,7 +88,7 @@ async function pushTaskToAgent(
         activeAgentId: selectedAgent.id,
         lastPushedAt: now,
         lastAgentSessionStartedAt: now,
-        lastAgentSessionId: sessionId,
+        lastAgentSessionId: task.lastAgentSessionId,
         updatedAt: now
       })
       .where(
@@ -125,13 +123,12 @@ async function pushTaskToAgent(
 
     // Spawn Claude CLI session
     const spawnResult = await spawnClaudeSession({
-      sessionId,
+      sessionId: task.lastAgentSessionId,
       taskId: task.id,
       agentId: selectedAgent.id,
       projectId: project.id,
       repositoryPath: mainRepository.repoPath,
       claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
-      resumeSessionId: task.lastAgentSessionId,
       stage: task.stage || 'clarify',
       taskData: { task, actor, project }
     });

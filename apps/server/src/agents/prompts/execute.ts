@@ -20,7 +20,7 @@ Implement the solution following the plan below.
 3. **Commit Changes**: Make appropriate git commits when needed
 4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", stage=null, isAiWorking=false
 
-**Your Role**: ${actor.description || defaultActorDescription}
+**Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}
 
 **Task to Implement**:

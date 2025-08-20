@@ -24,6 +24,6 @@ Execute this repeatable task. This is a loop task that will return to the loop c
 
 **Note**: This task will automatically return to the Loop column for future execution.
 
-**Your Role**: ${actor.description || defaultActorDescription}
+**Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? `**Project Context**: ${JSON.stringify(project.memory)}` : ''}${task.plan ? `\n\n**Implementation Plan**:\n${JSON.stringify(task.plan, null, 2)}` : ''}`;
 }
