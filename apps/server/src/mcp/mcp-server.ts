@@ -3,12 +3,9 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 import { db } from "../db";
-import { projects, tasks, repositories, actors, taskDependencies, taskAdditionalRepositories } from "../db/schema";
+import { projects, tasks, taskDependencies, taskAdditionalRepositories } from "../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { broadcastFlush } from "@/websocket/websocket-server";
-
-// Import task pushing for integration
-import { triggerTaskPush } from '../agents/task-monitor';
 
 // Logging utilities for debug and history tracing
 const logger = {
@@ -86,10 +83,10 @@ function registerMcpTools(server: McpServer) {
         plan: z.unknown().optional(),
         status: z.enum(["todo", "doing", "done", "loop"]).optional(),
         stage: z.enum(["clarify", "plan", "execute", "loop"]).optional().nullable(),
-        isAiWorking: z.boolean().optional(),
+        agentSessionStatus: z.enum(["NON_ACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
     },
-    async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, isAiWorking }, { requestInfo }) => {
+    async ({ taskId, refinedTitle, refinedDescription, plan, status, stage, agentSessionStatus }, { requestInfo }) => {
       logger.info(`RequestInfo: `, requestInfo);
 
       // Prepare initial updates
@@ -111,15 +108,15 @@ function registerMcpTools(server: McpServer) {
         }
       }
 
-      // Handle isAiWorking with timestamp tracking
-      if (isAiWorking !== undefined) {
-        updates.isAiWorking = isAiWorking;
-        if (isAiWorking === true) {
-          // Set timestamp when AI starts working
-          updates.aiWorkingSince = new Date();
-        } else if (isAiWorking === false) {
-          // Clear timestamp when AI stops working
-          updates.aiWorkingSince = null;
+      // Handle agentSessionStatus with timestamp tracking
+      if (agentSessionStatus !== undefined) {
+        updates.agentSessionStatus = agentSessionStatus;
+        if (agentSessionStatus === "ACTIVE") {
+          // Set timestamp when agent starts working
+          updates.lastAgentSessionStartedAt = new Date();
+        } else if (agentSessionStatus === "NON_ACTIVE") {
+          // Clear timestamp when agent stops working
+          updates.lastAgentSessionStartedAt = null;
         }
       }
 

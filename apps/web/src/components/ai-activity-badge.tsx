@@ -4,19 +4,19 @@ import { cn } from "@/lib/utils";
 
 interface AIActivityBadgeProps {
   ready: boolean | null;
-  isAiWorking: boolean | null;
+  agentSessionStatus?: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE' | null;
   status: string;
   className?: string;
 }
 
-export function AIActivityBadge({ ready, isAiWorking, status, className }: AIActivityBadgeProps) {
+export function AIActivityBadge({ ready, agentSessionStatus, status, className }: AIActivityBadgeProps) {
   // Don't show badge for done tasks or when not ready
   if (status === "done" || !ready) {
     return null;
   }
 
   // AI Working state - highest priority
-  if (isAiWorking === true) {
+  if (agentSessionStatus === 'ACTIVE') {
     return (
       <Badge
         variant="outline"
@@ -32,7 +32,7 @@ export function AIActivityBadge({ ready, isAiWorking, status, className }: AIAct
   }
 
   // AI Ready state - only for todo tasks that are ready but AI not working  
-  if (status === "todo" && ready === true && (isAiWorking === false || isAiWorking === null)) {
+  if (status === "todo" && ready === true && (agentSessionStatus === 'NON_ACTIVE' || agentSessionStatus === null)) {
     return (
       <Badge
         variant="outline"

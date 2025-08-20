@@ -99,11 +99,11 @@ const stageColors = {
 
 // Helper function to check if task is stuck (1+ minutes of AI working)
 function isTaskStuck(task: any): boolean {
-  if (!task.isAiWorking || !task.aiWorkingSince) {
+  if (task.agentSessionStatus !== 'ACTIVE' || !task.lastAgentSessionStartedAt) {
     return false;
   }
 
-  const workingSince = new Date(task.aiWorkingSince);
+  const workingSince = new Date(task.lastAgentSessionStartedAt);
   const now = new Date();
   const minutesWorking = (now.getTime() - workingSince.getTime()) / (1000 * 60);
 
@@ -112,11 +112,11 @@ function isTaskStuck(task: any): boolean {
 
 // Helper function to get reset button tooltip text
 function getResetButtonTooltip(task: any): string {
-  if (!task.isAiWorking || !task.aiWorkingSince) {
+  if (task.agentSessionStatus !== 'ACTIVE' || !task.lastAgentSessionStartedAt) {
     return "Only available when AI is working on this task";
   }
 
-  const workingSince = new Date(task.aiWorkingSince);
+  const workingSince = new Date(task.lastAgentSessionStartedAt);
   const now = new Date();
   const millisecondsWorking = now.getTime() - workingSince.getTime();
   const millisecondsUntilStuck = (1 * 60 * 1000) - millisecondsWorking; // 1 minute in milliseconds
@@ -290,7 +290,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           )}
           <AIActivityBadge
             ready={task.ready}
-            isAiWorking={task.isAiWorking}
+            agentSessionStatus={task.agentSessionStatus}
             status={task.status}
           />
           <TaskStageSelector

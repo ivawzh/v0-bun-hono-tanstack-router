@@ -14,7 +14,7 @@ export function generatePlanPrompt(context: PromptParams): string {
 Plan a task - create a comprehensive implementation plan and detailed specification.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="plan", isAiWorking=true
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="plan", agentSessionStatus="ACTIVE"
 2. **List Solution Options**: List viable potential solution options
 3. **Evaluate and Rank**: Compare the options considering in order of importance:
    - Most importantly - UX
@@ -42,8 +42,8 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
        - priority=same as current task
        - stage="execute" (skip clarify/plan)
        - dependsOn=[previous split task IDs for dependency chain]
-     * If splitting cards, mark the current task as done via Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", isAiWorking=false, plan=[from above]
-7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", isAiWorking=false, plan=[from above]
+     * If splitting cards, mark the current task as done via Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", agentSessionStatus="NON_ACTIVE", plan=[from above]
+7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", agentSessionStatus="NON_ACTIVE", plan=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}
