@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { cacheRecoveryService } from '@/lib/cache-recovery';
 
 interface WebSocketMessage {
   type: string;
@@ -61,24 +62,49 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           const message: WebSocketMessage = JSON.parse(event.data);
           console.log('📨 WebSocket message received:', message);
 
-          // Selective cache invalidation based on message type
+          // Selective cache invalidation based on message type (with error recovery)
           if (message.type === 'flush') {
             console.log('🔄 Flushing React Query cache');
-            // Invalidate all queries to ensure immediate UI updates across all components
-            queryClient.invalidateQueries();
+            // Invalidate all queries with error recovery
+            cacheRecoveryService.executeWithRecovery(
+              queryClient,
+              () => queryClient.invalidateQueries(),
+              'WebSocket flush command'
+            ).catch(error => {
+              console.error('❌ Failed to flush cache via WebSocket:', error);
+              // Trigger emergency reset as last resort
+              cacheRecoveryService.emergencyReset(queryClient, 'WebSocket flush failure')
+                .catch(resetError => console.error('❌ Emergency reset also failed:', resetError));
+            });
           } else if (message.type === 'task.updated') {
             // Invalidate specific task data when task is updated remotely
             const { taskId, projectId } = message.data || {};
             if (taskId) {
               console.log('🔄 Invalidating task data:', taskId);
-              queryClient.invalidateQueries({
+              
+              const invalidateTask = () => queryClient.invalidateQueries({
                 queryKey: ['tasks', 'detail', taskId],
               });
-              if (projectId) {
-                queryClient.invalidateQueries({
-                  queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
-                  exact: true,
-                });
+              
+              const invalidateProject = projectId ? () => queryClient.invalidateQueries({
+                queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
+                exact: true,
+              }) : undefined;
+
+              // Execute task invalidation with recovery
+              cacheRecoveryService.executeWithRecovery(
+                queryClient,
+                invalidateTask,
+                `WebSocket task.updated: ${taskId}`
+              ).catch(error => console.error('❌ Failed to invalidate task via WebSocket:', error));
+
+              // Execute project invalidation with recovery if projectId exists
+              if (invalidateProject) {
+                cacheRecoveryService.executeWithRecovery(
+                  queryClient,
+                  invalidateProject,
+                  `WebSocket task.updated project: ${projectId}`
+                ).catch(error => console.error('❌ Failed to invalidate project via WebSocket:', error));
               }
             }
           } else if (message.type === 'project.tasks.updated') {
@@ -86,10 +112,15 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
             const { projectId } = message.data || {};
             if (projectId) {
               console.log('🔄 Invalidating project tasks:', projectId);
-              queryClient.invalidateQueries({
-                queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
-                exact: true,
-              });
+              
+              cacheRecoveryService.executeWithRecovery(
+                queryClient,
+                () => queryClient.invalidateQueries({
+                  queryKey: ['projects', 'getWithTasks', { input: { id: projectId } }],
+                  exact: true,
+                }),
+                `WebSocket project.tasks.updated: ${projectId}`
+              ).catch(error => console.error('❌ Failed to invalidate project tasks via WebSocket:', error));
             }
           }
 

@@ -7,6 +7,7 @@
 
 import { useQueryClient } from '@tanstack/react-query'
 import { cacheUtils, optimisticUtils, queryKeys, devUtils } from '@/lib/query-keys'
+import { enhancedCacheUtils, cacheRecoveryService } from '@/lib/cache-recovery'
 import { useCallback } from 'react'
 
 export function useCacheUtils() {
@@ -16,38 +17,42 @@ export function useCacheUtils() {
     // Query key factories
     queryKeys,
 
-    // Project cache management
+    // Project cache management (with error recovery)
     invalidateProject: useCallback(
-      (projectId: string) => cacheUtils.invalidateProject(queryClient, projectId),
+      (projectId: string) => enhancedCacheUtils.invalidateProject(queryClient, projectId),
       [queryClient]
     ),
 
     invalidateProjectLists: useCallback(
-      () => cacheUtils.invalidateProjectLists(queryClient),
+      () => cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        () => cacheUtils.invalidateProjectLists(queryClient),
+        'invalidateProjectLists'
+      ),
       [queryClient]
     ),
 
-    // Task cache management
+    // Task cache management (with error recovery)
     invalidateTask: useCallback(
-      (taskId: string, projectId?: string) => cacheUtils.invalidateTask(queryClient, taskId, projectId),
+      (taskId: string, projectId?: string) => enhancedCacheUtils.invalidateTask(queryClient, taskId, projectId),
       [queryClient]
     ),
 
-    // Repository cache management
+    // Repository cache management (with error recovery)
     invalidateRepository: useCallback(
-      (repositoryId: string, projectId?: string) => cacheUtils.invalidateRepository(queryClient, repositoryId, projectId),
+      (repositoryId: string, projectId?: string) => enhancedCacheUtils.invalidateRepository(queryClient, repositoryId, projectId),
       [queryClient]
     ),
 
-    // Agent cache management
+    // Agent cache management (with error recovery)
     invalidateAgent: useCallback(
-      (agentId: string) => cacheUtils.invalidateAgent(queryClient, agentId),
+      (agentId: string) => enhancedCacheUtils.invalidateAgent(queryClient, agentId),
       [queryClient]
     ),
 
-    // Actor cache management
+    // Actor cache management (with error recovery)
     invalidateActor: useCallback(
-      (actorId: string, projectId?: string) => cacheUtils.invalidateActor(queryClient, actorId, projectId),
+      (actorId: string, projectId?: string) => enhancedCacheUtils.invalidateActor(queryClient, actorId, projectId),
       [queryClient]
     ),
 
@@ -94,23 +99,77 @@ export function useCacheUtils() {
       [queryClient]
     ),
 
-    // Bulk operations
+    // Bulk operations (with error recovery)
     invalidateMultiple: useCallback(
       (operations: Array<{ type: 'project' | 'task' | 'repository' | 'agent' | 'actor'; id: string; projectId?: string }>) =>
-        cacheUtils.invalidateMultiple(queryClient, operations),
+        enhancedCacheUtils.invalidateMultiple(queryClient, operations),
       [queryClient]
     ),
 
-    // Emergency operations  
-    invalidateAll: useCallback(() => queryClient.invalidateQueries(), [queryClient]),
-    resetCache: useCallback(() => cacheUtils.resetCache(queryClient), [queryClient]),
+    // Emergency operations (with error recovery) 
+    invalidateAll: useCallback(
+      () => cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        () => queryClient.invalidateQueries(),
+        'invalidateAll'
+      ),
+      [queryClient]
+    ),
+    resetCache: useCallback(
+      () => cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        async () => { await cacheUtils.resetCache(queryClient) },
+        'resetCache'
+      ),
+      [queryClient]
+    ),
 
-    // Auth operations
-    invalidateAuth: useCallback(() => cacheUtils.invalidateAuth(queryClient), [queryClient]),
+    // Auth operations (with error recovery)
+    invalidateAuth: useCallback(
+      () => cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        () => cacheUtils.invalidateAuth(queryClient),
+        'invalidateAuth'
+      ),
+      [queryClient]
+    ),
 
-    // Attachment operations
+    // Attachment operations (with error recovery)
     invalidateAttachments: useCallback(
-      (taskId: string, projectId?: string) => cacheUtils.invalidateAttachments(queryClient, taskId, projectId),
+      (taskId: string, projectId?: string) => enhancedCacheUtils.invalidateAttachments(queryClient, taskId, projectId),
+      [queryClient]
+    ),
+
+    // Error recovery utilities
+    recovery: {
+      emergencyReset: useCallback(
+        (reason: string) => enhancedCacheUtils.emergencyReset(queryClient, reason),
+        [queryClient]
+      ),
+      getStats: useCallback(() => enhancedCacheUtils.getRecoveryStats(), []),
+      getHealthStatus: useCallback(() => enhancedCacheUtils.getHealthStatus(), []),
+      getDiagnostics: useCallback(() => enhancedCacheUtils.getDiagnostics(), []),
+      forceProcessQueue: useCallback(() => enhancedCacheUtils.forceProcessQueue(), []),
+      reset: useCallback(() => enhancedCacheUtils.resetRecoveryService(), []),
+    },
+
+    // Advanced cache operations
+    batchInvalidate: useCallback(
+      (operations: Array<{
+        type: 'project' | 'task' | 'repository' | 'agent' | 'actor' | 'attachment'
+        id: string
+        projectId?: string
+      }>) => enhancedCacheUtils.batchInvalidate(queryClient, operations),
+      [queryClient]
+    ),
+
+    smartInvalidate: useCallback(
+      (context: {
+        entityType: 'project' | 'task' | 'repository' | 'agent' | 'actor'
+        entityId: string
+        projectId?: string
+        action?: 'create' | 'update' | 'delete'
+      }) => enhancedCacheUtils.smartInvalidate(queryClient, context),
       [queryClient]
     ),
 
@@ -127,6 +186,39 @@ export function useCacheUtils() {
       ),
       enablePerformanceMonitoring: useCallback(
         () => devUtils.monitorCachePerformance(queryClient),
+        [queryClient]
+      ),
+      testRecovery: useCallback(
+        (testType: 'network' | 'timeout' | 'general' = 'general') => {
+          console.log(`🧪 Testing cache recovery for ${testType} errors`)
+          
+          // Create a simulated error
+          let testError: Error
+          switch (testType) {
+            case 'network':
+              testError = new Error('Network request failed - connection error')
+              break
+            case 'timeout':
+              testError = new Error('Request timeout - operation aborted')
+              break
+            default:
+              testError = new Error('Test cache operation failure')
+          }
+          
+          // Test the recovery system
+          return cacheRecoveryService.executeWithRecovery(
+            queryClient,
+            async () => {
+              throw testError
+            },
+            `test-${testType}-recovery`,
+            { maxRetries: 2, baseDelayMs: 100 }
+          ).catch(() => {
+            console.log(`✅ Cache recovery test completed for ${testType} errors`)
+            console.log('📊 Recovery stats:', enhancedCacheUtils.getRecoveryStats())
+            console.log('🏥 Health status:', enhancedCacheUtils.getHealthStatus())
+          })
+        },
         [queryClient]
       ),
     } : undefined,
