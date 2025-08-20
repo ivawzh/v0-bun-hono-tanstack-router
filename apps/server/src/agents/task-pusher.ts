@@ -30,13 +30,7 @@ function acquireGlobalLock(): boolean {
     const isDifferentModule = lock.moduleVersion !== MODULE_VERSION;
 
     if (isStale || isDifferentModule) {
-      console.warn('⚠️ Clearing stale task push lock', {
-        isStale,
-        isDifferentModule,
-        age: now - lock.timestamp,
-        lockModuleVersion: lock.moduleVersion,
-        currentModuleVersion: MODULE_VERSION
-      });
+      console.warn(`⚠️ Clearing stale task push lock either it exceeded stale timeout (every ${LOCK_TIMEOUT_MS / 1000} seconds) or it is hot reloaded`);
       globalThis.__soloUnicornTaskPushLock = undefined;
     } else if (lock.locked) {
       return false; // Lock is active and fresh
@@ -59,28 +53,14 @@ function releaseGlobalLock(): void {
   }
 }
 
-function isLocked(): boolean {
-  if (!globalThis.__soloUnicornTaskPushLock) return false;
-
-  const lock = globalThis.__soloUnicornTaskPushLock;
-  const now = Date.now();
-  const isStale = (now - lock.timestamp) > LOCK_TIMEOUT_MS;
-  const isDifferentModule = lock.moduleVersion !== MODULE_VERSION;
-
-  if (isStale || isDifferentModule) {
-    return false; // Treat stale/different module locks as unlocked
-  }
-
-  return lock.locked;
-}
-
 /**
  * Main recursive task pushing function with global locking
  */
 export async function tryPushTasks(): Promise<{ pushed: number; errors: string[] }> {
   // Check and acquire global lock
   if (!acquireGlobalLock()) {
-    return { pushed: 0, errors: ['🚧 [tryPushTasks] already in progress'] };
+    // 🚧 tryPushTasks] already in progre
+    return { pushed: 0, errors: [] };
   }
 
   try {
@@ -219,22 +199,5 @@ async function pushTaskToAgent(
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error'
     };
-  }
-}
-
-/**
- * Check if task pushing is currently locked
- */
-export function isPushingLocked(): boolean {
-  return isLocked();
-}
-
-/**
- * Force release the global lock (emergency use only)
- */
-export function forceReleaseLock(): void {
-  if (globalThis.__soloUnicornTaskPushLock) {
-    globalThis.__soloUnicornTaskPushLock.locked = false;
-    console.warn('⚠️  Global push lock forcefully released');
   }
 }
