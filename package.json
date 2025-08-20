@@ -6,10 +6,10 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "bun run --elide-lines 0 --filter '*' dev",
+    "dev": "concurrently --prefix '[{name}]' --names 'server,web,ccu' --prefix-colors 'cyan,magenta' 'cd apps/server && bun dev' 'cd apps/web && bun dev' 'cd apps/claudecode-ui && bun dev'",
     "start:prod": "bun run scripts/start-prod.js",
-    "build": "bun run --elide-lines 0 --filter '*' build",
-    "typecheck": "bun run --elide-lines 0 --filter '*' typecheck",
+    "build": "concurrently 'cd apps/server && bun build' 'cd apps/web && bun build'",
+    "typecheck": "concurrently 'cd apps/server && bun typecheck' 'cd apps/web && bun typecheck'",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:debug": "playwright test --debug",
