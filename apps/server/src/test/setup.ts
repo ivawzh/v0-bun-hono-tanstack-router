@@ -18,6 +18,9 @@ export async function setupTestDatabase(): Promise<NodePgDatabase<typeof schema>
     
     testDbPool = new Pool({ connectionString: databaseUrl });
     testDb = drizzle(testDbPool, { schema });
+    
+    // Set global flag to indicate test database is active
+    (global as any).__TEST_DB_ACTIVE = true;
   }
   
   return testDb;

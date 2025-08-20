@@ -48,7 +48,7 @@ describe("Actors Router", () => {
 
   describe("Project Membership Authorization", () => {
     it("should require project membership for all endpoints", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -100,7 +100,7 @@ describe("Actors Router", () => {
 
   describe("Data Isolation", () => {
     it("should only return actors from user's projects", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -134,7 +134,7 @@ describe("Actors Router", () => {
     });
 
     it("should prevent cross-project actor access", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -466,27 +466,35 @@ describe("Actors Router", () => {
     it("should handle multiple actors in multiple projects", async () => {
       const scenario = await createComplexTestScenario();
       
-      // Test that each user can only access their project's actors
-      const user1Actors = await testRealRPCWithAuth(
+      // Test that users can access their project's actors
+      const userActors = await testRealRPCWithAuth(
         actorsRouter.list,
-        scenario.users[0],
-        { projectId: scenario.projects[0].id }
+        scenario.users.owner,
+        { projectId: scenario.project.id }
       );
       
-      const user2Actors = await testRealRPCWithAuth(
+      // Test member access to same project
+      const memberActors = await testRealRPCWithAuth(
         actorsRouter.list,
-        scenario.users[1],
-        { projectId: scenario.projects[1].id }
+        scenario.users.member1,
+        { projectId: scenario.project.id }
       );
       
-      // Each project should have its own actors
-      expect(user1Actors.length).toBeGreaterThan(0);
-      expect(user2Actors.length).toBeGreaterThan(0);
+      // Project should have actors
+      expect(userActors.length).toBeGreaterThan(0);
+      expect(memberActors.length).toBeGreaterThan(0);
       
-      // Actors should be project-isolated
-      const user1ActorIds = user1Actors.map(a => a.id);
-      const user2ActorIds = user2Actors.map(a => a.id);
-      expect(user1ActorIds).not.toEqual(user2ActorIds);
+      // Both should see the same actors (same project)
+      expect(userActors).toEqual(memberActors);
+      
+      // Test outsider cannot access the project
+      await expect(
+        testRealRPCWithAuth(
+          actorsRouter.list,
+          scenario.users.outsider,
+          { projectId: scenario.project.id }
+        )
+      ).rejects.toThrow();
     });
 
     it("should handle concurrent operations safely", async () => {

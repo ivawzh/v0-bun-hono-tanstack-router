@@ -16,7 +16,16 @@ import { randomUUID } from "crypto";
 
 // Use test database when running tests, otherwise use main database
 function getDb() {
-  if (process.env.NODE_ENV === "test" || process.env.BUN_TEST) {
+  // Check various indicators that we're in a test environment
+  const isTestEnvironment = 
+    process.env.NODE_ENV === "test" || 
+    process.env.BUN_TEST ||
+    // Check if we're being called from a test file by examining the call stack
+    (new Error().stack?.includes('.test.') || new Error().stack?.includes('bun:test')) ||
+    // Check if the test setup module is available and has been initialized
+    (global as any).__TEST_DB_ACTIVE;
+  
+  if (isTestEnvironment) {
     try {
       const { getTestDb } = require("../test/setup");
       return getTestDb();

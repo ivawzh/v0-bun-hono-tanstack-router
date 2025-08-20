@@ -56,7 +56,7 @@ describe("Agents Router", () => {
 
   describe("Project Membership Authorization", () => {
     it("should require project membership for all endpoints", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -106,7 +106,7 @@ describe("Agents Router", () => {
     });
     
     it("should require project membership for duplicate endpoints", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -158,7 +158,7 @@ describe("Agents Router", () => {
 
   describe("Data Isolation", () => {
     it("should only return agents from user's projects", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -192,7 +192,7 @@ describe("Agents Router", () => {
     });
 
     it("should prevent cross-project agent access", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -525,27 +525,35 @@ describe("Agents Router", () => {
     it("should handle multiple agents in multiple projects", async () => {
       const scenario = await createComplexTestScenario();
       
-      // Test that each user can only access their project's agents
-      const user1Agents = await testRealRPCWithAuth(
+      // Test that users can access their project's agents
+      const userAgents = await testRealRPCWithAuth(
         agentsRouter.list,
-        scenario.users[0],
-        { projectId: scenario.projects[0].id }
+        scenario.users.owner,
+        { projectId: scenario.project.id }
       );
       
-      const user2Agents = await testRealRPCWithAuth(
+      // Test member access to same project
+      const memberAgents = await testRealRPCWithAuth(
         agentsRouter.list,
-        scenario.users[1],
-        { projectId: scenario.projects[1].id }
+        scenario.users.member1,
+        { projectId: scenario.project.id }
       );
       
-      // Each project should have its own agents
-      expect(user1Agents.length).toBeGreaterThan(0);
-      expect(user2Agents.length).toBeGreaterThan(0);
+      // Project should have agents
+      expect(userAgents.length).toBeGreaterThan(0);
+      expect(memberAgents.length).toBeGreaterThan(0);
       
-      // Agents should be project-isolated
-      const user1AgentIds = user1Agents.map(a => a.id);
-      const user2AgentIds = user2Agents.map(a => a.id);
-      expect(user1AgentIds).not.toEqual(user2AgentIds);
+      // Both should see the same agents (same project)
+      expect(userAgents).toEqual(memberAgents);
+      
+      // Test outsider cannot access the project
+      await expect(
+        testRealRPCWithAuth(
+          agentsRouter.list,
+          scenario.users.outsider,
+          { projectId: scenario.project.id }
+        )
+      ).rejects.toThrow();
     });
 
     it("should validate agent types", async () => {

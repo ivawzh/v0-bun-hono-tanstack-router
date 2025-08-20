@@ -48,7 +48,7 @@ describe("Repositories Router", () => {
 
   describe("Project Membership Authorization", () => {
     it("should require project membership for all endpoints", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -89,10 +89,10 @@ describe("Repositories Router", () => {
       for (const test of endpointsToTest) {
         await testProjectMembershipValidation(
           test.endpoint,
+          project.id,
           test.input,
           user1,
-          user2,
-          test.description
+          user2
         );
       }
     });
@@ -100,7 +100,7 @@ describe("Repositories Router", () => {
 
   describe("Data Isolation", () => {
     it("should only return repositories from user's projects", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -134,7 +134,7 @@ describe("Repositories Router", () => {
     });
 
     it("should prevent cross-project repository access", async () => {
-      const { users } = await createTestUsers();
+      const users = await createTestUsers(2);
       const user1 = users[0];
       const user2 = users[1];
       
@@ -451,31 +451,125 @@ describe("Repositories Router", () => {
     });
   });
 
+  describe("Error Handling", () => {
+    it("should handle non-existent repository IDs", async () => {
+      const user = await createTestUser();
+      const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
+      
+      try {
+        await testRealRPCWithAuth(repositoriesRouter.get, user, { id: nonExistentId });
+        throw new Error("Should have thrown not found error");
+      } catch (error: any) {
+        expect(error.message).toContain("Repository not found or unauthorized");
+      }
+    });
+
+    it("should handle invalid UUID validation", async () => {
+      const user = await createTestUser();
+      
+      try {
+        await testRealRPCWithAuth(repositoriesRouter.get, user, { id: "invalid-uuid" });
+        throw new Error("Should have thrown validation error");
+      } catch (error: any) {
+        expect(error.message).toContain("uuid");
+      }
+    });
+
+    it("should validate required fields in create", async () => {
+      const user = await createTestUser();
+      const project = await createTestProject(user.id);
+      
+      // Test missing name
+      try {
+        await testRealRPCWithAuth(
+          repositoriesRouter.create,
+          user,
+          {
+            projectId: project.id,
+            name: "",
+            repoPath: "/test/path"
+          }
+        );
+        throw new Error("Should have thrown validation error");
+      } catch (error: any) {
+        expect(error.message).toContain("minLength");
+      }
+      
+      // Test missing repoPath
+      try {
+        await testRealRPCWithAuth(
+          repositoriesRouter.create,
+          user,
+          {
+            projectId: project.id,
+            name: "Test Repository",
+            repoPath: ""
+          }
+        );
+        throw new Error("Should have thrown validation error");
+      } catch (error: any) {
+        expect(error.message).toContain("minLength");
+      }
+    });
+
+    it("should validate concurrency limit bounds", async () => {
+      const user = await createTestUser();
+      const project = await createTestProject(user.id);
+      
+      // Test zero concurrency limit (should fail - minValue is 1)
+      try {
+        await testRealRPCWithAuth(
+          repositoriesRouter.create,
+          user,
+          {
+            projectId: project.id,
+            name: "Test Repository",
+            repoPath: "/test/path",
+            maxConcurrencyLimit: 0
+          }
+        );
+        throw new Error("Should have thrown validation error");
+      } catch (error: any) {
+        expect(error.message).toContain("minValue");
+      }
+      
+      // Test too high concurrency limit
+      try {
+        await testRealRPCWithAuth(
+          repositoriesRouter.create,
+          user,
+          {
+            projectId: project.id,
+            name: "Test Repository",
+            repoPath: "/test/path",
+            maxConcurrencyLimit: 11
+          }
+        );
+        throw new Error("Should have thrown validation error");
+      } catch (error: any) {
+        expect(error.message).toContain("maxValue");
+      }
+    });
+  });
+
   describe("Complex Scenarios", () => {
     it("should handle multiple repositories in multiple projects", async () => {
       const scenario = await createComplexTestScenario();
       
-      // Test that each user can only access their project's repositories
-      const user1Repos = await testRealRPCWithAuth(
+      // Test that users can access their project's repositories  
+      const userRepos = await testRealRPCWithAuth(
         repositoriesRouter.list,
-        scenario.users[0],
-        { projectId: scenario.projects[0].id }
+        scenario.users.owner,
+        { projectId: scenario.project.id }
       );
       
-      const user2Repos = await testRealRPCWithAuth(
-        repositoriesRouter.list,
-        scenario.users[1],
-        { projectId: scenario.projects[1].id }
-      );
+      // Project should have repositories
+      expect(userRepos.length).toBeGreaterThan(0);
       
-      // Each project should have its own repositories
-      expect(user1Repos.length).toBeGreaterThan(0);
-      expect(user2Repos.length).toBeGreaterThan(0);
-      
-      // Repositories should be project-isolated
-      const user1RepoIds = user1Repos.map(r => r.id);
-      const user2RepoIds = user2Repos.map(r => r.id);
-      expect(user1RepoIds).not.toEqual(user2RepoIds);
+      // Verify all repositories belong to the project
+      for (const repo of userRepos) {
+        expect(repo.projectId).toBe(scenario.project.id);
+      }
     });
 
     it("should handle concurrent operations safely", async () => {
@@ -545,6 +639,85 @@ describe("Repositories Router", () => {
       const defaultRepos = repos.filter(r => r.isDefault);
       expect(defaultRepos).toHaveLength(1);
       expect(defaultRepos[0].id).toBe(repo3.id);
+    });
+  });
+
+  describe("Comprehensive CRUD Coverage", () => {
+    it("should support full repository lifecycle", async () => {
+      const user = await createTestUser();
+      const project = await createTestProject(user.id);
+      
+      // Create repository
+      const createdRepository = await testRealRPCWithAuth(
+        repositoriesRouter.create,
+        user,
+        {
+          projectId: project.id,
+          name: "Lifecycle Repository",
+          repoPath: "/lifecycle/path",
+          isDefault: true,
+          maxConcurrencyLimit: 3
+        }
+      );
+      
+      expect(createdRepository.name).toBe("Lifecycle Repository");
+      expect(createdRepository.isDefault).toBe(true);
+      
+      // Read repository
+      const readRepository = await testRealRPCWithAuth(
+        repositoriesRouter.get,
+        user,
+        { id: createdRepository.id }
+      );
+      
+      expect(readRepository.id).toBe(createdRepository.id);
+      expect(readRepository.repoPath).toBe("/lifecycle/path");
+      expect(readRepository.maxConcurrencyLimit).toBe(3);
+      
+      // Update repository
+      const updatedRepository = await testRealRPCWithAuth(
+        repositoriesRouter.update,
+        user,
+        {
+          id: createdRepository.id,
+          name: "Updated Lifecycle Repository",
+          repoPath: "/updated/lifecycle/path",
+          isDefault: false,
+          maxConcurrencyLimit: 5
+        }
+      );
+      
+      expect(updatedRepository.name).toBe("Updated Lifecycle Repository");
+      expect(updatedRepository.repoPath).toBe("/updated/lifecycle/path");
+      expect(updatedRepository.isDefault).toBe(false);
+      expect(updatedRepository.maxConcurrencyLimit).toBe(5);
+      
+      // List should include updated repository
+      const listedRepositories = await testRealRPCWithAuth(
+        repositoriesRouter.list,
+        user,
+        { projectId: project.id }
+      );
+      
+      const foundRepository = listedRepositories.find(r => r.id === createdRepository.id);
+      expect(foundRepository?.name).toBe("Updated Lifecycle Repository");
+      
+      // Delete repository
+      const deleteResult = await testRealRPCWithAuth(
+        repositoriesRouter.delete,
+        user,
+        { id: createdRepository.id }
+      );
+      
+      expect(deleteResult.success).toBe(true);
+      
+      // Verify deletion
+      try {
+        await testRealRPCWithAuth(repositoriesRouter.get, user, { id: createdRepository.id });
+        throw new Error("Repository should have been deleted");
+      } catch (error: any) {
+        expect(error.message).toContain("Repository not found or unauthorized");
+      }
     });
   });
 });

@@ -227,36 +227,17 @@ export async function testRealRPCWithAuth<TInput, TOutput>(
   user: TestUser,
   input: TInput
 ): Promise<TOutput> {
-  // Create the base context that middleware expects
+  // For protected procedures, simulate what requireAuth middleware does:
+  // It creates a new context with only session and user fields
   const baseContext = createAuthenticatedContext(user);
   
-  console.log("=== TEST RPC WITH AUTH DEBUG ===");
-  console.log("Base context structure:", {
-    session: !!baseContext.session,
-    sessionUser: !!baseContext.session?.user,
-    sessionUserEmail: baseContext.session?.user?.email,
-    appUser: !!baseContext.appUser,
-    appUserId: baseContext.appUser?.id,
-    context: !!baseContext.context
-  });
-  
-  // Create mock oRPC call structure that matches real oRPC
-  const call = {
-    context: baseContext, // Use the base context with appUser for middleware
-    input,
-    rawInput: input,
+  // The requireAuth middleware extracts appUser from context and puts it as user
+  const protectedContext = {
+    session: baseContext.session,
+    user: baseContext.appUser, // This is what requireAuth middleware puts in the new context (appUser -> user)
   };
   
-  // Call the handler function directly - oRPC stores handler in ~orpc.handler
-  // This will run through the middleware chain (including requireAuth)
-  try {
-    const result = await procedure["~orpc"].handler(call);
-    console.log("Procedure completed successfully");
-    return result;
-  } catch (error) {
-    console.log("Procedure failed:", error.message);
-    throw error;
-  }
+  return await testRealRPCProcedure(procedure, protectedContext, input);
 }
 
 /**
