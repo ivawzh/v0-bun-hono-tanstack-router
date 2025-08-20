@@ -1,14 +1,31 @@
 import * as v from "valibot";
-import { db } from "../db";
+import { db as mainDb } from "../db";
 import { projects, repositories, agents, actors, tasks, projectUsers } from "../db/schema";
 import { eq, and, desc, getTableColumns } from "drizzle-orm";
 import { protectedProcedure, o } from "../lib/orpc";
+
+// Use test database when running tests, otherwise use main database
+function getDb() {
+  if (process.env.NODE_ENV === "test" || process.env.BUN_TEST) {
+    try {
+      const { getTestDb } = require("../test/setup");
+      return getTestDb();
+    } catch {
+      // Fallback to main db if test setup not available
+      return mainDb;
+    }
+  }
+  return mainDb;
+}
 
 export const projectsRouter = o.router({
   list: protectedProcedure
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
       try {
+        console.log("projects.list called with userId:", context.user?.id);
+        
+        const db = getDb();
         // Get projects through membership
         const userProjects = await db
           .select({ project: projects })
@@ -16,6 +33,8 @@ export const projectsRouter = o.router({
           .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
           .where(eq(projectUsers.userId, context.user.id))
           .orderBy(desc(projects.createdAt));
+        
+        console.log("Query returned:", userProjects.length, "projects");
         
         return userProjects.map(row => row.project);
       } catch (err: any) {
@@ -33,6 +52,7 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       const result = await db
         .select({ project: projects })
         .from(projects)

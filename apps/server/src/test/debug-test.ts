@@ -7,6 +7,7 @@ import { createTestUser, createTestProject } from "./fixtures";
 import { testRealRPCWithAuth } from "./rpc-test-helpers";
 import { projectsRouter } from "../routers/projects";
 import { projects, projectUsers, users } from "../db/schema";
+import { eq } from "drizzle-orm";
 
 // Setup database for these tests
 setupDatabaseTests();
@@ -45,7 +46,26 @@ describe("Debug Project Issues", () => {
       console.log("IDs match:", user.id === membership.userId);
     }
     
-    // Now try to list projects
+    // Test the exact same query manually to debug
+    console.log("=== MANUAL QUERY DEBUG ===");
+    const manualQuery = await db
+      .select({ project: projects })
+      .from(projects)
+      .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+      .where(eq(projectUsers.userId, user.id));
+    
+    console.log("Manual query result:", manualQuery.length);
+    if (manualQuery.length > 0) {
+      console.log("Manual query first result:", manualQuery[0]);
+    }
+    
+    // Also test all data separately
+    const allProjects = await db.select().from(projects);
+    const allMemberships = await db.select().from(projectUsers);
+    console.log("All projects in DB:", allProjects.map(p => ({ id: p.id, name: p.name, ownerId: p.ownerId })));
+    console.log("All memberships in DB:", allMemberships.map(m => ({ userId: m.userId, projectId: m.projectId, role: m.role })));
+    
+    // Now try to list projects via RPC
     const projects_listed = await testRealRPCWithAuth(projectsRouter.list, user, {});
     console.log("Listed projects:", projects_listed.length, projects_listed.map(p => ({ id: p.id, name: p.name })));
     
