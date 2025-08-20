@@ -1,166 +1,116 @@
-# Test Infrastructure
+# Solo Unicorn Test Infrastructure
 
-This directory contains the comprehensive test infrastructure for Solo Unicorn server testing.
+This directory contains comprehensive testing infrastructure for Solo Unicorn's RPC endpoints and business logic.
 
 ## Overview
 
 The test infrastructure provides:
+- Complete database setup and cleanup utilities
+- Authentication mocking for protected endpoints
+- RPC endpoint testing helpers
+- Comprehensive test fixtures and data seeding
+- Project-scoped authorization testing
+- Enhanced test runner configuration
 
-- **Database Management**: Test database setup, cleanup, and migration utilities
-- **Test Fixtures**: Factory functions for creating test data (users, projects, repos, etc.)
-- **Authentication Mocking**: Mock authenticated and unauthenticated contexts
-- **RPC Testing Helpers**: Utilities for testing oRPC endpoints with proper context
-- **General Test Utilities**: Common helpers and assertions
+## Core Components
 
-## Quick Start
+### 1. Database Management (`setup.ts`, `test-utils.ts`)
 
+**Database Setup:**
 ```typescript
-import bunTest from "bun:test";
-const { describe, it, expect } = bunTest;
+import { setupDatabaseTests, getTestDb } from "./test-utils";
 
-import { 
-  setupDatabaseTests, 
-  createCompleteTestSetup,
-  testRPCWithAuth 
-} from "./test";
-
-// Setup database hooks
+// Use in any test file that needs database access
 setupDatabaseTests();
 
-describe("My Feature", () => {
-  it("should work", async () => {
-    const setup = await createCompleteTestSetup();
-    // Test your feature
-  });
-});
+// Get database instance in tests
+const db = getTestDb();
 ```
 
-## Test Database Setup
+**Features:**
+- Automatic test database connection
+- Clean slate for each test (cleanup between tests)
+- Proper connection pooling and cleanup
+- Support for test database URL configuration
 
-The test infrastructure automatically manages a PostgreSQL test database:
+### 2. Authentication Mocking (`auth-mocks.ts`)
 
-1. **Database Creation**: `bun run test:setup` creates and migrates test database
-2. **Automatic Cleanup**: Each test starts with a clean database state
-3. **Isolation**: Tests are fully isolated from each other
-
-### Environment Variables
-
-- `DATABASE_TEST_URL`: Test database connection string (default: `postgresql://$USER@localhost:5432/solo_unicorn_test`)
-- `NODE_ENV`: Must be set to `"test"` for tests
-
-## Test Fixtures
-
-Factory functions for creating test data:
-
+**Context Creation:**
 ```typescript
 import { 
-  createTestUser,
-  createTestProject, 
-  createCompleteTestSetup 
-} from "./fixtures";
-
-// Create individual entities
-const user = await createTestUser();
-const project = await createTestProject(user.id);
-
-// Create complete setup with all entities
-const setup = await createCompleteTestSetup();
-// Returns: { user, project, repository, agent, actor }
-```
-
-## Authentication Testing
-
-Mock authentication contexts for testing protected endpoints:
-
-```typescript
-import { 
-  createAuthenticatedContext,
-  createUnauthenticatedContext 
+  createAuthenticatedContext, 
+  createUnauthenticatedContext,
+  createProtectedContext 
 } from "./auth-mocks";
 
-const user = await createTestUser();
+// For regular context
 const authContext = createAuthenticatedContext(user);
 const unauthContext = createUnauthenticatedContext();
+
+// For protected procedures (with user property)
+const protectedContext = createProtectedContext(user);
 ```
 
-## RPC Endpoint Testing
+### 3. Test Fixtures (`fixtures.ts`)
 
-Helper utilities for testing oRPC procedures:
+**Available Fixtures:**
+- `createTestUser()` - Individual users
+- `createTestProject()` - Projects with ownership  
+- `createTestRepository()` - Repository configurations
+- `createTestAgent()` - AI agents
+- `createTestActor()` - Agent personalities
+- `createTestTask()` - Tasks with various statuses
+- `createCompleteTestSetup()` - Full project setup
+- `createComplexTestScenario()` - Multi-user test scenarios
+- `seedTestDatabase()` - Large-scale realistic data
 
+### 4. RPC Testing Utilities (`rpc-test-helpers.ts`)
+
+**Basic RPC Testing:**
 ```typescript
 import { 
-  testRPCWithAuth,
-  testAuthorizationRequirement 
+  testRealRPCWithAuth,
+  testRealRPCWithoutAuth,
+  assertRealRPCUnauthorized 
 } from "./rpc-test-helpers";
 
-// Test that endpoint requires authentication
-await testAuthorizationRequirement(myProcedure, sampleInput);
-
 // Test with authenticated user
-const result = await testRPCWithAuth(myProcedure, user, input);
+const result = await testRealRPCWithAuth(procedure, user, input);
+
+// Assert unauthorized access is blocked
+await assertRealRPCUnauthorized(procedure, input);
 ```
 
-## File Structure
+### 5. Test Runner Configuration (`bunfig.toml`)
 
-```
-src/test/
-├── README.md              # This file
-├── index.ts              # Main exports (may have import issues - use direct imports)
-├── setup.ts              # Database setup and teardown
-├── fixtures.ts           # Test data factory functions
-├── auth-mocks.ts         # Authentication context mocking
-├── rpc-test-helpers.ts   # RPC endpoint testing utilities
-├── test-utils.ts         # General test utilities and database hooks
-└── *.test.ts            # Test files
-```
+**Features:**
+- Test database environment setup
+- 30-second timeout for complex tests
+- Sequential test execution (concurrency = 1) to avoid database conflicts
+- Watch mode configuration with proper ignore patterns
 
-## Available Scripts
+## Running Tests
 
-- `bun run test` - Run all tests
-- `bun run test:watch` - Run tests in watch mode
-- `bun run test:setup` - Create and migrate test database
-- `bun run test:teardown` - Drop test database
+```bash
+# Run all tests
+bun test
 
-## Best Practices
+# Run tests in watch mode
+bun test --watch
 
-1. **Use Direct Imports**: Due to Bun's import handling, prefer importing directly from specific files rather than the index
-2. **Database Cleanup**: Always use `setupDatabaseTests()` in test files that need database access
-3. **Test Isolation**: Each test gets a clean database state automatically
-4. **Authentication**: Use mock contexts rather than real authentication in tests
-5. **Fixtures**: Use factory functions rather than hardcoded test data
-
-## Example Test
-
-```typescript
-import bunTest from "bun:test";
-const { describe, it, expect } = bunTest;
-
-import { setupDatabaseTests } from "./test-utils";
-import { createCompleteTestSetup } from "./fixtures";
-import { testRPCWithAuth } from "./rpc-test-helpers";
-
-// Setup database hooks
-setupDatabaseTests();
-
-describe("Projects API", () => {
-  it("should list user projects", async () => {
-    const setup = await createCompleteTestSetup();
-    
-    const result = await testRPCWithAuth(
-      myProjectsListProcedure,
-      setup.user,
-      {}
-    );
-    
-    expect(result).toHaveLength(1);
-    expect(result[0].id).toBe(setup.project.id);
-  });
-});
+# Verbose output
+bun test --verbose
 ```
 
-## Troubleshooting
+## Test Infrastructure Status
 
-- **Import Errors**: Use direct imports instead of the index file
-- **Database Errors**: Ensure test database exists and is migrated with `bun run test:setup`
-- **Auth Errors**: Make sure to use mock contexts for testing, not real authentication
-- **Test Isolation**: If tests are affecting each other, ensure `setupDatabaseTests()` is called
+✅ **Complete Features:**
+1. **Database Setup & Cleanup** - Automatic test database management
+2. **Authentication Mocking** - Full auth context simulation
+3. **Test Fixtures** - Comprehensive data creation utilities
+4. **Database Seeding** - Multi-user scenarios and realistic data
+5. **Test Runner Config** - Optimized Bun test configuration
+6. **Project Authorization Testing** - Multi-user access validation
+7. **RPC Test Helpers** - Enhanced endpoint testing utilities
+
+The infrastructure is ready for comprehensive RPC endpoint testing with proper isolation, authentication, and data management.

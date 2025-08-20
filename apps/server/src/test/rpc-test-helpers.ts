@@ -215,8 +215,8 @@ export async function testRealRPCProcedure<TInput, TOutput>(
     rawInput: input,
   };
   
-  // Call the handler function directly
-  return await procedure.handler(call);
+  // Call the handler function directly - oRPC stores handler in ~orpc.handler
+  return await procedure["~orpc"].handler(call);
 }
 
 /**
@@ -227,7 +227,12 @@ export async function testRealRPCWithAuth<TInput, TOutput>(
   user: TestUser,
   input: TInput
 ): Promise<TOutput> {
-  const context = createAuthenticatedContext(user);
+  const baseContext = createAuthenticatedContext(user);
+  // For protected procedures, add the user property that requireAuth middleware adds
+  const context = {
+    ...baseContext,
+    user: user, // This is what protectedProcedure adds
+  };
   return await testRealRPCProcedure(procedure, context, input);
 }
 
