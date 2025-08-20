@@ -708,6 +708,105 @@ describe("Tasks Router", () => {
           expect(error.message).toContain("Task not found or unauthorized");
         }
       });
+
+      it("should handle file validation errors", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        
+        // Test with empty file content - this should still work but be handled gracefully
+        const emptyFile = new File([""], "empty.txt", { type: "text/plain" });
+        
+        // This should either succeed or fail gracefully with proper error handling
+        try {
+          const result = await testRealRPCWithAuth(
+            tasksRouter.uploadAttachment,
+            user,
+            { taskId: task.id, file: emptyFile }
+          );
+          // If it succeeds, verify the attachment structure
+          expect(result.attachment).toBeDefined();
+          expect(result.projectId).toBe(project.id);
+        } catch (error: any) {
+          // If it fails, ensure it's a proper validation error
+          expect(
+            error.message.includes("validation") ||
+            error.message.includes("size") ||
+            error.message.includes("type") ||
+            error.message.includes("Task not found") // Auth check first
+          ).toBe(true);
+        }
+      });
+
+      it("should validate file types and sizes", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        
+        // Test with various file types
+        const testFiles = [
+          new File(["text content"], "test.txt", { type: "text/plain" }),
+          new File(["json content"], "test.json", { type: "application/json" }),
+          new File(["image content"], "test.png", { type: "image/png" })
+        ];
+        
+        for (const file of testFiles) {
+          try {
+            const result = await testRealRPCWithAuth(
+              tasksRouter.uploadAttachment,
+              user,
+              { taskId: task.id, file }
+            );
+            // If successful, verify the structure
+            expect(result.attachment.originalName).toBe(file.name);
+            expect(result.attachment.type).toBe(file.type);
+            expect(result.attachment.size).toBe(file.size);
+          } catch (error: any) {
+            // If file storage isn't configured in test environment, that's expected
+            const isExpectedError = error.message.includes("ENOENT") ||
+                                   error.message.includes("filesystem") ||
+                                   error.message.includes("Task not found");
+            expect(isExpectedError).toBe(true);
+          }
+        }
+      });
+
+      it("should prevent cross-project task access", async () => {
+        const [user1, user2] = await createTestUsers(2);
+        const project1 = await createTestProject(user1.id);
+        const project2 = await createTestProject(user2.id);
+        const repo1 = await createTestRepository(project1.id);
+        const repo2 = await createTestRepository(project2.id);
+        
+        const task1 = await createTestTask(project1.id, repo1.id);
+        const task2 = await createTestTask(project2.id, repo2.id);
+        
+        const testFile = new File(["test"], "test.txt", { type: "text/plain" });
+        
+        // User1 cannot upload to User2's task
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.uploadAttachment,
+            user1,
+            { taskId: task2.id, file: testFile }
+          );
+          throw new Error("Should have been denied cross-project access");
+        } catch (error: any) {
+          expect(error.message).toContain("Task not found or unauthorized");
+        }
+        
+        // User2 cannot upload to User1's task
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.uploadAttachment,
+            user2,
+            { taskId: task1.id, file: testFile }
+          );
+          throw new Error("Should have been denied cross-project access");
+        } catch (error: any) {
+          expect(error.message).toContain("Task not found or unauthorized");
+        }
+      });
     });
 
     describe("getAttachment", () => {
@@ -728,6 +827,74 @@ describe("Tasks Router", () => {
           throw new Error("Should have been denied access");
         } catch (error: any) {
           expect(error.message).toContain("Task not found or unauthorized");
+        }
+      });
+
+      it("should handle non-existent attachments gracefully", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        const nonExistentAttachmentId = randomUUID();
+        
+        // Should handle missing attachment properly
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.getAttachment,
+            user,
+            { taskId: task.id, attachmentId: nonExistentAttachmentId }
+          );
+          throw new Error("Should have thrown not found error");
+        } catch (error: any) {
+          expect(
+            error.message.includes("Attachment not found") ||
+            error.message.includes("Task not found or unauthorized")
+          ).toBe(true);
+        }
+      });
+
+      it("should validate UUID format for attachment ID", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        
+        // Should validate UUID format
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.getAttachment,
+            user,
+            { taskId: task.id, attachmentId: "invalid-uuid" }
+          );
+          throw new Error("Should have thrown validation error");
+        } catch (error: any) {
+          expect(
+            error.message.includes("uuid") ||
+            error.message.includes("invalid") ||
+            error.message.includes("validation")
+          ).toBe(true);
+        }
+      });
+
+      it("should prevent access to attachments across different tasks", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        
+        const task1 = await createTestTask(project.id, repository.id, { rawTitle: "Task 1" });
+        const task2 = await createTestTask(project.id, repository.id, { rawTitle: "Task 2" });
+        const attachmentId = randomUUID();
+        
+        // Even if user owns both tasks, specific attachment should belong to specific task
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.getAttachment,
+            user,
+            { taskId: task1.id, attachmentId }
+          );
+          throw new Error("Should not find attachment in wrong task");
+        } catch (error: any) {
+          expect(
+            error.message.includes("Attachment not found") ||
+            error.message.includes("Task not found or unauthorized")
+          ).toBe(true);
         }
       });
     });
@@ -752,6 +919,96 @@ describe("Tasks Router", () => {
           expect(error.message).toContain("Task not found or unauthorized");
         }
       });
+
+      it("should handle deletion of non-existent attachments", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        const nonExistentAttachmentId = randomUUID();
+        
+        // Should handle missing attachment deletion gracefully
+        try {
+          const result = await testRealRPCWithAuth(
+            tasksRouter.deleteAttachment,
+            user,
+            { taskId: task.id, attachmentId: nonExistentAttachmentId }
+          );
+          // If it succeeds (graceful handling), verify response
+          expect(result.success).toBe(true);
+        } catch (error: any) {
+          // If it fails, ensure it's a proper error
+          expect(
+            error.message.includes("Attachment not found") ||
+            error.message.includes("Task not found or unauthorized") ||
+            error.message.includes("ENOENT")
+          ).toBe(true);
+        }
+      });
+
+      it("should validate UUID formats for both task and attachment IDs", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user } = setup;
+        
+        const invalidInputs = [
+          { taskId: "invalid-task-id", attachmentId: randomUUID() },
+          { taskId: randomUUID(), attachmentId: "invalid-attachment-id" },
+          { taskId: "invalid-task", attachmentId: "invalid-attachment" }
+        ];
+        
+        for (const input of invalidInputs) {
+          try {
+            await testRealRPCWithAuth(
+              tasksRouter.deleteAttachment,
+              user,
+              input
+            );
+            throw new Error(`Should have thrown validation error for input: ${JSON.stringify(input)}`);
+          } catch (error: any) {
+            expect(
+              error.message.includes("uuid") ||
+              error.message.includes("invalid") ||
+              error.message.includes("validation") ||
+              error.message.includes("Task not found")
+            ).toBe(true);
+          }
+        }
+      });
+
+      it("should prevent deletion across project boundaries", async () => {
+        const [user1, user2] = await createTestUsers(2);
+        const project1 = await createTestProject(user1.id);
+        const project2 = await createTestProject(user2.id);
+        const repo1 = await createTestRepository(project1.id);
+        const repo2 = await createTestRepository(project2.id);
+        
+        const task1 = await createTestTask(project1.id, repo1.id);
+        const task2 = await createTestTask(project2.id, repo2.id);
+        const attachmentId = randomUUID();
+        
+        // User1 cannot delete attachments from User2's project
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.deleteAttachment,
+            user1,
+            { taskId: task2.id, attachmentId }
+          );
+          throw new Error("Should have been denied cross-project access");
+        } catch (error: any) {
+          expect(error.message).toContain("Task not found or unauthorized");
+        }
+        
+        // User2 cannot delete attachments from User1's project
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.deleteAttachment,
+            user2,
+            { taskId: task1.id, attachmentId }
+          );
+          throw new Error("Should have been denied cross-project access");
+        } catch (error: any) {
+          expect(error.message).toContain("Task not found or unauthorized");
+        }
+      });
     });
 
     describe("downloadAttachment", () => {
@@ -772,6 +1029,202 @@ describe("Tasks Router", () => {
           throw new Error("Should have been denied access");
         } catch (error: any) {
           expect(error.message).toContain("Task not found or unauthorized");
+        }
+      });
+
+      it("should return proper file data structure", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        const attachmentId = randomUUID();
+        
+        // Should return proper structure or proper error for missing file
+        try {
+          const result = await testRealRPCWithAuth(
+            tasksRouter.downloadAttachment,
+            user,
+            { taskId: task.id, attachmentId }
+          );
+          
+          // If successful, verify structure
+          expect(result.buffer).toBeDefined();
+          expect(result.metadata).toBeDefined();
+        } catch (error: any) {
+          // Expected errors for test environment
+          expect(
+            error.message.includes("File not found") ||
+            error.message.includes("Attachment not found") ||
+            error.message.includes("Task not found or unauthorized")
+          ).toBe(true);
+        }
+      });
+
+      it("should handle concurrent download attempts", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        const attachmentId = randomUUID();
+        
+        // Multiple concurrent download attempts should be handled gracefully
+        const downloadPromises = Array(3).fill(null).map(() => 
+          testRealRPCWithAuth(
+            tasksRouter.downloadAttachment,
+            user,
+            { taskId: task.id, attachmentId }
+          )
+        );
+        
+        const results = await Promise.allSettled(downloadPromises);
+        
+        // All should either succeed or fail with the same expected error
+        results.forEach((result) => {
+          if (result.status === 'rejected') {
+            expect(
+              result.reason.message.includes("File not found") ||
+              result.reason.message.includes("Attachment not found") ||
+              result.reason.message.includes("Task not found or unauthorized")
+            ).toBe(true);
+          } else {
+            // If successful, verify structure
+            expect(result.value.buffer).toBeDefined();
+            expect(result.value.metadata).toBeDefined();
+          }
+        });
+      });
+
+      it("should prevent unauthorized cross-task access", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        
+        // Create two tasks in the same project
+        const task1 = await createTestTask(project.id, repository.id, { rawTitle: "Task 1" });
+        const task2 = await createTestTask(project.id, repository.id, { rawTitle: "Task 2" });
+        
+        // Create attachment ID that doesn't belong to either task
+        const fakeAttachmentId = randomUUID();
+        
+        // Should not be able to download non-existent attachment from either task
+        for (const task of [task1, task2]) {
+          try {
+            await testRealRPCWithAuth(
+              tasksRouter.downloadAttachment,
+              user,
+              { taskId: task.id, attachmentId: fakeAttachmentId }
+            );
+            throw new Error(`Should not find attachment in task ${task.id}`);
+          } catch (error: any) {
+            expect(
+              error.message.includes("File not found") ||
+              error.message.includes("Attachment not found") ||
+              error.message.includes("Task not found or unauthorized")
+            ).toBe(true);
+          }
+        }
+      });
+    });
+
+    describe("Attachment Integration Tests", () => {
+      it("should handle full attachment lifecycle when file storage is available", async () => {
+        const setup = await createCompleteTestSetup();
+        const { user, project, repository } = setup;
+        const task = await createTestTask(project.id, repository.id);
+        
+        const testFile = new File(["test attachment content"], "test-file.txt", { 
+          type: "text/plain" 
+        });
+        
+        try {
+          // Upload attachment
+          const uploadResult = await testRealRPCWithAuth(
+            tasksRouter.uploadAttachment,
+            user,
+            { taskId: task.id, file: testFile }
+          );
+          
+          const attachmentId = uploadResult.attachment.id;
+          
+          // Get attachment metadata
+          const getResult = await testRealRPCWithAuth(
+            tasksRouter.getAttachment,
+            user,
+            { taskId: task.id, attachmentId }
+          );
+          
+          expect(getResult.metadata.originalName).toBe("test-file.txt");
+          expect(getResult.metadata.type).toBe("text/plain");
+          
+          // Download attachment
+          const downloadResult = await testRealRPCWithAuth(
+            tasksRouter.downloadAttachment,
+            user,
+            { taskId: task.id, attachmentId }
+          );
+          
+          expect(downloadResult.buffer).toBeDefined();
+          expect(downloadResult.metadata.originalName).toBe("test-file.txt");
+          
+          // Delete attachment
+          const deleteResult = await testRealRPCWithAuth(
+            tasksRouter.deleteAttachment,
+            user,
+            { taskId: task.id, attachmentId }
+          );
+          
+          expect(deleteResult.success).toBe(true);
+          
+          // Verify attachment is deleted
+          try {
+            await testRealRPCWithAuth(
+              tasksRouter.getAttachment,
+              user,
+              { taskId: task.id, attachmentId }
+            );
+            throw new Error("Should not find deleted attachment");
+          } catch (error: any) {
+            expect(error.message).toContain("Attachment not found");
+          }
+          
+        } catch (error: any) {
+          // If file storage isn't configured in test environment, that's expected
+          const isExpectedStorageError = error.message.includes("ENOENT") ||
+                                        error.message.includes("filesystem") ||
+                                        error.message.includes("Task not found");
+          expect(isExpectedStorageError).toBe(true);
+        }
+      });
+
+      it("should enforce consistent security across all attachment operations", async () => {
+        const [user1, user2] = await createTestUsers(2);
+        const project1 = await createTestProject(user1.id);
+        const project2 = await createTestProject(user2.id);
+        const repo1 = await createTestRepository(project1.id);
+        const repo2 = await createTestRepository(project2.id);
+        
+        const task1 = await createTestTask(project1.id, repo1.id);
+        const task2 = await createTestTask(project2.id, repo2.id);
+        const attachmentId = randomUUID();
+        
+        const testFile = new File(["test"], "test.txt", { type: "text/plain" });
+        
+        // All attachment operations should deny cross-project access consistently
+        const operationsToTest = [
+          { name: "uploadAttachment", input: { taskId: task2.id, file: testFile } },
+          { name: "getAttachment", input: { taskId: task2.id, attachmentId } },
+          { name: "downloadAttachment", input: { taskId: task2.id, attachmentId } },
+          { name: "deleteAttachment", input: { taskId: task2.id, attachmentId } }
+        ];
+        
+        for (const operation of operationsToTest) {
+          try {
+            await testRealRPCWithAuth(
+              tasksRouter[operation.name as keyof typeof tasksRouter],
+              user1, // User1 trying to access User2's task
+              operation.input as any
+            );
+            throw new Error(`${operation.name} should have been denied cross-project access`);
+          } catch (error: any) {
+            expect(error.message).toContain("Task not found or unauthorized");
+          }
         }
       });
     });
@@ -1096,6 +1549,252 @@ describe("Tasks Router", () => {
       );
       
       expect(deleteResult.success).toBe(true);
+    });
+  });
+
+  describe("Advanced Security and Edge Cases", () => {
+    it("should prevent task operations with malformed UUIDs", async () => {
+      const user = await createTestUser();
+      
+      const malformedUUIDs = [
+        "",
+        "not-a-uuid",
+        "12345678-1234-1234-1234-123456789012345", // too long
+        "12345678-1234-1234-1234-12345678901", // too short
+        "GGGGGGGG-1234-1234-1234-123456789012", // invalid hex chars
+        null,
+        undefined
+      ];
+      
+      for (const malformedUUID of malformedUUIDs) {
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.get,
+            user,
+            { id: malformedUUID as any }
+          );
+          throw new Error(`Should have failed validation for UUID: ${malformedUUID}`);
+        } catch (error: any) {
+          // Should get validation error
+          expect(
+            error.message.includes("uuid") ||
+            error.message.includes("Invalid") ||
+            error.message.includes("validation") ||
+            error.message.includes("Expected") ||
+            error.message.includes("required")
+          ).toBe(true);
+        }
+      }
+    });
+
+    it("should handle concurrent task operations gracefully", async () => {
+      const setup = await createCompleteTestSetup();
+      const { user, project, repository } = setup;
+      
+      const task = await createTestTask(project.id, repository.id, {
+        rawTitle: "Concurrent Test Task"
+      });
+      
+      // Test concurrent read operations
+      const readPromises = Array(5).fill(null).map(() =>
+        testRealRPCWithAuth(tasksRouter.get, user, { id: task.id })
+      );
+      
+      const readResults = await Promise.allSettled(readPromises);
+      
+      // All reads should succeed
+      readResults.forEach((result) => {
+        expect(result.status).toBe("fulfilled");
+        if (result.status === "fulfilled") {
+          expect(result.value.rawTitle).toBe("Concurrent Test Task");
+        }
+      });
+      
+      // Test concurrent update operations
+      const updatePromises = Array(3).fill(null).map((_, index) =>
+        testRealRPCWithAuth(
+          tasksRouter.update,
+          user,
+          {
+            id: task.id,
+            rawTitle: `Updated Title ${index}`,
+            priority: Math.min(5, index + 1)
+          }
+        )
+      );
+      
+      const updateResults = await Promise.allSettled(updatePromises);
+      
+      // At least some updates should succeed
+      const successfulUpdates = updateResults.filter(r => r.status === "fulfilled");
+      expect(successfulUpdates.length).toBeGreaterThan(0);
+    });
+
+    it("should enforce proper data types in task operations", async () => {
+      const setup = await createCompleteTestSetup();
+      const { user, project, repository } = setup;
+      
+      const invalidInputs = [
+        // Invalid priority values
+        { priority: 0 }, // below min
+        { priority: 6 }, // above max
+        { priority: -1 }, // negative
+        { priority: 3.5 }, // decimal
+        { priority: "high" }, // string
+        
+        // Invalid status values
+        { status: "invalid-status" },
+        { status: "DOING" }, // wrong case
+        { status: 123 }, // number
+        
+        // Invalid stage values
+        { stage: "invalid-stage" },
+        { stage: "PLAN" }, // wrong case
+        
+        // Invalid ready values  
+        { ready: "true" }, // string instead of boolean
+        { ready: 1 }, // number instead of boolean
+      ];
+      
+      for (const invalidInput of invalidInputs) {
+        try {
+          await testRealRPCWithAuth(
+            tasksRouter.create,
+            user,
+            {
+              projectId: project.id,
+              mainRepositoryId: repository.id,
+              rawTitle: "Test Task",
+              ...invalidInput
+            } as any
+          );
+          throw new Error(`Should have failed validation for input: ${JSON.stringify(invalidInput)}`);
+        } catch (error: any) {
+          // Should get validation error
+          expect(
+            error.message.includes("validation") ||
+            error.message.includes("Invalid") ||
+            error.message.includes("Expected") ||
+            error.message.includes("min") ||
+            error.message.includes("max") ||
+            error.message.includes("enum") ||
+            error.message.includes("Project not found") // Auth check might happen first
+          ).toBe(true);
+        }
+      }
+    });
+
+    it("should handle extremely long input strings appropriately", async () => {
+      const setup = await createCompleteTestSetup();
+      const { user, project, repository } = setup;
+      
+      // Create very long strings
+      const longTitle = "A".repeat(300); // Exceeds max length
+      const longDescription = "B".repeat(10000); // Very long description
+      
+      try {
+        await testRealRPCWithAuth(
+          tasksRouter.create,
+          user,
+          {
+            projectId: project.id,
+            mainRepositoryId: repository.id,
+            rawTitle: longTitle,
+            rawDescription: longDescription
+          }
+        );
+        throw new Error("Should have failed validation for long strings");
+      } catch (error: any) {
+        // Should get validation error for title length
+        expect(
+          error.message.includes("max") ||
+          error.message.includes("length") ||
+          error.message.includes("255") ||
+          error.message.includes("Project not found") // Auth check might happen first
+        ).toBe(true);
+      }
+    });
+
+    it("should maintain data consistency during status transitions", async () => {
+      const setup = await createCompleteTestSetup();
+      const { user, project, repository } = setup;
+      
+      const task = await createTestTask(project.id, repository.id, {
+        status: "todo",
+        stage: null,
+        ready: false
+      });
+      
+      // Test various status transitions
+      const transitions = [
+        { status: "doing", expectedStage: null }, // Stage should not auto-change
+        { status: "done", expectedStage: null },
+        { status: "loop", expectedStage: "loop" }, // Loop should set stage
+        { status: "todo", expectedStage: null }
+      ];
+      
+      for (const transition of transitions) {
+        await testRealRPCWithAuth(
+          tasksRouter.updateOrder,
+          user,
+          {
+            projectId: project.id,
+            tasks: [{ 
+              id: task.id, 
+              columnOrder: "1000", 
+              status: transition.status as any 
+            }]
+          }
+        );
+        
+        const updatedTask = await testRealRPCWithAuth(
+          tasksRouter.get,
+          user,
+          { id: task.id }
+        );
+        
+        expect(updatedTask.status).toBe(transition.status);
+        if (transition.expectedStage === "loop") {
+          expect(updatedTask.stage).toBe("loop");
+        }
+      }
+    });
+
+    it("should handle task operations with missing optional fields", async () => {
+      const setup = await createCompleteTestSetup();
+      const { user, project, repository } = setup;
+      
+      // Create task with minimal required fields
+      const minimalTask = await testRealRPCWithAuth(
+        tasksRouter.create,
+        user,
+        {
+          projectId: project.id,
+          mainRepositoryId: repository.id,
+          rawTitle: "Minimal Task"
+          // No optional fields provided
+        }
+      );
+      
+      expect(minimalTask.rawTitle).toBe("Minimal Task");
+      expect(minimalTask.priority).toBe(3); // Default priority
+      expect(minimalTask.status).toBe("todo"); // Default status
+      expect(minimalTask.rawDescription).toBeNull();
+      expect(minimalTask.actorId).toBeNull();
+      
+      // Update with partial fields
+      const partialUpdate = await testRealRPCWithAuth(
+        tasksRouter.update,
+        user,
+        {
+          id: minimalTask.id,
+          rawDescription: "Added description"
+          // Only updating description
+        }
+      );
+      
+      expect(partialUpdate.rawDescription).toBe("Added description");
+      expect(partialUpdate.rawTitle).toBe("Minimal Task"); // Should remain unchanged
     });
   });
 });

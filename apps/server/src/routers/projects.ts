@@ -23,9 +23,8 @@ export const projectsRouter = o.router({
     .input(v.optional(v.object({})))
     .handler(async ({ context }) => {
       try {
-        console.log("projects.list called with userId:", context.user?.id);
-        
         const db = getDb();
+        
         // Get projects through membership
         const userProjects = await db
           .select({ project: projects })
@@ -34,15 +33,8 @@ export const projectsRouter = o.router({
           .where(eq(projectUsers.userId, context.user.id))
           .orderBy(desc(projects.createdAt));
         
-        console.log("Query returned:", userProjects.length, "projects");
-        
         return userProjects.map(row => row.project);
       } catch (err: any) {
-        console.error("projects.list failed", {
-          userId: context.user?.id,
-          error: err?.message,
-          stack: err?.stack,
-        });
         throw err;
       }
     }),
@@ -79,6 +71,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       try {
+        const db = getDb();
         const newProject = await db
           .insert(projects)
           .values({
@@ -99,12 +92,6 @@ export const projectsRouter = o.router({
 
         return newProject[0];
       } catch (err: any) {
-        console.error("projects.create failed", {
-          userId: context.user?.id,
-          input,
-          error: err?.message,
-          stack: err?.stack,
-        });
         throw err;
       }
     }),
@@ -117,6 +104,7 @@ export const projectsRouter = o.router({
       memory: v.optional(v.any())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Check if user has access to this project
       const membership = await db
         .select()
@@ -153,6 +141,7 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Check if user has access to this project
       const membership = await db
         .select()
@@ -190,6 +179,7 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       const result = await db
         .select({ project: projects })
         .from(projects)
@@ -249,6 +239,7 @@ export const projectsRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       const result = await db
         .select({ project: projects })
         .from(projects)

@@ -1,7 +1,7 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { z } from "zod";
-import { db } from "../db";
+import { db as mainDb } from "../db";
 import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories, projectUsers } from "../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
@@ -14,6 +14,20 @@ import {
 } from "../utils/file-storage";
 import { randomUUID } from "crypto";
 
+// Use test database when running tests, otherwise use main database
+function getDb() {
+  if (process.env.NODE_ENV === "test" || process.env.BUN_TEST) {
+    try {
+      const { getTestDb } = require("../test/setup");
+      return getTestDb();
+    } catch {
+      // Fallback to main db if test setup not available
+      return mainDb;
+    }
+  }
+  return mainDb;
+}
+
 const taskStatusEnum = v.picklist(["todo", "doing", "done", "loop"]);
 const taskStageEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop"]));
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
@@ -25,6 +39,7 @@ export const tasksRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       // Verify project membership
+      const db = getDb();
       const membership = await db
         .select()
         .from(projectUsers)
@@ -96,6 +111,7 @@ export const tasksRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       const result = await db
         .select({
           task: tasks,
@@ -169,6 +185,7 @@ export const tasksRouter = o.router({
     .handler(async ({ context, input }) => {
       console.log('Task creation with', input.attachments?.length || 0, 'attachments');
       // Verify project membership
+      const db = getDb();
       const membership = await db
         .select()
         .from(projectUsers)
@@ -380,6 +397,7 @@ export const tasksRouter = o.router({
       actorId: v.optional(v.pipe(v.string(), v.uuid()))
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
@@ -472,6 +490,7 @@ export const tasksRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
@@ -508,6 +527,7 @@ export const tasksRouter = o.router({
       ready: v.boolean()
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
@@ -555,6 +575,7 @@ export const tasksRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       // Verify project membership
+      const db = getDb();
       const membership = await db
         .select()
         .from(projectUsers)
@@ -626,6 +647,7 @@ export const tasksRouter = o.router({
       stage: taskStageEnum
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
@@ -669,6 +691,7 @@ export const tasksRouter = o.router({
       attachmentId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify task ownership
       const task = await db
         .select({
@@ -718,6 +741,7 @@ export const tasksRouter = o.router({
       attachmentId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify task ownership
       const task = await db
         .select({
@@ -759,6 +783,7 @@ export const tasksRouter = o.router({
       id: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
@@ -804,6 +829,7 @@ export const tasksRouter = o.router({
       file: z.instanceof(File)
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       try {
         console.log('📎 oRPC attachment upload request received');
         console.log('📎 Upload details:', {
@@ -885,6 +911,7 @@ export const tasksRouter = o.router({
       attachmentId: v.pipe(v.string(), v.uuid())
     }))
     .handler(async ({ context, input }) => {
+      const db = getDb();
       try {
         // Verify task ownership with project membership
         const task = await db
