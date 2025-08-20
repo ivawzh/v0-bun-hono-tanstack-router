@@ -11,6 +11,7 @@ import {
   validateTotalAttachmentSize,
   type AttachmentMetadata
 } from "../utils/file-storage";
+import { randomUUID } from "crypto";
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done", "loop"]);
 const taskStageEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop"]));
@@ -256,6 +257,11 @@ export const tasksRouter = o.router({
         }
       }
 
+      // For now, skip attachment processing during task creation
+      // Attachments should be uploaded separately via the upload endpoint
+      // TODO: Implement proper file handling for task creation with attachments
+      let processedAttachments: AttachmentMetadata[] = [];
+
       const newTask = await db
         .insert(tasks)
         .values({
@@ -265,7 +271,7 @@ export const tasksRouter = o.router({
           rawTitle: input.rawTitle,
           rawDescription: input.rawDescription,
           priority: input.priority,
-          attachments: input.attachments,
+          attachments: processedAttachments,
           status: input.status,
           stage: stageToUse,
           ready: input.status === "loop" ? true : false // Loop tasks are always ready
