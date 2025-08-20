@@ -291,12 +291,29 @@ export const cacheUtils = {
   },
 
   /**
-   * Invalidate all attachment-related queries for a task
+   * Invalidate all attachment-related queries for a task and update task data
    */
-  invalidateAttachments: (queryClient: QueryClient, taskId: string) => {
-    return queryClient.invalidateQueries({
-      queryKey: queryKeys.attachments.byTask(taskId),
-    })
+  invalidateAttachments: (queryClient: QueryClient, taskId: string, projectId?: string) => {
+    const promises = [
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.attachments.byTask(taskId),
+      }),
+      // Also invalidate task details to update attachment count badges and UI
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.tasks.detail(taskId),
+      }),
+    ]
+
+    if (projectId) {
+      promises.push(
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.projects.withTasks(projectId),
+          exact: true,
+        })
+      )
+    }
+
+    return executeCacheOperation('invalidateAttachments', promises, { taskId, projectId })
   },
 
   /**

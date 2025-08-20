@@ -217,15 +217,41 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   // Delete attachment mutation using oRPC
   const deleteAttachmentMutation = useMutation(orpc.tasks.deleteAttachment.mutationOptions({
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      if (!task) return null
+
+      // Optimistically remove attachment from task data
+      const taskQuery = cache.queryKeys.tasks.detail(task.id)
+      const currentTaskData = cache.getCachedData(taskQuery)
+      
+      if (currentTaskData && (currentTaskData as any).attachments) {
+        const updatedTask = {
+          ...currentTaskData,
+          attachments: (currentTaskData as any).attachments.filter(
+            (att: any) => att.id !== variables.attachmentId
+          )
+        }
+        cache.setCachedData(taskQuery, updatedTask)
+        
+        return { previousData: currentTaskData, queryKey: taskQuery }
+      }
+      
+      return null
+    },
+    onSuccess: async () => {
       toast.success("Attachment deleted successfully");
-      // Use standardized project invalidation for immediate UI updates
-      if (task?.projectId) {
-        cache.invalidateProject(task.projectId);
+      // Use specific attachment invalidation for immediate UI updates
+      if (task?.id && task?.projectId) {
+        await cache.invalidateAttachments(task.id, task.projectId);
       }
     },
-    onError: (error: any) => {
+    onError: (error: any, variables, context) => {
       toast.error(`Failed to delete attachment: ${error.message}`);
+      
+      // Rollback optimistic update
+      if (context?.previousData && context?.queryKey) {
+        cache.setCachedData(context.queryKey, context.previousData)
+      }
     }
   }));
 

@@ -16,6 +16,37 @@ export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
   const cache = useCacheUtils()
 
   const uploadMutation = useMutation({
+    onMutate: async (file: AttachmentFile) => {
+      // Create optimistic attachment entry
+      const optimisticAttachment = {
+        id: `temp-${Date.now()}-${Math.random()}`,
+        taskId,
+        filename: file.file.name,
+        originalName: file.file.name,
+        size: file.file.size,
+        mimeType: file.file.type,
+        uploadedAt: new Date().toISOString(),
+        uploadedBy: 'current-user', // This would come from auth context
+      }
+
+      // Try to optimistically update task data if we can get project context
+      try {
+        const taskQuery = cache.queryKeys.tasks.detail(taskId)
+        const currentTaskData = cache.getCachedData(taskQuery)
+        
+        if (currentTaskData) {
+          const updatedTask = {
+            ...currentTaskData,
+            attachments: [...((currentTaskData as any).attachments || []), optimisticAttachment]
+          }
+          cache.setCachedData(taskQuery, updatedTask)
+        }
+      } catch (error) {
+        console.warn('Could not perform optimistic update:', error)
+      }
+
+      return { optimisticAttachment }
+    },
     mutationFn: async (file: AttachmentFile) => {
       console.log('📤 Starting upload for file:', {
         name: file.file.name,
@@ -59,14 +90,35 @@ export function TaskAttachmentUpload({ taskId }: TaskAttachmentUploadProps) {
       console.log('✅ Upload successful:', result);
       return result;
     },
-    onSuccess: () => {
+    onSuccess: async (result) => {
       // Clear uploaded attachments
       setAttachments([])
-      // Invalidate attachment queries to refresh the attachment list
-      cache.invalidateAttachments(taskId)
+      
+      // Use improved attachment invalidation that handles all related queries
+      await cache.invalidateAttachments(taskId, result?.projectId)
     },
-    onError: (error) => {
+    onError: (error, file, context) => {
       console.error('Failed to upload attachment:', error)
+      
+      // Rollback optimistic update by removing the temporary attachment
+      if (context?.optimisticAttachment) {
+        try {
+          const taskQuery = cache.queryKeys.tasks.detail(taskId)
+          const currentTaskData = cache.getCachedData(taskQuery)
+          
+          if (currentTaskData && (currentTaskData as any).attachments) {
+            const updatedTask = {
+              ...currentTaskData,
+              attachments: (currentTaskData as any).attachments.filter(
+                (att: any) => att.id !== context.optimisticAttachment.id
+              )
+            }
+            cache.setCachedData(taskQuery, updatedTask)
+          }
+        } catch (rollbackError) {
+          console.warn('Could not rollback optimistic update:', rollbackError)
+        }
+      }
     }
   })
 

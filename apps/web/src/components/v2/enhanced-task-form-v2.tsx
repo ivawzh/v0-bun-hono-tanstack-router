@@ -175,8 +175,8 @@ export function EnhancedTaskFormV2({
     }
   };
 
-  const handleAttachmentsChange = (files: File[]) => {
-    setFormData(prev => ({ ...prev, attachments: files }));
+  const handleAttachmentsChange = (attachments: AttachmentFile[]) => {
+    setFormData(prev => ({ ...prev, attachments: attachments.map(att => att.file) }));
   };
 
   return (
@@ -382,9 +382,11 @@ export function EnhancedTaskFormV2({
               </CardHeader>
               <CardContent>
                 <AttachmentDropzone
-                  onFilesChange={handleAttachmentsChange}
+                  onAttachmentsChange={(attachmentFiles) => {
+                    handleAttachmentsChange(attachmentFiles.map(af => af.file))
+                  }}
                   maxFiles={5}
-                  maxSizeMB={10}
+                  maxSize={10 * 1024 * 1024}
                 />
                 {formData.attachments.length > 0 && (
                   <div className="mt-2 text-xs text-muted-foreground">

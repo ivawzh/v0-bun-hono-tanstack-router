@@ -110,7 +110,7 @@ export function useCacheUtils() {
 
     // Attachment operations
     invalidateAttachments: useCallback(
-      (taskId: string) => cacheUtils.invalidateAttachments(queryClient, taskId),
+      (taskId: string, projectId?: string) => cacheUtils.invalidateAttachments(queryClient, taskId, projectId),
       [queryClient]
     ),
 

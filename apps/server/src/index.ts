@@ -140,7 +140,10 @@ app.post("/api/tasks/upload-attachment", async (c) => {
     broadcastFlush(task[0].project.id);
 
     console.log('✅ Upload completed successfully');
-    return c.json(attachment);
+    return c.json({
+      attachment,
+      projectId: task[0].project.id
+    });
   } catch (error) {
     console.error('Upload error:', error);
     return c.json({ error: error instanceof Error ? error.message : 'Upload failed' }, 500);
