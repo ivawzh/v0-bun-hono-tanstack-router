@@ -64,6 +64,7 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
           // Selective cache invalidation based on message type
           if (message.type === 'flush') {
             console.log('🔄 Flushing React Query cache');
+            // Invalidate all queries to ensure immediate UI updates across all components
             queryClient.invalidateQueries();
           } else if (message.type === 'task.updated') {
             // Invalidate specific task data when task is updated remotely
