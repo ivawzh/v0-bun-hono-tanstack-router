@@ -56,11 +56,11 @@ export function getPriorityLabel(priority: any): string {
 }
 
 /**
- * Get the display text for a priority (P5 • Highest format)
+ * Get the display text for a priority (5 • Highest format)
  */
 export function getPriorityDisplay(priority: any): string {
   const normalizedPriority = normalizePriority(priority);
-  return `P${normalizedPriority} • ${PRIORITY_LABELS[normalizedPriority]}`;
+  return `${normalizedPriority} • ${PRIORITY_LABELS[normalizedPriority]}`;
 }
 
 /**
