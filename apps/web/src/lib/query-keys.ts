@@ -431,3 +431,104 @@ export const optimisticUtils = {
     }
   },
 }
+
+/**
+ * Developer experience utilities for cache management
+ * These utilities help with debugging and development workflows
+ */
+export const devUtils = {
+  /**
+   * Log all active queries (development only)
+   */
+  logActiveQueries: (queryClient: QueryClient) => {
+    if (process.env.NODE_ENV !== 'development') return
+    
+    const queryCache = queryClient.getQueryCache()
+    const queries = queryCache.getAll()
+    
+    console.group('🔍 Active Queries')
+    queries.forEach(query => {
+      console.log({
+        queryKey: query.queryKey,
+        state: query.state.status,
+        dataUpdatedAt: query.state.dataUpdatedAt,
+        error: query.state.error,
+      })
+    })
+    console.groupEnd()
+  },
+
+  /**
+   * Clear specific entity from cache (development helper)
+   */
+  clearEntity: (queryClient: QueryClient, entity: keyof typeof queryKeys, id?: string) => {
+    if (process.env.NODE_ENV !== 'development') {
+      console.warn('devUtils.clearEntity is only available in development')
+      return
+    }
+    
+    console.log(`🧹 Clearing ${entity}${id ? ` (${id})` : ''} from cache`)
+    
+    if (id && entity !== 'auth') {
+      // Clear specific entity
+      const entityKeys = queryKeys[entity] as any
+      if (entityKeys.detail) {
+        queryClient.removeQueries({ queryKey: entityKeys.detail(id) })
+      }
+      if (entityKeys.byProject && entity === 'tasks') {
+        queryClient.removeQueries({ queryKey: entityKeys.byProject(id) })
+      }
+    } else {
+      // Clear all entities of this type
+      queryClient.removeQueries({ queryKey: queryKeys[entity].all() })
+    }
+  },
+
+  /**
+   * Validate query key structure (development helper)
+   */
+  validateQueryKey: (queryKey: readonly unknown[]) => {
+    if (process.env.NODE_ENV !== 'development') return true
+    
+    if (!Array.isArray(queryKey) || queryKey.length === 0) {
+      console.warn('⚠️  Query key should be a non-empty array:', queryKey)
+      return false
+    }
+    
+    const [entity] = queryKey
+    const validEntities = ['projects', 'tasks', 'repositories', 'userAgents', 'actors', 'attachments', 'auth']
+    
+    if (typeof entity !== 'string' || !validEntities.includes(entity)) {
+      console.warn(`⚠️  Query key should start with a valid entity (${validEntities.join(', ')})`, queryKey)
+      return false
+    }
+    
+    console.log('✅ Valid query key structure:', queryKey)
+    return true
+  },
+
+  /**
+   * Performance monitoring for cache operations
+   */
+  monitorCachePerformance: (queryClient: QueryClient) => {
+    if (process.env.NODE_ENV !== 'development') return
+    
+    const originalInvalidateQueries = queryClient.invalidateQueries
+    
+    queryClient.invalidateQueries = function(...args: any[]) {
+      const start = performance.now()
+      const result = originalInvalidateQueries.apply(this, args)
+      
+      if (result instanceof Promise) {
+        result.then(() => {
+          const duration = performance.now() - start
+          console.log(`⏱️  Cache invalidation took ${duration.toFixed(2)}ms`, args[0])
+        })
+      }
+      
+      return result
+    }
+    
+    console.log('🚀 Cache performance monitoring enabled')
+  },
+}
