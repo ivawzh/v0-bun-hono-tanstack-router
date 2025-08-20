@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity, HelpCircle } from "lucide-react";
+import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity, HelpCircle, Edit3, Check, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -44,6 +44,26 @@ interface ProjectSettingsV2Props {
 
 // Repository card component
 function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (id: string) => void }) {
+  const cache = useCacheUtils();
+  const [isEditingConcurrency, setIsEditingConcurrency] = useState(false);
+  const [concurrencyValue, setConcurrencyValue] = useState(repository.maxConcurrencyLimit || 1);
+  const [tempConcurrencyValue, setTempConcurrencyValue] = useState(repository.maxConcurrencyLimit || 1);
+  
+  const updateRepository = useMutation(
+    orpc.repositories.update.mutationOptions({
+      onSuccess: (updatedRepo) => {
+        toast.success("Repository updated successfully");
+        setConcurrencyValue(updatedRepo.maxConcurrencyLimit || 1);
+        setIsEditingConcurrency(false);
+        cache.invalidateRepository(repository.id, repository.projectId);
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update repository: ${error.message}`);
+        setTempConcurrencyValue(concurrencyValue); // Reset to previous value
+      }
+    })
+  );
+
   const getStatusBadge = () => {
     if (repository.activeTaskCount && repository.activeTaskCount > 0) {
       return (
@@ -59,6 +79,27 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
         Available
       </Badge>
     );
+  };
+
+  const handleStartEdit = () => {
+    setTempConcurrencyValue(concurrencyValue);
+    setIsEditingConcurrency(true);
+  };
+
+  const handleSaveConcurrency = () => {
+    if (tempConcurrencyValue < 1 || tempConcurrencyValue > 10) {
+      toast.error("Concurrency limit must be between 1 and 10");
+      return;
+    }
+    updateRepository.mutate({
+      id: repository.id,
+      maxConcurrencyLimit: tempConcurrencyValue
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setTempConcurrencyValue(concurrencyValue);
+    setIsEditingConcurrency(false);
   };
 
   return (
@@ -77,9 +118,61 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
             <p className="text-xs text-muted-foreground mb-1">
               Path: {repository.repoPath}
             </p>
-            <p className="text-xs text-muted-foreground">
-              Concurrency: {repository.maxConcurrencyLimit || 1}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">
+                Concurrency: 
+              </p>
+              {isEditingConcurrency ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={tempConcurrencyValue}
+                    onChange={(e) => setTempConcurrencyValue(parseInt(e.target.value) || 1)}
+                    className="h-6 w-16 text-xs px-2"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveConcurrency();
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSaveConcurrency}
+                    disabled={updateRepository.isPending}
+                    className="h-6 w-6 p-0"
+                  >
+                    {updateRepository.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Check className="h-3 w-3 text-green-600" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelEdit}
+                    disabled={updateRepository.isPending}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3 text-red-600" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleStartEdit}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:bg-muted px-1 py-0.5 rounded transition-colors"
+                >
+                  {concurrencyValue}
+                  <Edit3 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -99,6 +192,26 @@ function RepositoryCard({ repository, onDelete }: { repository: any; onDelete: (
 
 // Agent card component
 function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => void }) {
+  const cache = useCacheUtils();
+  const [isEditingConcurrency, setIsEditingConcurrency] = useState(false);
+  const [concurrencyValue, setConcurrencyValue] = useState(agent.maxConcurrencyLimit || 1);
+  const [tempConcurrencyValue, setTempConcurrencyValue] = useState(agent.maxConcurrencyLimit || 1);
+  
+  const updateAgent = useMutation(
+    orpc.userAgents.update.mutationOptions({
+      onSuccess: (updatedAgent) => {
+        toast.success("Agent updated successfully");
+        setConcurrencyValue(updatedAgent.maxConcurrencyLimit || 1);
+        setIsEditingConcurrency(false);
+        cache.invalidateAgent(agent.id);
+      },
+      onError: (error: any) => {
+        toast.error(`Failed to update agent: ${error.message}`);
+        setTempConcurrencyValue(concurrencyValue); // Reset to previous value
+      }
+    })
+  );
+
   const getStatusBadge = () => {
     const isRateLimited = agent.state?.rateLimitResetAt && 
       new Date(agent.state.rateLimitResetAt) > new Date();
@@ -124,6 +237,27 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
     );
   };
 
+  const handleStartEdit = () => {
+    setTempConcurrencyValue(concurrencyValue);
+    setIsEditingConcurrency(true);
+  };
+
+  const handleSaveConcurrency = () => {
+    if (tempConcurrencyValue < 1 || tempConcurrencyValue > 10) {
+      toast.error("Concurrency limit must be between 1 and 10");
+      return;
+    }
+    updateAgent.mutate({
+      id: agent.id,
+      maxConcurrencyLimit: tempConcurrencyValue
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setTempConcurrencyValue(concurrencyValue);
+    setIsEditingConcurrency(false);
+  };
+
   return (
     <Card className="mb-3">
       <CardContent className="pt-4">
@@ -135,9 +269,61 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
               <Badge variant="outline" className="text-xs">{agent.agentType}</Badge>
               {getStatusBadge()}
             </div>
-            <p className="text-xs text-muted-foreground mb-1">
-              Max Concurrency: {agent.maxConcurrencyLimit || 1}
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <p className="text-xs text-muted-foreground">
+                Max Concurrency: 
+              </p>
+              {isEditingConcurrency ? (
+                <div className="flex items-center gap-1">
+                  <Input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={tempConcurrencyValue}
+                    onChange={(e) => setTempConcurrencyValue(parseInt(e.target.value) || 1)}
+                    className="h-6 w-16 text-xs px-2"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        handleSaveConcurrency();
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                  />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleSaveConcurrency}
+                    disabled={updateAgent.isPending}
+                    className="h-6 w-6 p-0"
+                  >
+                    {updateAgent.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Check className="h-3 w-3 text-green-600" />
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleCancelEdit}
+                    disabled={updateAgent.isPending}
+                    className="h-6 w-6 p-0"
+                  >
+                    <X className="h-3 w-3 text-red-600" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleStartEdit}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 hover:bg-muted px-1 py-0.5 rounded transition-colors"
+                >
+                  {concurrencyValue}
+                  <Edit3 className="h-3 w-3" />
+                </button>
+              )}
+            </div>
             {agent.agentSettings?.CLAUDE_CONFIG_DIR && (
               <p className="text-xs text-muted-foreground">
                 Config: {agent.agentSettings.CLAUDE_CONFIG_DIR}
