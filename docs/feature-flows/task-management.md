@@ -167,7 +167,7 @@ tasks {
   ready: boolean (default false)
 
   -- AI coordination
-  agentSessionStatus: text ('NON_ACTIVE'/'PUSHING'/'ACTIVE', default 'NON_ACTIVE')
+  agentSessionStatus: text ('INACTIVE'/'PUSHING'/'ACTIVE', default 'INACTIVE')
   lastAgentSessionStartedAt: timestamp (nullable)
   author: text (human/ai, default 'human')
 

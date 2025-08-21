@@ -35,7 +35,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
     .where(
       and(
         eq(schema.tasks.ready, true),
-        eq(schema.tasks.agentSessionStatus, 'NON_ACTIVE'),
+        eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
         ne(schema.tasks.status, 'done'),
         // Only tasks with no incomplete dependencies
         notExists(

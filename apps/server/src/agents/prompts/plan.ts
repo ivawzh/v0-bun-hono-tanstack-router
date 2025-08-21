@@ -36,8 +36,8 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
        - **Only use dependsOnTaskIds if tasks must execute in specific order**
        - For ordered tasks: Create first task without dependsOnTaskIds, note returned task ID, use it for next task, e.g. dependsOnTaskIds=[prerequisite_task_id]
        - For parallel tasks: Leave dependsOnTaskIds empty for all
-     * Mark current task done: \`task_update\` with taskId="${task.id}", status="done", agentSessionStatus="NON_ACTIVE"
-7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", agentSessionStatus="NON_ACTIVE", plan=[from above]
+     * Mark current task done: \`task_update\` with taskId="${task.id}", status="done", agentSessionStatus="INACTIVE"
+7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="execute", agentSessionStatus="INACTIVE", plan=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}

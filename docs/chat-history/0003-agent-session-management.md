@@ -10,8 +10,8 @@ This document describes the final chosen approach for managing agent sessions an
 
 **Database Fields**:
 ```sql
-ALTER TABLE tasks ADD COLUMN agentSessionStatus TEXT DEFAULT 'NON_ACTIVE';
--- States: 'NON_ACTIVE', 'PUSHING', 'ACTIVE'
+ALTER TABLE tasks ADD COLUMN agentSessionStatus TEXT DEFAULT 'INACTIVE';
+-- States: 'INACTIVE', 'PUSHING', 'ACTIVE'
 
 -- Replace existing fields
 ALTER TABLE tasks DROP COLUMN isAiWorking;
@@ -28,14 +28,14 @@ ALTER TABLE tasks ADD COLUMN lastAgentSessionStartedAt TIMESTAMP;
 ```
 
 **State Transitions**:
-1. `NON_ACTIVE` → `PUSHING`: Task Pusher assigns task to agent
+1. `INACTIVE` → `PUSHING`: Task Pusher assigns task to agent
 2. `PUSHING` → `ACTIVE`: Claude Code session actually started (callback from spawn)
-3. `ACTIVE` → `NON_ACTIVE`: Session fully ended (hook file write or task completion)
+3. `ACTIVE` → `INACTIVE`: Session fully ended (hook file write or task completion)
 
 **Concurrency Management**:
 - Both agent and repo consider tasks in `PUSHING` and `ACTIVE` states as occupying capacity
 - This prevents over-assignment during the delay between task assignment and session startup
-- `agentSessionStatus` replaces `isAiWorking`: `ACTIVE` = working, `NON_ACTIVE` = not working
+- `agentSessionStatus` replaces `isAiWorking`: `ACTIVE` = working, `INACTIVE` = not working
 - `lastAgentSessionStartedAt` replaces `aiWorkingSince` for tracking session start time
 - `activeAgentId` tracks which specific agent is working on the task for rate limit handling
 
@@ -190,7 +190,7 @@ async function findNextAssignableTask(): Promise<TaskWithDetails | null> {
     .where(
       and(
         eq(schema.tasks.ready, true),
-        eq(schema.tasks.agentSessionStatus, 'NON_ACTIVE'),
+        eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
         ne(schema.tasks.status, 'done'),
         // Agent not rate limited (rate limit has passed)
         or(
@@ -286,7 +286,7 @@ async function tryPushTasks(reason?: string) {
           })
           .where(and(
             eq(tasks.id, task.task.id),
-            eq(tasks.agentSessionStatus, 'NON_ACTIVE') // Only update if still non-active
+            eq(tasks.agentSessionStatus, 'INACTIVE') // Only update if still non-active
           ));
 
         if (updated.rowCount === 0) {
@@ -318,7 +318,7 @@ async function tryPushTasks(reason?: string) {
         // Reset task to non-active state
         await db.update(tasks)
           .set({ 
-            agentSessionStatus: 'NON_ACTIVE',
+            agentSessionStatus: 'INACTIVE',
             activeAgentId: null
           })
           .where(eq(tasks.id, task.task.id));
@@ -392,10 +392,10 @@ async function checkTasksStuckAtPush() {
   });
 
   for (const task of stuckTasks) {
-    console.log(`⚠️ Task ${task.id} stuck in PUSHING state, resetting to NON_ACTIVE`);
+    console.log(`⚠️ Task ${task.id} stuck in PUSHING state, resetting to INACTIVE`);
     await db.update(tasks)
       .set({
-        agentSessionStatus: 'NON_ACTIVE',
+        agentSessionStatus: 'INACTIVE',
         activeAgentId: null,
         lastAgentSessionId: null
       })
@@ -425,7 +425,7 @@ async function checkTasksStuckAtActive() {
       console.log(`💀 Session ${task.lastAgentSessionId} not found in active sessions, marking task as failed`);
       await db.update(tasks)
         .set({
-          agentSessionStatus: 'NON_ACTIVE',
+          agentSessionStatus: 'INACTIVE',
           activeAgentId: null,
           status: 'todo' // Reset to todo for manual review
         })
@@ -453,7 +453,7 @@ async function recoverFromCompletedSessions() {
       console.log(`✅ Found completed session ${sessionId}, updating task ${task.id}`);
       await db.update(tasks)
         .set({
-          agentSessionStatus: 'NON_ACTIVE',
+          agentSessionStatus: 'INACTIVE',
           activeAgentId: null
         })
         .where(eq(tasks.id, task.id));
@@ -500,7 +500,7 @@ async function runAllMonitorChecks() {
 
 **Detection**: `checkTasksStuckAtPush()` finds tasks stuck in `PUSHING` for >2 minutes.
 
-**Solution**: Reset task to `NON_ACTIVE` state and trigger task push.
+**Solution**: Reset task to `INACTIVE` state and trigger task push.
 
 ### Edge Case 2: Claude Process Crashes
 
@@ -508,7 +508,7 @@ async function runAllMonitorChecks() {
 
 **Detection**: `checkTasksStuckAtActive()` finds tasks active for >30 minutes with no session in active file.
 
-**Solution**: Mark task as `NON_ACTIVE` and reset status to `todo` for manual review.
+**Solution**: Mark task as `INACTIVE` and reset status to `todo` for manual review.
 
 ### Edge Case 8: Multi-Company Task Fairness
 
@@ -528,7 +528,7 @@ async function runAllMonitorChecks() {
 **Detection**: `/api/agent-callbacks/rate-limit-hit` callback received.
 
 **Solution**:
-- Mark task as `NON_ACTIVE` immediately
+- Mark task as `INACTIVE` immediately
 - Store rate limit reset time in `agent.rateLimitResetAt` field
 - Schedule automatic retry with buffer time
 - Prevent rate-limited agents from being selected in `findNextAssignableTask()` via rate limit check
@@ -554,7 +554,7 @@ async function runAllMonitorChecks() {
 
 **Detection**: `recoverFromCompletedSessions()` cross-references completed sessions with database state.
 
-**Solution**: Update task status to `NON_ACTIVE` based on completed sessions file.
+**Solution**: Update task status to `INACTIVE` based on completed sessions file.
 
 ### Edge Case 4: Duplicate Session IDs
 
@@ -588,7 +588,7 @@ async function runAllMonitorChecks() {
 
 **Prevention**: Atomic database update with WHERE condition checking current state.
 
-**Result**: Only one pusher can change task from `NON_ACTIVE` to `PUSHING`.
+**Result**: Only one pusher can change task from `INACTIVE` to `PUSHING`.
 
 ## HTTP Callback Endpoints
 
@@ -625,7 +625,7 @@ app.post('/api/agent-callbacks/session-ended', async (c) => {
   // Update task state
   await db.update(tasks)
     .set({ 
-      agentSessionStatus: 'NON_ACTIVE',
+      agentSessionStatus: 'INACTIVE',
       activeAgentId: null
     })
     .where(and(
@@ -663,7 +663,7 @@ app.post('/api/agent-callbacks/rate-limit-hit', async (c) => {
   // Update task state back to non-active
   await db.update(tasks)
     .set({
-      agentSessionStatus: 'NON_ACTIVE',
+      agentSessionStatus: 'INACTIVE',
       activeAgentId: null
     })
     .where(eq(tasks.id, taskId));
@@ -707,14 +707,14 @@ app.post('/api/agent-callbacks/rate-limit-hit', async (c) => {
 │ - rate-limit-hit            │    │                         │    │                         │
 │                             │    │                         │    │                         │
 │ Database atomic updates     │    │                         │    │                         │
-│ NON_ACTIVE|PUSHING|ACTIVE   │    │                         │    │                         │
+│ INACTIVE|PUSHING|ACTIVE   │    │                         │    │                         │
 └─────────────────────────────┘    └─────────────────────────┘    └─────────────────────────┘
 ```
 
 ## Summary of Key Design Decisions
 
 **State Management**:
-- ✅ 3-state system: `NON_ACTIVE` → `PUSHING` → `ACTIVE` → `NON_ACTIVE`
+- ✅ 3-state system: `INACTIVE` → `PUSHING` → `ACTIVE` → `INACTIVE`
 - ✅ Replaces `isAiWorking` with `agentSessionStatus`
 - ✅ Replaces `aiWorkingSince` with `lastAgentSessionStartedAt`
 - ✅ Added `activeAgentId` for direct agent reference in rate limit callbacks
@@ -767,7 +767,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
   - Specific schema changes:
     ```typescript
     // In tasks table
-    agentSessionStatus: text('agentSessionStatus').default('NON_ACTIVE'),
+    agentSessionStatus: text('agentSessionStatus').default('INACTIVE'),
     activeAgentId: uuid('activeAgentId').references(() => agents.id),
     lastPushedAt: timestamp('lastPushedAt'),
     lastAgentSessionStartedAt: timestamp('lastAgentSessionStartedAt'),
@@ -814,7 +814,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
   - Function: `findNextAssignableTask(): Promise<TaskWithDetails | null>`
   - Logic: Single query with embedded subqueries for:
     - Task ready status check
-    - Agent session status check (NON_ACTIVE only)
+    - Agent session status check (INACTIVE only)
     - Agent rate limit check (exclude rate-limited agents)
     - Agent capacity check (count PUSHING + ACTIVE tasks)
     - Repo capacity check (count PUSHING + ACTIVE tasks)  
@@ -878,7 +878,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
     - Check global lock, queue if already running
     - Loop until no more tasks can be assigned
     - For each task: mark as PUSHING atomically, spawn Claude CLI, update with session ID
-    - Handle errors by resetting task to NON_ACTIVE
+    - Handle errors by resetting task to INACTIVE
     - Release lock and process queued triggers
   - Import dependencies: task-finder, claude-spawner, session-registry
 
@@ -888,7 +888,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
 - [ ] **Implement task monitoring system**
   - File: `apps/server/src/agents/task-monitor.ts` - NEW FILE
   - Functions (all exported individually, no classes):
-    - `checkTasksStuckAtPush()` - Find tasks stuck in PUSHING > 2min, reset to NON_ACTIVE
+    - `checkTasksStuckAtPush()` - Find tasks stuck in PUSHING > 2min, reset to INACTIVE
     - `checkTasksStuckAtActive()` - Find tasks stuck in ACTIVE > 30min, check session files
     - `recoverFromCompletedSessions()` - Cross-reference completed sessions with DB state
     - `clearExpiredRateLimits()` - Clear agent.rateLimitResetAt when expired
@@ -925,11 +925,11 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
       - Integration: Call tryPushTasks() to assign more tasks
     - `POST /api/agent-callbacks/session-ended`
       - Body: `{ sessionId, taskId, success }`
-      - Logic: Update task to NON_ACTIVE status, clear activeAgentId
+      - Logic: Update task to INACTIVE status, clear activeAgentId
       - Integration: Call tryPushTasks() to assign more tasks
     - `POST /api/agent-callbacks/rate-limit-hit`
       - Body: `{ sessionId, taskId, rateLimitResetAt }`
-      - Logic: Update task to NON_ACTIVE, set agent.rateLimitResetAt, schedule retry
+      - Logic: Update task to INACTIVE, set agent.rateLimitResetAt, schedule retry
       - Integration: Use activeAgentId for direct agent update (no joins!)
 
 ### 4.2 Update Route Registration

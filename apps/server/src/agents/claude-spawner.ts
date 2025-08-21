@@ -199,7 +199,7 @@ export async function spawnClaudeSession(
                   async (input, toolUseID, options) => {
                     console.log("[Claude Code] Stop hook called. ", task.stage, task.rawTitle || task.refinedTitle);
                     await Promise.all([
-                      // Update task status to NON_ACTIVE when process completes
+                      // Update task status to INACTIVE when process completes
                       await updateTaskSessionCompleted(taskId, projectId, 0),
 
                       // Register session in file-based registry
@@ -466,7 +466,7 @@ async function updateTaskSessionCompleted(
     await db
       .update(schema.tasks)
       .set({
-        agentSessionStatus: "NON_ACTIVE",
+        agentSessionStatus: "INACTIVE",
         activeAgentId: null,
         updatedAt: new Date(),
       })
@@ -740,7 +740,7 @@ function spawnClaudeChildProcess(args: SpawnClaudeChildProcessArgs) {
     );
 
     await Promise.all([
-      // Update task status to NON_ACTIVE when process completes
+      // Update task status to INACTIVE when process completes
       await updateTaskSessionCompleted(args.taskId, args.projectId, code || 0),
 
       // Register session in file-based registry

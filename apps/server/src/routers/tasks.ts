@@ -844,7 +844,7 @@ export const tasksRouter = o.router({
       const updated = await db
         .update(tasks)
         .set({
-          agentSessionStatus: 'NON_ACTIVE',
+          agentSessionStatus: 'INACTIVE',
           activeAgentId: null,
           updatedAt: new Date()
         })

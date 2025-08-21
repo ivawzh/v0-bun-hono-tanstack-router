@@ -96,7 +96,7 @@ sequenceDiagram
     %% Execute Stage
     AI->>AI: Follow implementation plan
     AI->>AI: Write code, make commits
-    AI->>MCP: task_update(status=done, stage=null, agentSessionStatus='NON_ACTIVE')
+    AI->>MCP: task_update(status=done, stage=null, agentSessionStatus='INACTIVE')
     MCP->>DB: UPDATE task completion
     MCP->>UI: Broadcast completion
     UI->>UI: Move task to Done column
@@ -145,7 +145,7 @@ tasks {
   status: text -- 'todo', 'doing', 'done', 'loop'
   stage: text -- 'clarify', 'plan', 'execute', null (only when status='doing')
   ready: boolean -- Human control for AI pickup
-  agentSessionStatus: text -- AI activity indicator ('NON_ACTIVE'/'PUSHING'/'ACTIVE')
+  agentSessionStatus: text -- AI activity indicator ('INACTIVE'/'PUSHING'/'ACTIVE')
   lastAgentSessionStartedAt: timestamp -- When AI started working
 }
 ```
@@ -180,7 +180,7 @@ tasks {
   "after_execute": {
     "status": "done",
     "stage": null,
-    "agentSessionStatus": "NON_ACTIVE"
+    "agentSessionStatus": "INACTIVE"
   }
 }
 ```
@@ -219,7 +219,7 @@ task_update({
   taskId: string,
   status?: 'todo' | 'doing' | 'done' | 'loop',
   stage?: 'clarify' | 'plan' | 'execute' | null,
-  agentSessionStatus?: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE',
+  agentSessionStatus?: 'INACTIVE' | 'PUSHING' | 'ACTIVE',
   refinedTitle?: string,
   refinedDescription?: string,
   plan?: object
@@ -278,7 +278,7 @@ sequenceDiagram
 ## Priority and Ordering
 
 ### Task Selection Algorithm
-1. **Ready status**: `ready=true` AND `agentSessionStatus='NON_ACTIVE'`
+1. **Ready status**: `ready=true` AND `agentSessionStatus='INACTIVE'`
 2. **Status priority**: `doing` tasks before `todo` tasks
 3. **Priority level**: 5 (highest) to 1 (lowest)
 4. **Column order**: Manual drag & drop position within status

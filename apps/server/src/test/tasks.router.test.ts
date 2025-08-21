@@ -650,7 +650,7 @@ describe("Tasks Router", () => {
         { id: task.id }
       );
       
-      expect(result.agentSessionStatus).toBe("NON_ACTIVE");
+      expect(result.agentSessionStatus).toBe("INACTIVE");
       expect(result.activeAgentId).toBeNull();
     });
 
@@ -1546,7 +1546,7 @@ describe("Tasks Router", () => {
       );
       
       expect(finalTask.status).toBe("done");
-      expect(finalTask.agentSessionStatus).toBe("NON_ACTIVE");
+      expect(finalTask.agentSessionStatus).toBe("INACTIVE");
       
       // Delete task
       const deleteResult = await testProtectedProcedure(

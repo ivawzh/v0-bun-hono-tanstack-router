@@ -210,7 +210,7 @@ Claude Code communicates back via MCP tools embedded in prompts:
 
 Solo Unicorn maintains task status synchronization through multiple channels:
 
-1. **Database State**: Primary source of truth with `agentSessionStatus` (NON_ACTIVE/PUSHING/ACTIVE)
+1. **Database State**: Primary source of truth with `agentSessionStatus` (INACTIVE/PUSHING/ACTIVE)
 2. **File Registry**: Session data persisted in `~/.solo-unicorn/sessions/` JSON files
 3. **HTTP Callbacks**: Real-time status updates from hook scripts
 4. **MCP Tools**: Task updates from within Claude Code sessions

@@ -124,7 +124,7 @@ export const tasks = pgTable("tasks", {
   ready: boolean("ready").default(false),
 
   // Agent session status for new session management
-  agentSessionStatus: text("agent_session_status").notNull().default("NON_ACTIVE"), // NON_ACTIVE, PUSHING, ACTIVE
+  agentSessionStatus: text("agent_session_status").notNull().default("INACTIVE"), // INACTIVE, PUSHING, ACTIVE
 
   // Active agent reference for direct agent lookup
   activeAgentId: uuid("active_agent_id").references(() => agents.id),

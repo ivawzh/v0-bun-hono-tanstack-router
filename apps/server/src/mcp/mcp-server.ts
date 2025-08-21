@@ -83,7 +83,7 @@ function registerMcpTools(server: McpServer) {
         plan: z.unknown().optional(),
         status: z.enum(["todo", "doing", "done", "loop"]).optional(),
         stage: z.enum(["clarify", "plan", "execute", "loop"]).optional().nullable(),
-        agentSessionStatus: z.enum(["NON_ACTIVE", "PUSHING", "ACTIVE"]).optional(),
+        agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
     },
     async (input, { requestInfo }) => {
@@ -115,7 +115,7 @@ function registerMcpTools(server: McpServer) {
         if (agentSessionStatus === "ACTIVE") {
           // Set timestamp when agent starts working
           updates.lastAgentSessionStartedAt = new Date();
-        } else if (agentSessionStatus === "NON_ACTIVE") {
+        } else if (agentSessionStatus === "INACTIVE") {
           // Clear timestamp when agent stops working
           updates.lastAgentSessionStartedAt = null;
         }

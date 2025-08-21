@@ -155,7 +155,7 @@ LEFT JOIN actors a ON t.actorId = a.id
 INNER JOIN projects p ON t.projectId = p.id
 WHERE
   t.ready = true
-  AND t.agentSessionStatus = 'NON_ACTIVE'
+  AND t.agentSessionStatus = 'INACTIVE'
   AND t.status != 'done'
   AND t.status != 'loop'
   AND ac.type = 'CLAUDE_CODE'
@@ -354,7 +354,7 @@ INNER JOIN agentClients ac ON ra.agentClientId = ac.id
 WHERE
   t.status = 'loop'
   AND t.stage = 'loop'
-  AND t.agentSessionStatus = 'NON_ACTIVE'
+  AND t.agentSessionStatus = 'INACTIVE'
   AND ac.type = 'CLAUDE_CODE'
   AND ra.isPaused = false
 ORDER BY t.priority DESC, t.columnOrder, t.createdAt

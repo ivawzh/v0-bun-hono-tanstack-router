@@ -546,7 +546,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         refinedDescription: variables.rawDescription,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-        agentSessionStatus: 'NON_ACTIVE' as const,
+        agentSessionStatus: 'INACTIVE' as const,
         author: 'human' as const,
         ready: true, // Set ready by default for new tasks
         columnOrder: '1000', // Default order
@@ -680,7 +680,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Optimistically update the task's agent session status
       const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
-        agentSessionStatus: 'NON_ACTIVE',
+        agentSessionStatus: 'INACTIVE',
         agentSessionId: null,
         lastAgentSessionStartedAt: null
       }));

@@ -115,7 +115,7 @@ interface TaskV2 {
   plan?: any;
   attachments?: any[];
   createdAt: string;
-  agentSessionStatus?: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE';
+  agentSessionStatus?: 'INACTIVE' | 'PUSHING' | 'ACTIVE';
 
   // V2 specific fields
   mainRepositoryId: string;
@@ -487,7 +487,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                     </Badge>
                     <AIActivityBadge
                       ready={task.ready}
-                      agentSessionStatus={task.agentSessionStatus as "NON_ACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
+                      agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
                       status={task.status}
                     />
                     {currentStage && (

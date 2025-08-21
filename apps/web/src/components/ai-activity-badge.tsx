@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 interface AIActivityBadgeProps {
   ready: boolean | null;
-  agentSessionStatus?: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE' | null;
+  agentSessionStatus?: 'INACTIVE' | 'PUSHING' | 'ACTIVE' | null;
   status: string;
   className?: string;
 }
@@ -32,7 +32,7 @@ export function AIActivityBadge({ ready, agentSessionStatus, status, className }
   }
 
   // AI Ready state - only for todo tasks that are ready but AI not working  
-  if (status === "todo" && ready === true && (agentSessionStatus === 'NON_ACTIVE' || agentSessionStatus === null)) {
+  if (status === "todo" && ready === true && (agentSessionStatus === 'INACTIVE' || agentSessionStatus === null)) {
     return (
       <Badge
         variant="outline"

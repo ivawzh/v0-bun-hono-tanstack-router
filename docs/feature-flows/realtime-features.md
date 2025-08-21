@@ -272,7 +272,7 @@ const handleWebSocketMessage = (message: WebSocketMessage) => {
 ```typescript
 interface AIActivityBadgeProps {
   ready: boolean | null;
-  agentSessionStatus: 'NON_ACTIVE' | 'PUSHING' | 'ACTIVE' | null;
+  agentSessionStatus: 'INACTIVE' | 'PUSHING' | 'ACTIVE' | null;
   status: string;
 }
 

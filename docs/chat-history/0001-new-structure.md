@@ -236,7 +236,7 @@ This function determines how many tasks are currently using a specific repositor
 
 3. **Key Insight**: We rely on `agentSessionStatus` as the primary indicator rather than tracking separate session states. This is simpler and more reliable because:
    - When orchestrator assigns a task, it immediately sets `agentSessionStatus = 'ACTIVE'`
-   - When agent completes work, it uses MCP to set `agentSessionStatus = 'NON_ACTIVE'`
+   - When agent completes work, it uses MCP to set `agentSessionStatus = 'INACTIVE'`
    - No complex timing logic or state transitions needed
 
 4. **Repository Usage Counting**: A repository is "occupied" by any task that references it, regardless of whether it's the main repo or additional repo for that task.
@@ -570,7 +570,7 @@ private async assignTaskToAgent(
     await db
       .update(tasks)
       .set({
-        agentSessionStatus: 'NON_ACTIVE',
+        agentSessionStatus: 'INACTIVE',
         lastAgentSessionStartedAt: null,
         status: 'todo',
         stage: null

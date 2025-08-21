@@ -169,7 +169,7 @@ export async function getMonitoringStatus() {
     .where(
       and(
         eq(schema.tasks.ready, true),
-        eq(schema.tasks.agentSessionStatus, 'NON_ACTIVE'),
+        eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
         ne(schema.tasks.status, 'done')
       )
     );
@@ -191,8 +191,8 @@ export async function getMonitoringStatus() {
  * 2. Get all completed session IDs from file registry
  * 3. Find tasks that think they're active
  * 4. For each active task:
- *    - check if we find the matching completed session ID, if so, reset to NON_ACTIVE
- *    - check if we find the matching active session ID, if not, reset to NON_ACTIVE
+ *    - check if we find the matching completed session ID, if so, reset to INACTIVE
+ *    - check if we find the matching active session ID, if not, reset to INACTIVE
  * 5. Log the results
  */
 async function checkOutSyncedTasks(): Promise<{ recovered: number; errors: string[] }> {
@@ -226,11 +226,11 @@ async function checkOutSyncedTasks(): Promise<{ recovered: number; errors: strin
       const hasCompletedSession = task.lastAgentSessionId && completedSessionIds.has(task.lastAgentSessionId);
       const hasActiveSession = task.lastAgentSessionId && activeSessionIds.has(task.lastAgentSessionId);
       if (hasCompletedSession || !hasActiveSession) {
-        // Task is completed or lost - reset to NON_ACTIVE
+        // Task is completed or lost - reset to INACTIVE
         await db
           .update(schema.tasks)
           .set({
-            agentSessionStatus: 'NON_ACTIVE',
+            agentSessionStatus: 'INACTIVE',
             activeAgentId: null,
             updatedAt: new Date()
           })

@@ -195,7 +195,7 @@ async function pushTaskToAgent(
       .where(
         and(
           eq(schema.tasks.id, task.id),
-          eq(schema.tasks.agentSessionStatus, 'NON_ACTIVE') // Ensure no race condition
+          eq(schema.tasks.agentSessionStatus, 'INACTIVE') // Ensure no race condition
         )
       )
       .returning();
@@ -236,12 +236,12 @@ async function pushTaskToAgent(
     });
 
     if (!spawnResult.success) {
-      console.error(`🚧 [pushTaskToAgent] failed to spawn claude session for task ${task.id}. Reverting task status to NON_ACTIVE.`);
+      console.error(`🚧 [pushTaskToAgent] failed to spawn claude session for task ${task.id}. Reverting task status to INACTIVE.`);
       // Revert task status if spawn failed
       await db
         .update(schema.tasks)
         .set({
-          agentSessionStatus: 'NON_ACTIVE',
+          agentSessionStatus: 'INACTIVE',
           activeAgentId: null,
           updatedAt: new Date()
         })

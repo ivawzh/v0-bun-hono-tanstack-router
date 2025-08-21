@@ -23,7 +23,7 @@ clarify this raw task.
    - Key requirements and goals
    - Expected outcome
    - Out-of-scope items if any
-5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="plan", agentSessionStatus="NON_ACTIVE", refinedTitle=[from above], refinedDescription=[from above]
+5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", stage="plan", agentSessionStatus="INACTIVE", refinedTitle=[from above], refinedDescription=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}

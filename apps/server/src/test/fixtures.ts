@@ -164,7 +164,7 @@ export async function createTestTask(
     priority: 3,
     columnOrder: "1000",
     ready: false,
-    agentSessionStatus: "NON_ACTIVE",
+    agentSessionStatus: "INACTIVE",
     author: "human",
     attachments: [],
     projectId,
