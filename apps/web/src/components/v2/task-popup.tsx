@@ -432,7 +432,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
       <DialogContent 
         className={cn(
           // Base styles
-          "p-0 gap-0 rounded-lg border shadow-lg duration-200",
+          "p-0 gap-0 rounded-lg border shadow-lg duration-200 flex flex-col",
           // Mobile: Full screen with minimal padding
           "max-md:fixed max-md:inset-2 max-md:w-auto max-md:h-auto max-md:max-w-none max-md:max-h-none max-md:translate-x-0 max-md:translate-y-0 max-md:top-2 max-md:left-2 max-md:right-2 max-md:bottom-2",
           // Desktop: Centered modal with max width
@@ -585,7 +585,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
             </div>
 
             {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-hidden">
+            <div className="flex-1 overflow-y-auto p-4 md:p-6 min-h-0">
               <TaskContent
                 task={task}
                 repositories={repositories}
