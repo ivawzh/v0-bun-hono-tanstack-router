@@ -38,7 +38,7 @@ function getDb() {
 }
 
 const taskStatusEnum = v.picklist(["todo", "doing", "done", "loop"]);
-const taskStageEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop"]));
+const taskStageEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop", "talk"]));
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
 export const tasksRouter = o.router({
@@ -189,7 +189,7 @@ export const tasksRouter = o.router({
         preview: z.string().optional()
       })).optional().default([]),
       status: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
-      stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional(),
+      stage: z.enum(["clarify", "plan", "execute", "loop", "talk"]).nullable().optional(),
       dependencyIds: z.array(z.string().uuid()).optional().default([])
     }))
     .handler(async ({ context, input }) => {

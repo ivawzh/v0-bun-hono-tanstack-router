@@ -7,6 +7,7 @@ import { generateRefinePrompt } from './clarify';
 import { generatePlanPrompt } from './plan';
 import { generateExecutePrompt } from './execute';
 import { generateLoopPrompt } from './loop';
+import { generateTalkPrompt } from './talk';
 import { type Actor, type Project, type Task } from '../../db/schema';
 
 export type PromptParams = {
@@ -15,7 +16,7 @@ export type PromptParams = {
   project: Project;
 }
 
-export type TaskStage = 'clarify' | 'plan' | 'execute' | 'loop';
+export type TaskStage = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk';
 
 /**
  * Generate prompt for any stage of task execution
@@ -30,6 +31,8 @@ export function generatePrompt(stage: TaskStage, context: PromptParams): string 
       return generateExecutePrompt(context);
     case 'loop':
       return generateLoopPrompt(context);
+    case 'talk':
+      return generateTalkPrompt(context);
     default:
       throw new Error(`Unknown stage: ${stage}`);
   }
@@ -40,5 +43,6 @@ export {
   generateRefinePrompt,
   generatePlanPrompt,
   generateExecutePrompt,
-  generateLoopPrompt
+  generateLoopPrompt,
+  generateTalkPrompt
 };

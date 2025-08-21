@@ -112,7 +112,7 @@ export const tasks = pgTable("tasks", {
 
   // Status and stage
   status: text("status", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
-  stage: text("stage", { enum: ["clarify", "plan", "execute", "loop"] }),
+  stage: text("stage", { enum: ["clarify", "plan", "execute", "loop", "talk"] }),
 
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest

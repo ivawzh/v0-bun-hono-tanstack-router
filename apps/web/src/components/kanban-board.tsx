@@ -94,6 +94,7 @@ const stageColors = {
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
   loop: "bg-orange-100 text-orange-800 border-orange-200",
+  talk: "bg-green-100 text-green-800 border-green-200",
 };
 
 // Priority colors are now handled by the priority utility
@@ -103,9 +104,9 @@ function isTaskStuck(task: any): boolean {
   if (task.agentSessionStatus !== 'ACTIVE' && task.agentSessionStatus !== 'PUSHING') {
     return false;
   }
-  
+
   if (!task.lastAgentSessionStartedAt) {
-    return false;
+    return true;
   }
 
   const workingSince = new Date(task.lastAgentSessionStartedAt);
@@ -120,7 +121,7 @@ function getResetButtonTooltip(task: any): string {
   if (task.agentSessionStatus !== 'ACTIVE' && task.agentSessionStatus !== 'PUSHING') {
     return "Only available when AI is working on this task";
   }
-  
+
   if (!task.lastAgentSessionStartedAt) {
     return "Only available when AI is working on this task";
   }
@@ -262,7 +263,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
                           )}
                         >
                           <RotateCcw className="h-4 w-4 mr-2" />
-                          Reset Agent
+                          Reset AI
                         </DropdownMenuItem>
                       </div>
                     </TooltipTrigger>
@@ -395,15 +396,15 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
               {task.dependencies.map((dep: any) => {
                 const isCompleted = dep.status === 'done';
                 const isBlocking = !isCompleted;
-                
+
                 return (
                   <Badge
                     key={dep.id}
                     variant="outline"
                     className={cn(
                       "text-xs flex items-center gap-1",
-                      isCompleted 
-                        ? "bg-green-50 text-green-700 border-green-200" 
+                      isCompleted
+                        ? "bg-green-50 text-green-700 border-green-200"
                         : "bg-amber-50 text-amber-700 border-amber-200"
                     )}
                   >
@@ -537,7 +538,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Cancel any outgoing refetches
       const queryKey = cache.queryKeys.projects.withTasks();
       await cache.cancelQueries(queryKey);
-      
+
       // Use optimistic update to add task immediately
       const newTask = {
         id: 'temp-' + Date.now(), // Temporary ID that will be replaced by server
@@ -551,7 +552,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         ready: true, // Set ready by default for new tasks
         columnOrder: '1000', // Default order
       };
-      
+
       const context = await cache.optimistic.addTaskToProject(projectId, newTask);
       return context;
     },
@@ -565,10 +566,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       if (cachedData) {
         // Find the temporary task and replace it with the real one
         const tasks = (cachedData as any).tasks || [];
-        const tempTaskIndex = tasks.findIndex((task: any) => 
+        const tempTaskIndex = tasks.findIndex((task: any) =>
           task.id.startsWith('temp-') && task.rawTitle === data.rawTitle
         );
-        
+
         if (tempTaskIndex >= 0) {
           // Replace temp task with real task data, preserving any display properties
           const tempTask = tasks[tempTaskIndex];
@@ -580,7 +581,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
             assignedAgents: tempTask.assignedAgents || (data as any).assignedAgents,
             actor: tempTask.actor || (data as any).actor
           };
-          
+
           cache.setCachedData(queryKey, {
             ...cachedData,
             tasks: updatedTasks
@@ -706,7 +707,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
     onMutate: async (variables: any) => {
       const queryKey = cache.queryKeys.projects.withTasks();
-      
+
       // Cancel any outgoing refetches
       await cache.cancelQueries(queryKey);
 

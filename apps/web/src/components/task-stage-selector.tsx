@@ -20,6 +20,7 @@ const stages = [
   { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   { value: "loop", label: "Loop", color: "bg-orange-100 text-orange-800 border-orange-200" },
+  { value: "talk", label: "Talk", color: "bg-green-100 text-green-800 border-green-200" },
 ];
 
 export function TaskStageSelector({
