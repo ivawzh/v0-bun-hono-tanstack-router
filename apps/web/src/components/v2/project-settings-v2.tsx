@@ -19,7 +19,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity, HelpCircle, Edit3, Check, X } from "lucide-react";
+import { Settings, Plus, Loader2, FolderOpen, Bot, Trash2, Activity, HelpCircle, Edit3, Check, X, Users } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -30,6 +30,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils";
 import { DeleteProjectModal } from "./delete-project-modal";
 import { ConcurrencySelect } from "@/components/ui/concurrency-select";
+import { TeamMembersSection } from "@/components/team-management/team-members-section";
 
 interface ProjectSettingsV2Props {
   project: {
@@ -40,7 +41,7 @@ interface ProjectSettingsV2Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
-  defaultTab?: 'repositories' | 'agents';
+  defaultTab?: 'repositories' | 'agents' | 'team';
 }
 
 // Repository card component
@@ -649,7 +650,7 @@ export function ProjectSettingsV2({
               <h3 className="text-lg font-medium">Configuration</h3>
               
               <Tabs defaultValue={defaultTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="repositories" className="flex items-center gap-2">
                     <FolderOpen className="h-4 w-4" />
                     Repositories
@@ -659,6 +660,10 @@ export function ProjectSettingsV2({
                     <Bot className="h-4 w-4" />
                     Agents
                     <Badge variant="outline">{agents?.length || 0}</Badge>
+                  </TabsTrigger>
+                  <TabsTrigger value="team" className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    Team
                   </TabsTrigger>
                 </TabsList>
 
@@ -770,6 +775,10 @@ export function ProjectSettingsV2({
                       </CardContent>
                     </Card>
                   )}
+                </TabsContent>
+
+                <TabsContent value="team" className="space-y-4 mt-4">
+                  <TeamMembersSection projectId={project.id} />
                 </TabsContent>
               </Tabs>
               
