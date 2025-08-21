@@ -15,7 +15,7 @@ export function generateRefinePrompt(context: PromptParams): string {
 clarify this raw task.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", column="doing", mode="clarify", agentSessionStatus="ACTIVE"
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="clarify", agentSessionStatus="ACTIVE"
 2. Analyze the raw title and raw description to understand the user's intent. Focus on UX improvements and Customer Obsession.
 3. Create a refined title that is clear and specific.
 4. Write a detailed refined description that includes:

@@ -23,7 +23,7 @@ import {
 } from "../utils/file-storage";
 import { db } from "@/db";
 
-const taskColumnEnum = v.picklist(["todo", "doing", "done", "loop"]);
+const taskListEnum = v.picklist(["todo", "doing", "done", "loop"]);
 const taskModeEnum = v.nullable(
   v.picklist(["clarify", "plan", "execute", "loop", "talk"])
 );
@@ -304,7 +304,7 @@ export const tasksRouter = o.router({
       let modeToUse = input.mode;
       if (modeToUse === undefined) {
         // Apply intelligent defaults if no mode provided
-        if (input.column === "loop") {
+        if (input.list === "loop") {
           modeToUse = "loop";
         } else {
           modeToUse = "clarify"; // Default for non-loop tasks
@@ -322,9 +322,9 @@ export const tasksRouter = o.router({
           rawDescription: input.rawDescription,
           priority: input.priority,
           attachments: [], // Start empty, will be populated after processing files
-          list: input.column,
+          list: input.list,
           mode: modeToUse,
-          ready: input.column === "loop" ? true : false, // Loop tasks are always ready
+          ready: input.list === "loop" ? true : false, // Loop tasks are always ready
         })
         .returning();
 
@@ -464,12 +464,12 @@ export const tasksRouter = o.router({
         refinedTitle: v.optional(v.string()),
         refinedDescription: v.optional(v.string()),
         plan: v.optional(v.any()),
-        list: v.optional(taskColumnEnum),
+        list: v.optional(taskListEnum),
         mode: v.optional(taskModeEnum),
         priority: v.optional(prioritySchema),
         ready: v.optional(v.boolean()),
         attachments: v.optional(v.array(v.any())),
-        columnOrder: v.optional(v.string()),
+        listOrder: v.optional(v.string()),
         // V2 fields
         mainRepositoryId: v.optional(v.pipe(v.string(), v.uuid())),
         additionalRepositoryIds: v.optional(
@@ -508,14 +508,14 @@ export const tasksRouter = o.router({
       if (input.refinedDescription !== undefined)
         updates.refinedDescription = input.refinedDescription;
       if (input.plan !== undefined) updates.plan = input.plan;
-      if (input.column !== undefined) updates.column = input.column;
+      if (input.list !== undefined) updates.list = input.list;
       if (input.mode !== undefined) updates.mode = input.mode;
       if (input.priority !== undefined) updates.priority = input.priority;
       if (input.ready !== undefined) updates.ready = input.ready;
       if (input.attachments !== undefined)
         updates.attachments = input.attachments;
-      if (input.columnOrder !== undefined)
-        updates.columnOrder = input.columnOrder;
+      if (input.listOrder !== undefined)
+        updates.listOrder = input.listOrder;
 
       // V2 fields
       if (input.mainRepositoryId !== undefined)
@@ -654,8 +654,8 @@ export const tasksRouter = o.router({
         tasks: v.array(
           v.object({
             id: v.pipe(v.string(), v.uuid()),
-            columnOrder: v.string(),
-            list: v.optional(taskColumnEnum), // Allow moving between columns
+            listOrder: v.string(),
+            list: v.optional(taskListEnum), // Allow moving between lists
           })
         ),
       })
@@ -698,16 +698,16 @@ export const tasksRouter = o.router({
         }
 
         const updates: any = {
-          columnOrder: taskUpdate.columnOrder,
+          listOrder: taskUpdate.listOrder,
           updatedAt: new Date(),
         };
 
-        if (taskUpdate.column !== undefined) {
-          updates.column = taskUpdate.column;
-          // Handle mode transitions for different columns
-          if (taskUpdate.column === "todo" || taskUpdate.column === "done") {
+        if (taskUpdate.list !== undefined) {
+          updates.list = taskUpdate.list;
+          // Handle mode transitions for different lists
+          if (taskUpdate.list === "todo" || taskUpdate.list === "done") {
             updates.mode = null;
-          } else if (taskUpdate.column === "loop") {
+          } else if (taskUpdate.list === "loop") {
             updates.mode = "loop"; // Loop tasks always have loop mode
           }
         }

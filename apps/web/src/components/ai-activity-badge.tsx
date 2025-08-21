@@ -9,9 +9,9 @@ interface AIActivityBadgeProps {
   className?: string;
 }
 
-export function AIActivityBadge({ ready, agentSessionStatus, column, className }: AIActivityBadgeProps) {
+export function AIActivityBadge({ ready, agentSessionStatus, list, className }: AIActivityBadgeProps) {
   // Don't show badge for done tasks or when not ready
-  if (column === "done" || !ready) {
+  if (list === "done" || !ready) {
     return null;
   }
 
@@ -32,7 +32,7 @@ AI Working
   }
 
   // AI Ready state - only for todo tasks that are ready but AI not working
-  if (column === "todo" && ready === true && (agentSessionStatus === 'INACTIVE' || agentSessionStatus === null)) {
+  if (list === "todo" && ready === true && (agentSessionStatus === 'INACTIVE' || agentSessionStatus === null)) {
     return (
       <Badge
         variant="outline"

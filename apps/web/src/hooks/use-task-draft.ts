@@ -22,15 +22,15 @@ interface TaskDraft {
 const STORAGE_KEY = 'solo-unicorn-task-draft'
 const DEBOUNCE_DELAY = 500
 
-// Helper function to get default mode based on column
-function getDefaultMode(column?: string): string | null {
-  if (column === 'loop') {
+// Helper function to get default mode based on list
+function getDefaultMode(list?: string): string | null {
+  if (list === 'loop') {
     return 'loop'
   }
-  return 'clarify' // Default for all other columns (todo, doing, done)
+  return 'clarify' // Default for all other lists (todo, doing, done)
 }
 
-export function useTaskDraft(defaultColumn?: string) {
+export function useTaskDraft(defaultList?: string) {
   const [draft, setDraft] = useState<TaskDraft>({
     rawTitle: '',
     rawDescription: '',
@@ -40,7 +40,7 @@ export function useTaskDraft(defaultColumn?: string) {
     assignedAgentIds: [],
     actorId: '__default__',
     attachments: [],
-    mode: getDefaultMode(defaultColumn)
+    mode: getDefaultMode(defaultList)
   })
   const [hasDraft, setHasDraft] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -53,7 +53,7 @@ export function useTaskDraft(defaultColumn?: string) {
         const parsedDraft = JSON.parse(stored)
         // Ensure mode is set if missing from stored draft
         if (!parsedDraft.mode) {
-          parsedDraft.mode = getDefaultMode(defaultColumn)
+          parsedDraft.mode = getDefaultMode(defaultList)
         }
         setDraft(parsedDraft)
         setHasDraft(true)
@@ -62,7 +62,7 @@ export function useTaskDraft(defaultColumn?: string) {
       // Silent fallback - localStorage might be disabled or full
       console.warn('Failed to load task draft from localStorage:', error)
     }
-  }, [defaultColumn])
+  }, [defaultList])
 
   // Debounced save to localStorage
   const saveDraft = useCallback((newDraft: TaskDraft) => {
@@ -102,10 +102,10 @@ export function useTaskDraft(defaultColumn?: string) {
     })
   }, [saveDraft])
 
-  // Update mode when defaultColumn changes
+  // Update mode when defaultList changes
   useEffect(() => {
     setDraft(currentDraft => {
-      const newMode = getDefaultMode(defaultColumn)
+      const newMode = getDefaultMode(defaultList)
       if (currentDraft.mode !== newMode) {
         const newDraft = { ...currentDraft, mode: newMode }
         saveDraft(newDraft)
@@ -113,7 +113,7 @@ export function useTaskDraft(defaultColumn?: string) {
       }
       return currentDraft
     })
-  }, [defaultColumn, saveDraft])
+  }, [defaultList, saveDraft])
 
   // Clear draft from both state and localStorage
   const clearDraft = useCallback(() => {
@@ -137,10 +137,10 @@ export function useTaskDraft(defaultColumn?: string) {
       assignedAgentIds: [],
       actorId: '__default__',
       attachments: [],
-      mode: getDefaultMode(defaultColumn)
+      mode: getDefaultMode(defaultList)
     })
     setHasDraft(false)
-  }, [defaultColumn])
+  }, [defaultList])
 
   // Cleanup timeout on unmount
   useEffect(() => {

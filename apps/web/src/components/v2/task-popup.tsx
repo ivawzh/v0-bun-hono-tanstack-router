@@ -237,10 +237,10 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     });
   };
 
-  const handleColumnChange = (column: string) => {
+  const handleListChange = (list: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      column: column as 'todo' | 'doing' | 'done'
+      list: list as 'todo' | 'doing' | 'done'
     });
   };
 
@@ -405,7 +405,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                   <AIActivityBadge
                     ready={task.ready}
                     agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                    column={task.column}
+                    list={task.list}
                   />
                   {currentMode && (
                     <Badge variant="outline" className={currentMode.color}>
@@ -549,7 +549,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                 onSaveRefinedTitle={handleSaveRefinedTitle}
                 onSaveRefinedDescription={handleSaveRefinedDescription}
                 onSavePlan={handleSavePlan}
-                onColumnChange={handleColumnChange}
+                onListChange={handleListChange}
                 onPriorityChange={handlePriorityChange}
                 onModeChange={handleModeChange}
                 onMainRepositoryChange={handleMainRepositoryChange}

@@ -4,7 +4,7 @@
 
 Transform Solo Unicorn into a mobile-first development companion with gesture controls, voice commands, optimized touch interactions, and mobile-native workflows that feel natural and powerful on smartphones and tablets.
 
-**Priority**: Phase 2 (Medium Effort, High Magic)  
+**Priority**: Phase 2 (Medium Effort, High Magic)
 **User Impact**: 4/5 | **Effort**: 3/5 | **Magic**: 4/5 | **Mobile**: 5/5
 
 ## Current Mobile Experience Analysis
@@ -55,7 +55,7 @@ interface TaskGestures {
 ```
 
 #### Board Navigation Gestures
-- **Horizontal Swipe**: Switch between Todo/Doing/Done/Loop columns
+- **Horizontal Swipe**: Switch between Todo/Doing/Done/Loop lists
 - **Vertical Swipe**: Navigate between projects
 - **Pull to Refresh**: Update board with latest data
 - **Shake to Undo**: Undo last action (iOS-style)
@@ -151,7 +151,7 @@ interface OfflineCapabilities {
 ```typescript
 interface HapticPatterns {
   taskCreated: 'light-impact'
-  taskMoved: 'medium-impact'  
+  taskMoved: 'medium-impact'
   errorOccurred: 'error-vibration'
   actionConfirmed: 'success-pattern'
   gestureFeedback: 'selection-click'

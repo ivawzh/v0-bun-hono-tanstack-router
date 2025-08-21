@@ -51,7 +51,7 @@ import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
 import { DeleteTaskDialog } from "@/components/delete-task-dialog";
 import { ResetAgentModal } from "@/components/reset-agent-modal";
-import { TodoColumnSections } from "@/components/todo-column-sections";
+import { TodoListSections } from "@/components/todo-list-sections";
 import { TaskPopup } from "@/components/v2/task-popup";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
@@ -82,8 +82,8 @@ interface KanbanBoardProps {
   projectId: string;
 }
 
-// 4-column structure with Loop support
-const columns = [
+// 4-list structure with Loop support
+const lists = [
   { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
   { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
   { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
@@ -175,8 +175,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
     transition,
   };
 
-  const column = columns.find(col => col.id === task.column);
-  const Icon = column?.icon || Clock;
+  const list = lists.find(col => col.id === task.list);
+  const Icon = list?.icon || Clock;
 
   const description = task.refinedDescription || task.rawDescription;
   // Use CSS breakpoint-aware truncation
@@ -197,7 +197,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
       {...listeners}
       role="button"
       tabIndex={0}
-      aria-label={`Task: ${task.refinedTitle || task.rawTitle}. Priority: ${getPriorityDisplay(task.priority)}. Column: ${task.column}. ${task.ready ? 'Ready for AI' : 'Not ready'}`}
+      aria-label={`Task: ${task.refinedTitle || task.rawTitle}. Priority: ${getPriorityDisplay(task.priority)}. List: ${task.list}. ${task.ready ? 'Ready for AI' : 'Not ready'}`}
       aria-describedby={`task-${task.id}-description`}
       onClick={(e) => {
         // Only trigger click if not clicking on interactive elements
@@ -302,11 +302,11 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
           <AIActivityBadge
             ready={task.ready}
             agentSessionStatus={task.agentSessionStatus}
-            column={task.column}
+            list={task.list}
           />
           <TaskModeSelector
             mode={task.mode}
-            column={task.column}
+            list={task.list}
             onModeChange={(mode) => onModeChange(task.id, mode)}
             size="sm"
           />
@@ -350,7 +350,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         )}
 
         {/* Ready toggle - only show for non-completed and non-loop tasks */}
-        {task.column !== 'done' && task.column !== 'loop' && (
+        {task.list !== 'done' && task.list !== 'loop' && (
           <div className="kanban-card-list">
             <div className="kanban-card-ready-toggle">
               <Switch
@@ -395,7 +395,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
             </div>
             <div className="flex flex-wrap gap-1">
               {task.dependencies.map((dep: any) => {
-                const isCompleted = dep.column === 'done';
+                const isCompleted = dep.list === 'done';
                 const isBlocking = !isCompleted;
 
                 return (
@@ -422,7 +422,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         )}
 
         {/* Show if task is blocked by dependencies */}
-        {task.dependencies && task.dependencies.some((dep: any) => dep.column !== 'done') && (
+        {task.dependencies && task.dependencies.some((dep: any) => dep.list !== 'done') && (
           <div className="mt-1 flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-1 rounded border border-amber-200">
             <Lock className="h-3 w-3" />
             <span className="font-medium">Blocked by dependencies</span>
@@ -443,7 +443,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
 export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const router = useRouter();
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
-  const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
+  const [newTaskList, setNewTaskList] = useState<string>("todo");
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [projectSettingsTab, setProjectSettingsTab] = useState<'repositories' | 'agents'>('repositories');
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -454,7 +454,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showTaskPopup, setShowTaskPopup] = useState(false);
   // Use task draft hook for auto-save functionality
-  const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
+  const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskList);
 
   // Project-specific cache utilities
   const cache = useProjectCache(projectId);
@@ -553,7 +553,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         agentSessionStatus: 'INACTIVE' as const,
         author: 'human' as const,
         ready: true, // Set ready by default for new tasks
-        columnOrder: '1000', // Default order
+        listOrder: '1000', // Default order
       };
 
       const context = await cache.optimistic.addTaskToProject(projectId, newTask);
@@ -726,8 +726,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
             if (update) {
               return {
                 ...task,
-                columnOrder: update.columnOrder,
-                list: update.column || task.column
+                listOrder: update.listOrder,
+                list: update.list || task.list
               };
             }
             return task;
@@ -751,13 +751,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   }));
 
-  // Group tasks by column and sort them with proper columnOrder initialization
-  const groupedTasks = columns.reduce((acc, column) => {
-    let columnTasks = (project?.tasks || [])
-      .filter((task: any) => task.column === column.id);
+  // Group tasks by list and sort them with proper listOrder initialization
+  const groupedTasks = lists.reduce((acc, list) => {
+    let listTasks = (project?.tasks || [])
+      .filter((task: any) => task.list === list.id);
 
     // First sort by priority and creation date to establish proper initial order
-    columnTasks = columnTasks.sort((a: any, b: any) => {
+    listTasks = listTasks.sort((a: any, b: any) => {
       // Sort by priority first (higher numbers = higher priority: 5 > 4 > 3 > 2 > 1)
       const priorityComparison = comparePriority(a.priority, b.priority);
       if (priorityComparison !== 0) {
@@ -768,23 +768,23 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-    // Ensure all tasks have proper columnOrder values based on their sorted position
-    columnTasks = columnTasks.map((task: any, index: number) => {
-      // Only reassign columnOrder if it's missing or has the problematic default value
-      if (!task.columnOrder || task.columnOrder === "1000") {
+    // Ensure all tasks have proper listOrder values based on their sorted position
+    listTasks = listTasks.map((task: any, index: number) => {
+      // Only reassign listOrder if it's missing or has the problematic default value
+      if (!task.listOrder || task.listOrder === "1000") {
         return {
           ...task,
-          columnOrder: ((index + 1) * 1000).toString()
+          listOrder: ((index + 1) * 1000).toString()
         };
       }
       return task;
     });
 
-    // Final sort - special handling for Done column
-    if (column.id === 'done') {
+    // Final sort - special handling for Done list
+    if (list.id === 'done') {
       // Done list: always sort by completion time newest first (descending)
       // Use a more reliable completion time approach - combination of list and timestamps
-      columnTasks = columnTasks.sort((a: any, b: any) => {
+      listTasks = listTasks.sort((a: any, b: any) => {
         // For done tasks, we'll use updatedAt as the best available completion indicator
         // since tasks get updatedAt set when they move to done list
         // But we'll also consider createdAt as a secondary sort for stability
@@ -802,26 +802,26 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         return bTime - aTime; // Newest first (descending)
       });
     } else {
-      // Other columns: sort by priority first, then columnOrder
-      columnTasks = columnTasks.sort((a: any, b: any) => {
+      // Other lists: sort by priority first, then listOrder
+      listTasks = listTasks.sort((a: any, b: any) => {
         // Sort by priority first
         const priorityComparison = comparePriority(a.priority, b.priority);
         if (priorityComparison !== 0) {
           return priorityComparison;
         }
 
-        // Then sort by column order
-        const aOrder = parseFloat(a.columnOrder);
-        const bOrder = parseFloat(b.columnOrder);
+        // Then sort by list order
+        const aOrder = parseFloat(a.listOrder);
+        const bOrder = parseFloat(b.listOrder);
         return aOrder - bOrder;
       });
     }
 
-    acc[column.id] = columnTasks;
+    acc[list.id] = listTasks;
     return acc;
   }, {} as Record<string, any[]>);
 
-  // Separate normal and loop tasks for Todo column
+  // Separate normal and loop tasks for Todo list
   const todoNormalTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.mode !== 'loop') : [];
   const todoLoopTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.mode === 'loop') : [];
 
@@ -842,32 +842,32 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     const activeTask = project?.tasks?.find((t: any) => t.id === activeId);
     if (!activeTask) return;
 
-    // Determine target column and position
-    let targetColumn = activeTask.list;
-    let targetTasks = groupedTasks[targetColumn];
+    // Determine target list and position
+    let targetList = activeTask.list;
+    let targetTasks = groupedTasks[targetList];
 
-    // Check if dropped on a different column
-    if (columns.some(col => col.id === overId)) {
-      targetColumn = overId as "todo" | "doing" | "done" | "loop";
-      // For Todo column, use combined tasks from both sections
-      targetTasks = targetColumn === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetColumn];
+    // Check if dropped on a different list
+    if (lists.some(col => col.id === overId)) {
+      targetList = overId as "todo" | "doing" | "done" | "loop";
+      // For Todo list, use combined tasks from both sections
+      targetTasks = targetList === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetList];
     } else {
-      // Find which column the target task belongs to
-      for (const column of columns) {
-        const columnTasks = column.id === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[column.id];
-        if (columnTasks.some((t: any) => t.id === overId)) {
-          targetColumn = column.id as "todo" | "doing" | "done" | "loop";
-          targetTasks = columnTasks;
+      // Find which list the target task belongs to
+      for (const list of lists) {
+        const listTasks = list.id === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[list.id];
+        if (listTasks.some((t: any) => t.id === overId)) {
+          targetList = list.id as "todo" | "doing" | "done" | "loop";
+          targetTasks = listTasks;
           break;
         }
       }
     }
 
     // Calculate new positions
-    const updates: Array<{ id: string; columnOrder: string; column?: string }> = [];
+    const updates: Array<{ id: string; listOrder: string; list?: string }> = [];
 
-    if (targetColumn !== activeTask.list) {
-      // Moving to a different column
+    if (targetList !== activeTask.list) {
+      // Moving to a different list
       const targetIndex = targetTasks.findIndex((t: any) => t.id === overId);
       const insertIndex = targetIndex >= 0 ? targetIndex : targetTasks.length;
 
@@ -875,7 +875,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       let newOrder: string;
 
       if (targetTasks.length === 0) {
-        // Empty column
+        // Empty list
         newOrder = "1000";
       } else if (insertIndex === 0) {
         // Insert at beginning
@@ -898,11 +898,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
       updates.push({
         id: activeId,
-        columnOrder: newOrder,
-        list: targetColumn
+        listOrder: newOrder,
+        list: targetList
       });
     } else {
-      // Reordering within the same column
+      // Reordering within the same list
       const activeIndex = targetTasks.findIndex((t: any) => t.id === activeId);
       const overIndex = targetTasks.findIndex((t: any) => t.id === overId);
 
@@ -945,7 +945,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
           updates.push({
             id: activeId,
-            columnOrder: newOrder
+            listOrder: newOrder
           });
         } else {
           // Show message that you can't reorder across priorities
@@ -959,7 +959,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (updates.length > 0) {
       updateOrderMutation.mutate({
         projectId,
-        tasks: updates as Array<{ id: string; columnOrder: string; column?: "todo" | "doing" | "done" | "loop" }>
+        tasks: updates as Array<{ id: string; listOrder: string; list?: "todo" | "doing" | "done" | "loop" }>
       });
     }
   };
@@ -1033,7 +1033,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      list: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
+      list: newTaskList as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop list
       mode: newTask.mode as "clarify" | "plan" | "execute" | "loop" | null
     });
   };
@@ -1095,20 +1095,20 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       >
         <ScrollArea className="w-full whitespace-nowrap kanban-board-container">
           <div className="flex gap-2 sm:gap-3 md:gap-4 pb-4 px-1">
-            {columns.map((column) => {
-              const columnTasks = groupedTasks[column.id] || [];
-              const Icon = column.icon;
+            {lists.map((list) => {
+              const listTasks = groupedTasks[list.id] || [];
+              const Icon = list.icon;
 
               return (
-                <div key={column.id} className="kanban-column">
-                  <div className="bg-muted/50 rounded-lg kanban-column-content">
-                    {/* Column Header */}
+                <div key={list.id} className="kanban-list">
+                  <div className="bg-muted/50 rounded-lg kanban-list-content">
+                    {/* List Header */}
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
-                        <div className={cn("w-3 h-3 rounded-full", column.color)} />
-                        <h3 className="font-semibold">{column.label}</h3>
+                        <div className={cn("w-3 h-3 rounded-full", list.color)} />
+                        <h3 className="font-semibold">{list.label}</h3>
                         <Badge variant="secondary">
-                          {column.id === 'todo' ? todoNormalTasks.length + todoLoopTasks.length : columnTasks.length}
+                          {list.id === 'todo' ? todoNormalTasks.length + todoLoopTasks.length : listTasks.length}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-1">
@@ -1130,11 +1130,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                               return;
                             }
 
-                            setNewTaskColumn(column.id);
+                            setNewTaskList(list.id);
                             setShowNewTaskDialog(true);
                           }}
                           className="h-10 w-10 p-0 min-h-[44px] min-w-[44px] touch-manipulation hover:bg-accent focus-visible:ring-2"
-                          aria-label={`Add new task to ${column.label} column`}
+                          aria-label={`Add new task to ${list.label} list`}
                         >
                           <Plus className="h-4 w-4" />
                         </Button>
@@ -1142,8 +1142,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                     </div>
 
                     {/* Tasks */}
-                    {column.id === 'todo' ? (
-                      <TodoColumnSections
+                    {list.id === 'todo' ? (
+                      <TodoListSections
                         normalTasks={todoNormalTasks}
                         loopTasks={todoLoopTasks}
                         onTaskClick={handleTaskClick}
@@ -1155,9 +1155,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                       />
                     ) : (
                       <ScrollArea className="h-[calc(100vh-250px)] max-sm:h-[calc(100vh-200px)]">
-                        <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                        <SortableContext items={listTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
                           <div className="kanban-tasks-container">
-                            {columnTasks.map((task) => (
+                            {listTasks.map((task) => (
                               <TaskCard
                                 key={task.id}
                                 task={task}
@@ -1207,7 +1207,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           <DialogHeader className="flex-shrink-0 pb-4 max-sm:p-4 max-sm:border-b">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
-              Add a new task to the {columns.find(c => c.id === newTaskColumn)?.label} column
+              Add a new task to the {lists.find(c => c.id === newTaskList)?.label} list
               {hasDraft && (
                 <span className="text-xs text-muted-foreground block mt-1">
                   📝 Draft restored from previous session
@@ -1342,12 +1342,12 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               <div className="flex items-center gap-2">
                 <TaskModeSelector
                   mode={newTask.mode}
-                  column="doing" // Force showing mode selector in creation mode
+                  list="doing" // Force showing mode selector in creation mode
                   onModeChange={(mode) => updateDraft({ mode })}
                   size="md"
                 />
                 <span className="text-xs text-muted-foreground">
-                  Default: {newTaskColumn === 'loop' ? 'Loop' : 'clarify'}
+                  Default: {newTaskList === 'loop' ? 'Loop' : 'clarify'}
                 </span>
               </div>
             </div>

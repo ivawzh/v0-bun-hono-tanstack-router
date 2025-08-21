@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 
-interface TodoColumnSectionsProps {
+interface TodoListSectionsProps {
   normalTasks: any[];
   loopTasks: any[];
   onTaskClick: (taskId: string) => void;
@@ -24,7 +24,7 @@ interface TodoColumnSectionsProps {
   }>;
 }
 
-export function TodoColumnSections({
+export function TodoListSections({
   normalTasks,
   loopTasks,
   onTaskClick,
@@ -33,7 +33,7 @@ export function TodoColumnSections({
   onDeleteTask,
   onResetAgent,
   TaskCardComponent,
-}: TodoColumnSectionsProps) {
+}: TodoListSectionsProps) {
   const [normalSectionCollapsed, setNormalSectionCollapsed] = useState(false);
   const [loopSectionCollapsed, setLoopSectionCollapsed] = useState(true);
 

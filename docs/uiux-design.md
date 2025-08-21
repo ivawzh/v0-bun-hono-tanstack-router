@@ -4,9 +4,9 @@ This document describes the extremely simplified UI/UX for Solo Unicorn, reflect
 
 ## Board Layout
 
-### 4-Column Kanban Board
+### 4-List Kanban Board
 
-Simple, clean board with essential workflow columns including iterative Loop:
+Simple, clean board with essential workflow lists including iterative Loop:
 
 ```text
 +-------------------------------------------------------------------------------------------------------------------------------+
@@ -156,7 +156,7 @@ Click any card to open simplified drawer:
 ## Mobile Experience
 
 ### Board View
-- Horizontal scrolling columns
+- Horizontal scrolling lists
 - Swipe to navigate between Todo, Doing, Done
 - Tap card to open full-screen drawer
 
@@ -182,16 +182,16 @@ Click any card to open simplified drawer:
 7. **Done**: Task completed ✓
 
 **Loop Tasks:**
-1. **Create**: Human creates repeatable task directly in Loop column
+1. **Create**: Human creates repeatable task directly in Loop list
 2. **Pickup**: Agent picks Loop task when Todo/Doing are empty
 3. **Execute**: Task moves to Doing with stage="loop" (no clarify/Plan stages)
-4. **Return**: After completion, task returns to bottom of Loop column
+4. **Return**: After completion, task returns to bottom of Loop list
 5. **Cycle**: Process repeats infinitely ♻️
 
 ### Drag and Drop
 - Drag from Todo → Doing: Sets list to doing (if ready)
 - Drag from Doing → Done: Marks as completed (regular tasks)
-- Drag from Doing → Loop: Returns Loop task to bottom of Loop column
+- Drag from Doing → Loop: Returns Loop task to bottom of Loop list
 - Drag from Done → Todo: Reopens regular task
 - Drag from Loop → Doing: Manual execution of Loop task
 - No dragging Loop tasks to Done (infinite cycle only)
@@ -206,7 +206,7 @@ Click any card to open simplified drawer:
 All complex features removed for extreme simplification:
 
 - ❌ Blocked flag/badges
-- ❌ QA column and requirements
+- ❌ QA list and requirements
 - ❌ Ask Human button
 - ❌ Start/Pause Agent buttons
 - ❌ Comments and Questions
@@ -222,7 +222,7 @@ All complex features removed for extreme simplification:
 ## Implementation Notes
 
 ### Components (apps/web)
-- `SimplifiedBoard` - 4 columns with drag/drop (Todo, Doing, Done, Loop)
+- `SimplifiedBoard` - 4 lists with drag/drop (Todo, Doing, Done, Loop)
 - `TaskCard` - minimal card display with Loop task indicators
 - `TaskDrawer` - simplified task details
 - `CreateTaskModal` - basic task creation with Loop option
@@ -232,7 +232,7 @@ All complex features removed for extreme simplification:
 - `useProject` - project data and memory
 - `useTasks` - task CRUD and status updates
 - `useWebSocket` - real-time agent communication
-- `useDragDrop` - column movements
+- `useDragDrop` - list movements
 
 ### Mobile Considerations
 - Responsive design with horizontal scrolling
@@ -244,4 +244,4 @@ This design focuses on dual workflows:
 - **Regular tasks**: create → mark ready → agent completes → done
 - **Loop tasks**: create in Loop → agent cycles infinitely when no regular work available
 
-The Loop column ensures projects maintain continuous momentum with repeatable tasks like brainstorming, maintenance, and reviews.
+The Loop list ensures projects maintain continuous momentum with repeatable tasks like brainstorming, maintenance, and reviews.

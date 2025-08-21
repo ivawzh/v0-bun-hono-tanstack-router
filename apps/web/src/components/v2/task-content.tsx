@@ -61,7 +61,7 @@ interface TaskContentProps {
   onSaveRefinedTitle: (value: string) => Promise<void>;
   onSaveRefinedDescription: (value: string) => Promise<void>;
   onSavePlan: (value: string) => Promise<void>;
-  onColumnChange: (list: string) => void;
+  onListChange: (list: string) => void;
   onPriorityChange: (priority: string) => void;
   onModeChange: (mode: string | null) => void;
   onMainRepositoryChange: (repositoryId: string) => void;
@@ -73,7 +73,7 @@ interface TaskContentProps {
   onDeleteTask: () => void;
 }
 
-const columnOptions = [
+const listOptions = [
   { value: "todo", label: "Todo", color: "bg-slate-500" },
   { value: "doing", label: "Doing", color: "bg-blue-500" },
   { value: "done", label: "Done", color: "bg-green-500" },
@@ -94,7 +94,7 @@ export function TaskContent({
   onSaveRefinedTitle,
   onSaveRefinedDescription,
   onSavePlan,
-  onColumnChange,
+  onListChange,
   onPriorityChange,
   onModeChange,
   onMainRepositoryChange,
@@ -237,7 +237,7 @@ export function TaskContent({
                   <Label className="text-sm font-medium">Current Dependencies ({dependencyData.dependencies.length})</Label>
                   <div className="mt-2 space-y-2">
                     {dependencyData.dependencies.map((dep) => {
-                      const isCompleted = dep.column === 'done';
+                      const isCompleted = dep.list === 'done';
                       const isBlocking = !isCompleted;
 
                       return (
@@ -268,7 +268,7 @@ export function TaskContent({
                                         : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700"
                                     )}
                                   >
-                                    {dep.column}
+                                    {dep.list}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     P{dep.priority}
@@ -297,7 +297,7 @@ export function TaskContent({
               )}
 
               {/* Blocked Status Warning */}
-              {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.column !== 'done') && (
+              {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.list !== 'done') && (
                 <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                   <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
                     <Lock className="h-4 w-4" />
@@ -341,7 +341,7 @@ export function TaskContent({
                             </p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
-                                {dependent.column}
+                                {dependent.list}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
                                 P{dependent.priority}
@@ -369,7 +369,7 @@ export function TaskContent({
                         id: task.id,
                         rawTitle: task.rawTitle,
                         refinedTitle: task.refinedTitle || undefined,
-                        list: task.column as any,
+                        list: task.list as any,
                         priority: task.priority
                       }}
                       dependencies={dependencyData?.dependencies?.map(dep => ({
@@ -440,21 +440,21 @@ export function TaskContent({
           {/* V2 Enhanced Settings Tab */}
           <TabsContent value="settings" className="mt-0">
             <div className="space-y-6">
-              {/* Task Column and Priority */}
+              {/* Task List and Priority */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Task Column</CardTitle>
+                  <CardTitle className="text-sm">Task List</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label>Column</Label>
-                      <Select value={task.column} onValueChange={onColumnChange}>
+                      <Label>List</Label>
+                      <Select value={task.list} onValueChange={onListChange}>
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {columnOptions.map((option) => (
+                          {listOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
@@ -480,13 +480,13 @@ export function TaskContent({
                     </div>
                   </div>
 
-                  {task.column === "doing" && (
+                  {task.list === "doing" && (
                     <div>
                       <Label>Mode</Label>
                       <div className="mt-1">
                         <TaskModeSelector
                           mode={task.mode || null}
-                          column={task.column}
+                          list={task.list}
                           onModeChange={onModeChange}
                           size="md"
                         />

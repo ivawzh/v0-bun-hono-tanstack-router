@@ -212,7 +212,7 @@ export const projectsRouter = o.router({
         .from(actors)
         .where(eq(actors.projectId, input.id));
 
-      // Get task counts by column
+      // Get task counts by list
       const taskStats = await db
         .select({
           list: tasks.list,
@@ -228,8 +228,8 @@ export const projectsRouter = o.router({
           actors: actorCount.length,
           tasks: {
             total: taskStats.length,
-            byColumn: taskStats.reduce((acc: Record<string, number>, stat: { list: string; count: string }) => {
-              acc[stat.column] = (acc[stat.column] || 0) + 1;
+            byList: taskStats.reduce((acc: Record<string, number>, stat: { list: string; count: string }) => {
+              acc[stat.list] = (acc[stat.list] || 0) + 1;
               return acc;
             }, {} as Record<string, number>)
           }

@@ -2,7 +2,7 @@
 
 ## Vision and Goal
 
-Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-column board where agents automatically pick up and complete work.
+Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-list board where agents automatically pick up and complete work.
 
 - AI agents autonomously clarify, plan, execute and loop tasks
 - Create project, configure repo, agents, and start tasking
@@ -106,7 +106,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 ### Agent Picks Up Card
 
-Agents automatically pick up ready cards in priority order (5-1, then card order within column).
+Agents automatically pick up ready cards in priority order (5-1, then card order within list).
 
 **Stage 1: clarify**
 
@@ -132,9 +132,9 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - Make commits and push as needed
 - Move to Done when complete
 
-## Loop Column - Repeatable Tasks
+## Loop List - Repeatable Tasks
 
-The Loop column stores repeatable tasks that cycle infinitely to maintain project momentum.
+The Loop list stores repeatable tasks that cycle infinitely to maintain project momentum.
 
 **Loop Purpose:**
 - **Repeatable Tasks**: Tasks that should be executed regularly (brainstorming, maintenance, reviews)
@@ -142,9 +142,9 @@ The Loop column stores repeatable tasks that cycle infinitely to maintain projec
 - **Infinite Cycling**: Loop tasks never reach "Done" - they return to Loop after completion
 
 **Loop Workflow:**
-1. **Task Selection**: When no regular tasks available, agent picks from Loop (top of column)
+1. **Task Selection**: When no regular tasks available, agent picks from Loop (top of list)
 2. **Execution**: Loop task moves to Doing with stage="loop" (never changes stage)
-3. **Completion**: After execution, task returns to Loop (bottom of column)
+3. **Completion**: After execution, task returns to Loop (bottom of list)
 4. **Rotation**: Bottom placement ensures all Loop tasks get cycled through
 
 **Loop Task Examples:**
@@ -158,12 +158,12 @@ The Loop column stores repeatable tasks that cycle infinitely to maintain projec
 - **Regular tasks**: Todo → Doing → Done ✓
 - **Loop tasks**: Loop → Doing → Loop → Doing → Loop... (never Done)
 
-**Column Priority:**
+**List Priority:**
 1. Todo and Doing tasks (highest priority)
 2. Loop tasks (when no regular tasks available)
 3. Bottom placement after completion ensures fair rotation
 
-The Loop column ensures projects never run out of productive work while maintaining continuous improvement and innovation cycles.
+The Loop list ensures projects never run out of productive work while maintaining continuous improvement and innovation cycles.
 
 ## Data Model
 

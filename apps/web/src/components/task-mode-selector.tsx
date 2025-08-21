@@ -25,18 +25,18 @@ const modes = [
 
 export function TaskModeSelector({
   mode,
-  column,
+  list,
   onModeChange,
   disabled = false,
   size = "sm"
 }: TaskModeSelectorProps) {
   // Don't show mode selector for Done tasks or Todo tasks
-  if (column === "done" || column === "todo") {
+  if (list === "done" || list === "todo") {
     return null;
   }
 
   // For loop tasks, show read-only loop mode badge
-  if (column === "loop") {
+  if (list === "loop") {
     const loopMode = modes.find(m => m.value === "loop");
     return (
       <div className={cn(

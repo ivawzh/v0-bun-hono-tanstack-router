@@ -87,16 +87,16 @@ function registerMcpTools(server: McpServer) {
       },
     },
     async (input, { requestInfo }) => {
-      const { taskId, refinedTitle, refinedDescription, plan, column, mode, agentSessionStatus } = input;
+      const { taskId, refinedTitle, refinedDescription, plan, list, mode, agentSessionStatus } = input;
       logger.tool("task_update", "init", { input });
 
       // Prepare initial updates
-      const updates: any = { refinedTitle, refinedDescription, plan, column, mode };
+      const updates: any = { refinedTitle, refinedDescription, plan, list, mode };
 
       // Special handling for loop tasks that are marked as "done"
-      // Loop tasks should cycle to "todo" column with smart positioning for fair rotation
+      // Loop tasks should cycle to "todo" list with smart positioning for fair rotation
       let shouldHandleLoopCompletion = false;
-      if (column === "done") {
+      if (list === "done") {
         const task = await db.query.tasks.findFirst({
           where: eq(tasks.id, taskId),
         });
@@ -104,7 +104,7 @@ function registerMcpTools(server: McpServer) {
         if (task && task.mode === "loop") {
           // This is a loop task being completed, handle it specially
           shouldHandleLoopCompletion = true;
-          updates.column = "todo"; // Move to todo instead of loop for fair rotation
+          updates.list = "todo"; // Move to todo instead of loop for fair rotation
           updates.mode = "loop"; // Keep mode as loop to maintain loop task identity
         }
       }
@@ -153,10 +153,10 @@ function registerMcpTools(server: McpServer) {
 
         // Handle fair rotation for loop tasks completion
         if (shouldHandleLoopCompletion) {
-          // Get all loop tasks in the todo column (tasks with mode="loop" and column="todo")
-          // and all normal tasks in todo column (tasks with mode!="loop" and column="todo")
+          // Get all loop tasks in the todo list (tasks with mode="loop" and list="todo")
+          // and all normal tasks in todo list (tasks with mode!="loop" and list="todo")
           const todoLoopTasks = await db
-            .select({ columnOrder: tasks.listOrder })
+            .select({ listOrder: tasks.listOrder })
             .from(tasks)
             .where(
               and(
@@ -168,15 +168,15 @@ function registerMcpTools(server: McpServer) {
             .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
             .limit(1);
 
-          let newColumnOrder = "1000"; // Default if no loop tasks exist in todo
+          let newListOrder = "1000"; // Default if no loop tasks exist in todo
           if (todoLoopTasks.length > 0) {
-            // Place after the last loop task in todo column
-            const highestLoopOrder = parseFloat(todoLoopTasks[0].columnOrder);
-            newColumnOrder = (highestLoopOrder + 1000).toString();
+            // Place after the last loop task in todo list
+            const highestLoopOrder = parseFloat(todoLoopTasks[0].listOrder);
+            newListOrder = (highestLoopOrder + 1000).toString();
           } else {
             // No existing loop tasks in todo, check if there are normal tasks to place after
             const normalTodoTasks = await db
-              .select({ columnOrder: tasks.listOrder })
+              .select({ listOrder: tasks.listOrder })
               .from(tasks)
               .where(
                 and(
@@ -190,16 +190,16 @@ function registerMcpTools(server: McpServer) {
 
             if (normalTodoTasks.length > 0) {
               // Place after all normal tasks
-              const highestNormalOrder = parseFloat(normalTodoTasks[0].columnOrder);
-              newColumnOrder = (highestNormalOrder + 1000).toString();
+              const highestNormalOrder = parseFloat(normalTodoTasks[0].listOrder);
+              newListOrder = (highestNormalOrder + 1000).toString();
             }
             // else use default 1000
           }
 
-          filteredUpdates.columnOrder = newColumnOrder;
-          logger.tool("task_update", "loop_task_completion - placing in todo column after other loop tasks", {
+          filteredUpdates.listOrder = newListOrder;
+          logger.tool("task_update", "loop_task_completion - placing in todo list after other loop tasks", {
             taskId,
-            newColumnOrder,
+            newListOrder,
             todoLoopTasksCount: todoLoopTasks.length
           });
         }
@@ -486,8 +486,8 @@ function registerMcpTools(server: McpServer) {
           }
         }
 
-        // Determine task column and mode
-        const column = "todo";
+        // Determine task list and mode
+        const list = "todo";
 
         // Create the task
         const newTask = await db
@@ -503,7 +503,7 @@ function registerMcpTools(server: McpServer) {
             refinedDescription,
             plan,
             priority,
-            list: column,
+            list: list,
             mode: mode,
             author: "ai",
             ready: mode ? true : false, // AI tasks that skip clarify are automatically ready
@@ -569,7 +569,7 @@ function registerMcpTools(server: McpServer) {
           refinedTitle,
           projectId,
           createdByTaskId,
-          list: column,
+          list: list,
           mode: mode,
           author: "ai",
           inheritedAgents: parentAgents.length,

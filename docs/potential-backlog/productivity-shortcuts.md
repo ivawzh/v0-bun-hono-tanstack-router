@@ -60,7 +60,7 @@ interface TaskShortcuts {
   'Space': 'toggle-task-ready'            // Toggle ready state
   'Delete': 'delete-selected-tasks'       // Delete selected
   'Ctrl+D': 'duplicate-task'              // Duplicate current
-  'Ctrl+A': 'select-all-visible'          // Select all in column
+  'Ctrl+A': 'select-all-visible'          // Select all in list
   'Ctrl+Shift+A': 'select-all-project'    // Select all in project
 
   // Priority shortcuts
@@ -81,17 +81,17 @@ interface TaskShortcuts {
 #### Board Navigation
 ```typescript
 interface BoardShortcuts {
-  'ArrowLeft': 'previous-column'          // Focus previous column
-  'ArrowRight': 'next-column'             // Focus next column
+  'ArrowLeft': 'previous-list'          // Focus previous list
+  'ArrowRight': 'next-list'             // Focus next list
   'ArrowUp': 'previous-task'              // Focus previous task
   'ArrowDown': 'next-task'                // Focus next task
   'Tab': 'next-interactive-element'      // Standard tab navigation
   'Shift+Tab': 'previous-interactive'    // Reverse tab navigation
 
-  'Ctrl+1': 'focus-todo-column'          // Jump to Todo
-  'Ctrl+2': 'focus-doing-column'         // Jump to Doing
-  'Ctrl+3': 'focus-done-column'          // Jump to Done
-  'Ctrl+4': 'focus-loop-column'          // Jump to Loop
+  'Ctrl+1': 'focus-todo-list'          // Jump to Todo
+  'Ctrl+2': 'focus-doing-list'         // Jump to Doing
+  'Ctrl+3': 'focus-done-list'          // Jump to Done
+  'Ctrl+4': 'focus-loop-list'          // Jump to Loop
 }
 ```
 
@@ -107,7 +107,7 @@ interface TaskSelection {
   // Selection methods
   clickSelect: (taskId: string, withCtrl: boolean) => void
   rangeSelect: (fromId: string, toId: string) => void
-  selectAll: (column?: string) => void
+  selectAll: (list?: string) => void
   clearSelection: () => void
 }
 ```
@@ -123,7 +123,7 @@ Selected: 5 tasks
 
 #### Batch Operations
 - **Priority Update**: Set priority for all selected tasks
-- **Status Change**: Move multiple tasks between columns
+- **Status Change**: Move multiple tasks between lists
 - **Ready State**: Mark multiple tasks as ready/not ready
 - **Assignment**: Assign different repo agent or actor to group
 - **Archival**: Archive completed tasks in bulk

@@ -135,20 +135,20 @@ body {
 
 /* Kanban board specific styles - Clean rebuild with touch optimizations */
 @layer components {
-  /* Column layout - Responsive for mobile */
-  .kanban-column {
-    /* Mobile-first: narrower columns for better touch interaction */
+  /* List layout - Responsive for mobile */
+  .kanban-list {
+    /* Mobile-first: narrower lists for better touch interaction */
     width: 280px;
     min-width: 280px;
     max-width: 280px;
     flex-shrink: 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: list;
   }
 
-  /* Tablet and larger: wider columns */
+  /* Tablet and larger: wider lists */
   @media (min-width: 768px) {
-    .kanban-column {
+    .kanban-list {
       width: 320px;
       min-width: 320px;
       max-width: 320px;
@@ -157,38 +157,38 @@ body {
 
   /* Desktop: even wider for more content */
   @media (min-width: 1200px) {
-    .kanban-column {
+    .kanban-list {
       width: 350px;
       min-width: 350px;
       max-width: 350px;
     }
   }
 
-  .kanban-column-content {
+  .kanban-list-content {
     width: 100%;
     /* Mobile: reduced padding for smaller screens */
     padding: 0.75rem;
     box-sizing: border-box;
     display: flex;
-    flex-direction: column;
+    flex-direction: list;
   }
 
   /* Tablet and larger: standard padding */
   @media (min-width: 768px) {
-    .kanban-column-content {
+    .kanban-list-content {
       padding: 1rem;
     }
   }
 
   /* Fix ScrollArea layout issues */
-  .kanban-column [data-radix-scroll-area-viewport] {
+  .kanban-list [data-radix-scroll-area-viewport] {
     width: 100% !important;
     max-width: 100% !important;
   }
 
-  .kanban-column [data-radix-scroll-area-viewport] > div {
+  .kanban-list [data-radix-scroll-area-viewport] > div {
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: list !important;
     min-width: 0 !important;
     width: 100% !important;
     max-width: 100% !important;
@@ -197,7 +197,7 @@ body {
   /* Card container */
   .kanban-tasks-container {
     display: flex;
-    flex-direction: column;
+    flex-direction: list;
     /* Mobile: smaller gaps for more content */
     gap: 0.75rem;
     width: 100%;
@@ -220,7 +220,7 @@ body {
     box-sizing: border-box;
     overflow: hidden;
     display: flex;
-    flex-direction: column;
+    flex-direction: list;
   }
 
   /* Override all shadcn card internal layout */
@@ -232,7 +232,7 @@ body {
     max-width: 100% !important;
     box-sizing: border-box !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: list !important;
     min-width: 0 !important;
   }
 
@@ -243,7 +243,7 @@ body {
     max-width: 100% !important;
     box-sizing: border-box !important;
     display: flex !important;
-    flex-direction: column !important;
+    flex-direction: list !important;
     min-width: 0 !important;
   }
 

@@ -38,7 +38,7 @@ ${projectMemory}
 
 **What You CAN Do**:
 ✅ Research and analyze the topic
-✅ Brainstorm ideas and approaches  
+✅ Brainstorm ideas and approaches
 ✅ Create strategic plans and recommendations
 ✅ Document findings and insights
 ✅ Discuss trade-offs and considerations
@@ -84,5 +84,5 @@ You MUST create a markdown document to record your work:
 
 **Remember**: This is pure thinking work. No code, no implementation, just research, analysis, and strategic thinking. Your output should be comprehensive documentation that provides value through insights and recommendations.
 
-When complete, update your task column to "done" while maintaining mode="talk" using the MCP tool.`;
+When complete, update your task list to "done" while maintaining mode="talk" using the MCP tool.`;
 }

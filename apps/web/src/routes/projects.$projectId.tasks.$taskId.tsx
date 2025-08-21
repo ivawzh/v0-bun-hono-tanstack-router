@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { orpc } from "@/utils/orpc";
 import { TaskPopup } from "@/components/v2/task-popup";
 import { TaskContent } from "@/components/v2/task-content";
-import type { TaskV2, DependencyData } from "@/types/task";
+import type { TaskV2, DependencyData, AvailableTask } from "@/types/task";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -138,7 +138,7 @@ function TaskPage() {
   );
 
   // Transform available tasks for TypeScript compatibility
-  const availableTasks = rawAvailableTasks as TaskV2[];
+  const availableTasks = rawAvailableTasks as AvailableTask[];
 
   // Mutations (same as TaskPopup)
   const updateTaskMutation = useMutation(orpc.tasks.update.mutationOptions({
@@ -330,7 +330,7 @@ function TaskPage() {
                 <AIActivityBadge
                   ready={task.ready}
                   agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                  column={task.column}
+                  list={task.list}
                 />
                 {currentStage && (
                   <Badge variant="outline" className={currentStage.color}>
@@ -463,10 +463,10 @@ function TaskPage() {
                   });
                 });
               }}
-              onColumnChange={(column: string) => {
+              onListChange={(list: string) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
-                  column: column as 'todo' | 'doing' | 'done'
+                  list: list as 'todo' | 'doing' | 'done'
                 });
               }}
               onPriorityChange={(priority: string) => {

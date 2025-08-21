@@ -1,6 +1,6 @@
 /**
  * Shared task type definitions
- * Aligned with backend database schema after column/mode terminology migration
+ * Aligned with backend database schema after list/mode terminology migration
  */
 
 export interface Repository {
@@ -33,7 +33,7 @@ export interface TaskDependency {
   id: string;
   rawTitle: string;
   refinedTitle: string | null;
-  column: 'todo' | 'doing' | 'done' | 'loop';
+  list: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }
 
@@ -41,8 +41,8 @@ export interface TaskDependency {
 export interface AvailableTask {
   id: string;
   rawTitle: string;
-  refinedTitle?: string;
-  column: 'todo' | 'doing' | 'done' | 'loop';
+  refinedTitle?: string | null;
+  list: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }
 
@@ -53,7 +53,7 @@ export interface TaskV2 {
   rawDescription: string | null;
   refinedTitle: string | null;
   refinedDescription: string | null;
-  column: 'todo' | 'doing' | 'done' | 'loop';
+  list: 'todo' | 'doing' | 'done' | 'loop';
   mode: 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | null;
   priority: number;
   ready: boolean;

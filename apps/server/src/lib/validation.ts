@@ -5,8 +5,8 @@ export const uuidSchema = v.pipe(v.string(), v.uuid());
 export const emailSchema = v.pipe(v.string(), v.email());
 export const dateSchema = v.pipe(v.string(), v.isoDateTime());
 
-// Task related schemas (with loop column support)
-export const taskColumnSchema = v.picklist(["todo", "doing", "done", "loop"]);
+// Task related schemas (with loop list support)
+export const taskListSchema = v.picklist(["todo", "doing", "done", "loop"]);
 export const taskModeSchema = v.picklist(["clarify", "plan", "execute", "loop"]);
 
 

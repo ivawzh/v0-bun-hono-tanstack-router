@@ -18,8 +18,8 @@ The user wants to add a new "Check" stage to allow human verification before tas
 
 ## Solution Options & Ranking
 
-### Option 1: Add "Check" Column with Feedback System ⭐⭐⭐⭐⭐ (RECOMMENDED)
-**Concept:** New 5-column board: Todo → Doing → Check → Done → Loop
+### Option 1: Add "Check" List with Feedback System ⭐⭐⭐⭐⭐ (RECOMMENDED)
+**Concept:** New 5-list board: Todo → Doing → Check → Done → Loop
 
 **Pros:**
 - Clear visual separation of verification stage
@@ -35,12 +35,12 @@ The user wants to add a new "Check" stage to allow human verification before tas
 - Execute stage transitions to `check` status instead of `done`
 - Human can approve (→ done) or reject with feedback (→ doing/clarify)
 
-### Option 2: Add "Check" as Sub-Stage within "Done" Column ⭐⭐⭐
-**Concept:** Keep 4 columns, add checking state within Done column
+### Option 2: Add "Check" as Sub-Stage within "Done" List ⭐⭐⭐
+**Concept:** Keep 4 lists, add checking state within Done list
 
 **Pros:**
 - Minimal UI changes
-- Preserves current column structure
+- Preserves current list structure
 
 **Cons:**
 - Confusing UX - tasks appear "done" but aren't
@@ -51,7 +51,7 @@ The user wants to add a new "Check" stage to allow human verification before tas
 **Concept:** Pop-up verification modal when tasks complete
 
 **Pros:**
-- No column changes needed
+- No list changes needed
 - Quick verification workflow
 
 **Cons:**
@@ -59,7 +59,7 @@ The user wants to add a new "Check" stage to allow human verification before tas
 - Poor discoverability
 - Not great for batch verification
 
-## Recommended Solution: Option 1 - "Check" Column
+## Recommended Solution: Option 1 - "Check" List
 
 ### UX Design
 ```
@@ -68,7 +68,7 @@ Todo | Doing | Check | Done | Loop
      |       | [❌]  |      |
 ```
 
-**Check Column Features:**
+**Check List Features:**
 - Tasks show implementation results summary
 - Human can click ✓ (approve → done) or ❌ (reject with feedback)
 - Feedback modal for rejection with specific issues
@@ -117,8 +117,8 @@ New execute prompt step 4:
 ```
 
 #### New Check Stage Logic
-1. Agent completes execute stage → task moves to Check column
-2. Human reviews work in Check column
+1. Agent completes execute stage → task moves to Check list
+2. Human reviews work in Check list
 3. Human decides:
    - **Approve**: Click ✓ → status="done", stage=null
    - **Reject**: Click ❌ → modal for feedback → status="doing", stage="clarify", add to feedbackHistory
@@ -130,8 +130,8 @@ New execute prompt step 4:
 
 ### UI Components Needed
 
-#### 1. Check Column Component
-- New column in kanban board
+#### 1. Check List Component
+- New list in kanban board
 - Show tasks awaiting verification
 - Approve/reject buttons on each card
 
@@ -165,12 +165,12 @@ New execute prompt step 4:
 - For AI to provide work summary to human
 - Self-assessment of implementation quality
 
-### Todo Column Split (Secondary Feature)
+### Todo List Split (Secondary Feature)
 
 **Recommendation:** Handle in separate task as suggested. Quick concept:
 
 ```
-Todo Column Layout:
+Todo List Layout:
 ┌─ Normal Tasks (collapsible) ─┐
 │ [P1] Feature A               │
 │ [P2] Bug fix B               │
@@ -186,7 +186,7 @@ Todo Column Layout:
 ### Phase 1: Core Check Stage
 1. Database schema updates
 2. Backend API changes
-3. Basic Check column UI
+3. Basic Check list UI
 4. Modified execute prompt
 
 ### Phase 2: Feedback System

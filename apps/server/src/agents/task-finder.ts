@@ -45,7 +45,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
             .where(
               and(
                 eq(schema.taskDependencies.taskId, schema.tasks.id),
-                ne((schema.tasks as any).column, 'done')
+                ne((schema.tasks as any).list, 'done')
               )
             )
         ),
@@ -89,8 +89,8 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
         WHEN ${schema.tasks.list} = 'todo' THEN 2
         WHEN ${schema.tasks.list} = 'loop' THEN 1
         ELSE 0
-      END DESC`, // Column weight: doing > todo > loop
-      asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
+      END DESC`, // List weight: doing > todo > loop
+      asc(sql`CAST(${schema.tasks.listOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )
     .limit(1);
