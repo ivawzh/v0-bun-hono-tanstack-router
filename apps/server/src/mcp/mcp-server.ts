@@ -94,7 +94,7 @@ function registerMcpTools(server: McpServer) {
       const updates: any = { refinedTitle, refinedDescription, plan, column, mode };
 
       // Special handling for loop tasks that are marked as "done"
-      // Loop tasks should cycle to "todo" status with smart positioning for fair rotation
+      // Loop tasks should cycle to "todo" column with smart positioning for fair rotation
       let shouldHandleLoopCompletion = false;
       if (column === "done") {
         const task = await db.query.tasks.findFirst({
@@ -153,8 +153,8 @@ function registerMcpTools(server: McpServer) {
 
         // Handle fair rotation for loop tasks completion
         if (shouldHandleLoopCompletion) {
-          // Get all loop tasks in the todo column (tasks with stage="loop" and status="todo")
-          // and all normal tasks in todo column (tasks with stage!="loop" and status="todo")
+          // Get all loop tasks in the todo column (tasks with mode="loop" and column="todo")
+          // and all normal tasks in todo column (tasks with mode!="loop" and column="todo")
           const todoLoopTasks = await db
             .select({ columnOrder: tasks.columnOrder })
             .from(tasks)
@@ -486,7 +486,7 @@ function registerMcpTools(server: McpServer) {
           }
         }
 
-        // Determine task status and stage
+        // Determine task column and mode
         const column = "todo";
 
         // Create the task

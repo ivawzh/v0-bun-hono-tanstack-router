@@ -16,14 +16,14 @@ interface TaskDraft {
   assignedAgentIds: string[]
   actorId: string
   attachments: AttachmentFile[]
-  stage: string | null
+  mode: string | null
 }
 
 const STORAGE_KEY = 'solo-unicorn-task-draft'
 const DEBOUNCE_DELAY = 500
 
-// Helper function to get default stage based on column
-function getDefaultStage(column?: string): string | null {
+// Helper function to get default mode based on column
+function getDefaultMode(column?: string): string | null {
   if (column === 'loop') {
     return 'loop'
   }
@@ -40,7 +40,7 @@ export function useTaskDraft(defaultColumn?: string) {
     assignedAgentIds: [],
     actorId: '__default__',
     attachments: [],
-    stage: getDefaultStage(defaultColumn)
+    mode: getDefaultMode(defaultColumn)
   })
   const [hasDraft, setHasDraft] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -51,9 +51,9 @@ export function useTaskDraft(defaultColumn?: string) {
       const stored = localStorage.getItem(STORAGE_KEY)
       if (stored) {
         const parsedDraft = JSON.parse(stored)
-        // Ensure stage is set if missing from stored draft
-        if (!parsedDraft.stage) {
-          parsedDraft.stage = getDefaultStage(defaultColumn)
+        // Ensure mode is set if missing from stored draft
+        if (!parsedDraft.mode) {
+          parsedDraft.mode = getDefaultMode(defaultColumn)
         }
         setDraft(parsedDraft)
         setHasDraft(true)
@@ -102,12 +102,12 @@ export function useTaskDraft(defaultColumn?: string) {
     })
   }, [saveDraft])
 
-  // Update stage when defaultColumn changes
+  // Update mode when defaultColumn changes
   useEffect(() => {
     setDraft(currentDraft => {
-      const newStage = getDefaultStage(defaultColumn)
-      if (currentDraft.stage !== newStage) {
-        const newDraft = { ...currentDraft, stage: newStage }
+      const newMode = getDefaultMode(defaultColumn)
+      if (currentDraft.mode !== newMode) {
+        const newDraft = { ...currentDraft, mode: newMode }
         saveDraft(newDraft)
         return newDraft
       }
@@ -137,7 +137,7 @@ export function useTaskDraft(defaultColumn?: string) {
       assignedAgentIds: [],
       actorId: '__default__',
       attachments: [],
-      stage: getDefaultStage(defaultColumn)
+      mode: getDefaultMode(defaultColumn)
     })
     setHasDraft(false)
   }, [defaultColumn])

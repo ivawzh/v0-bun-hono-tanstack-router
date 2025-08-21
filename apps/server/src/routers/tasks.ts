@@ -1237,7 +1237,7 @@ export const tasksRouter = o.router({
           id: tasks.id,
           rawTitle: tasks.rawTitle,
           refinedTitle: tasks.refinedTitle,
-          status: tasks.column,
+          column: tasks.column,
           priority: tasks.priority
         })
         .from(tasks)
