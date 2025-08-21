@@ -100,7 +100,11 @@ const stageColors = {
 
 // Helper function to check if task is stuck (1+ minutes of AI working)
 function isTaskStuck(task: any): boolean {
-  if (task.agentSessionStatus !== 'ACTIVE' || !task.lastAgentSessionStartedAt) {
+  if (task.agentSessionStatus !== 'ACTIVE' && task.agentSessionStatus !== 'PUSHING') {
+    return false;
+  }
+  
+  if (!task.lastAgentSessionStartedAt) {
     return false;
   }
 
@@ -113,7 +117,11 @@ function isTaskStuck(task: any): boolean {
 
 // Helper function to get reset button tooltip text
 function getResetButtonTooltip(task: any): string {
-  if (task.agentSessionStatus !== 'ACTIVE' || !task.lastAgentSessionStartedAt) {
+  if (task.agentSessionStatus !== 'ACTIVE' && task.agentSessionStatus !== 'PUSHING') {
+    return "Only available when AI is working on this task";
+  }
+  
+  if (!task.lastAgentSessionStartedAt) {
     return "Only available when AI is working on this task";
   }
 
