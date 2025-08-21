@@ -52,6 +52,7 @@ import { AttachmentDropzone } from "@/components/attachment-dropzone";
 import { DeleteTaskDialog } from "@/components/delete-task-dialog";
 import { ResetAgentModal } from "@/components/reset-agent-modal";
 import { TodoColumnSections } from "@/components/todo-column-sections";
+import { TaskPopup } from "@/components/v2/task-popup";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
@@ -450,6 +451,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
   const [resetTaskId, setResetTaskId] = useState<string | null>(null);
   const [taskToReset, setTaskToReset] = useState<any>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [showTaskPopup, setShowTaskPopup] = useState(false);
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
 
@@ -962,14 +965,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleTaskClick = (taskId: string) => {
-    // Navigate to dedicated task page with popup mode based on screen size
-    const shouldUsePopup = typeof window !== 'undefined' && window.innerWidth < 768;
-    
-    router.navigate({
-      to: "/projects/$projectId/tasks/$taskId",
-      params: { projectId, taskId },
-      search: shouldUsePopup ? { popup: true } : {},
-    });
+    setSelectedTaskId(taskId);
+    setShowTaskPopup(true);
+  };
+
+  const handleCloseTaskPopup = () => {
+    setShowTaskPopup(false);
+    setSelectedTaskId(null);
   };
 
   const handleToggleReady = (taskId: string, ready: boolean) => {
@@ -1420,6 +1422,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         taskTitle={taskToReset?.refinedTitle || taskToReset?.rawTitle || ""}
         onConfirm={handleConfirmReset}
         loading={resetAgentMutation.isPending}
+      />
+
+      {/* Task Popup */}
+      <TaskPopup
+        taskId={selectedTaskId}
+        open={showTaskPopup}
+        onOpenChange={handleCloseTaskPopup}
       />
     </div>
   );
