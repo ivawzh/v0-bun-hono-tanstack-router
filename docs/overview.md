@@ -2,9 +2,9 @@
 
 ## Vision and Goal
 
-Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-list board where agents automatically pick up and complete work.
+Build a minimal, local-first task management system for dispatching coding cards to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage cards through a simple 4-list board where agents automatically pick up and complete work.
 
-- AI agents autonomously clarify, plan, execute and loop tasks
+- AI agents autonomously clarify, plan, execute and loop cards
 - Create project, configure repo, agents, and start tasking
 
 ## Tech stack
@@ -50,29 +50,29 @@ Build a minimal, local-first task management system for dispatching coding tasks
 ### Repo
 
 - Repo path is a directory on the filesystem.
-- `maxConcurrencyLimit`: 0 = limitless, >0 = max concurrent tasks per repository
+- `maxConcurrencyLimit`: 0 = limitless, >0 = max concurrent cards per repository
 - `lastTaskPushedAt` to avoid spamming
 
 ## Agent
 
 - The only agent type is Claude Code
-- `maxConcurrencyLimit`: 0 = limitless (default), >0 = max concurrent tasks per agent
+- `maxConcurrencyLimit`: 0 = limitless (default), >0 = max concurrent cards per agent
 - `lastTaskPushedAt` to avoid spamming
-- `agentSettings` to store fields like CLAUDE_CONFIG_DIR. CLAUDE_CONFIG_DIR basically represents Claude Code account, so that we can switch agent (i.e. Claude Code account) while one agent is rate limited. This is also why task can have multiple agents assigned.
+- `agentSettings` to store fields like CLAUDE_CONFIG_DIR. CLAUDE_CONFIG_DIR basically represents Claude Code account, so that we can switch agent (i.e. Claude Code account) while one agent is rate limited. This is also why card can have multiple agents assigned.
 
 ### Actor
 
 - Basically LLM character card, that is injected into agent prompt
 - Describes agent mindset, principles, focus, methodology, values
-- Not bound to repo or agent - assigned per task
+- Not bound to repo or agent - assigned per card
 - Default Actor for unspecified tasks
 
 ### Task (Card)
 
 - `ready` checkbox to mark ready for AI pickup
 - `mode` controls what prompt to use. Eventually, we might allow user to create and modify mode and prompt.
-- **Regular tasks**: Todo → Doing → Done
-- **Loop tasks**: Loop → Doing → Loop (infinite cycle)
+- **Regular cards**: Todo → Doing → Done
+- **Loop cards**: Loop → Doing → Loop (infinite cycle)
 - Doing has 3 modes: clarify → Plan → Execute
 - Loop has 1 mode: loop (never changes)
 - Must have repo(s) and agent(s) assigned
@@ -122,7 +122,7 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 - Write spec
 - Step breakdown
 - Evaluate size and complexity.
-  - If it's too big, split it into smaller tasks. Move this task to Done.
+  - If it's too big, split it into smaller cards. Move this card to Done.
   - If not too big, store plan (final solution, spec, step breakdown) in card's `plan` field.
 - Interaction via MCP
 
@@ -134,20 +134,20 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 
 ## Loop List - Repeatable Tasks
 
-The Loop list stores repeatable tasks that cycle infinitely to maintain project momentum.
+The Loop column stores repeatable cards that cycle infinitely to maintain project momentum.
 
 **Loop Purpose:**
-- **Repeatable Tasks**: Tasks that should be executed regularly (brainstorming, maintenance, reviews)
+- **Repeatable Cards**: Cards that should be executed regularly (brainstorming, maintenance, reviews)
 - **Project Continuity**: When Todo and Doing are empty, agents pick from Loop
-- **Infinite Cycling**: Loop tasks never reach "Done" - they return to Loop after completion
+- **Infinite Cycling**: Loop cards never reach "Done" - they return to Loop after completion
 
 **Loop Workflow:**
-1. **Task Selection**: When no regular tasks available, agent picks from Loop (top of list)
-2. **Execution**: Loop task moves to Doing with mode="loop" (never changes mode)
-3. **Completion**: After execution, task returns to Loop (bottom of list)
-4. **Rotation**: Bottom placement ensures all Loop tasks get cycled through
+1. **Card Selection**: When no regular cards available, agent picks from Loop (top of list)
+2. **Execution**: Loop card moves to Doing with mode="loop" (never changes mode)
+3. **Completion**: After execution, card returns to Loop (bottom of list)
+4. **Rotation**: Bottom placement ensures all Loop cards get cycled through
 
-**Loop Task Examples:**
+**Loop Card Examples:
 - "Brainstorm new feature ideas. Document in wiki."
 - "Review and refactor old code for improvements."
 - "Update project documentation and README."
@@ -155,12 +155,12 @@ The Loop list stores repeatable tasks that cycle infinitely to maintain project 
 - "Run comprehensive project health checks."
 
 **Infinite Cycling Logic:**
-- **Regular tasks**: Todo → Doing → Done ✓
-- **Loop tasks**: Loop → Doing → Loop → Doing → Loop... (never Done)
+- **Regular cards**: Todo → Doing → Done ✓
+- **Loop cards**: Loop → Doing → Loop → Doing → Loop... (never Done)
 
 **List Priority:**
-1. Todo and Doing tasks (highest priority)
-2. Loop tasks (when no regular tasks available)
+1. Todo and Doing cards (highest priority)
+2. Loop cards (when no regular cards available)
 3. Bottom placement after completion ensures fair rotation
 
 The Loop list ensures projects never run out of productive work while maintaining continuous improvement and innovation cycles.
@@ -173,12 +173,12 @@ erDiagram
     ProjectUsers }o--|| Projects : access_to
     Users ||--o{ Agents : owns
     Projects ||--o{ Repositories : defines
-    Projects ||--o{ Tasks : contains
+    Projects ||--o{ Cards : contains
     Projects ||--o{ Actors : contains
-    Agents ||--o{ Tasks : assigned_to
-    Repositories ||--o{ Tasks : main_repo
-    Repositories ||--o{ TaskRepositories : additional_repos
-    Tasks ||--o{ TaskRepositories : uses_repos
+    Agents ||--o{ Cards : assigned_to
+    Repositories ||--o{ Cards : main_repo
+    Repositories ||--o{ CardRepositories : additional_repos
+    Cards ||--o{ CardRepositories : uses_repos
 ```
 
 ## Server-to-Agent Communication
@@ -189,31 +189,31 @@ Solo Unicorn invokes Claude Code via its SDK:
 
 - **Environment Variables**: Each spawned process gets task-specific environment variables (`SOLO_UNICORN_TASK_ID`, `SOLO_UNICORN_AGENT_ID`,  etc.)
 - **Working Directory**: Processes are spawned in the repository's working directory
-- **Rate Limit Hook**: Read session result and detect if Claude Code hits rate limits. If so, update agent and tasks status.
+- **Rate Limit Hook**: Read session result and detect if Claude Code hits rate limits. If so, update agent and cards status.
 
 ### Claude Code Hook System
 
 Hook scripts track session lifecycle and maintain synchronization:
 
-- **Session Start Hook**: Called when Claude Code session begins. Update task agent session info and maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
-- **Session End Hook**: Called when Claude Code session completes. Update task agent session info and maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
+- **Session Start Hook**: Called when Claude Code session begins. Update card agent session info and maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
+- **Session End Hook**: Called when Claude Code session completes. Update card agent session info and maintain active/completed session IDs in JSON files at `~/.solo-unicorn/sessions/`
 
 ### Solo Unicorn MCP Server
 
 Claude Code communicates back via MCP tools embedded in prompts:
 
-- **Task Updates**: `mcp__solo-unicorn__task_update` - Update task status, refined title/description, plan
-- **Task Creation**: `mcp__solo-unicorn__task_create` - Create new tasks during execution
+- **Card Updates**: `mcp__solo-unicorn__task_update` - Update card status, refined title/description, plan
+- **Card Creation**: `mcp__solo-unicorn__task_create` - Create new cards during execution
 - **Project Memory**: `mcp__solo-unicorn__project_memory_update` - Update shared project context
 
 ### Synchronization Strategy
 
-Solo Unicorn maintains task status synchronization through multiple channels:
+Solo Unicorn maintains card status synchronization through multiple channels:
 
 1. **Database State**: Primary source of truth with `agentSessionStatus` (INACTIVE/PUSHING/ACTIVE)
 2. **File Registry**: Session data persisted in `~/.solo-unicorn/sessions/` JSON files
 3. **HTTP Callbacks**: Real-time status updates from hook scripts
-4. **MCP Tools**: Task updates from within Claude Code sessions
+4. **MCP Tools**: Card updates from within Claude Code sessions
 5. **Monitoring System**: Periodic orphan detection and recovery
 
 ### Claude Code UI

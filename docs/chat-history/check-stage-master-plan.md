@@ -2,24 +2,24 @@
 
 ## Analysis Summary
 
-The user wants to add a new "Check" mode to allow human verification before tasks are marked as done. This is about adding a quality control step where humans can review AI work and provide feedback for iterations.
+The user wants to add a new "Check" mode to allow human verification before cards are marked as done. This is about adding a quality control step where humans can review AI work and provide feedback for iterations.
 
 ## Current Architecture Analysis
 
-**Current Task Lifecycle:**
-- Status: `todo` → `doing` → `done` / `loop`
-- Modes: `clarify` → `plan` → `execute` (for regular tasks) / `loop` (for loop tasks)
+**Current Card Lifecycle:**
+- Column: `todo` → `doing` → `done` / `loop`
+- Modes: `clarify` → `plan` → `execute` (for regular cards) / `loop` (for loop cards)
 - Execute mode currently transitions directly to `done` status
 
 **Current Database Schema:**
-- `status`: enum `["todo", "doing", "done", "loop"]`
+- `list`: enum `["todo", "doing", "done", "loop"]`
 - `mode`: enum `["clarify", "plan", "execute", "loop"]`
 - Feedback storage: No current mechanism for human feedback/iterations
 
 ## Solution Options & Ranking
 
-### Option 1: Add "Check" List with Feedback System ⭐⭐⭐⭐⭐ (RECOMMENDED)
-**Concept:** New 5-list board: Todo → Doing → Check → Done → Loop
+### Option 1: Add "Check" Column with Feedback System ⭐⭐⭐⭐⭐ (RECOMMENDED)
+**Concept:** New 5-column board: Todo → Doing → Check → Done → Loop
 
 **Pros:**
 - Clear visual separation of verification mode
@@ -29,21 +29,21 @@ The user wants to add a new "Check" mode to allow human verification before task
 - Scalable feedback system
 
 **Implementation:**
-- Add `check` to status enum
+- Add `check` to list enum
 - Add `check` to mode enum
 - Add `feedbackHistory` jsonb field for iteration tracking
-- Execute mode transitions to `check` status instead of `done`
+- Execute mode transitions to `check` column instead of `done`
 - Human can approve (→ done) or reject with feedback (→ doing/clarify)
 
-### Option 2: Add "Check" as Sub-Mode within "Done" List ⭐⭐⭐
-**Concept:** Keep 4 lists, add checking state within Done list
+### Option 2: Add "Check" as Sub-Mode within "Done" Column ⭐⭐⭐
+**Concept:** Keep 4 columns, add checking state within Done column
 
 **Pros:**
 - Minimal UI changes
-- Preserves current list structure
+- Preserves current column structure
 
 **Cons:**
-- Confusing UX - tasks appear "done" but aren't
+- Confusing UX - cards appear "done" but aren't
 - Less clear what needs human attention
 - Harder to track verification workload
 

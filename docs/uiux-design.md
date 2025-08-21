@@ -4,24 +4,24 @@ This document describes the extremely simplified UI/UX for Solo Unicorn, reflect
 
 ## Board Layout
 
-### 4-List Kanban Board
+### 4-Column Kanban Board
 
-Simple, clean board with essential workflow lists including iterative Loop:
+Simple, clean board with essential workflow columns including iterative Loop:
 
 ```text
 +-------------------------------------------------------------------------------------------------------------------------------+
-| Solo Unicorn | Project: My App [▼] | + New Task | Repo Agents: Claude Code (active) | Profile |
+| Solo Unicorn | Project: My App [▼] | + New Card | Repo Agents: Claude Code (active) | Profile |
 +-------------------------------------------------------------------------------------------------------------------------------+
 |  Todo                   |  Doing                  |  Done                   |  Loop                   |
 |  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|
-|  | [P1] Task A         ||  | [P2] Task C (clarify)||  | [P3] Task E         ||  | [∞] Brainstorm      ||
+|  | [P1] Card A         ||  | [P2] Card C (clarify)||  | [P3] Card E         ||  | [∞] Brainstorm      ||
 |  | Main Repo (Claude)  ||  | Main Repo (Claude)  ||  | Frontend (OpenCode) ||  | ideas & document    ||
 |  | Default Actor       ||  | Custom Actor        ||  | Default Actor       ||  | Main Repo (Claude)  ||
 |  | Ready [☑]   📎2     ||  | Mode: clarify ●○○   ||  | Completed 2h ago    ||  | Mode: loop ♻️      ||
 |  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||
 |  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|
 |  ┌─────────────────────┐|  ┌─────────────────────┐|                         |  ┌─────────────────────┐|
-|  | [P1] Task B         ||  | [∞] Code review &   ||                         ||  | [∞] Update docs     ||
+|  | [P1] Card B         ||  | [∞] Code review &   ||                         ||  | [∞] Update docs     ||
 |  | Main Repo (Claude)  ||  | refactoring         ||                         ||  | & README            ||
 |  | Ready [☐]           ||  | Mode: loop ♻️      ||                         ||  | Main Repo (Claude)  ||
 |  | [Delete]            ||  | [Delete]            ||                         ||  | Mode: loop ♻️      ||
@@ -55,20 +55,20 @@ Simple, clean board with essential workflow lists including iterative Loop:
 
 **Loop Cards:**
 - Infinity symbol [∞] indicating repeatable nature
-- Title and description of repeatable task
+- Title and description of repeatable card
 - Repo Agent and Actor
 - Mode: loop ♻️ (never changes)
 - Delete button (removes from Loop entirely)
 
-## Task Creation Flow
+## Card Creation Flow
 
-### 1. Click "+ New Task"
+### 1. Click "+ New Card"
 
 Simple modal with minimal fields:
 
 ```text
 +----------------------------------+
-| Create New Task                  |
+| Create New Card                  |
 +----------------------------------+
 | Title: [........................] |
 | Description (optional):          |
@@ -86,16 +86,16 @@ Simple modal with minimal fields:
 
 ### 2. Mark Ready When Ready
 
-After creating task, human ticks "Ready" checkbox when ready for AI pickup.
+After creating card, human ticks "Ready" checkbox when ready for AI pickup.
 
-## Task Drawer (Simplified)
+## Card Drawer (Simplified)
 
 Click any card to open simplified drawer:
 
 ```text
-+-------------------------------------------------------- Task Drawer ----------------------+
-| TASK-123: Implement user authentication                                           [×]   |
-| Status: Doing • Mode: Execute • Priority: P1                                            |
++-------------------------------------------------------- Card Drawer ----------------------+
+| CARD-123: Implement user authentication                                           [×]   |
+| Column: Doing • Mode: Execute • Priority: P1                                            |
 | Repo Agent: Main Repo (Claude Code) • Actor: Default Actor                               |
 +-------------------------------------------------------------------------------------------+
 | Raw Information                                                                           |
@@ -107,7 +107,7 @@ Click any card to open simplified drawer:
 | Title: Implement user authentication with email/password                                 |
 | Description: Create login page, authentication service, and session management          |
 +-------------------------------------------------------------------------------------------+
-| Plan (Agent Generated - Kickoff Results)                                                 |
+| Plan (Agent Generated - Plan Results)                                                    |
 | Selected Solution: OAuth + JWT tokens                                                    |
 | Spec: Implement Google OAuth integration with JWT tokens for session management.        |
 | Use secure HTTP-only cookies, redirect to dashboard on success.                         |
@@ -116,7 +116,7 @@ Click any card to open simplified drawer:
 | [View/Edit Project Memory] - includes context for all agent sessions                     |
 +-------------------------------------------------------------------------------------------+
 | Actions                                                                                   |
-| [Mark as Done] [Delete Task] [Open in Claude Code] (if session active)                  |
+| [Mark as Done] [Delete Card] [Open in Claude Code] (if session active)                  |
 +-------------------------------------------------------------------------------------------+
 ```
 
@@ -157,44 +157,44 @@ Click any card to open simplified drawer:
 
 ### Board View
 - Horizontal scrolling lists
-- Swipe to navigate between Todo, Doing, Done
+- Swipe to navigate between Todo, Doing, Done columns
 - Tap card to open full-screen drawer
 
-### Task Creation
+### Card Creation
 - Full-screen modal with simplified form
 - Voice input support for title/description
 
-### Task Drawer
+### Card Drawer
 - Full-screen view with same information
 - Bottom action bar for primary actions
 
 ## Key Interactions
 
-### Task Lifecycle
+### Card Lifecycle
 
-**Regular Tasks:**
-1. **Create**: Human creates task with raw title/description
-2. **Ready**: Human marks task ready when prepared
-3. **Pickup**: Agent automatically picks up highest priority ready task
+**Regular Cards:**
+1. **Create**: Human creates card with raw title/description
+2. **Ready**: Human marks card ready when prepared
+3. **Pickup**: Agent automatically picks up highest priority ready card
 4. **clarify**: Agent updates with refined title/description
 5. **Plan**: Agent creates solution options and plan
 6. **Execute**: Agent implements the plan
-7. **Done**: Task completed ✓
+7. **Done**: Card completed ✓
 
-**Loop Tasks:**
-1. **Create**: Human creates repeatable task directly in Loop list
-2. **Pickup**: Agent picks Loop task when Todo/Doing are empty
-3. **Execute**: Task moves to Doing with mode="loop" (no clarify/Plan modes)
-4. **Return**: After completion, task returns to bottom of Loop list
+**Loop Cards:**
+1. **Create**: Human creates repeatable card directly in Loop column
+2. **Pickup**: Agent picks Loop card when Todo/Doing are empty
+3. **Execute**: Card moves to Doing with mode="loop" (no clarify/Plan modes)
+4. **Return**: After completion, card returns to bottom of Loop column
 5. **Cycle**: Process repeats infinitely ♻️
 
 ### Drag and Drop
-- Drag from Todo → Doing: Sets list to doing (if ready)
-- Drag from Doing → Done: Marks as completed (regular tasks)
-- Drag from Doing → Loop: Returns Loop task to bottom of Loop list
-- Drag from Done → Todo: Reopens regular task
-- Drag from Loop → Doing: Manual execution of Loop task
-- No dragging Loop tasks to Done (infinite cycle only)
+- Drag from Todo → Doing: Sets column to doing (if ready)
+- Drag from Doing → Done: Marks as completed (regular cards)
+- Drag from Doing → Loop: Returns Loop card to bottom of Loop column
+- Drag from Done → Todo: Reopens regular card
+- Drag from Loop → Doing: Manual execution of Loop card
+- No dragging Loop cards to Done (infinite cycle only)
 
 ### Agent Status
 - Header shows active repo agent sessions
@@ -222,17 +222,17 @@ All complex features removed for extreme simplification:
 ## Implementation Notes
 
 ### Components (apps/web)
-- `SimplifiedBoard` - 4 lists with drag/drop (Todo, Doing, Done, Loop)
-- `TaskCard` - minimal card display with Loop task indicators
-- `TaskDrawer` - simplified task details
-- `CreateTaskModal` - basic task creation with Loop option
+- `SimplifiedBoard` - 4 columns with drag/drop (Todo, Doing, Done, Loop)
+- `TaskCard` - minimal card display with Loop card indicators
+- `TaskDrawer` - simplified card details
+- `CreateTaskModal` - basic card creation with Loop option
 - `ProjectSettings` - repo agents and actors config
 
 ### State Management
 - `useProject` - project data and memory
-- `useTasks` - task CRUD and status updates
+- `useTasks` - card CRUD and status updates
 - `useWebSocket` - real-time agent communication
-- `useDragDrop` - list movements
+- `useDragDrop` - column movements
 
 ### Mobile Considerations
 - Responsive design with horizontal scrolling
@@ -241,7 +241,7 @@ All complex features removed for extreme simplification:
 - Simplified navigation
 
 This design focuses on dual workflows:
-- **Regular tasks**: create → mark ready → agent completes → done
-- **Loop tasks**: create in Loop → agent cycles infinitely when no regular work available
+- **Regular cards**: create → mark ready → agent completes → done
+- **Loop cards**: create in Loop → agent cycles infinitely when no regular work available
 
-The Loop list ensures projects maintain continuous momentum with repeatable tasks like brainstorming, maintenance, and reviews.
+The Loop column ensures projects maintain continuous momentum with repeatable cards like brainstorming, maintenance, and reviews.

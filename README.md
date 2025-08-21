@@ -1,15 +1,15 @@
 # Solo Unicorn 🦄
 
-Solo Unicorn is a AI agent task management system, basically Trello for AI tasks. Auto queuing, processing, recursive creation of tasks.
+Solo Unicorn is a AI agent card management system, basically Trello for AI cards. Auto queuing, processing, recursive creation of cards.
 
-A powerful web-based, agent-tasked workflow application with a Kanban-like GUI for creating and dispatching coding tasks to AI agents. Built for solo developers who want to leverage AI to accelerate their development workflow.
+A powerful web-based, agent-tasked workflow application with a Kanban-like GUI for creating and dispatching coding cards to AI agents. Built for solo developers who want to leverage AI to accelerate their development workflow.
 
 ## 🚀 Features
 
 ### Core Functionality
 
 - **Project & Board Management**: Organize work across multiple projects with Kanban boards
-- **Task Lifecycle Management**: Full task tracking from plan → spec → design → dev → qa → done
+- **Card Lifecycle Management**: Full card tracking from plan → spec → design → dev → qa → done
 - **AI Agent Integration**: Connect Windows PC or cloud-based AI agents to execute tasks
 - **Real-time Collaboration**: Human-in-the-loop controls with pause/resume and Q&A
 - **Voice Input**: Speech-to-text using OpenAI Whisper API for hands-free input
@@ -148,16 +148,16 @@ See the [Public Hosting Guide](docs/hosting.md) for complete setup instructions 
 1. **Sign Up/Login**: Create an account using email and password
 2. **Create a Project**: Click "New Project" and give it a name
 3. **Add a Board**: Each project can have multiple boards for different workflows
-4. **Create Tasks**: Add tasks to your board and organize them by list
+4. **Create Cards**: Add cards to your board and organize them by column
 
-### Working with Tasks
+### Working with Cards
 
-Tasks have two dimensions:
+Cards have two dimensions:
 
-- **Status**: Todo → In Progress → Blocked → Paused → Done
+- **Column**: Todo → In Progress → Blocked → Paused → Done
 - **Mode**: Kickoff → Spec → Design → Dev → QA → Done
 
-Each task includes:
+Each card includes:
 
 - Description (Markdown supported)
 - Priority (0-10)
@@ -173,10 +173,10 @@ Each task includes:
 
 The `CLAUDE_CODE_UI_AUTH_TOKEN` is a shared secret that authenticates AI agents (like Claude Code, Windsurf, or custom agents) when they connect to your Solo Unicorn instance. This ensures only authorized agents can:
 
-- Retrieve tasks assigned to them
+- Retrieve cards assigned to them
 - Submit work artifacts and logs
 - Ask questions and receive answers
-- Update task list
+- Update card column
 
 #### Setting Up Claude Code with MCP
 
@@ -346,20 +346,20 @@ Task hooks trigger actions on mode changes:
 POST /agent/register
 Authorization: Bearer <CLAUDE_CODE_UI_AUTH_TOKEN>
 
-# Claim a task
+# Claim a card
 POST /agent/tasks/claim
 
 # Report progress
 POST /agent/sessions/:sessionId/progress
 
-# Complete task
+# Complete card
 POST /agent/sessions/:sessionId/complete
 ```
 
 ### MCP Server Namespaces
 
 - `context.*` - Read project/board/task data
-- `cards.*` - Manipulate tasks
+- `cards.*` - Manipulate cards
 - `events.*` - Subscribe to events
 
 ## 🔒 Security
@@ -425,8 +425,8 @@ E2E tests cover:
 
 - **Authentication**: Login flow, OAuth callback, protected routes
 - **Projects**: CRUD operations, navigation
-- **Tasks**: Board management, drag-and-drop, task updates
-- **Agent Gateway**: Registration, task claiming, progress reporting
+- **Cards**: Board management, drag-and-drop, card updates
+- **Agent Gateway**: Registration, card claiming, progress reporting
 
 #### Writing New Tests
 

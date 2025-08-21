@@ -1,19 +1,19 @@
-# Quick Task Creation Magic
+# Quick Card Creation Magic
 
 ## Overview
 
-Transform task creation from a multi-step dialog flow into a magical, instant experience through a floating action button with voice input, smart defaults, and contextual intelligence.
+Transform card creation from a multi-step dialog flow into a magical, instant experience through a floating action button with voice input, smart defaults, and contextual intelligence.
 
 **Priority**: Phase 1 (High Impact, Low Effort)
 **User Impact**: 5/5 | **Effort**: 2/5 | **Magic**: 5/5 | **Mobile**: 5/5
 
 ## Current Friction Points
 
-1. **Multi-Step Dialog**: Current task creation requires opening dialog, filling multiple fields
-2. **Context Switching**: Users must navigate to project board to create tasks
+1. **Multi-Step Dialog**: Current card creation requires opening dialog, filling multiple fields
+2. **Context Switching**: Users must navigate to project board to create cards
 3. **Mobile Complexity**: Small form fields difficult on mobile devices
-4. **Repetitive Data Entry**: Similar task types require re-entering same information
-5. **No Quick Capture**: Can't quickly capture task ideas while in flow state
+4. **Repetitive Data Entry**: Similar card types require re-entering same information
+5. **No Quick Capture**: Can't quickly capture card ideas while in flow state
 
 ## Proposed Solution
 
@@ -23,13 +23,13 @@ Transform task creation from a multi-step dialog flow into a magical, instant ex
 - **One-Tap Creation**: Single tap opens quick creation mode
 - **Voice Priority**: Microphone icon for voice-first creation
 
-### Voice-First Task Creation
+### Voice-First Card Creation
 ```
 User Flow:
 1. Tap FAB microphone → Voice recording starts
-2. Speak: "Add task: Fix user login bug, high priority"
-3. AI processes speech → Creates task with smart defaults
-4. 2-second confirmation toast → Task appears in board
+2. Speak: "Add card: Fix user login bug, high priority"
+3. AI processes speech → Creates card with smart defaults
+4. 2-second confirmation toast → Card appears in board
 ```
 
 ### Smart Defaults Engine
@@ -40,23 +40,23 @@ User Flow:
 
 ### Quick Text Mode
 - **Inline Input**: Expandable text field with smart parsing
-- **Natural Language**: "Make login page responsive P4" → Creates P4 task with title/description
+- **Natural Language**: "Make login page responsive P4" → Creates P4 card with title/description
 - **Hashtag Support**: "#frontend #urgent Fix navbar layout" → Tags and priority
-- **Template Shortcuts**: "/bug", "/feature", "/doc" expand to common task types
+- **Template Shortcuts**: "/bug", "/feature", "/doc" expand to common card types
 
 ## UX Flow
 
 ### Desktop Experience
-1. **FAB Hover**: Shows tooltip "Quick task (Ctrl+T)"
+1. **FAB Hover**: Shows tooltip "Quick card (Ctrl+T)"
 2. **Click FAB**: Inline composer appears with focus
 3. **Type/Voice**: Natural language input with live preview
-4. **Enter/Click**: Task created with smart defaults
+4. **Enter/Click**: Card created with smart defaults
 5. **Success**: Subtle animation + toast confirmation
 
 ### Mobile Experience
 1. **FAB Touch**: Haptic feedback + voice recorder opens
 2. **Hold to Record**: Visual waveform indicator
-3. **Release**: Processing spinner → Task created
+3. **Release**: Processing spinner → Card created
 4. **Alternative**: Tap for text input with large, thumb-friendly field
 
 ### Error Handling
@@ -70,9 +70,9 @@ User Flow:
 ```typescript
 - FloatingActionButton.tsx (global component)
 - VoiceRecorder.tsx (microphone input)
-- QuickTaskComposer.tsx (text input with parsing)
+- QuickCardComposer.tsx (text input with parsing)
 - SmartDefaultsEngine.ts (business logic)
-- TaskTemplateParser.ts (natural language processing)
+- CardTemplateParser.ts (natural language processing)
 ```
 
 ### Smart Parsing Rules
@@ -99,9 +99,9 @@ User Flow:
 
 ## Data Schema Changes
 
-### Task Creation Payload
+### Card Creation Payload
 ```typescript
-interface QuickTaskInput {
+interface QuickCardInput {
   rawTitle: string
   rawDescription?: string
   priority?: Priority // Auto-detected from input
@@ -115,13 +115,13 @@ interface QuickTaskInput {
 
 ### New API Endpoint
 ```typescript
-POST /api/tasks/quick-create
+POST /api/cards/quick-create
 {
   input: string, // Raw voice/text input
   context: {
     projectId: string,
     currentRoute: string,
-    lastUsedDefaults: TaskDefaults
+    lastUsedDefaults: CardDefaults
   }
 }
 ```
