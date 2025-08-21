@@ -13,7 +13,7 @@ import {
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema/index";
-import { broadcastFlush } from "../websocket/websocket-server";
+import { broadcastFlush, broadcastAgentRateLimit } from "../websocket/websocket-server";
 import {
   getAttachmentFile,
   type AttachmentMetadata,
@@ -392,13 +392,22 @@ async function detectAndHandleRateLimit(line: string, agentId: string): Promise<
   if (rateLimitResetTime) {
     console.log("[Claude Code] 🚫 Claude rate limit detected, updating agent");
     try {
-      await db
+      // Update agent with rate limit info
+      const [updatedAgent] = await db
         .update(schema.agents)
         .set({
           rateLimitResetAt: new Date(rateLimitResetTime),
           updatedAt: new Date(),
         })
-        .where(eq(schema.agents.id, agentId));
+        .where(eq(schema.agents.id, agentId))
+        .returning();
+
+      // Get project ID for broadcasting
+      if (updatedAgent) {
+        // Broadcast specific agent rate limit update to all project clients
+        broadcastAgentRateLimit(updatedAgent.projectId, agentId, new Date(rateLimitResetTime));
+        console.log("[Claude Code] 📡 Broadcasted agent rate limit update");
+      }
     } catch (error) {
       console.error("[Claude Code] Failed to update agent rate limit:", error);
     }

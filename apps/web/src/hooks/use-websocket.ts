@@ -61,6 +61,10 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         await handleCacheInvalidateMessage(message);
         break;
 
+      case 'agent.rate_limit_updated':
+        await handleAgentRateLimitMessage(message);
+        break;
+
       default:
         console.log(`📨 Unknown WebSocket message type: ${message.type}`);
     }
@@ -100,6 +104,22 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     console.log('🔄 Batch invalidating cache:', operations);
     
     await enhancedCacheUtils.batchInvalidate(queryClient, operations);
+  }, [queryClient]);
+
+  // Handle agent.rate_limit_updated messages
+  const handleAgentRateLimitMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    const { projectId, agentId } = message.data || {};
+    if (!projectId || !agentId) return;
+
+    console.log('🔄 Invalidating agent data due to rate limit update:', { projectId, agentId });
+    
+    // Invalidate agents queries for the specific project
+    await enhancedCacheUtils.smartInvalidate(queryClient, {
+      entityType: 'agent',
+      entityId: agentId,
+      projectId,
+      action: 'update'
+    });
   }, [queryClient]);
 
   // Handle WebSocket message processing failures
