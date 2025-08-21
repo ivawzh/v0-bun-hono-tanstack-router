@@ -82,20 +82,20 @@ export function TaskDependencyGraph({
           )}>
             {task.refinedTitle || task.rawTitle}
           </h4>
-          {task.column !== 'done' && (
-            <Lock className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
+          {task.list !== 'done' && (
+            <Lock className="h-3 w-3 text-amber-500 dark:text-amber-400 shrink-0 mt-0.5" />
           )}
-          {task.column === 'done' && (
-            <CheckCircle className="h-3 w-3 text-green-500 shrink-0 mt-0.5" />
+          {task.list === 'done' && (
+            <CheckCircle className="h-3 w-3 text-green-500 dark:text-green-400 shrink-0 mt-0.5" />
           )}
         </div>
 
         <div className="flex items-center gap-1">
           <Badge
             variant="outline"
-            className={cn("text-xs", getStatusColor(task.column))}
+            className={cn("text-xs", getStatusColor(task.list))}
           >
-            {task.column}
+            {task.list}
           </Badge>
           <Badge
             variant="outline"

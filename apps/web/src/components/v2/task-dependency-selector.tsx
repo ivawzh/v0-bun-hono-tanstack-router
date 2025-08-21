@@ -84,22 +84,22 @@ export function TaskDependencySelector({
     return 'text-green-600 dark:text-green-400';
   };
 
-  // Group tasks by column for better organization
-  const tasksByColumn = availableTasks.reduce((acc, task) => {
-    if (!acc[task.column]) acc[task.column] = [];
-    acc[task.column].push(task);
+  // Group tasks by list for better organization
+  const tasksByList = availableTasks.reduce((acc, task) => {
+    if (!acc[task.list]) acc[task.list] = [];
+    acc[task.list].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
 
-  // Sort tasks within each column by priority (descending), then by title
-  Object.keys(tasksByColumn).forEach(column => {
-    tasksByColumn[column].sort((a, b) => {
+  // Sort tasks within each list by priority (descending), then by title
+  Object.keys(tasksByList).forEach(list => {
+    tasksByList[list].sort((a, b) => {
       if (a.priority !== b.priority) return b.priority - a.priority;
       return (a.refinedTitle || a.rawTitle).localeCompare(b.refinedTitle || b.rawTitle);
     });
   });
 
-  const columnOrder = ['todo', 'doing', 'loop'];
+  const listOrder = ['todo', 'doing', 'loop'];
 
   return (
     <div className={cn("w-full", className)}>
@@ -131,12 +131,12 @@ export function TaskDependencySelector({
             <CommandInput placeholder="Search tasks..." />
             <CommandEmpty>No tasks found.</CommandEmpty>
             <div className="max-h-64 overflow-auto">
-              {columnOrder.map(column => {
-                const tasks = tasksByColumn[column] || [];
+              {listOrder.map(list => {
+                const tasks = tasksByList[list] || [];
                 if (tasks.length === 0) return null;
 
                 return (
-                  <CommandGroup key={column} heading={column.charAt(0).toUpperCase() + column.slice(1)}>
+                  <CommandGroup key={list} heading={list.charAt(0).toUpperCase() + list.slice(1)}>
                     {tasks.map((task) => {
                       const isSelected = selectedDependencyIds.includes(task.id);
                       const isDisabled = !isSelected && maxSelections ? selectedDependencyIds.length >= maxSelections : false;
