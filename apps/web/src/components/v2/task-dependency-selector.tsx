@@ -15,7 +15,7 @@ interface Task {
   id: string;
   rawTitle: string;
   refinedTitle?: string;
-  status: 'todo' | 'doing' | 'done' | 'loop';
+  column: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }
 
@@ -59,8 +59,8 @@ export function TaskDependencySelector({
     onSelectionChange(selectedDependencyIds.filter(id => id !== taskId));
   };
 
-  const getTaskStatusColor = (status: string) => {
-    switch (status) {
+  const getTaskStatusColor = (column: string) => {
+    switch (column) {
       case 'todo': return 'bg-gray-100 text-gray-800';
       case 'doing': return 'bg-blue-100 text-blue-800';
       case 'loop': return 'bg-purple-100 text-purple-800';
@@ -68,8 +68,8 @@ export function TaskDependencySelector({
     }
   };
 
-  const getTaskStatusIcon = (status: string) => {
-    switch (status) {
+  const getTaskStatusIcon = (column: string) => {
+    switch (column) {
       case 'todo': return '⏸';
       case 'doing': return '▶';
       case 'loop': return '♻';
@@ -84,22 +84,22 @@ export function TaskDependencySelector({
     return 'text-green-600';
   };
 
-  // Group tasks by status for better organization
-  const tasksByStatus = availableTasks.reduce((acc, task) => {
-    if (!acc[task.status]) acc[task.status] = [];
-    acc[task.status].push(task);
+  // Group tasks by column for better organization
+  const tasksByColumn = availableTasks.reduce((acc, task) => {
+    if (!acc[task.column]) acc[task.column] = [];
+    acc[task.column].push(task);
     return acc;
   }, {} as Record<string, Task[]>);
 
-  // Sort tasks within each status by priority (descending), then by title
-  Object.keys(tasksByStatus).forEach(status => {
-    tasksByStatus[status].sort((a, b) => {
+  // Sort tasks within each column by priority (descending), then by title
+  Object.keys(tasksByColumn).forEach(column => {
+    tasksByColumn[column].sort((a, b) => {
       if (a.priority !== b.priority) return b.priority - a.priority;
       return (a.refinedTitle || a.rawTitle).localeCompare(b.refinedTitle || b.rawTitle);
     });
   });
 
-  const statusOrder = ['todo', 'doing', 'loop'];
+  const columnOrder = ['todo', 'doing', 'loop'];
 
   return (
     <div className={cn("w-full", className)}>
@@ -131,12 +131,12 @@ export function TaskDependencySelector({
             <CommandInput placeholder="Search tasks..." />
             <CommandEmpty>No tasks found.</CommandEmpty>
             <div className="max-h-64 overflow-auto">
-              {statusOrder.map(status => {
-                const tasks = tasksByStatus[status] || [];
+              {columnOrder.map(column => {
+                const tasks = tasksByColumn[column] || [];
                 if (tasks.length === 0) return null;
                 
                 return (
-                  <CommandGroup key={status} heading={status.charAt(0).toUpperCase() + status.slice(1)}>
+                  <CommandGroup key={column} heading={column.charAt(0).toUpperCase() + column.slice(1)}>
                     {tasks.map((task) => {
                       const isSelected = selectedDependencyIds.includes(task.id);
                       const isDisabled = !isSelected && maxSelections ? selectedDependencyIds.length >= maxSelections : false;
@@ -177,9 +177,9 @@ export function TaskDependencySelector({
                           </div>
                           <Badge 
                             variant="secondary" 
-                            className={cn("text-xs ml-2 shrink-0", getTaskStatusColor(task.status))}
+                            className={cn("text-xs ml-2 shrink-0", getTaskStatusColor(task.column))}
                           >
-                            {getTaskStatusIcon(task.status)}
+                            {getTaskStatusIcon(task.column)}
                           </Badge>
                         </CommandItem>
                       );

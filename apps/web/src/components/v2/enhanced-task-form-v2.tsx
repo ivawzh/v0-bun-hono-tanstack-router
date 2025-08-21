@@ -143,7 +143,7 @@ export function EnhancedTaskFormV2({
         rawTitle: formData.rawTitle,
         rawDescription: formData.rawDescription,
         priority: formData.priority,
-        status: "todo",
+        column: "todo",
         dependencyIds: formData.dependencyIds,
         attachments: formData.attachments.map(file => ({
           file: file

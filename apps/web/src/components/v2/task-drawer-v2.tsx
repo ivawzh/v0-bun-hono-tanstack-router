@@ -288,10 +288,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     });
   };
 
-  const handleStatusChange = (status: string) => {
+  const handleStatusChange = (column: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      status: status as 'todo' | 'doing' | 'done'
+      column: column as 'todo' | 'doing' | 'done'
     });
   };
 
@@ -302,10 +302,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     });
   };
 
-  const handleStageChange = (stage: string | null) => {
+  const handleStageChange = (mode: string | null) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      stage: stage as "execute" | "plan" | "clarify" | undefined
+      mode: mode as "execute" | "plan" | "clarify" | undefined
     });
   };
 
@@ -424,7 +424,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
   
-  const currentStage = stageOptions.find(s => s.value === task?.stage);
+  const currentStage = stageOptions.find(s => s.value === task?.mode);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -446,7 +446,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                     <AIActivityBadge
                       ready={task.ready}
                       agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                      status={task.status}
+                      status={task.column}
                     />
                     {currentStage && (
                       <Badge variant="outline" className={currentStage.color}>

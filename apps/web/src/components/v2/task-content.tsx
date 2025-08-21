@@ -560,10 +560,10 @@ export function TaskContent({
                     <div>
                       <Label>Stage</Label>
                       <div className="mt-1">
-                        <TaskStageSelector
-                          stage={task.mode || null}
-                          status={task.column}
-                          onStageChange={onStageChange}
+                        <TaskModeSelector
+                          mode={task.mode || null}
+                          column={task.column}
+                          onModeChange={onStageChange}
                           size="md"
                         />
                       </div>

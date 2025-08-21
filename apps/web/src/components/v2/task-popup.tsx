@@ -289,10 +289,10 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     });
   };
 
-  const handleStatusChange = (status: string) => {
+  const handleStatusChange = (column: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      status: status as 'todo' | 'doing' | 'done'
+      column: column as 'todo' | 'doing' | 'done'
     });
   };
 
@@ -303,10 +303,10 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     });
   };
 
-  const handleStageChange = (stage: string | null) => {
+  const handleStageChange = (mode: string | null) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      stage: stage as "execute" | "plan" | "clarify" | undefined
+      mode: mode as "execute" | "plan" | "clarify" | undefined
     });
   };
 

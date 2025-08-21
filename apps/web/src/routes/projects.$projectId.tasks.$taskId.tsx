@@ -453,10 +453,10 @@ function TaskPage() {
                   });
                 });
               }}
-              onStatusChange={(status: string) => {
+              onStatusChange={(column: string) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
-                  status: status as 'todo' | 'doing' | 'done'
+                  column: column as 'todo' | 'doing' | 'done'
                 });
               }}
               onPriorityChange={(priority: string) => {
@@ -465,10 +465,10 @@ function TaskPage() {
                   priority: parseInt(priority) as any
                 });
               }}
-              onStageChange={(stage: string | null) => {
+              onStageChange={(mode: string | null) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
-                  stage: stage as "execute" | "plan" | "clarify" | undefined
+                  mode: mode as "execute" | "plan" | "clarify" | undefined
                 });
               }}
               onMainRepositoryChange={(repositoryId: string) => {

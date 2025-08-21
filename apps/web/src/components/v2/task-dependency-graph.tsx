@@ -13,7 +13,7 @@ interface Task {
   id: string;
   rawTitle: string;
   refinedTitle?: string;
-  status: 'todo' | 'doing' | 'done' | 'loop';
+  column: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }
 
@@ -39,8 +39,8 @@ export function TaskDependencyGraph({
     return 'text-green-600 bg-green-50 border-green-200';
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getStatusColor = (column: string) => {
+    switch (column) {
       case 'todo': return 'bg-gray-100 text-gray-700 border-gray-300';
       case 'doing': return 'bg-blue-100 text-blue-700 border-blue-300';
       case 'done': return 'bg-green-100 text-green-700 border-green-300';
@@ -49,8 +49,8 @@ export function TaskDependencyGraph({
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const getStatusIcon = (column: string) => {
+    switch (column) {
       case 'done': return <CheckCircle className="h-3 w-3" />;
       case 'todo': 
       case 'doing':
@@ -82,10 +82,10 @@ export function TaskDependencyGraph({
           )}>
             {task.refinedTitle || task.rawTitle}
           </h4>
-          {task.status !== 'done' && (
+          {task.column !== 'done' && (
             <Lock className="h-3 w-3 text-amber-500 shrink-0 mt-0.5" />
           )}
-          {task.status === 'done' && (
+          {task.column === 'done' && (
             <CheckCircle className="h-3 w-3 text-green-500 shrink-0 mt-0.5" />
           )}
         </div>
@@ -93,9 +93,9 @@ export function TaskDependencyGraph({
         <div className="flex items-center gap-1">
           <Badge 
             variant="outline" 
-            className={cn("text-xs", getStatusColor(task.status))}
+            className={cn("text-xs", getStatusColor(task.column))}
           >
-            {task.status}
+            {task.column}
           </Badge>
           <Badge 
             variant="outline" 
