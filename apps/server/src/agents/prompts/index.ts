@@ -16,13 +16,13 @@ export type PromptParams = {
   project: Project;
 }
 
-export type TaskStage = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk';
+export type TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk';
 
 /**
- * Generate prompt for any stage of task execution
+ * Generate prompt for any mode of task execution
  */
-export function generatePrompt(stage: TaskStage, context: PromptParams): string {
-  switch (stage) {
+export function generatePrompt(mode: TaskMode, context: PromptParams): string {
+  switch (mode) {
     case 'clarify':
       return generateRefinePrompt(context);
     case 'plan':
@@ -34,7 +34,7 @@ export function generatePrompt(stage: TaskStage, context: PromptParams): string 
     case 'talk':
       return generateTalkPrompt(context);
     default:
-      throw new Error(`Unknown stage: ${stage}`);
+      throw new Error(`Unknown mode: ${mode}`);
   }
 }
 

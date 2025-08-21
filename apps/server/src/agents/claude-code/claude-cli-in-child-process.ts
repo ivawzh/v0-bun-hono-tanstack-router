@@ -4,7 +4,7 @@
 
 import { spawn } from "child_process";
 import crossSpawn from "cross-spawn";
-import { type TaskStage } from "../prompts";
+import { type TaskMode } from "../prompts";
 import {
   registerActiveSession,
   registerCompletedSession,
@@ -172,7 +172,7 @@ export interface SpawnOptions {
   repositoryPath: string;
   additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
-  stage: TaskStage;
+  stage: TaskMode;
   model?: string;
   permissionMode?: PermissionMode;
   taskData: {

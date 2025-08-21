@@ -74,8 +74,8 @@ interface TaskV2 {
   rawDescription?: string;
   refinedTitle?: string;
   refinedDescription?: string;
-  status: 'todo' | 'doing' | 'done';
-  stage?: 'clarify' | 'plan' | 'execute';
+  column: 'todo' | 'doing' | 'done';
+  mode?: 'clarify' | 'plan' | 'execute';
   priority: number;
   ready: boolean;
   plan?: any;
@@ -457,7 +457,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                   <AIActivityBadge
                     ready={task.ready}
                     agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                    status={task.status}
+                    status={task.column}
                   />
                   {currentStage && (
                     <Badge variant="outline" className={currentStage.color}>

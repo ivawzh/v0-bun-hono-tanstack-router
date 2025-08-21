@@ -36,7 +36,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
       and(
         eq(schema.tasks.ready, true),
         eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
-        ne(schema.tasks.status, 'done'),
+        ne(schema.tasks.column, 'done'),
         // Only tasks with no incomplete dependencies
         notExists(
           db.select()
@@ -85,11 +85,11 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
     .orderBy(
       desc(schema.tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
       sql`CASE
-        WHEN ${schema.tasks.status} = 'doing' THEN 3
-        WHEN ${schema.tasks.status} = 'todo' THEN 2
-        WHEN ${schema.tasks.status} = 'loop' THEN 1
+        WHEN ${schema.tasks.column} = 'doing' THEN 3
+        WHEN ${schema.tasks.column} = 'todo' THEN 2
+        WHEN ${schema.tasks.column} = 'loop' THEN 1
         ELSE 0
-      END DESC`, // Status weight: doing > todo > loop
+      END DESC`, // Column weight: doing > todo > loop
       asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )

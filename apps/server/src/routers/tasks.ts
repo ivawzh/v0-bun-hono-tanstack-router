@@ -188,8 +188,8 @@ export const tasksRouter = o.router({
         file: z.instanceof(File),
         preview: z.string().optional()
       })).optional().default([]),
-      status: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
-      stage: z.enum(["clarify", "plan", "execute", "loop", "talk"]).nullable().optional(),
+      column: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
+      mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).nullable().optional(),
       dependencyIds: z.array(z.string().uuid()).optional().default([])
     }))
     .handler(async ({ context, input }) => {
@@ -279,14 +279,14 @@ export const tasksRouter = o.router({
         }
       }
 
-      // Determine the stage value to use
-      let stageToUse = input.stage;
-      if (stageToUse === undefined) {
-        // Apply intelligent defaults if no stage provided
-        if (input.status === "loop") {
-          stageToUse = "loop";
+      // Determine the mode value to use
+      let modeToUse = input.mode;
+      if (modeToUse === undefined) {
+        // Apply intelligent defaults if no mode provided
+        if (input.column === "loop") {
+          modeToUse = "loop";
         } else {
-          stageToUse = "clarify"; // Default for non-loop tasks
+          modeToUse = "clarify"; // Default for non-loop tasks
         }
       }
 
@@ -301,9 +301,9 @@ export const tasksRouter = o.router({
           rawDescription: input.rawDescription,
           priority: input.priority,
           attachments: [], // Start empty, will be populated after processing files
-          status: input.status,
-          stage: stageToUse,
-          ready: input.status === "loop" ? true : false // Loop tasks are always ready
+          column: input.column,
+          mode: modeToUse,
+          ready: input.column === "loop" ? true : false // Loop tasks are always ready
         })
         .returning();
 
@@ -461,8 +461,8 @@ export const tasksRouter = o.router({
       if (input.refinedTitle !== undefined) updates.refinedTitle = input.refinedTitle;
       if (input.refinedDescription !== undefined) updates.refinedDescription = input.refinedDescription;
       if (input.plan !== undefined) updates.plan = input.plan;
-      if (input.status !== undefined) updates.status = input.status;
-      if (input.stage !== undefined) updates.stage = input.stage;
+      if (input.column !== undefined) updates.column = input.column;
+      if (input.mode !== undefined) updates.mode = input.mode;
       if (input.priority !== undefined) updates.priority = input.priority;
       if (input.ready !== undefined) updates.ready = input.ready;
       if (input.attachments !== undefined) updates.attachments = input.attachments;
@@ -651,13 +651,13 @@ export const tasksRouter = o.router({
           updatedAt: new Date()
         };
 
-        if (taskUpdate.status !== undefined) {
-          updates.status = taskUpdate.status;
-          // Handle stage transitions for different statuses
-          if (taskUpdate.status === 'todo' || taskUpdate.status === 'done') {
-            updates.stage = null;
-          } else if (taskUpdate.status === 'loop') {
-            updates.stage = 'loop'; // Loop tasks always have loop stage
+        if (taskUpdate.column !== undefined) {
+          updates.column = taskUpdate.column;
+          // Handle mode transitions for different columns
+          if (taskUpdate.column === 'todo' || taskUpdate.column === 'done') {
+            updates.mode = null;
+          } else if (taskUpdate.column === 'loop') {
+            updates.mode = 'loop'; // Loop tasks always have loop mode
           }
         }
 
@@ -707,7 +707,7 @@ export const tasksRouter = o.router({
       const updated = await db
         .update(tasks)
         .set({
-          stage: input.stage,
+          mode: input.mode,
           updatedAt: new Date()
         })
         .where(eq(tasks.id, input.id))

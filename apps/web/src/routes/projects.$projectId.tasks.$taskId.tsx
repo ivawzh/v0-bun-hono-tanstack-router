@@ -320,7 +320,7 @@ function TaskPage() {
                 <AIActivityBadge
                   ready={task.ready}
                   agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                  status={task.status}
+                  status={task.column}
                 />
                 {currentStage && (
                   <Badge variant="outline" className={currentStage.color}>

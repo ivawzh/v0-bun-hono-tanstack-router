@@ -77,8 +77,8 @@ interface TaskV2 {
   rawDescription?: string;
   refinedTitle?: string;
   refinedDescription?: string;
-  status: 'todo' | 'doing' | 'done';
-  stage?: 'clarify' | 'plan' | 'execute';
+  column: 'todo' | 'doing' | 'done';
+  mode?: 'clarify' | 'plan' | 'execute';
   priority: number;
   ready: boolean;
   plan?: any;
@@ -556,13 +556,13 @@ export function TaskContent({
                     </div>
                   </div>
 
-                  {task.status === "doing" && (
+                  {task.column === "doing" && (
                     <div>
                       <Label>Stage</Label>
                       <div className="mt-1">
                         <TaskStageSelector
-                          stage={task.stage || null}
-                          status={task.status}
+                          stage={task.mode || null}
+                          status={task.column}
                           onStageChange={onStageChange}
                           size="md"
                         />

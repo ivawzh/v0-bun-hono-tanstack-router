@@ -4,7 +4,7 @@
 
 import { spawn } from "child_process";
 import crossSpawn from "cross-spawn";
-import { generatePrompt, type TaskStage } from "./prompts";
+import { generatePrompt, type TaskMode } from "./prompts";
 import {
   registerActiveSession,
   registerCompletedSession,
@@ -37,7 +37,7 @@ export interface SpawnOptions {
   repositoryPath: string;
   additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
-  stage: TaskStage;
+  stage: TaskMode;
   model?: string;
   permissionMode?: PermissionMode;
   taskData: {
@@ -159,7 +159,7 @@ export async function spawnClaudeSession(
 
     // Use Claude Code SDK with streaming JSON (normal mode)
     try {
-      console.log(`🚀 Starting Claude Code session for task ${taskId}. [${task.stage}] ${taskData.task.rawTitle || taskData.task.refinedTitle}`);
+      console.log(`🚀 Starting Claude Code session for task ${taskId}. [${task.mode}] ${taskData.task.rawTitle || taskData.task.refinedTitle}`);
 
       await executeClaudeQuery({
         prompt,

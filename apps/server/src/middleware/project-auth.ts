@@ -18,6 +18,12 @@ function getDb() {
 
 export async function checkProjectOwnership(userId: string, projectId: string): Promise<boolean> {
   const db = getDb();
+  console.log(`[DEBUG] checkProjectOwnership: userId=${userId}, projectId=${projectId}`);
+  
+  // Debug: Show all records in projectUsers table
+  const allRecords = await db.select().from(projectUsers);
+  console.log(`[DEBUG] All projectUsers records:`, allRecords);
+  
   const membership = await db
     .select()
     .from(projectUsers)
@@ -29,6 +35,8 @@ export async function checkProjectOwnership(userId: string, projectId: string): 
       )
     )
     .limit(1);
+  
+  console.log(`[DEBUG] checkProjectOwnership: found ${membership.length} records`, membership);
   
   return membership.length > 0;
 }

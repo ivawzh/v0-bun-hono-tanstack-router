@@ -185,7 +185,7 @@ async function pushTaskToAgent(
       .update(schema.tasks)
       .set({
         agentSessionStatus: 'PUSHING',
-        status: 'doing',
+        column: 'doing',
         activeAgentId: selectedAgent.id,
         lastPushedAt: now,
         lastAgentSessionStartedAt: now,
@@ -231,7 +231,7 @@ async function pushTaskToAgent(
       repositoryPath: mainRepository.repoPath,
       additionalRepositories: taskWithContext.additionalRepositories,
       claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
-      stage: task.stage || 'clarify',
+      stage: task.mode || 'clarify',
       taskData: { task, actor, project }
     });
 

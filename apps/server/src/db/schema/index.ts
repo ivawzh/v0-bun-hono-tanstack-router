@@ -127,15 +127,15 @@ export const tasks = pgTable("tasks", {
   // Plan results
   plan: jsonb("plan").default({}), // Final solution and spec from plan stage
 
-  // Status and stage
-  status: text("status", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
-  stage: text("stage", { enum: ["clarify", "plan", "execute", "loop", "talk"] }),
+  // Column and mode
+  column: text("column", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
+  mode: text("mode", { enum: ["clarify", "plan", "execute", "loop", "talk"] }),
 
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest
 
-  // Manual order within status column (for drag & drop)
-  columnOrder: text("column_order").notNull().default("1000"), // Decimal string for ordering within status
+  // Manual order within column (for drag & drop)
+  columnOrder: text("column_order").notNull().default("1000"), // Decimal string for ordering within column
 
   // Ready flag (replaces auto-start)
   ready: boolean("ready").default(false),

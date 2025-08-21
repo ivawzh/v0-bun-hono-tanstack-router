@@ -175,7 +175,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
     transition,
   };
 
-  const column = statusColumns.find(col => col.id === task.status);
+  const column = statusColumns.find(col => col.id === task.column);
   const Icon = column?.icon || Clock;
 
   const description = task.refinedDescription || task.rawDescription;
@@ -197,7 +197,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
       {...listeners}
       role="button"
       tabIndex={0}
-      aria-label={`Task: ${task.refinedTitle || task.rawTitle}. Priority: ${getPriorityDisplay(task.priority)}. Status: ${task.status}. ${task.ready ? 'Ready for AI' : 'Not ready'}`}
+      aria-label={`Task: ${task.refinedTitle || task.rawTitle}. Priority: ${getPriorityDisplay(task.priority)}. Column: ${task.column}. ${task.ready ? 'Ready for AI' : 'Not ready'}`}
       aria-describedby={`task-${task.id}-description`}
       onClick={(e) => {
         // Only trigger click if not clicking on interactive elements
@@ -302,11 +302,11 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           <AIActivityBadge
             ready={task.ready}
             agentSessionStatus={task.agentSessionStatus}
-            status={task.status}
+            status={task.column}
           />
           <TaskStageSelector
-            stage={task.stage}
-            status={task.status}
+            stage={task.mode}
+            status={task.column}
             onStageChange={(stage) => onStageChange(task.id, stage)}
             size="sm"
           />
@@ -822,8 +822,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }, {} as Record<string, any[]>);
 
   // Separate normal and loop tasks for Todo column
-  const todoNormalTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.stage !== 'loop') : [];
-  const todoLoopTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.stage === 'loop') : [];
+  const todoNormalTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.mode !== 'loop') : [];
+  const todoLoopTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.mode === 'loop') : [];
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);

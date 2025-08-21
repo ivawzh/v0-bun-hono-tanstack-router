@@ -72,8 +72,8 @@ interface TaskV2 {
   rawDescription?: string;
   refinedTitle?: string;
   refinedDescription?: string;
-  status: 'todo' | 'doing' | 'done';
-  stage?: 'clarify' | 'plan' | 'execute';
+  column: 'todo' | 'doing' | 'done';
+  mode?: 'clarify' | 'plan' | 'execute';
   priority: number;
   ready: boolean;
   plan?: any;

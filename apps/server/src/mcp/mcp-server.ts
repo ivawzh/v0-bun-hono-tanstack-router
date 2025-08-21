@@ -101,11 +101,11 @@ function registerMcpTools(server: McpServer) {
           where: eq(tasks.id, taskId),
         });
 
-        if (task && task.stage === "loop") {
+        if (task && task.mode === "loop") {
           // This is a loop task being completed, handle it specially
           shouldHandleLoopCompletion = true;
-          updates.status = "todo"; // Move to todo instead of loop for fair rotation
-          updates.stage = "loop"; // Keep stage as loop to maintain loop task identity
+          updates.column = "todo"; // Move to todo instead of loop for fair rotation
+          updates.mode = "loop"; // Keep mode as loop to maintain loop task identity
         }
       }
 
@@ -161,8 +161,8 @@ function registerMcpTools(server: McpServer) {
             .where(
               and(
                 eq(tasks.projectId, task.projectId),
-                eq(tasks.status, 'todo'),
-                eq(tasks.stage, 'loop')
+                eq(tasks.column, 'todo'),
+                eq(tasks.mode, 'loop')
               )
             )
             .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
@@ -181,8 +181,8 @@ function registerMcpTools(server: McpServer) {
               .where(
                 and(
                   eq(tasks.projectId, task.projectId),
-                  eq(tasks.status, 'todo'),
-                  sql`${tasks.stage} != 'loop' OR ${tasks.stage} IS NULL`
+                  eq(tasks.column, 'todo'),
+                  sql`${tasks.mode} != 'loop' OR ${tasks.mode} IS NULL`
                 )
               )
               .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
