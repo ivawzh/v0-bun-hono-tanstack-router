@@ -463,7 +463,7 @@ function TaskPage() {
                   });
                 });
               }}
-              onColumnChange={(list: string) => {
+              onColumnChange={(column: string) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
                   column: column as 'todo' | 'doing' | 'done'

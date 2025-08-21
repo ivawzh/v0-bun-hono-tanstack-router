@@ -90,7 +90,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
         WHEN ${schema.tasks.list} = 'loop' THEN 1
         ELSE 0
       END DESC`, // Column weight: doing > todo > loop
-      asc(sql`CAST(${schema.tasks.listOrder} AS DECIMAL)`),
+      asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )
     .limit(1);

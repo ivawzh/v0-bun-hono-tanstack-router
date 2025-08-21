@@ -237,7 +237,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     });
   };
 
-  const handleColumnChange = (list: string) => {
+  const handleColumnChange = (column: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
       column: column as 'todo' | 'doing' | 'done'

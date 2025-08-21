@@ -177,9 +177,9 @@ export function TaskDependencySelector({
                           </div>
                           <Badge
                             variant="secondary"
-                            className={cn("text-xs ml-2 shrink-0", getTaskListColor(task.column))}
+                            className={cn("text-xs ml-2 shrink-0", getTaskListColor(task.list))}
                           >
-                            {getTaskListIcon(task.column)}
+                            {getTaskListIcon(task.list)}
                           </Badge>
                         </CommandItem>
                       );
