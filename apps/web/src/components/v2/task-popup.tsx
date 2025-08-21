@@ -39,70 +39,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCacheUtils } from "@/hooks/use-cache-utils";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { TaskContent } from "./task-content";
+import type { TaskV2, DependencyData, Repository, Agent, Actor } from "@/types/task";
 import { cn } from "@/lib/utils";
 
-interface Repository {
-  id: string;
-  name: string;
-  repoPath: string;
-  isDefault?: boolean | null;
-  isAvailable?: boolean;
-  activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
-}
-
-interface Agent {
-  id: string;
-  name: string;
-  agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE';
-  isAvailable?: boolean;
-  activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
-}
-
-interface Actor {
-  id: string;
-  name: string;
-  description: string;
-  isDefault?: boolean | null;
-}
-
-interface TaskV2 {
-  id: string;
-  projectId: string;
-  rawTitle: string;
-  rawDescription?: string;
-  refinedTitle?: string;
-  refinedDescription?: string;
-  column: 'todo' | 'doing' | 'done';
-  mode?: 'clarify' | 'plan' | 'execute';
-  priority: number;
-  ready: boolean;
-  plan?: any;
-  attachments?: any[];
-  createdAt: string;
-  agentSessionStatus?: 'INACTIVE' | 'PUSHING' | 'ACTIVE';
-
-  // V2 specific fields
-  mainRepositoryId: string;
-  additionalRepositoryIds: string[];
-  assignedAgentIds: string[];
-  actorId?: string;
-
-  // Populated relationships
-  mainRepository?: Repository;
-  additionalRepositories?: Repository[];
-  assignedAgents?: Agent[];
-  actor?: Actor;
-  activeSession?: any;
-  dependencies?: Array<{
-    id: string;
-    rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
-    priority: number;
-  }>;
-}
 
 interface TaskPopupProps {
   taskId: string | null;
@@ -120,12 +59,15 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
   const cache = useCacheUtils();
 
   // Fetch task details using oRPC
-  const { data: task, isLoading } = useQuery(
+  const { data: rawTask, isLoading } = useQuery(
     orpc.tasks.get.queryOptions({
       input: { id: taskId! },
       enabled: !!taskId
     })
   );
+
+  // Transform null to undefined for TypeScript compatibility
+  const task = rawTask as TaskV2;
 
   // Fetch available repositories
   const { data: repositories = [] } = useQuery(
@@ -152,23 +94,29 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
   );
 
   // Fetch task dependencies
-  const { data: dependencyData } = useQuery(
+  const { data: rawDependencyData } = useQuery(
     orpc.tasks.getDependencies.queryOptions({
       input: { taskId: taskId! },
       enabled: !!taskId
     })
   );
 
+  // Transform dependency data for TypeScript compatibility
+  const dependencyData = rawDependencyData as DependencyData;
+
   // Fetch available tasks for dependency selection
-  const { data: availableTasks = [] } = useQuery(
+  const { data: rawAvailableTasks = [] } = useQuery(
     orpc.tasks.getAvailableDependencies.queryOptions({
-      input: { 
-        projectId: task?.projectId || '', 
-        excludeTaskId: taskId || undefined 
+      input: {
+        projectId: task?.projectId || '',
+        excludeTaskId: taskId || undefined
       },
       enabled: !!task?.projectId && !!taskId
     })
   );
+
+  // Transform available tasks for TypeScript compatibility
+  const availableTasks = rawAvailableTasks as TaskV2[];
 
   // Update task mutation using oRPC
   const updateTaskMutation = useMutation(orpc.tasks.update.mutationOptions({
@@ -235,7 +183,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
       // Optimistically remove attachment from task data
       const taskQuery = cache.queryKeys.tasks.detail(task.id)
       const currentTaskData = cache.getCachedData(taskQuery)
-      
+
       if (currentTaskData && (currentTaskData as any).attachments) {
         const updatedTask = {
           ...currentTaskData,
@@ -244,10 +192,10 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
           )
         }
         cache.setCachedData(taskQuery, updatedTask)
-        
+
         return { previousData: currentTaskData, queryKey: taskQuery }
       }
-      
+
       return null
     },
     onSuccess: async () => {
@@ -263,7 +211,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     },
     onError: (error: any, variables, context) => {
       toast.error(`Failed to delete attachment: ${error.message}`);
-      
+
       // Rollback optimistic update
       if (context?.previousData && context?.queryKey) {
         cache.setCachedData(context.queryKey, context.previousData)
@@ -289,7 +237,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     });
   };
 
-  const handleColumnChange = (column: string) => {
+  const handleColumnChange = (list: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
       column: column as 'todo' | 'doing' | 'done'
@@ -375,7 +323,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
 
   const handleDependencySelectionChange = (selectedIds: string[]) => {
     const currentDependencyIds = dependencyData?.dependencies?.map((d: any) => d.id) || [];
-    
+
     // Find dependencies to add
     const toAdd = selectedIds.filter((id: string) => !currentDependencyIds.includes(id));
     // Find dependencies to remove
@@ -389,23 +337,23 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
 
   // V2 specific handlers
   const handleMainRepositoryChange = (repositoryId: string) => {
-    updateTaskMutation.mutate({ 
+    updateTaskMutation.mutate({
       id: taskId!,
-      mainRepositoryId: repositoryId 
+      mainRepositoryId: repositoryId
     });
   };
 
   const handleAdditionalRepositoriesChange = (repositoryIds: string[]) => {
-    updateTaskMutation.mutate({ 
+    updateTaskMutation.mutate({
       id: taskId!,
-      additionalRepositoryIds: repositoryIds 
+      additionalRepositoryIds: repositoryIds
     });
   };
 
   const handleAssignedAgentsChange = (agentIds: string[]) => {
-    updateTaskMutation.mutate({ 
+    updateTaskMutation.mutate({
       id: taskId!,
-      assignedAgentIds: agentIds 
+      assignedAgentIds: agentIds
     });
   };
 
@@ -424,12 +372,12 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
-  
+
   const currentMode = modeOptions.find(s => s.value === task?.mode);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent 
+      <DialogContent
         className={cn(
           // Base styles
           "p-0 gap-0 rounded-lg border shadow-lg duration-200 flex flex-col",
@@ -468,14 +416,14 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                     TASK-{task.id.slice(0, 8)}
                   </span>
                 </div>
-                
+
                 {/* Mobile-friendly close and menu buttons */}
                 <div className="flex items-center gap-1">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         className="h-11 w-11 min-h-[44px] min-w-[44px] touch-manipulation"
                       >
                         <MoreVertical className="h-5 w-5" />
@@ -520,17 +468,17 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                       autoFocus
                     />
                     <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        onClick={handleSaveTitle} 
+                      <Button
+                        size="sm"
+                        onClick={handleSaveTitle}
                         className="h-11 flex-1 min-h-[44px] touch-manipulation"
                       >
                         Save
                       </Button>
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        onClick={() => setEditingTitle(false)} 
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setEditingTitle(false)}
                         className="h-11 flex-1 min-h-[44px] touch-manipulation"
                       >
                         Cancel

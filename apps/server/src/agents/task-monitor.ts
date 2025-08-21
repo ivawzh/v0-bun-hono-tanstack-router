@@ -159,7 +159,7 @@ export async function getMonitoringStatus() {
           eq(schema.tasks.agentSessionStatus, 'PUSHING'),
           eq(schema.tasks.agentSessionStatus, 'ACTIVE')
         ),
-        ne(schema.tasks.column, 'done')
+        ne(schema.tasks.list, 'done')
       )
     );
 
@@ -170,7 +170,7 @@ export async function getMonitoringStatus() {
       and(
         eq(schema.tasks.ready, true),
         eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
-        ne(schema.tasks.column, 'done')
+        ne(schema.tasks.list, 'done')
       )
     );
 
@@ -218,7 +218,7 @@ async function checkOutSyncedTasks(): Promise<{ recovered: number; errors: strin
             eq(schema.tasks.agentSessionStatus, 'PUSHING'),
             eq(schema.tasks.agentSessionStatus, 'ACTIVE')
           ),
-          ne(schema.tasks.column, 'done')
+          ne(schema.tasks.list, 'done')
         )
       );
 

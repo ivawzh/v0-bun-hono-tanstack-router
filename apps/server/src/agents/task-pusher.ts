@@ -180,12 +180,12 @@ async function pushTaskToAgent(
   try {
     const now = new Date();
 
-    // Update task status atomically
+    // Update task list atomically
     const updatedTask = await db
       .update(schema.tasks)
       .set({
         agentSessionStatus: 'PUSHING',
-        column: 'doing',
+        list: 'doing',
         activeAgentId: selectedAgent.id,
         lastPushedAt: now,
         lastAgentSessionStartedAt: now,

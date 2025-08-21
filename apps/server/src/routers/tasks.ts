@@ -1,8 +1,17 @@
 import { o, protectedProcedure } from "../lib/orpc";
 import * as v from "valibot";
 import { z } from "zod";
-import { db as mainDb } from "../db";
-import { tasks, projects, repositories, agents, actors, taskDependencies, taskAgents, taskAdditionalRepositories, projectUsers } from "../db/schema";
+import {
+  tasks,
+  projects,
+  repositories,
+  agents,
+  actors,
+  taskDependencies,
+  taskAgents,
+  taskAdditionalRepositories,
+  projectUsers,
+} from "../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
 import {
@@ -10,45 +19,25 @@ import {
   deleteAttachment,
   getAttachmentFile,
   validateTotalAttachmentSize,
-  type AttachmentMetadata
+  type AttachmentMetadata,
 } from "../utils/file-storage";
-import { randomUUID } from "crypto";
-
-// Use test database when running tests, otherwise use main database
-function getDb() {
-  // Check various indicators that we're in a test environment
-  const isTestEnvironment =
-    process.env.NODE_ENV === "test" ||
-    process.env.BUN_TEST ||
-    // Check if we're being called from a test file by examining the call stack
-    (new Error().stack?.includes('.test.') || new Error().stack?.includes('bun:test')) ||
-    // Check if the test setup module is available and has been initialized
-    (global as any).__TEST_DB_ACTIVE;
-
-  if (isTestEnvironment) {
-    try {
-      const { getTestDb } = require("../test/setup");
-      return getTestDb();
-    } catch {
-      // Fallback to main db if test setup not available
-      return mainDb;
-    }
-  }
-  return mainDb;
-}
+import { db } from "@/db";
 
 const taskColumnEnum = v.picklist(["todo", "doing", "done", "loop"]);
-const taskModeEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop", "talk"]));
+const taskModeEnum = v.nullable(
+  v.picklist(["clarify", "plan", "execute", "loop", "talk"])
+);
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
 export const tasksRouter = o.router({
   list: protectedProcedure
-    .input(v.object({
-      projectId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        projectId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
       // Verify project membership
-      const db = getDb();
       const membership = await db
         .select()
         .from(projectUsers)
@@ -68,21 +57,21 @@ export const tasksRouter = o.router({
         .select({
           task: tasks,
           mainRepository: repositories,
-          actor: actors
+          actor: actors,
         })
         .from(tasks)
         .leftJoin(repositories, eq(tasks.mainRepositoryId, repositories.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .where(eq(tasks.projectId, input.projectId))
         .orderBy(
-          tasks.column,
+          tasks.list,
           desc(tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
-          sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
+          sql`CAST(${tasks.listOrder} AS DECIMAL)`,
           desc(tasks.createdAt)
         );
 
       // Fetch dependencies for all tasks in the project
-      const allTaskIds = results.map(r => r.task.id);
+      const allTaskIds = results.map((r) => r.task.id);
       const dependencies = await db
         .select({
           taskId: taskDependencies.taskId,
@@ -91,42 +80,46 @@ export const tasksRouter = o.router({
             id: tasks.id,
             rawTitle: tasks.rawTitle,
             refinedTitle: tasks.refinedTitle,
-            column: tasks.column
-          }
+            list: tasks.list,
+          },
         })
         .from(taskDependencies)
         .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
         .where(inArray(taskDependencies.taskId, allTaskIds));
 
       // Group dependencies by task ID
-      const dependenciesByTask = dependencies.reduce((acc, dep) => {
-        if (!acc[dep.taskId]) {
-          acc[dep.taskId] = [];
-        }
-        acc[dep.taskId].push(dep.dependsOnTask);
-        return acc;
-      }, {} as Record<string, any[]>);
+      const dependenciesByTask = dependencies.reduce(
+        (acc, dep) => {
+          if (!acc[dep.taskId]) {
+            acc[dep.taskId] = [];
+          }
+          acc[dep.taskId].push(dep.dependsOnTask);
+          return acc;
+        },
+        {} as Record<string, any[]>
+      );
 
-      return results.map(r => ({
+      return results.map((r) => ({
         ...r.task,
         mainRepository: r.mainRepository,
         actor: r.actor,
-        dependencies: dependenciesByTask[r.task.id] || []
+        dependencies: dependenciesByTask[r.task.id] || [],
       }));
     }),
 
   get: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       const result = await db
         .select({
           task: tasks,
           project: projects,
           mainRepository: repositories,
-          actor: actors
+          actor: actors,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -134,10 +127,7 @@ export const tasksRouter = o.router({
         .leftJoin(repositories, eq(tasks.mainRepositoryId, repositories.id))
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projectUsers.userId, context.user.id)
-          )
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
         )
         .limit(1);
 
@@ -151,7 +141,10 @@ export const tasksRouter = o.router({
       const additionalRepos = await db
         .select({ repository: repositories })
         .from(taskAdditionalRepositories)
-        .innerJoin(repositories, eq(taskAdditionalRepositories.repositoryId, repositories.id))
+        .innerJoin(
+          repositories,
+          eq(taskAdditionalRepositories.repositoryId, repositories.id)
+        )
         .where(eq(taskAdditionalRepositories.taskId, taskId));
 
       // Fetch assigned agents
@@ -166,36 +159,55 @@ export const tasksRouter = o.router({
         project: result[0].project,
         mainRepository: result[0].mainRepository,
         actor: result[0].actor,
-        additionalRepositories: additionalRepos.map(r => r.repository),
-        additionalRepositoryIds: additionalRepos.map(r => r.repository.id),
-        assignedAgents: assignedAgentsData.map(a => a.agent),
-        assignedAgentIds: assignedAgentsData.map(a => a.agent.id)
+        additionalRepositories: additionalRepos.map((r) => r.repository),
+        additionalRepositoryIds: additionalRepos.map((r) => r.repository.id),
+        assignedAgents: assignedAgentsData.map((a) => a.agent),
+        assignedAgentIds: assignedAgentsData.map((a) => a.agent.id),
       };
     }),
 
   create: protectedProcedure
-    .input(z.object({
-      projectId: z.string().uuid(),
-      mainRepositoryId: z.string().uuid(),
-      additionalRepositoryIds: z.array(z.string().uuid()).optional().default([]),
-      assignedAgentIds: z.array(z.string().uuid()).optional().default([]),
-      actorId: z.string().uuid().optional(),
-      rawTitle: z.string().min(1).max(255),
-      rawDescription: z.string().optional(),
-      priority: z.number().min(1).max(5).optional().default(3),
-      attachments: z.array(z.object({
-        id: z.string().optional(),
-        file: z.instanceof(File),
-        preview: z.string().optional()
-      })).optional().default([]),
-      column: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
-      mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).nullable().optional(),
-      dependencyIds: z.array(z.string().uuid()).optional().default([])
-    }))
+    .input(
+      z.object({
+        projectId: z.string().uuid(),
+        mainRepositoryId: z.string().uuid(),
+        additionalRepositoryIds: z
+          .array(z.string().uuid())
+          .optional()
+          .default([]),
+        assignedAgentIds: z.array(z.string().uuid()).optional().default([]),
+        actorId: z.string().uuid().optional(),
+        rawTitle: z.string().min(1).max(255),
+        rawDescription: z.string().optional(),
+        priority: z.number().min(1).max(5).optional().default(3),
+        attachments: z
+          .array(
+            z.object({
+              id: z.string().optional(),
+              file: z.instanceof(File),
+              preview: z.string().optional(),
+            })
+          )
+          .optional()
+          .default([]),
+        list: z
+          .enum(["todo", "doing", "done", "loop"])
+          .optional()
+          .default("todo"),
+        mode: z
+          .enum(["clarify", "plan", "execute", "loop", "talk"])
+          .nullable()
+          .optional(),
+        dependencyIds: z.array(z.string().uuid()).optional().default([]),
+      })
+    )
     .handler(async ({ context, input }) => {
-      console.log('Task creation with', input.attachments?.length || 0, 'attachments');
+      console.log(
+        "Task creation with",
+        input.attachments?.length || 0,
+        "attachments"
+      );
       // Verify project membership
-      const db = getDb();
       const membership = await db
         .select()
         .from(projectUsers)
@@ -224,11 +236,16 @@ export const tasksRouter = o.router({
         .limit(1);
 
       if (mainRepo.length === 0) {
-        throw new Error("Main repository not found or doesn't belong to project");
+        throw new Error(
+          "Main repository not found or doesn't belong to project"
+        );
       }
 
       // Verify additional repositories belong to project (if provided)
-      if (input.additionalRepositoryIds && input.additionalRepositoryIds.length > 0) {
+      if (
+        input.additionalRepositoryIds &&
+        input.additionalRepositoryIds.length > 0
+      ) {
         const additionalRepos = await db
           .select()
           .from(repositories)
@@ -240,7 +257,9 @@ export const tasksRouter = o.router({
           );
 
         if (additionalRepos.length !== input.additionalRepositoryIds.length) {
-          throw new Error("Some additional repositories not found or don't belong to project");
+          throw new Error(
+            "Some additional repositories not found or don't belong to project"
+          );
         }
       }
 
@@ -257,7 +276,9 @@ export const tasksRouter = o.router({
           );
 
         if (assignedAgents.length !== input.assignedAgentIds.length) {
-          throw new Error("Some assigned agents not found or don't belong to project");
+          throw new Error(
+            "Some assigned agents not found or don't belong to project"
+          );
         }
       }
 
@@ -301,9 +322,9 @@ export const tasksRouter = o.router({
           rawDescription: input.rawDescription,
           priority: input.priority,
           attachments: [], // Start empty, will be populated after processing files
-          column: input.column,
+          list: input.column,
           mode: modeToUse,
-          ready: input.column === "loop" ? true : false // Loop tasks are always ready
+          ready: input.column === "loop" ? true : false, // Loop tasks are always ready
         })
         .returning();
 
@@ -319,7 +340,10 @@ export const tasksRouter = o.router({
             const file = attachmentWrapper.file;
 
             if (!file || !(file instanceof File)) {
-              console.warn('Skipping invalid attachment - not a File object:', attachmentWrapper);
+              console.warn(
+                "Skipping invalid attachment - not a File object:",
+                attachmentWrapper
+              );
               continue;
             }
 
@@ -327,19 +351,26 @@ export const tasksRouter = o.router({
             const buffer = new Uint8Array(await file.arrayBuffer());
 
             // Validate total size before processing
-            await validateTotalAttachmentSize(taskId, file.size, processedAttachments);
+            await validateTotalAttachmentSize(
+              taskId,
+              file.size,
+              processedAttachments
+            );
 
             // Save the attachment using the actual task ID
             const attachment = await saveAttachment(taskId, {
               buffer: buffer,
               originalName: file.name,
               type: file.type,
-              size: file.size
+              size: file.size,
             });
 
             processedAttachments.push(attachment);
           } catch (error) {
-            console.error('Failed to process file attachment during task creation:', error);
+            console.error(
+              "Failed to process file attachment during task creation:",
+              error
+            );
             // Continue with other attachments
           }
         }
@@ -350,27 +381,34 @@ export const tasksRouter = o.router({
             .update(tasks)
             .set({
               attachments: processedAttachments,
-              updatedAt: new Date()
+              updatedAt: new Date(),
             })
             .where(eq(tasks.id, taskId));
         }
       }
 
       // Insert additional repositories
-      if (input.additionalRepositoryIds && input.additionalRepositoryIds.length > 0) {
-        const additionalRepoInserts = input.additionalRepositoryIds.map(repoId => ({
-          taskId,
-          repositoryId: repoId
-        }));
+      if (
+        input.additionalRepositoryIds &&
+        input.additionalRepositoryIds.length > 0
+      ) {
+        const additionalRepoInserts = input.additionalRepositoryIds.map(
+          (repoId) => ({
+            taskId,
+            repositoryId: repoId,
+          })
+        );
 
-        await db.insert(taskAdditionalRepositories).values(additionalRepoInserts);
+        await db
+          .insert(taskAdditionalRepositories)
+          .values(additionalRepoInserts);
       }
 
       // Insert assigned agents
       if (input.assignedAgentIds && input.assignedAgentIds.length > 0) {
-        const agentInserts = input.assignedAgentIds.map(agentId => ({
+        const agentInserts = input.assignedAgentIds.map((agentId) => ({
           taskId,
-          agentId
+          agentId,
         }));
 
         await db.insert(taskAgents).values(agentInserts);
@@ -390,13 +428,17 @@ export const tasksRouter = o.router({
           );
 
         if (dependencyTasks.length !== input.dependencyIds.length) {
-          throw new Error("Some dependency tasks not found or don't belong to project");
+          throw new Error(
+            "Some dependency tasks not found or don't belong to project"
+          );
         }
 
-        const dependencyInserts = input.dependencyIds.map(dependsOnTaskId => ({
-          taskId,
-          dependsOnTaskId
-        }));
+        const dependencyInserts = input.dependencyIds.map(
+          (dependsOnTaskId) => ({
+            taskId,
+            dependsOnTaskId,
+          })
+        );
 
         await db.insert(taskDependencies).values(dependencyInserts);
       }
@@ -407,46 +449,48 @@ export const tasksRouter = o.router({
       // Return the task with updated attachments
       return {
         ...newTask[0],
-        attachments: processedAttachments
+        attachments: processedAttachments,
       };
     }),
 
   update: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid()),
-      rawTitle: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
-      rawDescription: v.optional(v.string()),
-      refinedTitle: v.optional(v.string()),
-      refinedDescription: v.optional(v.string()),
-      plan: v.optional(v.any()),
-      column: v.optional(taskColumnEnum),
-      mode: v.optional(taskModeEnum),
-      priority: v.optional(prioritySchema),
-      ready: v.optional(v.boolean()),
-      attachments: v.optional(v.array(v.any())),
-      columnOrder: v.optional(v.string()),
-      // V2 fields
-      mainRepositoryId: v.optional(v.pipe(v.string(), v.uuid())),
-      additionalRepositoryIds: v.optional(v.array(v.pipe(v.string(), v.uuid()))),
-      assignedAgentIds: v.optional(v.array(v.pipe(v.string(), v.uuid()))),
-      actorId: v.optional(v.pipe(v.string(), v.uuid()))
-    }))
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+        rawTitle: v.optional(
+          v.pipe(v.string(), v.minLength(1), v.maxLength(255))
+        ),
+        rawDescription: v.optional(v.string()),
+        refinedTitle: v.optional(v.string()),
+        refinedDescription: v.optional(v.string()),
+        plan: v.optional(v.any()),
+        list: v.optional(taskColumnEnum),
+        mode: v.optional(taskModeEnum),
+        priority: v.optional(prioritySchema),
+        ready: v.optional(v.boolean()),
+        attachments: v.optional(v.array(v.any())),
+        columnOrder: v.optional(v.string()),
+        // V2 fields
+        mainRepositoryId: v.optional(v.pipe(v.string(), v.uuid())),
+        additionalRepositoryIds: v.optional(
+          v.array(v.pipe(v.string(), v.uuid()))
+        ),
+        assignedAgentIds: v.optional(v.array(v.pipe(v.string(), v.uuid()))),
+        actorId: v.optional(v.pipe(v.string(), v.uuid())),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projectUsers.userId, context.user.id)
-          )
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
         )
         .limit(1);
 
@@ -457,19 +501,25 @@ export const tasksRouter = o.router({
       const updates: any = { updatedAt: new Date() };
 
       if (input.rawTitle !== undefined) updates.rawTitle = input.rawTitle;
-      if (input.rawDescription !== undefined) updates.rawDescription = input.rawDescription;
-      if (input.refinedTitle !== undefined) updates.refinedTitle = input.refinedTitle;
-      if (input.refinedDescription !== undefined) updates.refinedDescription = input.refinedDescription;
+      if (input.rawDescription !== undefined)
+        updates.rawDescription = input.rawDescription;
+      if (input.refinedTitle !== undefined)
+        updates.refinedTitle = input.refinedTitle;
+      if (input.refinedDescription !== undefined)
+        updates.refinedDescription = input.refinedDescription;
       if (input.plan !== undefined) updates.plan = input.plan;
       if (input.column !== undefined) updates.column = input.column;
       if (input.mode !== undefined) updates.mode = input.mode;
       if (input.priority !== undefined) updates.priority = input.priority;
       if (input.ready !== undefined) updates.ready = input.ready;
-      if (input.attachments !== undefined) updates.attachments = input.attachments;
-      if (input.columnOrder !== undefined) updates.columnOrder = input.columnOrder;
+      if (input.attachments !== undefined)
+        updates.attachments = input.attachments;
+      if (input.columnOrder !== undefined)
+        updates.columnOrder = input.columnOrder;
 
       // V2 fields
-      if (input.mainRepositoryId !== undefined) updates.mainRepositoryId = input.mainRepositoryId;
+      if (input.mainRepositoryId !== undefined)
+        updates.mainRepositoryId = input.mainRepositoryId;
       if (input.actorId !== undefined) updates.actorId = input.actorId;
 
       const updated = await db
@@ -489,26 +539,28 @@ export const tasksRouter = o.router({
 
         // Insert new additional repositories
         if (input.additionalRepositoryIds.length > 0) {
-          const additionalRepoInserts = input.additionalRepositoryIds.map(repoId => ({
-            taskId: input.id,
-            repositoryId: repoId
-          }));
-          await db.insert(taskAdditionalRepositories).values(additionalRepoInserts);
+          const additionalRepoInserts = input.additionalRepositoryIds.map(
+            (repoId) => ({
+              taskId: input.id,
+              repositoryId: repoId,
+            })
+          );
+          await db
+            .insert(taskAdditionalRepositories)
+            .values(additionalRepoInserts);
         }
       }
 
       // Handle assigned agents update
       if (input.assignedAgentIds !== undefined) {
         // Delete existing agent assignments
-        await db
-          .delete(taskAgents)
-          .where(eq(taskAgents.taskId, input.id));
+        await db.delete(taskAgents).where(eq(taskAgents.taskId, input.id));
 
         // Insert new agent assignments
         if (input.assignedAgentIds.length > 0) {
-          const agentInserts = input.assignedAgentIds.map(agentId => ({
+          const agentInserts = input.assignedAgentIds.map((agentId) => ({
             taskId: input.id,
-            agentId
+            agentId,
           }));
           await db.insert(taskAgents).values(agentInserts);
         }
@@ -521,25 +573,23 @@ export const tasksRouter = o.router({
     }),
 
   delete: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projectUsers.userId, context.user.id)
-          )
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
         )
         .limit(1);
 
@@ -557,26 +607,24 @@ export const tasksRouter = o.router({
     }),
 
   toggleReady: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid()),
-      ready: v.boolean()
-    }))
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+        ready: v.boolean(),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projectUsers.userId, context.user.id)
-          )
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
         )
         .limit(1);
 
@@ -588,7 +636,7 @@ export const tasksRouter = o.router({
         .update(tasks)
         .set({
           ready: input.ready,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
         .where(eq(tasks.id, input.id))
         .returning();
@@ -600,17 +648,20 @@ export const tasksRouter = o.router({
     }),
 
   updateOrder: protectedProcedure
-    .input(v.object({
-      projectId: v.pipe(v.string(), v.uuid()),
-      tasks: v.array(v.object({
-        id: v.pipe(v.string(), v.uuid()),
-        columnOrder: v.string(),
-        column: v.optional(taskColumnEnum) // Allow moving between columns
-      }))
-    }))
+    .input(
+      v.object({
+        projectId: v.pipe(v.string(), v.uuid()),
+        tasks: v.array(
+          v.object({
+            id: v.pipe(v.string(), v.uuid()),
+            columnOrder: v.string(),
+            list: v.optional(taskColumnEnum), // Allow moving between columns
+          })
+        ),
+      })
+    )
     .handler(async ({ context, input }) => {
       // Verify project membership
-      const db = getDb();
       const membership = await db
         .select()
         .from(projectUsers)
@@ -648,16 +699,16 @@ export const tasksRouter = o.router({
 
         const updates: any = {
           columnOrder: taskUpdate.columnOrder,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         };
 
         if (taskUpdate.column !== undefined) {
           updates.column = taskUpdate.column;
           // Handle mode transitions for different columns
-          if (taskUpdate.column === 'todo' || taskUpdate.column === 'done') {
+          if (taskUpdate.column === "todo" || taskUpdate.column === "done") {
             updates.mode = null;
-          } else if (taskUpdate.column === 'loop') {
-            updates.mode = 'loop'; // Loop tasks always have loop mode
+          } else if (taskUpdate.column === "loop") {
+            updates.mode = "loop"; // Loop tasks always have loop mode
           }
         }
 
@@ -677,26 +728,24 @@ export const tasksRouter = o.router({
     }),
 
   updateMode: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid()),
-      mode: taskModeEnum
-    }))
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+        mode: taskModeEnum,
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projectUsers.userId, context.user.id)
-          )
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
         )
         .limit(1);
 
@@ -708,7 +757,7 @@ export const tasksRouter = o.router({
         .update(tasks)
         .set({
           mode: input.mode,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
         .where(eq(tasks.id, input.id))
         .returning();
@@ -719,19 +768,19 @@ export const tasksRouter = o.router({
       return updated[0];
     }),
 
-
   deleteAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      attachmentId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        taskId: v.pipe(v.string(), v.uuid()),
+        attachmentId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify task ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -748,19 +797,22 @@ export const tasksRouter = o.router({
         throw new Error("Task not found or unauthorized");
       }
 
-      const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+      const attachments =
+        (task[0].task.attachments as AttachmentMetadata[]) || [];
 
       // Delete the file
       await deleteAttachment(input.taskId, input.attachmentId, attachments);
 
       // Remove from task attachments
-      const updatedAttachments = attachments.filter(a => a.id !== input.attachmentId);
+      const updatedAttachments = attachments.filter(
+        (a) => a.id !== input.attachmentId
+      );
 
       await db
         .update(tasks)
         .set({
           attachments: updatedAttachments,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
         .where(eq(tasks.id, input.taskId));
 
@@ -771,17 +823,18 @@ export const tasksRouter = o.router({
     }),
 
   getAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      attachmentId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        taskId: v.pipe(v.string(), v.uuid()),
+        attachmentId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify task ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -798,41 +851,44 @@ export const tasksRouter = o.router({
         throw new Error("Task not found or unauthorized");
       }
 
-      const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-      const attachment = attachments.find(a => a.id === input.attachmentId);
+      const attachments =
+        (task[0].task.attachments as AttachmentMetadata[]) || [];
+      const attachment = attachments.find((a) => a.id === input.attachmentId);
 
       if (!attachment) {
         throw new Error("Attachment not found");
       }
 
-      const buffer = await getAttachmentFile(input.taskId, input.attachmentId, attachments);
+      const buffer = await getAttachmentFile(
+        input.taskId,
+        input.attachmentId,
+        attachments
+      );
 
       return {
         buffer,
-        metadata: attachment
+        metadata: attachment,
       };
     }),
 
   resetAi: protectedProcedure
-    .input(v.object({
-      id: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       // Verify ownership
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
         .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
         .where(
-          and(
-            eq(tasks.id, input.id),
-            eq(projectUsers.userId, context.user.id)
-          )
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
         )
         .limit(1);
 
@@ -844,9 +900,9 @@ export const tasksRouter = o.router({
       const updated = await db
         .update(tasks)
         .set({
-          agentSessionStatus: 'INACTIVE',
+          agentSessionStatus: "INACTIVE",
           activeAgentId: null,
-          updatedAt: new Date()
+          updatedAt: new Date(),
         })
         .where(eq(tasks.id, input.id))
         .returning();
@@ -859,19 +915,20 @@ export const tasksRouter = o.router({
 
   // oRPC upload procedure using native File support
   uploadAttachment: protectedProcedure
-    .input(z.object({
-      taskId: z.string().uuid(),
-      file: z.instanceof(File)
-    }))
+    .input(
+      z.object({
+        taskId: z.string().uuid(),
+        file: z.instanceof(File),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       try {
-        console.log('📎 oRPC attachment upload request received');
-        console.log('📎 Upload details:', {
+        console.log("📎 oRPC attachment upload request received");
+        console.log("📎 Upload details:", {
           taskId: input.taskId,
           fileName: input.file.name,
           fileSize: input.file.size,
-          fileType: input.file.type
+          fileType: input.file.type,
         });
 
         // Convert File to buffer
@@ -881,7 +938,7 @@ export const tasksRouter = o.router({
         const task = await db
           .select({
             task: tasks,
-            project: projects
+            project: projects,
           })
           .from(tasks)
           .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -895,64 +952,70 @@ export const tasksRouter = o.router({
           .limit(1);
 
         if (task.length === 0) {
-          throw new Error('Task not found or unauthorized');
+          throw new Error("Task not found or unauthorized");
         }
 
-        const existingAttachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
+        const existingAttachments =
+          (task[0].task.attachments as AttachmentMetadata[]) || [];
 
         // Validate total size
-        await validateTotalAttachmentSize(input.taskId, input.file.size, existingAttachments);
+        await validateTotalAttachmentSize(
+          input.taskId,
+          input.file.size,
+          existingAttachments
+        );
 
         // Save attachment file
-        console.log('💾 Saving attachment to filesystem...');
+        console.log("💾 Saving attachment to filesystem...");
         const attachment = await saveAttachment(input.taskId, {
           buffer: new Uint8Array(buffer),
           originalName: input.file.name,
           type: input.file.type,
-          size: input.file.size
+          size: input.file.size,
         });
-        console.log('💾 Attachment saved:', attachment);
+        console.log("💾 Attachment saved:", attachment);
 
         // Update task with new attachment
         const updatedAttachments = [...existingAttachments, attachment];
 
-        console.log('🗄️ Updating database...');
+        console.log("🗄️ Updating database...");
         await db
           .update(tasks)
           .set({
             attachments: updatedAttachments,
-            updatedAt: new Date()
+            updatedAt: new Date(),
           })
           .where(eq(tasks.id, input.taskId));
 
         // Broadcast flush to invalidate all queries for this project
         broadcastFlush(task[0].project.id);
 
-        console.log('✅ Upload completed successfully');
+        console.log("✅ Upload completed successfully");
         return {
           attachment,
-          projectId: task[0].project.id
+          projectId: task[0].project.id,
         };
       } catch (error) {
-        console.error('Upload error:', error);
+        console.error("Upload error:", error);
         throw error;
       }
     }),
 
   // New oRPC download procedure matching REST endpoint pattern
   downloadAttachment: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      attachmentId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        taskId: v.pipe(v.string(), v.uuid()),
+        attachmentId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
       try {
         // Verify task ownership with project membership
         const task = await db
           .select({
             task: tasks,
-            project: projects
+            project: projects,
           })
           .from(tasks)
           .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -966,43 +1029,48 @@ export const tasksRouter = o.router({
           .limit(1);
 
         if (task.length === 0) {
-          throw new Error('Task not found or unauthorized');
+          throw new Error("Task not found or unauthorized");
         }
 
-        const attachments = (task[0].task.attachments as AttachmentMetadata[]) || [];
-        const attachment = attachments.find(a => a.id === input.attachmentId);
+        const attachments =
+          (task[0].task.attachments as AttachmentMetadata[]) || [];
+        const attachment = attachments.find((a) => a.id === input.attachmentId);
 
         if (!attachment) {
-          throw new Error('Attachment not found');
+          throw new Error("Attachment not found");
         }
 
-        const buffer = await getAttachmentFile(input.taskId, input.attachmentId, attachments);
+        const buffer = await getAttachmentFile(
+          input.taskId,
+          input.attachmentId,
+          attachments
+        );
 
         return {
           buffer,
-          metadata: attachment
+          metadata: attachment,
         };
       } catch (error) {
-        console.error('Download error:', error);
-        throw new Error('File not found');
+        console.error("Download error:", error);
+        throw new Error("File not found");
       }
     }),
 
   // Dependency management endpoints
   addDependency: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      dependsOnTaskId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        taskId: v.pipe(v.string(), v.uuid()),
+        dependsOnTaskId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
-
       // Verify both tasks exist and belong to user's projects
       const [task, dependsOnTask] = await Promise.all([
         db
           .select({
             task: tasks,
-            project: projects
+            project: projects,
           })
           .from(tasks)
           .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -1017,7 +1085,7 @@ export const tasksRouter = o.router({
         db
           .select({
             task: tasks,
-            project: projects
+            project: projects,
           })
           .from(tasks)
           .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -1028,7 +1096,7 @@ export const tasksRouter = o.router({
               eq(projectUsers.userId, context.user.id)
             )
           )
-          .limit(1)
+          .limit(1),
       ]);
 
       if (task.length === 0 || dependsOnTask.length === 0) {
@@ -1041,7 +1109,11 @@ export const tasksRouter = o.router({
       }
 
       // Check for circular dependencies using simple depth-first search
-      async function hasCircularDependency(startTaskId: string, targetTaskId: string, visited = new Set<string>()): Promise<boolean> {
+      async function hasCircularDependency(
+        startTaskId: string,
+        targetTaskId: string,
+        visited = new Set<string>()
+      ): Promise<boolean> {
         if (visited.has(startTaskId)) {
           return true; // Found a cycle
         }
@@ -1058,7 +1130,13 @@ export const tasksRouter = o.router({
           .where(eq(taskDependencies.taskId, startTaskId));
 
         for (const dep of dependencies) {
-          if (await hasCircularDependency(dep.dependsOnTaskId, targetTaskId, new Set(visited))) {
+          if (
+            await hasCircularDependency(
+              dep.dependsOnTaskId,
+              targetTaskId,
+              new Set(visited)
+            )
+          ) {
             return true;
           }
         }
@@ -1068,7 +1146,9 @@ export const tasksRouter = o.router({
 
       // Check if adding this dependency would create a circular dependency
       if (await hasCircularDependency(input.dependsOnTaskId, input.taskId)) {
-        throw new Error("Adding this dependency would create a circular dependency");
+        throw new Error(
+          "Adding this dependency would create a circular dependency"
+        );
       }
 
       // Check if dependency already exists
@@ -1090,7 +1170,7 @@ export const tasksRouter = o.router({
       // Add the dependency
       await db.insert(taskDependencies).values({
         taskId: input.taskId,
-        dependsOnTaskId: input.dependsOnTaskId
+        dependsOnTaskId: input.dependsOnTaskId,
       });
 
       // Broadcast flush to invalidate all queries for this project
@@ -1100,18 +1180,18 @@ export const tasksRouter = o.router({
     }),
 
   removeDependency: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid()),
-      dependsOnTaskId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        taskId: v.pipe(v.string(), v.uuid()),
+        dependsOnTaskId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
-
       // Verify task exists and belongs to user's project
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -1145,17 +1225,17 @@ export const tasksRouter = o.router({
     }),
 
   getDependencies: protectedProcedure
-    .input(v.object({
-      taskId: v.pipe(v.string(), v.uuid())
-    }))
+    .input(
+      v.object({
+        taskId: v.pipe(v.string(), v.uuid()),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
-
       // Verify task exists and belongs to user's project
       const task = await db
         .select({
           task: tasks,
-          project: projects
+          project: projects,
         })
         .from(tasks)
         .innerJoin(projects, eq(tasks.projectId, projects.id))
@@ -1180,8 +1260,8 @@ export const tasksRouter = o.router({
             id: tasks.id,
             rawTitle: tasks.rawTitle,
             refinedTitle: tasks.refinedTitle,
-            column: tasks.column,
-            priority: tasks.priority
+            list: tasks.list,
+            priority: tasks.priority,
           })
           .from(taskDependencies)
           .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
@@ -1193,28 +1273,28 @@ export const tasksRouter = o.router({
             id: tasks.id,
             rawTitle: tasks.rawTitle,
             refinedTitle: tasks.refinedTitle,
-            column: tasks.column,
-            priority: tasks.priority
+            list: tasks.list,
+            priority: tasks.priority,
           })
           .from(taskDependencies)
           .innerJoin(tasks, eq(taskDependencies.taskId, tasks.id))
-          .where(eq(taskDependencies.dependsOnTaskId, input.taskId))
+          .where(eq(taskDependencies.dependsOnTaskId, input.taskId)),
       ]);
 
       return {
         dependencies,
-        dependents
+        dependents,
       };
     }),
 
   getAvailableDependencies: protectedProcedure
-    .input(v.object({
-      projectId: v.pipe(v.string(), v.uuid()),
-      excludeTaskId: v.optional(v.pipe(v.string(), v.uuid()))
-    }))
+    .input(
+      v.object({
+        projectId: v.pipe(v.string(), v.uuid()),
+        excludeTaskId: v.optional(v.pipe(v.string(), v.uuid())),
+      })
+    )
     .handler(async ({ context, input }) => {
-      const db = getDb();
-
       // Verify project membership
       const membership = await db
         .select()
@@ -1231,35 +1311,34 @@ export const tasksRouter = o.router({
         throw new Error("Project not found or unauthorized");
       }
 
-      // Get all tasks in the project except the excluded one and completed tasks
-      let query = db
-        .select({
-          id: tasks.id,
-          rawTitle: tasks.rawTitle,
-          refinedTitle: tasks.refinedTitle,
-          column: tasks.column,
-          priority: tasks.priority
-        })
-        .from(tasks)
-        .where(
-          and(
-            eq(tasks.projectId, input.projectId),
-            // Exclude done tasks as they can't be dependencies for new tasks
-            sql`${tasks.column} != 'done'`
-          )
-        )
-        .orderBy(desc(tasks.priority), tasks.rawTitle);
-
-      if (input.excludeTaskId) {
-        query = query.where(
-          and(
-            eq(tasks.projectId, input.projectId),
-            sql`${tasks.column} != 'done'`,
-            sql`${tasks.id} != ${input.excludeTaskId}`
-          )
-        );
-      }
-
+      const query = input.excludeTaskId
+        ? db
+            .select()
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.projectId, input.projectId),
+                sql`${tasks.list} != 'done'`,
+                sql`${tasks.id} != ${input.excludeTaskId}`
+              )
+            )
+        : db
+            .select({
+              id: tasks.id,
+              rawTitle: tasks.rawTitle,
+              refinedTitle: tasks.refinedTitle,
+              list: tasks.list,
+              priority: tasks.priority,
+            })
+            .from(tasks)
+            .where(
+              and(
+                eq(tasks.projectId, input.projectId),
+                // Exclude done tasks as they can't be dependencies for new tasks
+                sql`${tasks.list} != 'done'`
+              )
+            )
+            .orderBy(desc(tasks.priority), tasks.rawTitle);
       const availableTasks = await query;
 
       return availableTasks;

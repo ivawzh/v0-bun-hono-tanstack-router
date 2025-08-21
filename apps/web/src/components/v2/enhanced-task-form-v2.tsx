@@ -98,8 +98,8 @@ export function EnhancedTaskFormV2({
   const [availableTasks, setAvailableTasks] = useState<Array<{
     id: string;
     rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
+    refinedTitle: string | null;
+    list: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>>([]);
 
@@ -122,7 +122,7 @@ export function EnhancedTaskFormV2({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!canCreateTask) {
       return;
     }
@@ -143,7 +143,7 @@ export function EnhancedTaskFormV2({
         rawTitle: formData.rawTitle,
         rawDescription: formData.rawDescription,
         priority: formData.priority,
-        column: "todo",
+        list: "todo",
         dependencyIds: formData.dependencyIds,
         attachments: formData.attachments.map(file => ({
           file: file
@@ -155,7 +155,7 @@ export function EnhancedTaskFormV2({
         ...formData,
         actorId: formData.actorId || defaultActor?.id
       });
-      
+
       // Reset form
       setFormData({
         rawTitle: '',
@@ -169,7 +169,7 @@ export function EnhancedTaskFormV2({
         attachments: [],
         dependencyIds: []
       });
-      
+
       onOpenChange(false);
     } finally {
       setIsSubmitting(false);
@@ -242,9 +242,9 @@ export function EnhancedTaskFormV2({
                   <TaskDependencySelector
                     availableTasks={availableTasks}
                     selectedDependencyIds={formData.dependencyIds}
-                    onSelectionChange={(ids) => setFormData(prev => ({ 
-                      ...prev, 
-                      dependencyIds: ids 
+                    onSelectionChange={(ids) => setFormData(prev => ({
+                      ...prev,
+                      dependencyIds: ids
                     }))}
                     placeholder="Select tasks that must be completed first..."
                     maxSelections={10}
@@ -269,8 +269,8 @@ export function EnhancedTaskFormV2({
                   <Label htmlFor="main-repository">Main Repository *</Label>
                   <Select
                     value={formData.mainRepositoryId}
-                    onValueChange={(value) => setFormData(prev => ({ 
-                      ...prev, 
+                    onValueChange={(value) => setFormData(prev => ({
+                      ...prev,
                       mainRepositoryId: value,
                       // Remove from additional repos if selected as main
                       additionalRepositoryIds: prev.additionalRepositoryIds.filter(id => id !== value)
@@ -304,9 +304,9 @@ export function EnhancedTaskFormV2({
                     repositories={availableRepositories}
                     selectedRepositoryIds={formData.additionalRepositoryIds}
                     mainRepositoryId={formData.mainRepositoryId}
-                    onSelectionChange={(ids) => setFormData(prev => ({ 
-                      ...prev, 
-                      additionalRepositoryIds: ids 
+                    onSelectionChange={(ids) => setFormData(prev => ({
+                      ...prev,
+                      additionalRepositoryIds: ids
                     }))}
                     placeholder="Select additional working directories..."
                   />
@@ -328,9 +328,9 @@ export function EnhancedTaskFormV2({
                   <MultiSelectAgents
                     agents={availableAgents}
                     selectedAgentIds={formData.assignedAgentIds}
-                    onSelectionChange={(ids) => setFormData(prev => ({ 
-                      ...prev, 
-                      assignedAgentIds: ids 
+                    onSelectionChange={(ids) => setFormData(prev => ({
+                      ...prev,
+                      assignedAgentIds: ids
                     }))}
                     placeholder="Select agents to work on this task..."
                   />

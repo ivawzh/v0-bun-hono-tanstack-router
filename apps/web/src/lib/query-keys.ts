@@ -1,28 +1,28 @@
 /**
  * Standardized query key factory for consistent cache management
- * 
+ *
  * This module provides:
  * - Standardized query key generation for all entities
  * - Type-safe invalidation patterns with error handling
  * - Cache utility helpers for optimistic updates
  * - Development debugging utilities
  * - Performance monitoring (development only)
- * 
+ *
  * ## Usage Examples:
- * 
+ *
  * ```typescript
  * // Basic usage in components
  * const cache = useCacheUtils()
- * 
+ *
  * // Standard invalidation
  * await cache.invalidateProject(projectId)
  * await cache.invalidateTask(taskId, projectId)
- * 
+ *
  * // Optimistic updates
  * const { previousData, queryKey } = await cache.optimistic.updateTaskInProject(
- *   projectId, taskId, (task) => ({ ...task, status: 'completed' })
+ *   projectId, taskId, (task) => ({ ...task, list: 'completed' })
  * )
- * 
+ *
  * // Development debugging
  * cache.dev?.logActiveQueries()
  * cache.dev?.enablePerformanceMonitoring()
@@ -33,7 +33,7 @@ import type { QueryClient } from '@tanstack/react-query'
 
 /**
  * Query key factory for type-safe and consistent query keys
- * 
+ *
  * Usage:
  * ```ts
  * // In your component:
@@ -41,7 +41,7 @@ import type { QueryClient } from '@tanstack/react-query'
  *   input: { id: projectId },
  *   queryKey: queryKeys.projects.withTasks(projectId), // Override oRPC key
  * }))
- * 
+ *
  * // For invalidation:
  * cacheUtils.invalidateProject(queryClient, projectId)
  * ```
@@ -61,7 +61,7 @@ export const queryKeys = {
     }
   },
 
-  // Tasks  
+  // Tasks
   tasks: {
     all: () => ['tasks'] as const,
     lists: () => [...queryKeys.tasks.all(), 'list'] as const,
@@ -148,15 +148,15 @@ const executeCacheOperation = async (
   debugDetails?: any
 ) => {
   debugLog(operation, debugDetails)
-  
+
   try {
     const results = await Promise.allSettled(promises)
     const failures = results.filter(r => r.status === 'rejected')
-    
+
     if (failures.length > 0) {
       handleCacheError(operation, failures)
     }
-    
+
     return results
   } catch (error) {
     handleCacheError(operation, error)
@@ -187,7 +187,7 @@ export const cacheUtils = {
         queryKey: queryKeys.actors.byProject(projectId),
       }),
     ]
-    
+
     return executeCacheOperation('invalidateProject', operations, { projectId })
   },
 
@@ -320,7 +320,7 @@ export const cacheUtils = {
    * Bulk invalidation for multiple entities at once
    */
   invalidateMultiple: async (
-    queryClient: QueryClient, 
+    queryClient: QueryClient,
     operations: Array<{ type: 'project' | 'task' | 'repository' | 'agent' | 'actor'; id: string; projectId?: string }>
   ) => {
     const promises = operations.map(op => {
@@ -339,7 +339,7 @@ export const cacheUtils = {
           return Promise.resolve()
       }
     })
-    
+
     return Promise.all(promises)
   },
 
@@ -386,13 +386,13 @@ export const optimisticUtils = {
     updater: (task: any) => any
   ) => {
     const queryKey = queryKeys.projects.withTasks(projectId)
-    
+
     // Cancel outgoing queries
     await cacheUtils.cancelQueries(queryClient, queryKey)
-    
+
     // Snapshot previous value
     const previousData = cacheUtils.getCachedData(queryClient, queryKey)
-    
+
     // Optimistically update
     if (previousData) {
       cacheUtils.setCachedData(queryClient, queryKey, {
@@ -402,7 +402,7 @@ export const optimisticUtils = {
         ),
       })
     }
-    
+
     return { previousData, queryKey }
   },
 
@@ -415,13 +415,13 @@ export const optimisticUtils = {
     taskId: string
   ) => {
     const queryKey = queryKeys.projects.withTasks(projectId)
-    
+
     // Cancel outgoing queries
     await cacheUtils.cancelQueries(queryClient, queryKey)
-    
+
     // Snapshot previous value
     const previousData = cacheUtils.getCachedData(queryClient, queryKey)
-    
+
     // Optimistically remove
     if (previousData) {
       cacheUtils.setCachedData(queryClient, queryKey, {
@@ -429,7 +429,7 @@ export const optimisticUtils = {
         tasks: (previousData as any).tasks.filter((task: any) => task.id !== taskId),
       })
     }
-    
+
     return { previousData, queryKey }
   },
 
@@ -442,13 +442,13 @@ export const optimisticUtils = {
     newTask: any
   ) => {
     const queryKey = queryKeys.projects.withTasks(projectId)
-    
+
     // Cancel outgoing queries
     await cacheUtils.cancelQueries(queryClient, queryKey)
-    
+
     // Snapshot previous value
     const previousData = cacheUtils.getCachedData(queryClient, queryKey)
-    
+
     // Optimistically add
     if (previousData) {
       cacheUtils.setCachedData(queryClient, queryKey, {
@@ -456,7 +456,7 @@ export const optimisticUtils = {
         tasks: [...(previousData as any).tasks, newTask],
       })
     }
-    
+
     return { previousData, queryKey }
   },
 
@@ -480,10 +480,10 @@ export const devUtils = {
    */
   logActiveQueries: (queryClient: QueryClient) => {
     if (process.env.NODE_ENV !== 'development') return
-    
+
     const queryCache = queryClient.getQueryCache()
     const queries = queryCache.getAll()
-    
+
     console.group('🔍 Active Queries')
     queries.forEach(query => {
       console.log({
@@ -504,9 +504,9 @@ export const devUtils = {
       console.warn('devUtils.clearEntity is only available in development')
       return
     }
-    
+
     console.log(`🧹 Clearing ${entity}${id ? ` (${id})` : ''} from cache`)
-    
+
     if (id && entity !== 'auth') {
       // Clear specific entity
       const entityKeys = queryKeys[entity] as any
@@ -527,20 +527,20 @@ export const devUtils = {
    */
   validateQueryKey: (queryKey: readonly unknown[]) => {
     if (process.env.NODE_ENV !== 'development') return true
-    
+
     if (!Array.isArray(queryKey) || queryKey.length === 0) {
       console.warn('⚠️  Query key should be a non-empty array:', queryKey)
       return false
     }
-    
+
     const [entity] = queryKey
     const validEntities = ['projects', 'tasks', 'repositories', 'agents', 'actors', 'attachments', 'auth']
-    
+
     if (typeof entity !== 'string' || !validEntities.includes(entity)) {
       console.warn(`⚠️  Query key should start with a valid entity (${validEntities.join(', ')})`, queryKey)
       return false
     }
-    
+
     console.log('✅ Valid query key structure:', queryKey)
     return true
   },
@@ -550,23 +550,23 @@ export const devUtils = {
    */
   monitorCachePerformance: (queryClient: QueryClient) => {
     if (process.env.NODE_ENV !== 'development') return
-    
+
     const originalInvalidateQueries = queryClient.invalidateQueries.bind(queryClient)
-    
+
     queryClient.invalidateQueries = function(filters?: any, options?: any) {
       const start = performance.now()
       const result = originalInvalidateQueries(filters, options)
-      
+
       if (result instanceof Promise) {
         result.then(() => {
           const duration = performance.now() - start
           console.log(`⏱️  Cache invalidation took ${duration.toFixed(2)}ms`, filters)
         })
       }
-      
+
       return result
     }
-    
+
     console.log('🚀 Cache performance monitoring enabled')
   },
 }

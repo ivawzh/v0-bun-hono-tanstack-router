@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { orpc } from "@/utils/orpc";
 import { TaskPopup } from "@/components/v2/task-popup";
 import { TaskContent } from "@/components/v2/task-content";
+import type { TaskV2, DependencyData } from "@/types/task";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -45,7 +46,7 @@ export const Route = createFileRoute("/projects/$projectId/tasks/$taskId")({
         title: `Task ${params.taskId.slice(0, 8)} - Solo Unicorn`,
       },
       {
-        name: "description", 
+        name: "description",
         content: "Task details and management",
       },
     ],
@@ -84,12 +85,15 @@ function TaskPage() {
   const cache = useCacheUtils();
 
   // Fetch task to verify it exists
-  const { data: task, isLoading, error } = useQuery(
+  const { data: rawTask, isLoading, error } = useQuery(
     orpc.tasks.get.queryOptions({
       input: { id: taskId },
       retry: false,
     })
   );
+
+  // Transform null to undefined for TypeScript compatibility
+  const task = rawTask as TaskV2;
 
   // Fetch available repositories, agents, actors and dependencies (same as TaskPopup)
   const { data: repositories = [] } = useQuery(
@@ -113,22 +117,28 @@ function TaskPage() {
     })
   );
 
-  const { data: dependencyData } = useQuery(
+  const { data: rawDependencyData } = useQuery(
     orpc.tasks.getDependencies.queryOptions({
       input: { taskId: taskId! },
       enabled: !!taskId
     })
   );
 
-  const { data: availableTasks = [] } = useQuery(
+  // Transform dependency data for TypeScript compatibility
+  const dependencyData = rawDependencyData as DependencyData;
+
+  const { data: rawAvailableTasks = [] } = useQuery(
     orpc.tasks.getAvailableDependencies.queryOptions({
-      input: { 
-        projectId: task?.projectId || '', 
-        excludeTaskId: taskId || undefined 
+      input: {
+        projectId: task?.projectId || '',
+        excludeTaskId: taskId || undefined
       },
       enabled: !!task?.projectId && !!taskId
     })
   );
+
+  // Transform available tasks for TypeScript compatibility
+  const availableTasks = rawAvailableTasks as TaskV2[];
 
   // Mutations (same as TaskPopup)
   const updateTaskMutation = useMutation(orpc.tasks.update.mutationOptions({
@@ -272,8 +282,8 @@ function TaskPage() {
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
-  
-  const currentStage = stageOptions.find(s => s.value === task?.stage);
+
+  const currentStage = stageOptions.find(s => s.value === task?.mode);
 
   return (
     <div className="min-h-screen bg-background">
@@ -331,7 +341,7 @@ function TaskPage() {
                   TASK-{task.id.slice(0, 8)}
                 </span>
               </div>
-              
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon">
@@ -453,7 +463,7 @@ function TaskPage() {
                   });
                 });
               }}
-              onColumnChange={(column: string) => {
+              onColumnChange={(list: string) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
                   column: column as 'todo' | 'doing' | 'done'
@@ -472,21 +482,21 @@ function TaskPage() {
                 });
               }}
               onMainRepositoryChange={(repositoryId: string) => {
-                updateTaskMutation.mutate({ 
+                updateTaskMutation.mutate({
                   id: taskId!,
-                  mainRepositoryId: repositoryId 
+                  mainRepositoryId: repositoryId
                 });
               }}
               onAdditionalRepositoriesChange={(repositoryIds: string[]) => {
-                updateTaskMutation.mutate({ 
+                updateTaskMutation.mutate({
                   id: taskId!,
-                  additionalRepositoryIds: repositoryIds 
+                  additionalRepositoryIds: repositoryIds
                 });
               }}
               onAssignedAgentsChange={(agentIds: string[]) => {
-                updateTaskMutation.mutate({ 
+                updateTaskMutation.mutate({
                   id: taskId!,
-                  assignedAgentIds: agentIds 
+                  assignedAgentIds: agentIds
                 });
               }}
               onActorChange={(actorId: string) => {

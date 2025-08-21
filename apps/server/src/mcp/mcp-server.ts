@@ -81,7 +81,7 @@ function registerMcpTools(server: McpServer) {
         refinedTitle: z.string().optional(),
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
-        column: z.enum(["todo", "doing", "done", "loop"]).optional(),
+        list: z.enum(["todo", "doing", "done", "loop"]).optional(),
         mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).optional().nullable(),
         agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
@@ -156,16 +156,16 @@ function registerMcpTools(server: McpServer) {
           // Get all loop tasks in the todo column (tasks with mode="loop" and column="todo")
           // and all normal tasks in todo column (tasks with mode!="loop" and column="todo")
           const todoLoopTasks = await db
-            .select({ columnOrder: tasks.columnOrder })
+            .select({ columnOrder: tasks.listOrder })
             .from(tasks)
             .where(
               and(
                 eq(tasks.projectId, task.projectId),
-                eq(tasks.column, 'todo'),
+                eq(tasks.list, 'todo'),
                 eq(tasks.mode, 'loop')
               )
             )
-            .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
+            .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
             .limit(1);
 
           let newColumnOrder = "1000"; // Default if no loop tasks exist in todo
@@ -176,16 +176,16 @@ function registerMcpTools(server: McpServer) {
           } else {
             // No existing loop tasks in todo, check if there are normal tasks to place after
             const normalTodoTasks = await db
-              .select({ columnOrder: tasks.columnOrder })
+              .select({ columnOrder: tasks.listOrder })
               .from(tasks)
               .where(
                 and(
                   eq(tasks.projectId, task.projectId),
-                  eq(tasks.column, 'todo'),
+                  eq(tasks.list, 'todo'),
                   sql`${tasks.mode} != 'loop' OR ${tasks.mode} IS NULL`
                 )
               )
-              .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
+              .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
               .limit(1);
 
             if (normalTodoTasks.length > 0) {
@@ -503,7 +503,7 @@ function registerMcpTools(server: McpServer) {
             refinedDescription,
             plan,
             priority,
-            column: column,
+            list: column,
             mode: mode,
             author: "ai",
             ready: mode ? true : false, // AI tasks that skip clarify are automatically ready
@@ -549,7 +549,7 @@ function registerMcpTools(server: McpServer) {
           .select({ agentId: taskAgents.agentId })
           .from(taskAgents)
           .where(eq(taskAgents.taskId, createdByTaskId));
-        
+
         if (parentAgents.length > 0) {
           const agentAssignments = parentAgents.map(pa => ({
             taskId,
@@ -569,7 +569,7 @@ function registerMcpTools(server: McpServer) {
           refinedTitle,
           projectId,
           createdByTaskId,
-          column: column,
+          list: column,
           mode: mode,
           author: "ai",
           inheritedAgents: parentAgents.length,

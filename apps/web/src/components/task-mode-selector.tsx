@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface TaskModeSelectorProps {
   mode: string | null;
-  column: string;
+  list: string;
   onModeChange: (mode: string | null) => void;
   disabled?: boolean;
   size?: "sm" | "md";

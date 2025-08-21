@@ -36,7 +36,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
       and(
         eq(schema.tasks.ready, true),
         eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
-        ne(schema.tasks.column, 'done'),
+        ne(schema.tasks.list, 'done'),
         // Only tasks with no incomplete dependencies
         notExists(
           db.select()
@@ -58,7 +58,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
             FROM tasks AS repo_tasks
             WHERE repo_tasks.main_repository_id = ${schema.tasks.mainRepositoryId}
               AND repo_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
-              AND repo_tasks.column != 'done'
+              AND repo_tasks.list != 'done'
           ) < ${schema.repositories.maxConcurrencyLimit}
         )`,
         // Has at least one available agent (embedded subquery)
@@ -76,7 +76,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
                 FROM tasks agent_tasks
                 WHERE agent_tasks.active_agent_id = a.id
                   AND agent_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
-                  AND agent_tasks.column != 'done'
+                  AND agent_tasks.list != 'done'
               ) < a.max_concurrency_limit
             )
         )`
@@ -85,12 +85,12 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
     .orderBy(
       desc(schema.tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
       sql`CASE
-        WHEN ${schema.tasks.column} = 'doing' THEN 3
-        WHEN ${schema.tasks.column} = 'todo' THEN 2
-        WHEN ${schema.tasks.column} = 'loop' THEN 1
+        WHEN ${schema.tasks.list} = 'doing' THEN 3
+        WHEN ${schema.tasks.list} = 'todo' THEN 2
+        WHEN ${schema.tasks.list} = 'loop' THEN 1
         ELSE 0
       END DESC`, // Column weight: doing > todo > loop
-      asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
+      asc(sql`CAST(${schema.tasks.listOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )
     .limit(1);

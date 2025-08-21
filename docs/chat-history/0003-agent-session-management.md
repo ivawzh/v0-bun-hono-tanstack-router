@@ -230,7 +230,7 @@ async function findNextAssignableTask(): Promise<TaskWithDetails | null> {
         WHEN ${schema.tasks.status} = 'loop' THEN 1
         ELSE 0
       END DESC`,
-      asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
+      asc(sql`CAST(${schema.tasks.listOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )
     .limit(1);
@@ -317,7 +317,7 @@ async function tryPushTasks(reason?: string) {
 
         // Reset task to non-active state
         await db.update(tasks)
-          .set({ 
+          .set({
             agentSessionStatus: 'INACTIVE',
             activeAgentId: null
           })
@@ -624,7 +624,7 @@ app.post('/api/agent-callbacks/session-ended', async (c) => {
 
   // Update task state
   await db.update(tasks)
-    .set({ 
+    .set({
       agentSessionStatus: 'INACTIVE',
       activeAgentId: null
     })
@@ -758,7 +758,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
   - File: `apps/server/src/db/schema/index.ts`
   - Changes needed:
     - Add `agentSessionStatus` field to tasks table (replaces `isAiWorking`)
-    - Add `activeAgentId` field to tasks table  
+    - Add `activeAgentId` field to tasks table
     - Add `lastPushedAt` field to tasks table
     - Add `lastAgentSessionStartedAt` field to tasks table (replaces `aiWorkingSince`)
     - Add `rateLimitResetAt` field to agents table
@@ -771,8 +771,8 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
     activeAgentId: uuid('activeAgentId').references(() => agents.id),
     lastPushedAt: timestamp('lastPushedAt'),
     lastAgentSessionStartedAt: timestamp('lastAgentSessionStartedAt'),
-    
-    // In agents table  
+
+    // In agents table
     rateLimitResetAt: timestamp('rateLimitResetAt'),
     ```
 
@@ -797,11 +797,11 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
   - File: `~/.solo-unicorn/scripts/session-started.js` - NEW FILE
   - Purpose: Called by Claude Code SessionStart hook
   - Logic: Read hook data from stdin, add session to active_sessions.json
-  
-  - File: `~/.solo-unicorn/scripts/session-ended.js` - NEW FILE  
+
+  - File: `~/.solo-unicorn/scripts/session-ended.js` - NEW FILE
   - Purpose: Called by Claude Code Stop hook
   - Logic: Read hook data from stdin, move session from active to completed
-  
+
   - File: `~/.solo-unicorn/scripts/setup-hooks.js` - NEW FILE
   - Purpose: Automatically configure Claude Code hooks in ~/.claude/settings.json
   - Logic: Merge hook configuration into existing settings
@@ -817,7 +817,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
     - Agent session status check (INACTIVE only)
     - Agent rate limit check (exclude rate-limited agents)
     - Agent capacity check (count PUSHING + ACTIVE tasks)
-    - Repo capacity check (count PUSHING + ACTIVE tasks)  
+    - Repo capacity check (count PUSHING + ACTIVE tasks)
     - Task dependency check (no incomplete dependencies)
     - Priority ordering (P5 > P4 > P3 > P2 > P1, then status weight, then creation time)
   - Compare with: Current `getTopReadyTaskWithDetails()` in orchestrator.ts line 109
@@ -827,7 +827,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
 - [ ] **Create direct Claude CLI spawner**
   - File: `apps/server/src/agents/claude-spawner.ts` - NEW FILE
   - Function: `spawnClaudeCodeCLI(task: TaskWithDetails): Promise<string>`
-  - Logic: 
+  - Logic:
     - Generate unique session ID
     - Build Claude CLI command with options (learn from claude-cli.js)
     - Set environment variables for hooks
@@ -857,7 +857,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
         "Write", "Read", "Edit", "Glob", "Grep", "MultiEdit", "Task",
         "WebSearch", "WebFetch", "TodoRead", "TodoWrite",
         "mcp__solo-unicorn__task_update",
-        "mcp__solo-unicorn__agent_rateLimit", 
+        "mcp__solo-unicorn__agent_rateLimit",
         "mcp__solo-unicorn__project_memory_update",
         "mcp__solo-unicorn__project_memory_get",
         "mcp__solo-unicorn__task_create"
@@ -884,7 +884,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
 
 ## Phase 3: Monitoring & Recovery
 
-### 3.1 Task Monitor Functions  
+### 3.1 Task Monitor Functions
 - [ ] **Implement task monitoring system**
   - File: `apps/server/src/agents/task-monitor.ts` - NEW FILE
   - Functions (all exported individually, no classes):
@@ -951,9 +951,9 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
   - Changes: Add tryPushTasks() calls for any operations that might free capacity
   - Examples: Task deletion, task status changes, task un-assignment
 
-### 5.2 Agent & Repo Management Integration  
+### 5.2 Agent & Repo Management Integration
 - [ ] **Update agent management endpoints**
-  - File: `apps/server/src/routes/agents.ts` 
+  - File: `apps/server/src/routes/agents.ts`
   - Changes: Add `tryPushTasks('agent_capacity_changed')` when agents are added/modified
   - Changes: Add cleanup of rateLimitResetAt when agents are deleted
 
@@ -979,10 +979,10 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
     - `findTaskBySessionId(sessionId)` - Find task by session ID
     - `clearTaskActiveAgent(taskId)` - Clear activeAgentId and session fields
 
-### 6.2 Prompt Generation  
+### 6.2 Prompt Generation
 - [ ] **Update prompt generation for direct CLI**
   - File: `apps/server/src/agents/prompt-generator.ts` - NEW FILE OR UPDATE EXISTING
-  - Function: `generatePrompt(stage, { task, actor, project })` 
+  - Function: `generatePrompt(stage, { task, actor, project })`
   - Reference: Current prompt generation in orchestrator.ts
   - Changes: Adapt for direct Claude CLI stdin input instead of CCU API
 
@@ -1000,7 +1000,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
   - File: `apps/server/src/agents/__tests__/integration.test.ts` - NEW FILE
   - Scenarios:
     - Basic task assignment and completion
-    - Rate limit handling and recovery  
+    - Rate limit handling and recovery
     - Server restart with active sessions
     - Concurrent task pushing
     - Capacity limit enforcement

@@ -189,7 +189,7 @@ Click any card to open simplified drawer:
 5. **Cycle**: Process repeats infinitely ♻️
 
 ### Drag and Drop
-- Drag from Todo → Doing: Sets status to doing (if ready)
+- Drag from Todo → Doing: Sets list to doing (if ready)
 - Drag from Doing → Done: Marks as completed (regular tasks)
 - Drag from Doing → Loop: Returns Loop task to bottom of Loop column
 - Drag from Done → Todo: Reopens regular task

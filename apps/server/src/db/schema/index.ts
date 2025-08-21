@@ -128,7 +128,7 @@ export const tasks = pgTable("tasks", {
   plan: jsonb("plan").default({}), // Final solution and spec from plan stage
 
   // Column and mode
-  column: text("column", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
+  list: text("list", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
   mode: text("mode", { enum: ["clarify", "plan", "execute", "loop", "talk"] }),
 
   // Priority (1-5 where 5=highest, 1=lowest)

@@ -38,69 +38,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useCacheUtils } from "@/hooks/use-cache-utils";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { TaskContent } from "./task-content";
+import type { TaskV2, DependencyData, Repository, Agent, Actor } from "@/types/task";
 
-interface Repository {
-  id: string;
-  name: string;
-  repoPath: string;
-  isDefault?: boolean | null;
-  isAvailable?: boolean;
-  activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
-}
-
-interface Agent {
-  id: string;
-  name: string;
-  agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE';
-  isAvailable?: boolean;
-  activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
-}
-
-interface Actor {
-  id: string;
-  name: string;
-  description: string;
-  isDefault?: boolean | null;
-}
-
-interface TaskV2 {
-  id: string;
-  projectId: string;
-  rawTitle: string;
-  rawDescription?: string;
-  refinedTitle?: string;
-  refinedDescription?: string;
-  column: 'todo' | 'doing' | 'done';
-  mode?: 'clarify' | 'plan' | 'execute';
-  priority: number;
-  ready: boolean;
-  plan?: any;
-  attachments?: any[];
-  createdAt: string;
-  agentSessionStatus?: 'INACTIVE' | 'PUSHING' | 'ACTIVE';
-
-  // V2 specific fields
-  mainRepositoryId: string;
-  additionalRepositoryIds: string[];
-  assignedAgentIds: string[];
-  actorId?: string;
-
-  // Populated relationships
-  mainRepository?: Repository;
-  additionalRepositories?: Repository[];
-  assignedAgents?: Agent[];
-  actor?: Actor;
-  activeSession?: any;
-  dependencies?: Array<{
-    id: string;
-    rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
-    priority: number;
-  }>;
-}
 
 interface TaskDrawerV2Props {
   taskId: string | null;
@@ -119,12 +58,15 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   const cache = useCacheUtils();
 
   // Fetch task details using oRPC
-  const { data: task, isLoading } = useQuery(
+  const { data: rawTask, isLoading } = useQuery(
     orpc.tasks.get.queryOptions({
       input: { id: taskId! },
       enabled: !!taskId
     })
   );
+
+  // Transform null to undefined for TypeScript compatibility
+  const task = rawTask as TaskV2;
 
   // Fetch available repositories
   const { data: repositories = [] } = useQuery(
@@ -151,23 +93,29 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
   );
 
   // Fetch task dependencies
-  const { data: dependencyData } = useQuery(
+  const { data: rawDependencyData } = useQuery(
     orpc.tasks.getDependencies.queryOptions({
       input: { taskId: taskId! },
       enabled: !!taskId
     })
   );
 
+  // Transform dependency data for TypeScript compatibility
+  const dependencyData = rawDependencyData as DependencyData;
+
   // Fetch available tasks for dependency selection
-  const { data: availableTasks = [] } = useQuery(
+  const { data: rawAvailableTasks = [] } = useQuery(
     orpc.tasks.getAvailableDependencies.queryOptions({
-      input: { 
-        projectId: task?.projectId || '', 
-        excludeTaskId: taskId || undefined 
+      input: {
+        projectId: task?.projectId || '',
+        excludeTaskId: taskId || undefined
       },
       enabled: !!task?.projectId && !!taskId
     })
   );
+
+  // Transform available tasks for TypeScript compatibility
+  const availableTasks = rawAvailableTasks as TaskV2[];
 
   // Update task mutation using oRPC
   const updateTaskMutation = useMutation(orpc.tasks.update.mutationOptions({
@@ -234,7 +182,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
       // Optimistically remove attachment from task data
       const taskQuery = cache.queryKeys.tasks.detail(task.id)
       const currentTaskData = cache.getCachedData(taskQuery)
-      
+
       if (currentTaskData && (currentTaskData as any).attachments) {
         const updatedTask = {
           ...currentTaskData,
@@ -243,10 +191,10 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
           )
         }
         cache.setCachedData(taskQuery, updatedTask)
-        
+
         return { previousData: currentTaskData, queryKey: taskQuery }
       }
-      
+
       return null
     },
     onSuccess: async () => {
@@ -262,7 +210,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     },
     onError: (error: any, variables, context) => {
       toast.error(`Failed to delete attachment: ${error.message}`);
-      
+
       // Rollback optimistic update
       if (context?.previousData && context?.queryKey) {
         cache.setCachedData(context.queryKey, context.previousData)
@@ -288,7 +236,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     });
   };
 
-  const handleColumnChange = (column: string) => {
+  const handleColumnChange = (list: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
       column: column as 'todo' | 'doing' | 'done'
@@ -374,7 +322,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   const handleDependencySelectionChange = (selectedIds: string[]) => {
     const currentDependencyIds = dependencyData?.dependencies?.map((d: any) => d.id) || [];
-    
+
     // Find dependencies to add
     const toAdd = selectedIds.filter((id: string) => !currentDependencyIds.includes(id));
     // Find dependencies to remove
@@ -388,23 +336,23 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   // V2 specific handlers
   const handleMainRepositoryChange = (repositoryId: string) => {
-    updateTaskMutation.mutate({ 
+    updateTaskMutation.mutate({
       id: taskId!,
-      mainRepositoryId: repositoryId 
+      mainRepositoryId: repositoryId
     });
   };
 
   const handleAdditionalRepositoriesChange = (repositoryIds: string[]) => {
-    updateTaskMutation.mutate({ 
+    updateTaskMutation.mutate({
       id: taskId!,
-      additionalRepositoryIds: repositoryIds 
+      additionalRepositoryIds: repositoryIds
     });
   };
 
   const handleAssignedAgentsChange = (agentIds: string[]) => {
-    updateTaskMutation.mutate({ 
+    updateTaskMutation.mutate({
       id: taskId!,
-      assignedAgentIds: agentIds 
+      assignedAgentIds: agentIds
     });
   };
 
@@ -423,7 +371,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
-  
+
   const currentMode = modeOptions.find(s => s.value === task?.mode);
 
   return (

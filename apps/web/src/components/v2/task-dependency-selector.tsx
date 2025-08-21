@@ -15,7 +15,7 @@ interface Task {
   id: string;
   rawTitle: string;
   refinedTitle?: string;
-  column: 'todo' | 'doing' | 'done' | 'loop';
+  list: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }
 
@@ -59,17 +59,17 @@ export function TaskDependencySelector({
     onSelectionChange(selectedDependencyIds.filter(id => id !== taskId));
   };
 
-  const getTaskStatusColor = (column: string) => {
-    switch (column) {
-      case 'todo': return 'bg-gray-100 text-gray-800';
-      case 'doing': return 'bg-blue-100 text-blue-800';
-      case 'loop': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const getTaskListColor = (list: string) => {
+    switch (list) {
+      case 'todo': return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
+      case 'doing': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200';
+      case 'loop': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200';
     }
   };
 
-  const getTaskStatusIcon = (column: string) => {
-    switch (column) {
+  const getTaskListIcon = (list: string) => {
+    switch (list) {
       case 'todo': return '⏸';
       case 'doing': return '▶';
       case 'loop': return '♻';
@@ -78,10 +78,10 @@ export function TaskDependencySelector({
   };
 
   const getPriorityColor = (priority: number) => {
-    if (priority >= 5) return 'text-red-600';
-    if (priority >= 4) return 'text-orange-600';
-    if (priority >= 3) return 'text-yellow-600';
-    return 'text-green-600';
+    if (priority >= 5) return 'text-red-600 dark:text-red-400';
+    if (priority >= 4) return 'text-orange-600 dark:text-orange-400';
+    if (priority >= 3) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-green-600 dark:text-green-400';
   };
 
   // Group tasks by column for better organization
@@ -134,13 +134,13 @@ export function TaskDependencySelector({
               {columnOrder.map(column => {
                 const tasks = tasksByColumn[column] || [];
                 if (tasks.length === 0) return null;
-                
+
                 return (
                   <CommandGroup key={column} heading={column.charAt(0).toUpperCase() + column.slice(1)}>
                     {tasks.map((task) => {
                       const isSelected = selectedDependencyIds.includes(task.id);
                       const isDisabled = !isSelected && maxSelections ? selectedDependencyIds.length >= maxSelections : false;
-                      
+
                       return (
                         <CommandItem
                           key={task.id}
@@ -175,11 +175,11 @@ export function TaskDependencySelector({
                               )}
                             </div>
                           </div>
-                          <Badge 
-                            variant="secondary" 
-                            className={cn("text-xs ml-2 shrink-0", getTaskStatusColor(task.column))}
+                          <Badge
+                            variant="secondary"
+                            className={cn("text-xs ml-2 shrink-0", getTaskListColor(task.column))}
                           >
-                            {getTaskStatusIcon(task.column)}
+                            {getTaskListIcon(task.column)}
                           </Badge>
                         </CommandItem>
                       );

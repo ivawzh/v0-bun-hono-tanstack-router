@@ -148,7 +148,7 @@ See the [Public Hosting Guide](docs/hosting.md) for complete setup instructions 
 1. **Sign Up/Login**: Create an account using email and password
 2. **Create a Project**: Click "New Project" and give it a name
 3. **Add a Board**: Each project can have multiple boards for different workflows
-4. **Create Tasks**: Add tasks to your board and organize them by status
+4. **Create Tasks**: Add tasks to your board and organize them by list
 
 ### Working with Tasks
 
@@ -176,7 +176,7 @@ The `CLAUDE_CODE_UI_AUTH_TOKEN` is a shared secret that authenticates AI agents 
 - Retrieve tasks assigned to them
 - Submit work artifacts and logs
 - Ask questions and receive answers
-- Update task status
+- Update task list
 
 #### Setting Up Claude Code with MCP
 

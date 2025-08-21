@@ -12,8 +12,8 @@ import { CheckCircle, Lock, GitBranch, ArrowRight, ArrowDown } from 'lucide-reac
 interface Task {
   id: string;
   rawTitle: string;
-  refinedTitle?: string;
-  column: 'todo' | 'doing' | 'done' | 'loop';
+  refinedTitle?: string | null;
+  list: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }
 
@@ -33,26 +33,26 @@ export function TaskDependencyGraph({
   onTaskClick
 }: TaskDependencyGraphProps) {
   const getPriorityColor = (priority: number) => {
-    if (priority >= 5) return 'text-red-600 bg-red-50 border-red-200';
-    if (priority >= 4) return 'text-orange-600 bg-orange-50 border-orange-200';
-    if (priority >= 3) return 'text-yellow-600 bg-yellow-50 border-yellow-200';
-    return 'text-green-600 bg-green-50 border-green-200';
+    if (priority >= 5) return 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-800';
+    if (priority >= 4) return 'text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-800';
+    if (priority >= 3) return 'text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-950/20 border-yellow-200 dark:border-yellow-800';
+    return 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800';
   };
 
-  const getStatusColor = (column: string) => {
+  const getStatusColor = (list: string) => {
     switch (column) {
-      case 'todo': return 'bg-gray-100 text-gray-700 border-gray-300';
-      case 'doing': return 'bg-blue-100 text-blue-700 border-blue-300';
-      case 'done': return 'bg-green-100 text-green-700 border-green-300';
-      case 'loop': return 'bg-purple-100 text-purple-700 border-purple-300';
-      default: return 'bg-gray-100 text-gray-700 border-gray-300';
+      case 'todo': return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600';
+      case 'doing': return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700';
+      case 'done': return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700';
+      case 'loop': return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700';
+      default: return 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600';
     }
   };
 
-  const getStatusIcon = (column: string) => {
+  const getStatusIcon = (list: string) => {
     switch (column) {
       case 'done': return <CheckCircle className="h-3 w-3" />;
-      case 'todo': 
+      case 'todo':
       case 'doing':
       case 'loop':
       default: return <Lock className="h-3 w-3" />;
@@ -67,8 +67,8 @@ export function TaskDependencyGraph({
     <Card
       className={cn(
         "p-3 transition-all duration-200",
-        isCurrent 
-          ? "ring-2 ring-blue-500 bg-blue-50 border-blue-300" 
+        isCurrent
+          ? "ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-800"
           : "hover:shadow-md",
         isClickable && onTaskClick && "cursor-pointer"
       )}
@@ -78,7 +78,7 @@ export function TaskDependencyGraph({
         <div className="flex items-start justify-between gap-2">
           <h4 className={cn(
             "font-medium text-sm leading-tight",
-            isCurrent ? "text-blue-900" : "text-gray-900"
+            isCurrent ? "text-blue-900 dark:text-blue-100" : "text-gray-900 dark:text-gray-100"
           )}>
             {task.refinedTitle || task.rawTitle}
           </h4>
@@ -89,16 +89,16 @@ export function TaskDependencyGraph({
             <CheckCircle className="h-3 w-3 text-green-500 shrink-0 mt-0.5" />
           )}
         </div>
-        
+
         <div className="flex items-center gap-1">
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={cn("text-xs", getStatusColor(task.column))}
           >
             {task.column}
           </Badge>
-          <Badge 
-            variant="outline" 
+          <Badge
+            variant="outline"
             className={cn("text-xs", getPriorityColor(task.priority))}
           >
             P{task.priority}
@@ -125,17 +125,17 @@ export function TaskDependencyGraph({
       {/* Dependencies Section */}
       {dependencies.length > 0 && (
         <div className="space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <ArrowDown className="h-4 w-4" />
             <span>Dependencies ({dependencies.length})</span>
           </div>
-          
+
           <div className="grid gap-2">
             {dependencies.map((dep) => (
               <TaskNode key={dep.id} task={dep} />
             ))}
           </div>
-          
+
           {/* Flow arrow */}
           <div className="flex justify-center">
             <div className="flex items-center gap-2 text-gray-400">
@@ -149,11 +149,11 @@ export function TaskDependencyGraph({
 
       {/* Current Task */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-blue-700">
+        <div className="flex items-center gap-2 text-sm font-medium text-blue-700 dark:text-blue-400">
           <GitBranch className="h-4 w-4" />
           <span>Current Task</span>
         </div>
-        
+
         <TaskNode task={currentTask} isCurrent={true} isClickable={false} />
       </div>
 
@@ -168,12 +168,12 @@ export function TaskDependencyGraph({
               <div className="w-4 h-px bg-gray-300"></div>
             </div>
           </div>
-          
-          <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
+
+          <div className="flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-300">
             <ArrowRight className="h-4 w-4" />
             <span>Blocked Tasks ({dependents.length})</span>
           </div>
-          
+
           <div className="grid gap-2">
             {dependents.map((dependent) => (
               <TaskNode key={dependent.id} task={dependent} />
@@ -183,16 +183,16 @@ export function TaskDependencyGraph({
       )}
 
       {/* Legend */}
-      <div className="border-t pt-4 mt-6">
-        <h5 className="text-xs font-medium text-gray-600 mb-2">Legend</h5>
+      <div className="border-t dark:border-border pt-4 mt-6">
+        <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Legend</h5>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <div className="flex items-center gap-1">
             <CheckCircle className="h-3 w-3 text-green-500" />
-            <span className="text-gray-600">Completed</span>
+            <span className="text-gray-600 dark:text-gray-400">Completed</span>
           </div>
           <div className="flex items-center gap-1">
             <Lock className="h-3 w-3 text-amber-500" />
-            <span className="text-gray-600">Blocking</span>
+            <span className="text-gray-600 dark:text-gray-400">Blocking</span>
           </div>
         </div>
       </div>

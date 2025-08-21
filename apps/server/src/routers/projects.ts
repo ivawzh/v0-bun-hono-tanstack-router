@@ -27,7 +27,7 @@ export const projectsRouter = o.router({
     .handler(async ({ context }) => {
       try {
         const db = getDb();
-        
+
         // Get projects through membership
         const userProjects = await db
           .select({ project: projects })
@@ -35,7 +35,7 @@ export const projectsRouter = o.router({
           .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
           .where(eq(projectUsers.userId, context.user.id))
           .orderBy(desc(projects.createdAt));
-        
+
         return userProjects.map((row: any) => row.project);
       } catch (err: any) {
         throw err;
@@ -128,7 +128,7 @@ export const projectsRouter = o.router({
       if (input.name !== undefined) updates.name = input.name;
       if (input.description !== undefined) updates.description = input.description;
       if (input.memory !== undefined) updates.memory = input.memory;
-      
+
       const updated = await db
         .update(projects)
         .set(updates)
@@ -215,7 +215,7 @@ export const projectsRouter = o.router({
       // Get task counts by column
       const taskStats = await db
         .select({
-          column: tasks.column,
+          list: tasks.list,
           count: tasks.id
         })
         .from(tasks)
@@ -228,7 +228,7 @@ export const projectsRouter = o.router({
           actors: actorCount.length,
           tasks: {
             total: taskStats.length,
-            byColumn: taskStats.reduce((acc: Record<string, number>, stat: { column: string; count: string }) => {
+            byColumn: taskStats.reduce((acc: Record<string, number>, stat: { list: string; count: string }) => {
               acc[stat.column] = (acc[stat.column] || 0) + 1;
               return acc;
             }, {} as Record<string, number>)
@@ -281,7 +281,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Check if user has access to this project
       if (!await checkProjectAccess(context.user.id, input.id)) {
         throw new Error("Project not found or unauthorized");
@@ -307,7 +307,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Check if user is owner of this project
       if (!await checkProjectOwnership(context.user.id, input.id)) {
         throw new Error("Only project owners can view invitations");
@@ -334,7 +334,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Check if user is owner of this project
       if (!await checkProjectOwnership(context.user.id, input.projectId)) {
         throw new Error("Only project owners can invite users");
@@ -388,7 +388,7 @@ export const projectsRouter = o.router({
       // Create invitation
       const token = generateInvitationToken();
       const expiresAt = getInvitationExpiration();
-      
+
       const invitation = await db
         .insert(projectInvitations)
         .values({
@@ -403,7 +403,7 @@ export const projectsRouter = o.router({
 
       // Send invitation email
       const invitationUrl = `${process.env.CORS_ORIGIN}/invite/${token}`;
-      
+
       await EmailService.sendInvitation({
         inviterName: context.user.displayName,
         projectName: project[0].name,
@@ -424,7 +424,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Check if user is owner of this project
       if (!await checkProjectOwnership(context.user.id, input.projectId)) {
         throw new Error("Only project owners can remove members");
@@ -456,7 +456,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Check if user is owner of this project
       if (!await checkProjectOwnership(context.user.id, input.projectId)) {
         throw new Error("Only project owners can update member roles");
@@ -492,7 +492,7 @@ export const projectsRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Get invitation and check ownership
       const invitation = await db
         .select()

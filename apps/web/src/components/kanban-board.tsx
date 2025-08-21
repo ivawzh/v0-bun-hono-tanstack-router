@@ -351,7 +351,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
 
         {/* Ready toggle - only show for non-completed and non-loop tasks */}
         {task.column !== 'done' && task.column !== 'loop' && (
-          <div className="kanban-card-status">
+          <div className="kanban-card-list">
             <div className="kanban-card-ready-toggle">
               <Switch
                 id={`ready-${task.id}`}
@@ -727,7 +727,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               return {
                 ...task,
                 columnOrder: update.columnOrder,
-                column: update.column || task.column
+                list: update.column || task.column
               };
             }
             return task;
@@ -782,11 +782,11 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
     // Final sort - special handling for Done column
     if (column.id === 'done') {
-      // Done column: always sort by completion time newest first (descending)
-      // Use a more reliable completion time approach - combination of status and timestamps
+      // Done list: always sort by completion time newest first (descending)
+      // Use a more reliable completion time approach - combination of list and timestamps
       columnTasks = columnTasks.sort((a: any, b: any) => {
         // For done tasks, we'll use updatedAt as the best available completion indicator
-        // since tasks get updatedAt set when they move to done status
+        // since tasks get updatedAt set when they move to done list
         // But we'll also consider createdAt as a secondary sort for stability
         const aTime = new Date(a.updatedAt).getTime();
         const bTime = new Date(b.updatedAt).getTime();
@@ -843,7 +843,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (!activeTask) return;
 
     // Determine target column and position
-    let targetColumn = activeTask.column;
+    let targetColumn = activeTask.list;
     let targetTasks = groupedTasks[targetColumn];
 
     // Check if dropped on a different column
@@ -866,7 +866,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     // Calculate new positions
     const updates: Array<{ id: string; columnOrder: string; column?: string }> = [];
 
-    if (targetColumn !== activeTask.column) {
+    if (targetColumn !== activeTask.list) {
       // Moving to a different column
       const targetIndex = targetTasks.findIndex((t: any) => t.id === overId);
       const insertIndex = targetIndex >= 0 ? targetIndex : targetTasks.length;
@@ -880,26 +880,26 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       } else if (insertIndex === 0) {
         // Insert at beginning
         const firstTask = targetTasks[0];
-        const firstOrder = parseFloat(firstTask.columnOrder);
+        const firstOrder = parseFloat(firstTask.listOrder);
         newOrder = Math.max(firstOrder - 1000, 100).toString();
       } else if (insertIndex >= targetTasks.length) {
         // Insert at end
         const lastTask = targetTasks[targetTasks.length - 1];
-        const lastOrder = parseFloat(lastTask.columnOrder);
+        const lastOrder = parseFloat(lastTask.listOrder);
         newOrder = (lastOrder + 1000).toString();
       } else {
         // Insert between tasks
         const prevTask = targetTasks[insertIndex - 1];
         const nextTask = targetTasks[insertIndex];
-        const prevOrder = parseFloat(prevTask.columnOrder);
-        const nextOrder = parseFloat(nextTask.columnOrder);
+        const prevOrder = parseFloat(prevTask.listOrder);
+        const nextOrder = parseFloat(nextTask.listOrder);
         newOrder = ((prevOrder + nextOrder) / 2).toString();
       }
 
       updates.push({
         id: activeId,
         columnOrder: newOrder,
-        column: targetColumn
+        list: targetColumn
       });
     } else {
       // Reordering within the same column
@@ -920,10 +920,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           if (isMovingDown) {
             // Moving down: insert after the target
             const nextTask = targetTasks[overIndex + 1];
-            const overOrder = parseFloat(overTask.columnOrder);
+            const overOrder = parseFloat(overTask.listOrder);
 
             if (nextTask) {
-              const nextOrder = parseFloat(nextTask.columnOrder);
+              const nextOrder = parseFloat(nextTask.listOrder);
               newOrder = ((overOrder + nextOrder) / 2).toString();
             } else {
               // Moving to the end of the list
@@ -932,10 +932,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           } else {
             // Moving up: insert before the target
             const prevTask = targetTasks[overIndex - 1];
-            const overOrder = parseFloat(overTask.columnOrder);
+            const overOrder = parseFloat(overTask.listOrder);
 
             if (prevTask) {
-              const prevOrder = parseFloat(prevTask.columnOrder);
+              const prevOrder = parseFloat(prevTask.listOrder);
               newOrder = ((prevOrder + overOrder) / 2).toString();
             } else {
               // Moving to the beginning of the list
@@ -1033,7 +1033,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      column: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
+      list: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
       mode: newTask.mode as "clarify" | "plan" | "execute" | "loop" | null
     });
   };

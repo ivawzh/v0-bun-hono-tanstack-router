@@ -43,86 +43,8 @@ import { MultiSelectAgents } from "./multi-select-agents";
 import { MultiSelectRepositories } from "./multi-select-repositories";
 import { TaskDependencySelector } from "./task-dependency-selector";
 import { TaskDependencyGraph } from "./task-dependency-graph";
+import type { TaskV2, DependencyData, Repository, Agent, Actor, AvailableTask } from "@/types/task";
 
-interface Repository {
-  id: string;
-  name: string;
-  repoPath: string;
-  isDefault?: boolean | null;
-  isAvailable?: boolean;
-  activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
-}
-
-interface Agent {
-  id: string;
-  name: string;
-  agentType: 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE';
-  isAvailable?: boolean;
-  activeTaskCount?: number;
-  maxConcurrencyLimit?: number | null;
-}
-
-interface Actor {
-  id: string;
-  name: string;
-  description: string;
-  isDefault?: boolean | null;
-}
-
-interface TaskV2 {
-  id: string;
-  projectId: string;
-  rawTitle: string;
-  rawDescription?: string;
-  refinedTitle?: string;
-  refinedDescription?: string;
-  column: 'todo' | 'doing' | 'done';
-  mode?: 'clarify' | 'plan' | 'execute';
-  priority: number;
-  ready: boolean;
-  plan?: any;
-  attachments?: any[];
-  createdAt: string;
-  agentSessionStatus?: 'INACTIVE' | 'PUSHING' | 'ACTIVE';
-
-  // V2 specific fields
-  mainRepositoryId: string;
-  additionalRepositoryIds: string[];
-  assignedAgentIds: string[];
-  actorId?: string;
-
-  // Populated relationships
-  mainRepository?: Repository;
-  additionalRepositories?: Repository[];
-  assignedAgents?: Agent[];
-  actor?: Actor;
-  activeSession?: any;
-  dependencies?: Array<{
-    id: string;
-    rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
-    priority: number;
-  }>;
-}
-
-interface DependencyData {
-  dependencies?: Array<{
-    id: string;
-    rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
-    priority: number;
-  }>;
-  dependents?: Array<{
-    id: string;
-    rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
-    priority: number;
-  }>;
-}
 
 interface TaskContentProps {
   task: TaskV2;
@@ -130,13 +52,7 @@ interface TaskContentProps {
   agents?: Agent[];
   actors?: Actor[];
   dependencyData?: DependencyData;
-  availableTasks?: Array<{
-    id: string;
-    rawTitle: string;
-    refinedTitle?: string;
-    column: 'todo' | 'doing' | 'done' | 'loop';
-    priority: number;
-  }>;
+  availableTasks?: AvailableTask[];
   editingDescription: boolean;
   tempDescription: string;
   onEditingDescriptionChange: (editing: boolean) => void;
@@ -145,7 +61,7 @@ interface TaskContentProps {
   onSaveRefinedTitle: (value: string) => Promise<void>;
   onSaveRefinedDescription: (value: string) => Promise<void>;
   onSavePlan: (value: string) => Promise<void>;
-  onColumnChange: (column: string) => void;
+  onColumnChange: (list: string) => void;
   onPriorityChange: (priority: string) => void;
   onModeChange: (mode: string | null) => void;
   onMainRepositoryChange: (repositoryId: string) => void;
@@ -323,11 +239,13 @@ export function TaskContent({
                     {dependencyData.dependencies.map((dep) => {
                       const isCompleted = dep.column === 'done';
                       const isBlocking = !isCompleted;
-                      
+
                       return (
                         <Card key={dep.id} className={cn(
                           "p-3",
-                          isCompleted ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+                          isCompleted
+                            ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
+                            : "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
                         )}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
@@ -345,9 +263,9 @@ export function TaskContent({
                                     variant="outline"
                                     className={cn(
                                       "text-xs",
-                                      isCompleted 
-                                        ? "bg-green-100 text-green-700 border-green-300"
-                                        : "bg-amber-100 text-amber-700 border-amber-300"
+                                      isCompleted
+                                        ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700"
+                                        : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700"
                                     )}
                                   >
                                     {dep.column}
@@ -380,12 +298,12 @@ export function TaskContent({
 
               {/* Blocked Status Warning */}
               {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.column !== 'done') && (
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                  <div className="flex items-center gap-2 text-amber-700">
+                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                  <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
                     <Lock className="h-4 w-4" />
                     <span className="font-medium text-sm">Task is blocked</span>
                   </div>
-                  <p className="text-xs text-amber-600 mt-1">
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
                     This task cannot start until all dependencies are completed
                   </p>
                 </div>
@@ -414,15 +332,15 @@ export function TaskContent({
                   <Label className="text-sm font-medium">Tasks Depending on This ({dependencyData.dependents.length})</Label>
                   <div className="mt-2 space-y-2">
                     {dependencyData.dependents.map((dependent) => (
-                      <Card key={dependent.id} className="p-3 bg-blue-50 border-blue-200">
+                      <Card key={dependent.id} className="p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
                         <div className="flex items-center gap-2">
-                          <GitBranch className="h-4 w-4 text-blue-600 shrink-0" />
+                          <GitBranch className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
                           <div className="min-w-0 flex-1">
                             <p className="font-medium text-sm truncate">
                               {dependent.refinedTitle || dependent.rawTitle}
                             </p>
                             <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                              <Badge variant="outline" className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700">
                                 {dependent.column}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
@@ -445,17 +363,23 @@ export function TaskContent({
                (dependencyData?.dependents && dependencyData.dependents.length > 0) ? (
                 <div>
                   <Label className="text-sm font-medium">Dependency Flow</Label>
-                  <div className="mt-2 border rounded-lg p-4 bg-gray-50">
+                  <div className="mt-2 border rounded-lg p-4 bg-muted/50">
                     <TaskDependencyGraph
                       currentTask={{
                         id: task.id,
                         rawTitle: task.rawTitle,
-                        refinedTitle: task.refinedTitle,
-                        column: task.column as any,
+                        refinedTitle: task.refinedTitle || undefined,
+                        list: task.column as any,
                         priority: task.priority
                       }}
-                      dependencies={dependencyData?.dependencies}
-                      dependents={dependencyData?.dependents}
+                      dependencies={dependencyData?.dependencies?.map(dep => ({
+                        ...dep,
+                        refinedTitle: dep.refinedTitle || undefined
+                      }))}
+                      dependents={dependencyData?.dependents?.map(dep => ({
+                        ...dep,
+                        refinedTitle: dep.refinedTitle || undefined
+                      }))}
                       onTaskClick={(taskId) => {
                         // Could implement navigation to other tasks here
                         console.log('Navigate to task:', taskId);

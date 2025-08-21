@@ -398,7 +398,7 @@ This approach balances immediate improvements with a robust long-term solution w
 ## User's Preferred Hybrid Approach
 
 After reviewing the options, the user prefers combining:
-- **Option 1.2**: Enhanced Task State Machine  
+- **Option 1.2**: Enhanced Task State Machine
 - **Option 3.2**: Claude Code Hook-Based Monitoring
 
 Plus two additional ideas:
@@ -428,7 +428,7 @@ Plus two additional ideas:
 
 ```sql
 -- Add new fields to tasks table
-ALTER TABLE tasks ADD COLUMN agentSessionStatus TEXT DEFAULT 'waiting'; 
+ALTER TABLE tasks ADD COLUMN agentSessionStatus TEXT DEFAULT 'waiting';
 -- 'waiting', 'pushing', 'active', 'completed'
 
 ALTER TABLE tasks RENAME COLUMN lastAgentSessionId TO agentSessionId;
@@ -457,7 +457,7 @@ ALTER TABLE tasks ADD COLUMN sessionCompletedAt TIMESTAMP;
   "sessions": {
     "session-uuid-1": {
       "taskId": "task-uuid",
-      "agentId": "agent-uuid", 
+      "agentId": "agent-uuid",
       "repoId": "repo-uuid",
       "startedAt": "2024-01-01T12:00:00Z",
       "pid": 12345,
@@ -467,7 +467,7 @@ ALTER TABLE tasks ADD COLUMN sessionCompletedAt TIMESTAMP;
   "lastUpdated": "2024-01-01T12:05:00Z"
 }
 
-// completed_sessions.json  
+// completed_sessions.json
 {
   "sessions": {
     "session-uuid-2": {
@@ -490,7 +490,7 @@ ALTER TABLE tasks ADD COLUMN sessionCompletedAt TIMESTAMP;
       "command": "curl -s -X POST http://localhost:8500/api/hooks/session-started -H 'Content-Type: application/json' -d '{\"sessionId\": \"$CLAUDE_SESSION_ID\", \"taskId\": \"$SOLO_UNICORN_TASK_ID\"}'"
     }],
     "Stop": [{
-      "type": "command", 
+      "type": "command",
       "command": "curl -s -X POST http://localhost:8500/api/hooks/session-ended -H 'Content-Type: application/json' -d '{\"sessionId\": \"$CLAUDE_SESSION_ID\", \"taskId\": \"$SOLO_UNICORN_TASK_ID\", \"success\": true}'"
     }]
   }
@@ -502,25 +502,25 @@ ALTER TABLE tasks ADD COLUMN sessionCompletedAt TIMESTAMP;
 // apps/server/src/routes/hooks.ts
 app.post('/api/hooks/session-started', async (c) => {
   const { sessionId, taskId } = await c.req.json();
-  
+
   // Update task state: starting → active
   await updateTaskSessionState(taskId, 'active', { sessionId });
-  
+
   // Add to active sessions file
   await addActiveSession(sessionId, { taskId, startedAt: new Date() });
-  
+
   return c.json({ success: true });
 });
 
 app.post('/api/hooks/session-ended', async (c) => {
   const { sessionId, taskId, success } = await c.req.json();
-  
+
   // Update task state: active → completed
   await updateTaskSessionState(taskId, 'completed');
-  
+
   // Move from active to completed sessions
   await moveToCompletedSessions(sessionId, { success });
-  
+
   return c.json({ success: true });
 });
 ```
@@ -533,29 +533,29 @@ app.post('/api/hooks/session-ended', async (c) => {
 async function recoverOrphanedSessions() {
   // 1. Read active sessions file
   const activeSessions = await readActiveSessionsFile();
-  
+
   // 2. Get all tasks marked as active/starting
   const potentiallyActiveTasks = await db.query.tasks.findMany({
     where: inArray(tasks.sessionState, ['starting', 'active'])
   });
-  
-  // 3. Read completed sessions file 
+
+  // 3. Read completed sessions file
   const completedSessions = await readCompletedSessionsFile();
-  
+
   // 4. Cross-reference and clean up
   for (const task of potentiallyActiveTasks) {
     const sessionId = task.lastAgentSessionId;
-    
+
     if (completedSessions.sessions[sessionId]) {
       // Session completed while server was down
       await updateTaskSessionState(task.id, 'completed');
       console.log(`✅ Recovered completed task: ${task.id}`);
-      
+
     } else if (!activeSessions.sessions[sessionId]) {
       // Session not in active file, likely crashed
       await updateTaskSessionState(task.id, 'failed');
       console.log(`❌ Marked orphaned task as failed: ${task.id}`);
-      
+
     } else {
       // Check if process is actually running
       const session = activeSessions.sessions[sessionId];
@@ -578,7 +578,7 @@ async function assignTaskToAgent() {
   // 1. Find available repo and agent
   const availableCapacity = await getAvailableCapacity();
   if (!availableCapacity) return;
-  
+
   // 2. Get highest priority ready task
   const task = await db.query.tasks.findFirst({
     where: and(
@@ -587,12 +587,12 @@ async function assignTaskToAgent() {
     ),
     orderBy: [desc(tasks.priority), asc(tasks.createdAt)]
   });
-  
+
   if (!task) return;
-  
+
   // 3. ATOMIC: Mark task as pushing (prevents double assignment)
   const updated = await db.update(tasks)
-    .set({ 
+    .set({
       sessionState: 'pushing',
       sessionPushedAt: new Date(),
       assignedAgentId: availableCapacity.agentId,
@@ -602,25 +602,25 @@ async function assignTaskToAgent() {
       eq(tasks.id, task.id),
       eq(tasks.sessionState, 'ready') // Only update if still ready
     ));
-    
+
   if (updated.rowCount === 0) {
     // Another orchestrator cycle got this task
     console.log('Task already assigned by another cycle');
     return;
   }
-  
+
   // 4. Spawn Claude CLI process
   try {
     const sessionId = await spawnClaudeCodeCLI(task, availableCapacity);
-    
+
     // 5. Update to starting state
     await db.update(tasks)
-      .set({ 
+      .set({
         sessionState: 'starting',
-        lastAgentSessionId: sessionId 
+        lastAgentSessionId: sessionId
       })
       .where(eq(tasks.id, task.id));
-      
+
   } catch (error) {
     // 6. Failed to spawn, reset to ready
     await db.update(tasks)
@@ -644,11 +644,11 @@ async function getAvailableCapacity() {
     .from(tasks)
     .where(inArray(tasks.sessionState, ['pushing', 'starting', 'active']))
     .groupBy(tasks.assignedAgentId, tasks.assignedRepoId);
-  
+
   // Find agents and repos under their concurrency limits
   const availableAgents = await findAgentsUnderLimit(activeTaskCounts);
   const availableRepos = await findReposUnderLimit(activeTaskCounts);
-  
+
   // Return first available combination
   return findCompatiblePair(availableAgents, availableRepos);
 }
@@ -661,7 +661,7 @@ async function getAvailableCapacity() {
 // apps/server/src/agents/claude-spawner.ts
 async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
   const sessionId = generateUUID();
-  
+
   // Build Claude CLI command
   const claudeArgs = [
     'claude',
@@ -670,7 +670,7 @@ async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
     ...(task.lastAgentSessionId ? ['-r', task.lastAgentSessionId] : []),
     '--verbose'
   ];
-  
+
   // Set environment variables for hooks
   const env = {
     ...process.env,
@@ -678,19 +678,19 @@ async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
     SOLO_UNICORN_TASK_ID: task.id,
     CLAUDE_SESSION_ID: sessionId
   };
-  
+
   // Spawn process
   const child = spawn(claudeArgs[0], claudeArgs.slice(1), {
     env,
     cwd: repo.repoPath,
     stdio: ['pipe', 'pipe', 'pipe']
   });
-  
+
   // Send task prompt
   const prompt = generatePrompt(task.stage, { task, actor, project });
   child.stdin.write(prompt);
   child.stdin.end();
-  
+
   // Add to active sessions file
   await addActiveSession(sessionId, {
     taskId: task.id,
@@ -699,7 +699,7 @@ async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
     pid: child.pid,
     startedAt: new Date()
   });
-  
+
   return sessionId;
 }
 ```
@@ -707,7 +707,7 @@ async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
 ### Advantages of This Hybrid Approach
 
 1. **Survives Server Restarts**: File-based session registry persists across hot reloads
-2. **Race Condition Prevention**: Atomic task state updates prevent double assignment  
+2. **Race Condition Prevention**: Atomic task state updates prevent double assignment
 3. **Reliable Recovery**: Cross-reference completed sessions file with active tasks
 4. **Process Health Checking**: Can verify if Claude CLI processes are actually running
 5. **No External Dependencies**: Uses local files instead of Redis/external services
@@ -721,7 +721,7 @@ async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
 - Implement file-based session registry
 - Create session recovery logic
 
-**Week 2: Claude Integration** 
+**Week 2: Claude Integration**
 - Set up Claude Code hooks
 - Implement direct CLI spawning
 - Add hook endpoint handlers
@@ -754,7 +754,7 @@ This approach addresses all the original concerns while providing a robust, depe
   "source": "startup"
 }
 
-// Stop  
+// Stop
 {
   "session_id": "abc123",
   "transcript_path": "~/.claude/projects/.../00893aaf-19fa-41d2-8238-13269b9b3ca0.jsonl",
@@ -774,7 +774,7 @@ This approach addresses all the original concerns while providing a robust, depe
       "command": "echo \"{\\\"event\\\": \\\"session_started\\\", \\\"sessionId\\\": \\\"$session_id\\\", \\\"timestamp\\\": \\\"$(date -Iseconds)\\\"}\" >> ~/.solo-unicorn/sessions/session_events.jsonl"
     }],
     "Stop": [{
-      "type": "command", 
+      "type": "command",
       "command": "echo \"{\\\"event\\\": \\\"session_ended\\\", \\\"sessionId\\\": \\\"$session_id\\\", \\\"timestamp\\\": \\\"$(date -Iseconds)\\\"}\" >> ~/.solo-unicorn/sessions/session_events.jsonl"
     }]
   }
@@ -791,9 +791,9 @@ import { createInterface } from 'readline';
 // Watch for new session events
 function watchSessionEvents() {
   const eventFile = '~/.solo-unicorn/sessions/session_events.jsonl';
-  
+
   let lastPosition = 0;
-  
+
   watch(eventFile, async (eventType) => {
     if (eventType === 'change') {
       await processNewSessionEvents(eventFile, lastPosition);
@@ -804,7 +804,7 @@ function watchSessionEvents() {
 async function processNewSessionEvents(filePath: string, fromPosition: number) {
   const stream = createReadStream(filePath, { start: fromPosition });
   const reader = createInterface({ input: stream });
-  
+
   for await (const line of reader) {
     try {
       const event = JSON.parse(line);
@@ -817,14 +817,14 @@ async function processNewSessionEvents(filePath: string, fromPosition: number) {
 
 async function handleSessionEvent(event: { event: string, sessionId: string, timestamp: string }) {
   const { event: eventType, sessionId } = event;
-  
+
   // Find task by agentSessionId
   const task = await db.query.tasks.findFirst({
     where: eq(tasks.agentSessionId, sessionId)
   });
-  
+
   if (!task) return;
-  
+
   if (eventType === 'session_started') {
     await updateTaskSessionStatus(task.id, 'active');
     await addActiveSession(sessionId, { taskId: task.id, startedAt: new Date() });
@@ -837,7 +837,7 @@ async function handleSessionEvent(event: { event: string, sessionId: string, tim
 
 ### Resume Session Edge Case
 
-**Edge Case**: 
+**Edge Case**:
 1. Session 123 completes and gets added to `completed_sessions.json`
 2. Task gets re-fed to resume session 123 (new work on same task)
 3. API server reboots while session 123 is active
@@ -859,19 +859,19 @@ async function handleSessionEvent(event: { event: string, sessionId: string, tim
   }
 }
 
-// completed_sessions.json  
+// completed_sessions.json
 {
   "sessions": {
     "session-123": [
       {
-        "taskId": "task-uuid", 
+        "taskId": "task-uuid",
         "completedAt": "2024-01-01T12:00:00Z",
         "resumeCount": 1,
         "wasResumed": true
       },
       {
         "taskId": "task-uuid",
-        "completedAt": "2024-01-01T12:45:00Z", 
+        "completedAt": "2024-01-01T12:45:00Z",
         "resumeCount": 2,
         "wasResumed": false
       }
@@ -888,34 +888,34 @@ async function moveToCompletedSessions(sessionId, { taskId }) {
   const sessionData = activeSessions.sessions[sessionId];
   delete activeSessions.sessions[sessionId];
   await writeActiveSessionsFile(activeSessions);
-  
+
   // Add to completed with resume count
   const completedSessions = await readCompletedSessionsFile();
   if (!completedSessions.sessions[sessionId]) {
     completedSessions.sessions[sessionId] = [];
   }
-  
+
   completedSessions.sessions[sessionId].push({
     taskId,
     completedAt: new Date().toISOString(),
     resumeCount: sessionData?.resumeCount || 1,
     wasResumed: false // This completion is final for this resume cycle
   });
-  
+
   await writeCompletedSessionsFile(completedSessions);
 }
 
 async function addActiveSession(sessionId, data) {
   const activeSessions = await readActiveSessionsFile();
   const existingResumeCount = getLatestResumeCount(sessionId); // Check completed sessions
-  
+
   activeSessions.sessions[sessionId] = {
     ...data,
     resumeCount: existingResumeCount + 1,
     currentlyActive: true,
     lastResumedAt: new Date().toISOString()
   };
-  
+
   await writeActiveSessionsFile(activeSessions);
 }
 ```
@@ -925,14 +925,14 @@ async function addActiveSession(sessionId, data) {
 async function recoverOrphanedSessions() {
   const activeSessions = await readActiveSessionsFile();
   const completedSessions = await readCompletedSessionsFile();
-  
+
   const potentiallyActiveTasks = await db.query.tasks.findMany({
     where: inArray(tasks.sessionState, ['starting', 'active'])
   });
-  
+
   for (const task of potentiallyActiveTasks) {
     const sessionId = task.lastAgentSessionId;
-    
+
     // Check if currently marked as active
     if (activeSessions.sessions[sessionId]?.currentlyActive) {
       // Verify process is actually running
@@ -942,7 +942,7 @@ async function recoverOrphanedSessions() {
         await removeActiveSession(sessionId);
       }
       // Otherwise, session is legitimately active
-      
+
     } else {
       // Check latest completion status
       const latestCompletion = getLatestCompletion(sessionId, completedSessions);
@@ -990,7 +990,7 @@ async function getTopReadyTaskWithCapacityCheck(): Promise<TaskWithDetails | nul
         ne(schema.tasks.status, 'done'),
         // Agent capacity check (embedded subquery)
         sql`(
-          SELECT COUNT(*) FROM ${schema.tasks} t2 
+          SELECT COUNT(*) FROM ${schema.tasks} t2
           WHERE t2.assigned_agent_id = ${schema.tasks.assignedAgentId}
           AND t2.agent_session_status IN ('pushing', 'active')
         ) < ${schema.agents.concurrencyLimit}`,
@@ -998,7 +998,7 @@ async function getTopReadyTaskWithCapacityCheck(): Promise<TaskWithDetails | nul
         sql`(
           SELECT COUNT(*) FROM ${schema.tasks} t3
           WHERE t3.main_repository_id = ${schema.tasks.mainRepositoryId}
-          AND t3.agent_session_status IN ('pushing', 'active') 
+          AND t3.agent_session_status IN ('pushing', 'active')
         ) < ${schema.repositories.concurrencyLimit}`,
         // Dependency check
         notExists(
@@ -1017,20 +1017,20 @@ async function getTopReadyTaskWithCapacityCheck(): Promise<TaskWithDetails | nul
       desc(schema.tasks.priority),
       sql`CASE
         WHEN ${schema.tasks.status} = 'doing' THEN 3
-        WHEN ${schema.tasks.status} = 'todo' THEN 2  
+        WHEN ${schema.tasks.status} = 'todo' THEN 2
         WHEN ${schema.tasks.status} = 'loop' THEN 1
         ELSE 0
       END DESC`,
-      asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
+      asc(sql`CAST(${schema.tasks.listOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )
     .limit(1);
-    
+
   return readyTasks[0] || null;
 }
 ```
 
-**Pros**: 
+**Pros**:
 - Truly single database query
 - No N+1 problems
 - Database optimizes subqueries with indexes
@@ -1082,9 +1082,9 @@ async function getTopReadyTaskWithPreCalculatedCapacity(): Promise<TaskWithDetai
         sql`repo_slots > 0`
       )
     );
-    
+
   if (availableCapacity.length === 0) return null;
-  
+
   // Query 2: Get highest priority task that can use available capacity
   return await db
     .select({
@@ -1105,7 +1105,7 @@ async function getTopReadyTaskWithPreCalculatedCapacity(): Promise<TaskWithDetai
         eq(schema.tasks.agentSessionStatus, 'waiting'),
         ne(schema.tasks.status, 'done'),
         // Use pre-calculated capacity
-        or(...availableCapacity.map(cap => 
+        or(...availableCapacity.map(cap =>
           and(
             eq(schema.tasks.assignedAgentId, cap.agentId),
             eq(schema.tasks.mainRepositoryId, cap.repoId)
@@ -1128,11 +1128,11 @@ async function getTopReadyTaskWithPreCalculatedCapacity(): Promise<TaskWithDetai
       desc(schema.tasks.priority),
       sql`CASE
         WHEN ${schema.tasks.status} = 'doing' THEN 3
-        WHEN ${schema.tasks.status} = 'todo' THEN 2  
+        WHEN ${schema.tasks.status} = 'todo' THEN 2
         WHEN ${schema.tasks.status} = 'loop' THEN 1
         ELSE 0
       END DESC`,
-      asc(sql`CAST(${schema.tasks.columnOrder} AS DECIMAL)`),
+      asc(sql`CAST(${schema.tasks.listOrder} AS DECIMAL)`),
       asc(schema.tasks.createdAt)
     )
     .limit(1)
@@ -1146,7 +1146,7 @@ async function getTopReadyTaskWithPreCalculatedCapacity(): Promise<TaskWithDetai
 - Second query optimized for task selection
 - Easy to debug and understand
 
-**Cons**: 
+**Cons**:
 - Two database queries instead of one
 - OR clause with many conditions in second query
 
@@ -1164,13 +1164,13 @@ async function getTopReadyTaskTwoPhase(): Promise<TaskWithDetails | null> {
       agentLimit: schema.agents.concurrencyLimit,
       repoLimit: schema.repositories.concurrencyLimit,
       activeTasks: sql<number>`(
-        SELECT COUNT(*) FROM ${schema.tasks} 
+        SELECT COUNT(*) FROM ${schema.tasks}
         WHERE ${schema.tasks.assignedAgentId} = ${schema.agents.id}
         AND ${schema.tasks.sessionState} IN ('pushing', 'starting', 'active')
       )`.as('activeTasks'),
       activeRepoTasks: sql<number>`(
         SELECT COUNT(*) FROM ${schema.tasks}
-        WHERE ${schema.tasks.mainRepositoryId} = ${schema.repositories.id} 
+        WHERE ${schema.tasks.mainRepositoryId} = ${schema.repositories.id}
         AND ${schema.tasks.sessionState} IN ('pushing', 'starting', 'active')
       )`.as('activeRepoTasks')
     })
@@ -1183,9 +1183,9 @@ async function getTopReadyTaskTwoPhase(): Promise<TaskWithDetails | null> {
       )
     )
     .limit(1);
-    
+
   if (capacity.length === 0) return null;
-  
+
   // Phase 2: Get task for this capacity
   return await getTaskForCapacity(capacity[0]);
 }
@@ -1196,7 +1196,7 @@ async function getTopReadyTaskTwoPhase(): Promise<TaskWithDetails | null> {
 - Easy to understand and debug
 - Flexible for different capacity strategies
 
-**Cons**: 
+**Cons**:
 - Two database queries
 - Potentially less efficient
 
@@ -1206,21 +1206,21 @@ async function getTopReadyTaskTwoPhase(): Promise<TaskWithDetails | null> {
 
 ```sql
 CREATE MATERIALIZED VIEW available_capacity AS
-SELECT 
+SELECT
   a.id as agent_id,
   r.id as repo_id,
   (a.concurrency_limit - COALESCE(active_agent.count, 0)) as agent_slots,
   (r.concurrency_limit - COALESCE(active_repo.count, 0)) as repo_slots
 FROM agents a
-CROSS JOIN repositories r  
+CROSS JOIN repositories r
 LEFT JOIN (
   SELECT assigned_agent_id, COUNT(*) as count
-  FROM tasks 
+  FROM tasks
   WHERE session_state IN ('pushing', 'starting', 'active')
   GROUP BY assigned_agent_id
 ) active_agent ON a.id = active_agent.assigned_agent_id
 LEFT JOIN (
-  SELECT main_repository_id, COUNT(*) as count  
+  SELECT main_repository_id, COUNT(*) as count
   FROM tasks
   WHERE session_state IN ('pushing', 'starting', 'active')
   GROUP BY main_repository_id
@@ -1264,15 +1264,15 @@ async function getTopReadyTaskWithSubqueries(): Promise<TaskWithDetails | null> 
         ne(schema.tasks.status, 'done'),
         // Agent capacity check
         sql`(
-          SELECT COUNT(*) FROM ${schema.tasks} t2 
+          SELECT COUNT(*) FROM ${schema.tasks} t2
           WHERE t2.assigned_agent_id = ${schema.tasks.assignedAgentId}
           AND t2.session_state IN ('pushing', 'starting', 'active')
         ) < ${schema.agents.concurrencyLimit}`,
-        // Repo capacity check  
+        // Repo capacity check
         sql`(
           SELECT COUNT(*) FROM ${schema.tasks} t3
           WHERE t3.main_repository_id = ${schema.tasks.mainRepositoryId}
-          AND t3.session_state IN ('pushing', 'starting', 'active') 
+          AND t3.session_state IN ('pushing', 'starting', 'active')
         ) < ${schema.repositories.concurrencyLimit}`
       )
     )
@@ -1301,7 +1301,7 @@ async function getTopReadyTaskWithSubqueries(): Promise<TaskWithDetails | null> 
    - No N+1 problems
    - Straightforward logic
 
-2. **Option 1B: Pre-calculate Capacity** (Score: 8/10)  
+2. **Option 1B: Pre-calculate Capacity** (Score: 8/10)
    - Clear separation of capacity vs task logic
    - Two optimized queries
    - Easy to debug and understand
@@ -1339,20 +1339,20 @@ import { EventEmitter } from 'events';
 
 class OrchestrationEventBus extends EventEmitter {
   private debounceMap = new Map<string, NodeJS.Timeout>();
-  
+
   triggerOrchestration(reason: string, debounceMs = 100) {
     // Debounce rapid events
     const existingTimeout = this.debounceMap.get(reason);
     if (existingTimeout) {
       clearTimeout(existingTimeout);
     }
-    
+
     const timeout = setTimeout(async () => {
       console.log(`🎯 Orchestration triggered: ${reason}`);
       await tryAssignTasks();
       this.debounceMap.delete(reason);
     }, debounceMs);
-    
+
     this.debounceMap.set(reason, timeout);
   }
 }
@@ -1409,7 +1409,7 @@ const systemEvents$ = new Subject<{ type: string, data?: any }>();
 // Merge all streams and debounce
 const orchestrationTrigger$ = merge(
   taskEvents$.pipe(map(() => 'task_change')),
-  sessionEvents$.pipe(map(() => 'session_change')), 
+  sessionEvents$.pipe(map(() => 'session_change')),
   systemEvents$.pipe(map(() => 'system_change'))
 ).pipe(
   debounceTime(100),
@@ -1465,7 +1465,7 @@ interface OrchestrationEvent {
 class PersistentEventQueue {
   private queueFile = '~/.solo-unicorn/orchestration_queue.jsonl';
   private processing = false;
-  
+
   async enqueue(type: string, reason: string) {
     const event: OrchestrationEvent = {
       id: generateUUID(),
@@ -1474,39 +1474,39 @@ class PersistentEventQueue {
       timestamp: Date.now(),
       processed: false
     };
-    
+
     // Append to file
     await appendFile(this.queueFile, JSON.stringify(event) + '\n');
-    
+
     // Trigger processing (debounced)
     this.scheduleProcessing();
   }
-  
+
   private scheduleProcessing() {
     if (this.processing) return;
-    
+
     setTimeout(async () => {
       await this.processQueue();
     }, 100);
   }
-  
+
   private async processQueue() {
     this.processing = true;
-    
+
     try {
       const events = await this.readUnprocessedEvents();
-      
+
       if (events.length > 0) {
         console.log(`🎯 Processing ${events.length} orchestration events`);
         await tryAssignTasks();
         await this.markEventsProcessed(events.map(e => e.id));
       }
-      
+
     } finally {
       this.processing = false;
     }
   }
-  
+
   async recoverFromFile() {
     // On startup, process any unprocessed events
     const unprocessed = await this.readUnprocessedEvents();
@@ -1562,22 +1562,22 @@ class DatabaseOrchestrationQueue {
       reason,
       metadata,
     });
-    
+
     // Trigger processing (debounced)
     this.scheduleProcessing();
   }
-  
+
   private async processUnprocessedEvents() {
     const unprocessedEvents = await db
       .select()
       .from(orchestrationEvents)
       .where(isNull(orchestrationEvents.processedAt))
       .orderBy(asc(orchestrationEvents.createdAt));
-      
+
     if (unprocessedEvents.length > 0) {
       console.log(`🎯 Processing ${unprocessedEvents.length} orchestration events`);
       await tryAssignTasks();
-      
+
       // Mark all as processed
       await db
         .update(orchestrationEvents)
@@ -1587,7 +1587,7 @@ class DatabaseOrchestrationQueue {
         );
     }
   }
-  
+
   async cleanupOldEvents(olderThanDays = 7) {
     const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000);
     await db
@@ -1656,7 +1656,7 @@ setInterval(async () => {
 
 **Pros**:
 - Best of both worlds
-- Resilient to missed events  
+- Resilient to missed events
 - Much less polling overhead
 
 **Cons**:
@@ -1743,7 +1743,7 @@ setInterval(async () => {
 
 This approach provides:
 - ✅ No API dependencies for hooks (file-based)
-- ✅ Single optimized query for task selection  
+- ✅ Single optimized query for task selection
 - ✅ Reactive orchestration without polling
 - ✅ Survives hot reloads via file persistence
 - ✅ Direct Claude CLI control
