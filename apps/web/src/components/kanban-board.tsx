@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "@tanstack/react-router";
 import {
   Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ChevronDown, GitBranch, Lock
 } from "lucide-react";
@@ -45,8 +46,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ProjectSettingsV2 } from "@/components/v2/project-settings-v2";
-import { TaskDrawerV2 } from "@/components/v2/task-drawer-v2";
-import { TaskPopup } from "@/components/v2/task-popup";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
@@ -441,8 +440,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
 }
 
 export function KanbanBoard({ projectId }: KanbanBoardProps) {
+  const router = useRouter();
   const [showNewTaskDialog, setShowNewTaskDialog] = useState(false);
-  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [newTaskColumn, setNewTaskColumn] = useState<string>("todo");
   const [showProjectSettings, setShowProjectSettings] = useState(false);
   const [projectSettingsTab, setProjectSettingsTab] = useState<'repositories' | 'agents'>('repositories');
@@ -451,13 +450,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
   const [resetTaskId, setResetTaskId] = useState<string | null>(null);
   const [taskToReset, setTaskToReset] = useState<any>(null);
-  // Auto-detect mobile for using TaskPopup vs TaskDrawerV2
-  const [usePopupView] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return window.innerWidth < 768; // Mobile-first: prefer popup on smaller screens
-    }
-    return false;
-  });
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
 
@@ -970,7 +962,14 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleTaskClick = (taskId: string) => {
-    setSelectedTaskId(taskId);
+    // Navigate to dedicated task page with popup mode based on screen size
+    const shouldUsePopup = typeof window !== 'undefined' && window.innerWidth < 768;
+    
+    router.navigate({
+      to: "/projects/$projectId/tasks/$taskId",
+      params: { projectId, taskId },
+      search: shouldUsePopup ? { popup: true } : {},
+    });
   };
 
   const handleToggleReady = (taskId: string, ready: boolean) => {
@@ -1384,28 +1383,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Task Detail View - Popup on mobile, Drawer on desktop */}
-      {usePopupView ? (
-        <TaskPopup
-          taskId={selectedTaskId}
-          open={!!selectedTaskId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedTaskId(null);
-            }
-          }}
-        />
-      ) : (
-        <TaskDrawerV2
-          taskId={selectedTaskId}
-          open={!!selectedTaskId}
-          onOpenChange={(open) => {
-            if (!open) {
-              setSelectedTaskId(null);
-            }
-          }}
-        />
-      )}
 
       {/* Project Settings Dialog */}
       {showProjectSettings && project && (
