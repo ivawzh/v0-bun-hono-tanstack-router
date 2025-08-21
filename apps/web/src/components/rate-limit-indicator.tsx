@@ -10,7 +10,7 @@ interface RateLimitIndicatorProps {
     id: string;
     name: string;
     agentType: string;
-    rateLimitResetAt: string | null;
+    rateLimitResetAt: Date | null;
   }>;
   className?: string;
 }
@@ -102,8 +102,7 @@ export function RateLimitIndicator({ agents, className }: RateLimitIndicatorProp
   // Find agents that are currently rate limited
   const rateLimitedAgents = agents.filter(agent => {
     if (!agent.rateLimitResetAt) return false;
-    const resetTime = new Date(agent.rateLimitResetAt);
-    return resetTime > currentTime;
+    return agent.rateLimitResetAt > currentTime;
   });
 
   // Don't render if no agents are rate limited

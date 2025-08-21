@@ -2,6 +2,7 @@ import { Link, useParams } from "@tanstack/react-router";
 import { ModeToggle } from "./mode-toggle";
 import UserMenu from "./user-menu";
 import { ProjectSwitcher } from "./project-switcher";
+import { RateLimitIndicator } from "./rate-limit-indicator";
 import { useSession } from "@/lib/auth-client";
 import { Button } from "./ui/button";
 import { Pause, Play, AlertTriangle } from "lucide-react";
@@ -16,6 +17,14 @@ export default function Header() {
   // Get current project if we're in project context
   const { data: project } = useQuery(
     orpc.projects.get.queryOptions({ input: { id: projectId as string }, enabled: !!projectId })
+  );
+
+  // Get agents for rate limit display
+  const { data: agents = [] } = useQuery(
+    orpc.agents.list.queryOptions({ 
+      input: { projectId: projectId as string }, 
+      enabled: !!projectId 
+    })
   );
 
 
@@ -42,6 +51,10 @@ export default function Header() {
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+          {/* Rate limit indicator */}
+          {projectId && agents.length > 0 && (
+            <RateLimitIndicator agents={agents} className="hidden sm:flex" />
+          )}
 
           {/* Agent controls removed from simplified architecture */}
 
