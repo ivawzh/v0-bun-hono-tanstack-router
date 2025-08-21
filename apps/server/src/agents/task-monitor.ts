@@ -7,9 +7,16 @@
 import { db } from '../db';
 import { eq, and, ne, or, sql } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
-import { getAllActiveSessions, cleanupStaleActiveSessions, getAllCompletedSessions, purgeCompletedSessions } from './session-registry';
+import { getAllActiveSessions, deleteOldActiveSessions, getAllCompletedSessions, purgeCompletedSessions } from './session-registry';
 import { tryPushTasks } from './task-pusher';
 import { startHotReloadSafeCron } from '../utils/hot-reload-safe-interval';
+
+/**
+ * Claude Code SDK fail to invoke hooks so that session registry is not working.
+ * TODO: turn on after issue is fixed
+ * @see https://github.com/anthropics/claude-code/issues/6223
+ */
+const runInitialAndOutOfSyncCheck = false;
 
 const config = {
   sessionCleanupStaleMinutes: 60, // 1 hour
@@ -31,15 +38,17 @@ export function startTaskMonitoring(): void {
   console.log('🔍 Starting task monitoring system...');
 
   // Initial out-of-sync task check on startup
-  checkOutSyncedTasks().then(result => {
-    purgeCompletedSessions();
+  if (runInitialAndOutOfSyncCheck) {
+    checkOutSyncedTasks().then(result => {
+      purgeCompletedSessions();
 
-    if (result.recovered > 0) {
-      console.log(`🔧 Initial recovery: ${result.recovered} out-of-sync tasks`);
-      // Try to push tasks after recovery
-      tryPushTasks();
-    }
-  });
+      if (result.recovered > 0) {
+        console.log(`🔧 Initial recovery: ${result.recovered} out-of-sync tasks`);
+        // Try to push tasks after recovery
+        tryPushTasks();
+      }
+    });
+  }
 
   // Periodic task pushing (every 1 second)
   taskPushingJob = startHotReloadSafeCron(
@@ -60,18 +69,20 @@ export function startTaskMonitoring(): void {
     }
   );
 
-  // Periodic out-of-sync task checking (every 2 minutes)
-  outOfSyncCheckingJob = startHotReloadSafeCron(
-    'out-of-sync-checking',
-    config.outOfSyncCheckingJobCron,
-    async () => {
-      const result = await checkOutSyncedTasks();
-      if (result.recovered > 0) {
-        // Try to push tasks after recovery
-        tryPushTasks();
+  if (runInitialAndOutOfSyncCheck) {
+    // Periodic out-of-sync task checking (every 2 minutes)
+    outOfSyncCheckingJob = startHotReloadSafeCron(
+      'out-of-sync-checking',
+      config.outOfSyncCheckingJobCron,
+      async () => {
+        const result = await checkOutSyncedTasks();
+        if (result.recovered > 0) {
+          // Try to push tasks after recovery
+          tryPushTasks();
+        }
       }
-    }
-  );
+    );
+  }
 
   // Periodic active session registry cleanup (every 10 minutes)
   sessionCleanupJob = startHotReloadSafeCron(
@@ -79,7 +90,7 @@ export function startTaskMonitoring(): void {
     config.sessionCleanupJobCron,
     async () => {
       try {
-        const cleaned = await cleanupStaleActiveSessions(config.sessionCleanupStaleMinutes);
+        const cleaned = await deleteOldActiveSessions(config.sessionCleanupStaleMinutes);
         if (cleaned > 0) {
           console.log(`🧹 Cleaned up ${cleaned} stale sessions`);
         }
@@ -174,6 +185,15 @@ export async function getMonitoringStatus() {
 /**
  * Check for out-of-sync tasks and recover them
  * Called on server startup and periodically
+ *
+ * Work it works:
+ * 1. Get all active session IDs from file registry
+ * 2. Get all completed session IDs from file registry
+ * 3. Find tasks that think they're active
+ * 4. For each active task:
+ *    - check if we find the matching completed session ID, if so, reset to NON_ACTIVE
+ *    - check if we find the matching active session ID, if not, reset to NON_ACTIVE
+ * 5. Log the results
  */
 async function checkOutSyncedTasks(): Promise<{ recovered: number; errors: string[] }> {
   const errors: string[] = [];
