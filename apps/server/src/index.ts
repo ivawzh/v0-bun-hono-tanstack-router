@@ -13,7 +13,9 @@ import { onError } from "@orpc/server";
 
 const app = new Hono();
 
-app.use(logger());
+app.use(logger((str, ...rest) => {
+  console.log(`${new Date().toISOString()} ${str}`, ...rest);
+}));
 app.use("/*", cors({
   origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : ["http://localhost:8302", "https://solounicorn.lol", "https://www.solounicorn.lol", "https://api.solounicorn.lol"],
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
