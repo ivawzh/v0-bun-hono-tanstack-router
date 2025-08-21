@@ -435,8 +435,8 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
           "p-0 gap-0 rounded-lg border shadow-lg duration-200 flex flex-col",
           // Mobile: Full screen with minimal padding
           "max-md:fixed max-md:inset-2 max-md:w-auto max-md:h-auto max-md:max-w-none max-md:max-h-none max-md:translate-x-0 max-md:translate-y-0 max-md:top-2 max-md:left-2 max-md:right-2 max-md:bottom-2",
-          // Desktop: Centered modal with max width
-          "md:w-full md:max-w-4xl md:max-h-[90vh]"
+          // Desktop: Fixed height like Trello - 80% of viewport height
+          "md:w-full md:max-w-4xl md:h-[80vh]"
         )}
         showCloseButton={false}
       >
@@ -445,7 +445,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
             <div className="text-muted-foreground">Loading task details...</div>
           </div>
         ) : task ? (
-          <div className="flex flex-col h-full max-md:min-h-[calc(100vh-1rem)]">
+          <div className="flex flex-col h-full">
             {/* Mobile-optimized Header */}
             <div className="flex-shrink-0 p-4 md:p-6 border-b bg-background rounded-t-lg">
               {/* Header with close button */}
