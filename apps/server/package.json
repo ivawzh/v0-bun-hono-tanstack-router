@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^1.2.3",
-    "@anthropic-ai/claude-code": "^1.0.85",
+    "@anthropic-ai/claude-code": "^1.0.86",
     "@electric-sql/pglite": "^0.2.11",
     "@hono/zod-validator": "0.7.2",
     "@modelcontextprotocol/sdk": "^1.17.2",

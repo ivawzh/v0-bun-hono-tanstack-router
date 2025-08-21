@@ -66,7 +66,7 @@
       "name": "solo-unicorn-server",
       "dependencies": {
         "@ai-sdk/google": "^1.2.3",
-        "@anthropic-ai/claude-code": "^1.0.85",
+        "@anthropic-ai/claude-code": "^1.0.86",
         "@electric-sql/pglite": "^0.2.11",
         "@hono/zod-validator": "0.7.2",
         "@modelcontextprotocol/sdk": "^1.17.2",
@@ -174,7 +174,7 @@
 
     "@ampproject/remapping": ["@ampproject/remapping@2.3.0", "", { "dependencies": { "@jridgewell/gen-mapping": "^0.3.5", "@jridgewell/trace-mapping": "^0.3.24" } }, "sha512-30iZtAPgz+LTIYoeivqYo853f02jBYSd5uGnGpkFV0M3xOt9aN73erkgYAmZU43x4VfqcnLxW9Kpg3R5LC4YYw=="],
 
-    "@anthropic-ai/claude-code": ["@anthropic-ai/claude-code@1.0.85", "", { "optionalDependencies": { "@img/sharp-darwin-arm64": "^0.33.5", "@img/sharp-darwin-x64": "^0.33.5", "@img/sharp-linux-arm": "^0.33.5", "@img/sharp-linux-arm64": "^0.33.5", "@img/sharp-linux-x64": "^0.33.5", "@img/sharp-win32-x64": "^0.33.5" }, "bin": { "claude": "cli.js" } }, "sha512-rvLGGSnHQLJI3dP7C/d3Or5LQvgDEae5wurMG4Fs9ourzt+k8YA6WAHeuJmSUq7o7Z2fZTaojcM3VOLzUBEl7w=="],
+    "@anthropic-ai/claude-code": ["@anthropic-ai/claude-code@1.0.86", "", { "optionalDependencies": { "@img/sharp-darwin-arm64": "^0.33.5", "@img/sharp-darwin-x64": "^0.33.5", "@img/sharp-linux-arm": "^0.33.5", "@img/sharp-linux-arm64": "^0.33.5", "@img/sharp-linux-x64": "^0.33.5", "@img/sharp-win32-x64": "^0.33.5" }, "bin": { "claude": "cli.js" } }, "sha512-js1h6JUnFJ1dHvFPBiCxwFChaWjh28XOFamrwebmhOIUBVhQZwMfDJYsNfRyv0qEwpxKxYedvK4nv4WqMCwu9Q=="],
 
     "@apideck/better-ajv-errors": ["@apideck/better-ajv-errors@0.3.6", "", { "dependencies": { "json-schema": "^0.4.0", "jsonpointer": "^5.0.0", "leven": "^3.1.0" }, "peerDependencies": { "ajv": ">=8" } }, "sha512-P+ZygBLZtkp0qqOAJJVX4oX/sFo5JR3eBWwwuqHHhK0GIgQOKWrAfiAaWX0aArHkRWHMuggFEgAZNxVPwPZYaA=="],
 
