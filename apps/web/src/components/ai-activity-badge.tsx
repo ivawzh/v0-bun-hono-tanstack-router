@@ -26,7 +26,7 @@ export function AIActivityBadge({ ready, agentSessionStatus, column, className }
         )}
       >
         <Zap className="h-3 w-3 animate-pulse" />
-        AI in work
+AI Working
       </Badge>
     );
   }
@@ -42,7 +42,7 @@ export function AIActivityBadge({ ready, agentSessionStatus, column, className }
         )}
       >
         <Clock className="h-3 w-3" />
-        Queueing
+Ready
       </Badge>
     );
   }

@@ -157,7 +157,7 @@ interface TaskContentProps {
   onDeleteTask: () => void;
 }
 
-const statusOptions = [
+const columnOptions = [
   { value: "todo", label: "Todo", color: "bg-slate-500" },
   { value: "doing", label: "Doing", color: "bg-blue-500" },
   { value: "done", label: "Done", color: "bg-green-500" },
@@ -516,21 +516,21 @@ export function TaskContent({
           {/* V2 Enhanced Settings Tab */}
           <TabsContent value="settings" className="mt-0">
             <div className="space-y-6">
-              {/* Task Status and Priority */}
+              {/* Task Column and Priority */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-sm">Task Status</CardTitle>
+                  <CardTitle className="text-sm">Task Column</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <Label>Status</Label>
+                      <Label>Column</Label>
                       <Select value={task.column} onValueChange={onColumnChange}>
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {statusOptions.map((option) => (
+                          {columnOptions.map((option) => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
                             </SelectItem>
@@ -558,7 +558,7 @@ export function TaskContent({
 
                   {task.column === "doing" && (
                     <div>
-                      <Label>Stage</Label>
+                      <Label>Mode</Label>
                       <div className="mt-1">
                         <TaskModeSelector
                           mode={task.mode || null}

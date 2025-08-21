@@ -83,14 +83,14 @@ interface KanbanBoardProps {
 }
 
 // 4-column structure with Loop support
-const statusColumns = [
+const columns = [
   { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
   { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
   { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
   { id: "loop", label: "Loop", icon: RotateCcw, color: "bg-purple-500" },
 ];
 
-const stageColors = {
+const modeColors = {
   clarify: "bg-purple-100 text-purple-800 border-purple-200",
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
@@ -175,7 +175,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
     transition,
   };
 
-  const column = statusColumns.find(col => col.id === task.column);
+  const column = columns.find(col => col.id === task.column);
   const Icon = column?.icon || Clock;
 
   const description = task.refinedDescription || task.rawDescription;
@@ -643,14 +643,14 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     },
     onSuccess: () => {
       // Don't invalidate immediately - optimistic update should persist
-      console.log('\u2705 Task stage updated successfully');
+      console.log('\u2705 Task mode updated successfully');
     },
     onError: (error: any, variables: any, context: any) => {
       // Rollback optimistic update
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
       }
-      toast.error("Failed to update task stage: " + error.message);
+      toast.error("Failed to update task mode: " + error.message);
     }
   }));
 
@@ -751,8 +751,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   }));
 
-  // Group tasks by status and sort them with proper columnOrder initialization
-  const groupedTasks = statusColumns.reduce((acc, column) => {
+  // Group tasks by column and sort them with proper columnOrder initialization
+  const groupedTasks = columns.reduce((acc, column) => {
     let columnTasks = (project?.tasks || [])
       .filter((task: any) => task.column === column.id);
 
@@ -842,21 +842,21 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     const activeTask = project?.tasks?.find((t: any) => t.id === activeId);
     if (!activeTask) return;
 
-    // Determine target status and position
-    let targetStatus = activeTask.status;
-    let targetTasks = groupedTasks[targetStatus];
+    // Determine target column and position
+    let targetColumn = activeTask.column;
+    let targetTasks = groupedTasks[targetColumn];
 
     // Check if dropped on a different column
-    if (statusColumns.some(col => col.id === overId)) {
-      targetStatus = overId as "todo" | "doing" | "done" | "loop";
+    if (columns.some(col => col.id === overId)) {
+      targetColumn = overId as "todo" | "doing" | "done" | "loop";
       // For Todo column, use combined tasks from both sections
-      targetTasks = targetStatus === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetStatus];
+      targetTasks = targetColumn === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetColumn];
     } else {
       // Find which column the target task belongs to
-      for (const column of statusColumns) {
+      for (const column of columns) {
         const columnTasks = column.id === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[column.id];
         if (columnTasks.some((t: any) => t.id === overId)) {
-          targetStatus = column.id as "todo" | "doing" | "done" | "loop";
+          targetColumn = column.id as "todo" | "doing" | "done" | "loop";
           targetTasks = columnTasks;
           break;
         }
@@ -864,9 +864,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
 
     // Calculate new positions
-    const updates: Array<{ id: string; columnOrder: string; status?: string }> = [];
+    const updates: Array<{ id: string; columnOrder: string; column?: string }> = [];
 
-    if (targetStatus !== activeTask.status) {
+    if (targetColumn !== activeTask.column) {
       // Moving to a different column
       const targetIndex = targetTasks.findIndex((t: any) => t.id === overId);
       const insertIndex = targetIndex >= 0 ? targetIndex : targetTasks.length;
@@ -899,7 +899,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       updates.push({
         id: activeId,
         columnOrder: newOrder,
-        status: targetStatus
+        column: targetColumn
       });
     } else {
       // Reordering within the same column
@@ -1095,7 +1095,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       >
         <ScrollArea className="w-full whitespace-nowrap kanban-board-container">
           <div className="flex gap-2 sm:gap-3 md:gap-4 pb-4 px-1">
-            {statusColumns.map((column) => {
+            {columns.map((column) => {
               const columnTasks = groupedTasks[column.id] || [];
               const Icon = column.icon;
 
@@ -1207,7 +1207,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           <DialogHeader className="flex-shrink-0 pb-4 max-sm:p-4 max-sm:border-b">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>
-              Add a new task to the {statusColumns.find(c => c.id === newTaskColumn)?.label} column
+              Add a new task to the {columns.find(c => c.id === newTaskColumn)?.label} column
               {hasDraft && (
                 <span className="text-xs text-muted-foreground block mt-1">
                   📝 Draft restored from previous session

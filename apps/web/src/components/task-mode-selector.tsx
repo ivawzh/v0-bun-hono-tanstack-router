@@ -16,7 +16,7 @@ interface TaskModeSelectorProps {
 }
 
 const modes = [
-  { value: "clarify", label: "clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
+  { value: "clarify", label: "Clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   { value: "loop", label: "Loop", color: "bg-orange-100 text-orange-800 border-orange-200" },
@@ -64,7 +64,7 @@ export function TaskModeSelector({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <SelectValue placeholder="No mode" />
+        <SelectValue placeholder="Select mode" />
       </SelectTrigger>
       <SelectContent>
         {modes.map((modeOption) => (

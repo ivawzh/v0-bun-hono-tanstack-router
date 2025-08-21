@@ -288,7 +288,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     });
   };
 
-  const handleStatusChange = (column: string) => {
+  const handleColumnChange = (column: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
       column: column as 'todo' | 'doing' | 'done'
@@ -302,7 +302,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     });
   };
 
-  const handleStageChange = (mode: string | null) => {
+  const handleModeChange = (mode: string | null) => {
     updateTaskMutation.mutate({
       id: taskId!,
       mode: mode as "execute" | "plan" | "clarify" | undefined
@@ -417,14 +417,14 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
 
   if (!taskId) return null;
 
-  // Stage options for header display
-  const stageOptions = [
-    { value: "clarify", label: "clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
+  // Mode options for header display
+  const modeOptions = [
+    { value: "clarify", label: "Clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
   
-  const currentStage = stageOptions.find(s => s.value === task?.mode);
+  const currentMode = modeOptions.find(s => s.value === task?.mode);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -448,9 +448,9 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                       agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
                       column={task.column}
                     />
-                    {currentStage && (
-                      <Badge variant="outline" className={currentStage.color}>
-                        {currentStage.label}
+                    {currentMode && (
+                      <Badge variant="outline" className={currentMode.color}>
+                        {currentMode.label}
                       </Badge>
                     )}
                     <span className="text-xs text-muted-foreground ml-2">
@@ -560,9 +560,9 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                 onSaveRefinedTitle={handleSaveRefinedTitle}
                 onSaveRefinedDescription={handleSaveRefinedDescription}
                 onSavePlan={handleSavePlan}
-                onColumnChange={handleStatusChange}
+                onColumnChange={handleColumnChange}
                 onPriorityChange={handlePriorityChange}
-                onModeChange={handleStageChange}
+                onModeChange={handleModeChange}
                 onMainRepositoryChange={handleMainRepositoryChange}
                 onAdditionalRepositoriesChange={handleAdditionalRepositoriesChange}
                 onAssignedAgentsChange={handleAssignedAgentsChange}
