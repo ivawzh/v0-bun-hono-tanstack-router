@@ -139,7 +139,7 @@ export function TaskDependencySelector({
                   <CommandGroup key={status} heading={status.charAt(0).toUpperCase() + status.slice(1)}>
                     {tasks.map((task) => {
                       const isSelected = selectedDependencyIds.includes(task.id);
-                      const isDisabled = !isSelected && maxSelections && selectedDependencyIds.length >= maxSelections;
+                      const isDisabled = !isSelected && maxSelections ? selectedDependencyIds.length >= maxSelections : false;
                       
                       return (
                         <CommandItem
