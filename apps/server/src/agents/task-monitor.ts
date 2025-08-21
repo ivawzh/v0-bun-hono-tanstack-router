@@ -13,7 +13,7 @@ import { startHotReloadSafeCron } from '../utils/hot-reload-safe-interval';
 
 const config = {
   sessionCleanupStaleMinutes: 60, // 1 hour
-  taskPushingJobCron: '* * * * * *', // every 10 seconds
+  taskPushingJobCron: '*/10 * * * * *', // every 10 seconds
   outOfSyncCheckingJobCron: '*/2 * * * *', // every 2 minutes
   sessionCleanupJobCron: '*/10 * * * *', // every 10 minutes
 }

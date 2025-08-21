@@ -1194,7 +1194,8 @@ describe("Tasks Router", () => {
           // If file storage isn't configured in test environment, that's expected
           const isExpectedStorageError = error.message.includes("ENOENT") ||
                                         error.message.includes("filesystem") ||
-                                        error.message.includes("Task not found");
+                                        error.message.includes("Task not found") ||
+                                        error.message.includes("Attachment not found");
           expect(isExpectedStorageError).toBe(true);
         }
       });

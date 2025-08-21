@@ -10,8 +10,7 @@ import { spawnClaudeSession } from './claude-spawner';
 
 // Database-based lock configuration
 const TASK_PUSH_LOCK_CODE = 'TASK_PUSH_LOCK';
-const LOCK_TIMEOUT_MS = 10000; // 10 second safety timeout
-const MODULE_VERSION = Date.now().toString(); // Unique per hot reload
+const LOCK_TIMEOUT_MS = 60000; // 1 minute timeout - if unchanged, assume something went wrong
 
 async function acquireDatabaseLock(): Promise<boolean> {
   const now = new Date();
@@ -30,28 +29,25 @@ async function acquireDatabaseLock(): Promise<boolean> {
       const lockState = lock.state as {
         locked: boolean;
         timestamp: string;
-        moduleVersion: string;
         expiresAt: string;
       };
 
       const isStale = new Date(lockState.expiresAt) < now;
-      const isDifferentModule = lockState.moduleVersion !== MODULE_VERSION;
 
-      if (isStale || isDifferentModule) {
-        // Update lock with current module
+      if (isStale) {
+        // Lock has expired - acquire it
         await db
           .update(schema.helpers)
           .set({
             state: {
               locked: true,
               timestamp: now.toISOString(),
-              moduleVersion: MODULE_VERSION,
               expiresAt: expiresAt.toISOString()
             },
             updatedAt: now
           })
           .where(eq(schema.helpers.code, TASK_PUSH_LOCK_CODE));
-        
+
         return true;
       } else if (lockState.locked) {
         return false; // Lock is active and fresh
@@ -63,13 +59,12 @@ async function acquireDatabaseLock(): Promise<boolean> {
             state: {
               locked: true,
               timestamp: now.toISOString(),
-              moduleVersion: MODULE_VERSION,
               expiresAt: expiresAt.toISOString()
             },
             updatedAt: now
           })
           .where(eq(schema.helpers.code, TASK_PUSH_LOCK_CODE));
-        
+
         return true;
       }
     } else {
@@ -81,11 +76,10 @@ async function acquireDatabaseLock(): Promise<boolean> {
           state: {
             locked: true,
             timestamp: now.toISOString(),
-            moduleVersion: MODULE_VERSION,
             expiresAt: expiresAt.toISOString()
           }
         });
-      
+
       return true;
     }
   } catch (error) {
@@ -96,14 +90,13 @@ async function acquireDatabaseLock(): Promise<boolean> {
 
 async function releaseDatabaseLock(): Promise<void> {
   try {
-    // Update lock to unlocked state but keep module version for tracking
+    // Update lock to unlocked state
     await db
       .update(schema.helpers)
       .set({
         state: {
           locked: false,
           timestamp: new Date().toISOString(),
-          moduleVersion: MODULE_VERSION,
           expiresAt: new Date().toISOString() // Set to current time since it's released
         },
         updatedAt: new Date()
@@ -208,7 +201,7 @@ async function pushTaskToAgent(
       .returning();
 
     if (updatedTask.length === 0) {
-      return { success: false, error: 'Task was already assigned to another agent' };
+      return { success: false, error: `[pushTaskToAgent] Task ${task.id} was already assigned to another agent. Idempotently skipped pushing task.` };
     }
 
     // Update agent last task pushed timestamp
@@ -236,6 +229,7 @@ async function pushTaskToAgent(
       agentId: selectedAgent.id,
       projectId: project.id,
       repositoryPath: mainRepository.repoPath,
+      additionalRepositories: taskWithContext.additionalRepositories,
       claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
       stage: task.stage || 'clarify',
       taskData: { task, actor, project }

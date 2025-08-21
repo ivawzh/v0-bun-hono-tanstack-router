@@ -12,9 +12,8 @@ let testDb: NodePgDatabase<typeof schema> | null = null;
 
 export async function setupTestDatabase(): Promise<NodePgDatabase<typeof schema>> {
   if (!testDb || !testDbPool) {
-    // Use test database URL or default test database
-    const databaseUrl = process.env.DATABASE_TEST_URL || 
-      `postgresql://${process.env.USER}@localhost:5432/solo_unicorn_test`;
+    // Always use test database for tests
+    const databaseUrl = `postgresql://iw@localhost:5432/solo_unicorn_test`;
     
     testDbPool = new Pool({ connectionString: databaseUrl });
     testDb = drizzle(testDbPool, { schema });

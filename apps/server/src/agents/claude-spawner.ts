@@ -37,6 +37,7 @@ export interface SpawnOptions {
   agentId: string;
   projectId: string;
   repositoryPath: string;
+  additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
   stage: TaskStage;
   model?: string;
