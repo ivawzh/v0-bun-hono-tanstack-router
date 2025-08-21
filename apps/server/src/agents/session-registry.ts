@@ -14,8 +14,8 @@ export interface SessionData {
   agentId: string;
   projectId: string;
   repositoryPath: string;
-  startedAt: string;
-  lastPing?: string;
+  recordedAt: string;
+  lastPing?: string | Date;
   claudeConfigDir?: string;
 }
 
@@ -223,7 +223,7 @@ export async function deleteOldActiveSessions(staleMinutes = 120): Promise<numbe
   let cleanedCount = 0;
 
   for (const session of allSessions) {
-    const lastPingTime = session.lastPing ? new Date(session.lastPing).getTime() : new Date(session.startedAt).getTime();
+    const lastPingTime = session.lastPing ? new Date(session.lastPing).getTime() : new Date(session.recordedAt).getTime();
 
     if (lastPingTime < staleThreshold) {
       await unregisterActiveSession(session.sessionId);

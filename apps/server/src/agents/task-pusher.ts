@@ -6,7 +6,7 @@ import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { findNextAssignableTask, selectBestAvailableAgent, type TaskWithContext } from './task-finder';
-import { spawnClaudeSession } from './claude-spawner';
+import { spawnClaudeSession } from './agent-invoker';
 
 // Database-based lock configuration
 const TASK_PUSH_LOCK_CODE = 'TASK_PUSH_LOCK';

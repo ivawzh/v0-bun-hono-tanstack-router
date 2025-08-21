@@ -46,7 +46,7 @@ class WebSocketServer {
     }
   }
 
-  // SIMPLIFIED: Just broadcast a "flush" message to invalidate all queries
+  // Just broadcast a "flush" message to invalidate all queries
   broadcastFlush(projectId?: string) {
     const message = {
       type: 'flush',
@@ -77,11 +77,11 @@ class WebSocketServer {
   broadcastAgentRateLimit(projectId: string, agentId: string, rateLimitResetAt: Date | null) {
     const message = {
       type: 'agent.rate_limit_updated',
-      data: { 
-        projectId, 
-        agentId, 
+      data: {
+        projectId,
+        agentId,
         rateLimitResetAt: rateLimitResetAt?.toISOString() || null,
-        timestamp: new Date().toISOString() 
+        timestamp: new Date().toISOString()
       }
     };
 
@@ -198,12 +198,10 @@ export function handleWebSocketMessage(ws: ServerWebSocket<any>, clientId: strin
   }
 }
 
-// SIMPLIFIED: Single function to broadcast flush after any data change
 export function broadcastFlush(projectId?: string) {
   wsManager.broadcastFlush(projectId);
 }
 
-// Export specific rate limit broadcast function
 export function broadcastAgentRateLimit(projectId: string, agentId: string, rateLimitResetAt: Date | null) {
   wsManager.broadcastAgentRateLimit(projectId, agentId, rateLimitResetAt);
 }
