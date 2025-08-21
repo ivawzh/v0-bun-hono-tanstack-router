@@ -17,14 +17,14 @@ Simple, clean board with essential workflow lists including iterative Loop:
 |  | [P1] Task A         ||  | [P2] Task C (clarify)||  | [P3] Task E         ||  | [∞] Brainstorm      ||
 |  | Main Repo (Claude)  ||  | Main Repo (Claude)  ||  | Frontend (OpenCode) ||  | ideas & document    ||
 |  | Default Actor       ||  | Custom Actor        ||  | Default Actor       ||  | Main Repo (Claude)  ||
-|  | Ready [☑]   📎2     ||  | Stage: clarify ●○○   ||  | Completed 2h ago    ||  | Stage: loop ♻️      ||
+|  | Ready [☑]   📎2     ||  | Mode: clarify ●○○   ||  | Completed 2h ago    ||  | Mode: loop ♻️      ||
 |  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||
 |  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|
 |  ┌─────────────────────┐|  ┌─────────────────────┐|                         |  ┌─────────────────────┐|
 |  | [P1] Task B         ||  | [∞] Code review &   ||                         ||  | [∞] Update docs     ||
 |  | Main Repo (Claude)  ||  | refactoring         ||                         ||  | & README            ||
-|  | Ready [☐]           ||  | Stage: loop ♻️      ||                         ||  | Main Repo (Claude)  ||
-|  | [Delete]            ||  | [Delete]            ||                         ||  | Stage: loop ♻️      ||
+|  | Ready [☐]           ||  | Mode: loop ♻️      ||                         ||  | Main Repo (Claude)  ||
+|  | [Delete]            ||  | [Delete]            ||                         ||  | Mode: loop ♻️      ||
 |  └─────────────────────┘|  └─────────────────────┘|                         |  └─────────────────────┘|
 +-------------------------------------------------------------------------------------------------------------------------------+
 ```
@@ -43,7 +43,7 @@ Simple, clean board with essential workflow lists including iterative Loop:
 **Doing Cards:**
 - Priority and title (refined if available)
 - Repo Agent
-- Stage indicator: clarify ●○○, Kickoff ●●○, Execute ●●●
+- Mode indicator: clarify ●○○, Kickoff ●●○, Execute ●●●
 - Progress info
 - Delete button
 
@@ -57,7 +57,7 @@ Simple, clean board with essential workflow lists including iterative Loop:
 - Infinity symbol [∞] indicating repeatable nature
 - Title and description of repeatable task
 - Repo Agent and Actor
-- Stage: loop ♻️ (never changes)
+- Mode: loop ♻️ (never changes)
 - Delete button (removes from Loop entirely)
 
 ## Task Creation Flow
@@ -95,7 +95,7 @@ Click any card to open simplified drawer:
 ```text
 +-------------------------------------------------------- Task Drawer ----------------------+
 | TASK-123: Implement user authentication                                           [×]   |
-| Status: Doing • Stage: Execute • Priority: P1                                            |
+| Status: Doing • Mode: Execute • Priority: P1                                            |
 | Repo Agent: Main Repo (Claude Code) • Actor: Default Actor                               |
 +-------------------------------------------------------------------------------------------+
 | Raw Information                                                                           |
@@ -184,7 +184,7 @@ Click any card to open simplified drawer:
 **Loop Tasks:**
 1. **Create**: Human creates repeatable task directly in Loop list
 2. **Pickup**: Agent picks Loop task when Todo/Doing are empty
-3. **Execute**: Task moves to Doing with stage="loop" (no clarify/Plan stages)
+3. **Execute**: Task moves to Doing with mode="loop" (no clarify/Plan modes)
 4. **Return**: After completion, task returns to bottom of Loop list
 5. **Cycle**: Process repeats infinitely ♻️
 

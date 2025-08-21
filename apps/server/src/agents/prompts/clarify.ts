@@ -1,5 +1,5 @@
 /**
- * clarify Stage Prompt Template
+ * clarify Mode Prompt Template
  * Used when agents need to clarify raw task titles and descriptions
  */
 

@@ -687,7 +687,7 @@ async function spawnClaudeCodeCLI(task, { agent, repo, actor }) {
   });
 
   // Send task prompt
-  const prompt = generatePrompt(task.stage, { task, actor, project });
+  const prompt = generatePrompt(task.mode, { task, actor, project });
   child.stdin.write(prompt);
   child.stdin.end();
 

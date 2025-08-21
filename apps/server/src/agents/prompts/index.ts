@@ -1,6 +1,6 @@
 /**
  * Prompt System for Agent Tasks
- * Centralized prompt generation for different task stages
+ * Centralized prompt generation for different task modes
  */
 
 import { generateRefinePrompt } from './clarify';

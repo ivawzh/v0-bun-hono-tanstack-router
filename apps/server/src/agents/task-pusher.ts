@@ -231,7 +231,7 @@ async function pushTaskToAgent(
       repositoryPath: mainRepository.repoPath,
       additionalRepositories: taskWithContext.additionalRepositories,
       claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
-      stage: task.mode || 'clarify',
+      mode: task.mode || 'clarify',
       taskData: { task, actor, project }
     });
 

@@ -34,7 +34,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
    - Supports additional working directories for multi-repo access and all-in-one manipulation
    - Rate limit refresh times are provided when limits are hit
    - Can switch accounts via `CLAUDE_CONFIG_DIR` environment variable
-   - Session resuming: Reusing session IDs preserves conversation context and memory across task stages
+   - Session resuming: Reusing session IDs preserves conversation context and memory across task modes
 4. **Conflict Management Philosophy**: Easier to maintain one active session per repo to avoid git conflicts, but should be configurable
 5. **Rate Limit Handling**: Need to re-feed ongoing tasks when rate limits refresh
 
@@ -70,11 +70,11 @@ Build a minimal, local-first task management system for dispatching coding tasks
 ### Task (Card)
 
 - `ready` checkbox to mark ready for AI pickup
-- `stage` controls what prompt to use. Eventually, we might allow user to create and modify stage and prompt.
+- `mode` controls what prompt to use. Eventually, we might allow user to create and modify mode and prompt.
 - **Regular tasks**: Todo → Doing → Done
 - **Loop tasks**: Loop → Doing → Loop (infinite cycle)
-- Doing has 3 stages: clarify → Plan → Execute
-- Loop has 1 stage: loop (never changes)
+- Doing has 3 modes: clarify → Plan → Execute
+- Loop has 1 mode: loop (never changes)
 - Must have repo(s) and agent(s) assigned
 - Optional additional repos for multi codebases manipulation at once.
 - Optional actor assignment
@@ -108,14 +108,14 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 Agents automatically pick up ready cards in priority order (5-1, then card order within list).
 
-**Stage 1: clarify**
+**Mode 1: clarify**
 
 - Agent understands and refines the raw title/description
 - Updates card with refined title and refined description
 - Raw versions remain for reference
 - Uses MCP to update card
 
-**Stage 2: Plan**
+**Mode 2: Plan**
 
 - List solution options and rank them
 - Select final solution approach
@@ -126,7 +126,7 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
   - If not too big, store plan (final solution, spec, step breakdown) in card's `plan` field.
 - Interaction via MCP
 
-**Stage 3: Execute**
+**Mode 3: Execute**
 
 - Real implementation using refined title, description, attachments, plan, actor, and project memory
 - Make commits and push as needed
@@ -143,7 +143,7 @@ The Loop list stores repeatable tasks that cycle infinitely to maintain project 
 
 **Loop Workflow:**
 1. **Task Selection**: When no regular tasks available, agent picks from Loop (top of list)
-2. **Execution**: Loop task moves to Doing with stage="loop" (never changes stage)
+2. **Execution**: Loop task moves to Doing with mode="loop" (never changes mode)
 3. **Completion**: After execution, task returns to Loop (bottom of list)
 4. **Rotation**: Bottom placement ensures all Loop tasks get cycled through
 

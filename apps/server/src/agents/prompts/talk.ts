@@ -1,12 +1,12 @@
 /**
- * Talk Stage Prompt
+ * Talk Mode Prompt
  * For brainstorming, research, planning, and discussion tasks that require NO code writing
  */
 
 import { type PromptParams } from '.';
 
 /**
- * Generate prompt for talk stage tasks
+ * Generate prompt for talk mode tasks
  * These tasks focus on thinking, research, and documentation without any code implementation
  */
 export function generateTalkPrompt({ task, actor, project }: PromptParams): string {
@@ -31,8 +31,8 @@ ${projectMemory}
 - **Title**: ${task.refinedTitle || task.rawTitle}
 - **Description**: ${task.refinedDescription || task.rawDescription || 'No description provided'}
 
-**CRITICAL INSTRUCTIONS - TALK STAGE RULES**:
-🚫 **NO CODE WRITING ALLOWED** - This is a "talk" stage task focused on thinking, research, and discussion only
+**CRITICAL INSTRUCTIONS - TALK MODE RULES**:
+🚫 **NO CODE WRITING ALLOWED** - This is a "talk" mode task focused on thinking, research, and discussion only
 🚫 **NO IMPLEMENTATION** - Do not write, modify, or suggest specific code implementations
 🚫 **NO TECHNICAL EXECUTION** - Focus purely on conceptual work, analysis, and planning
 

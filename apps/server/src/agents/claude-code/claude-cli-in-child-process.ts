@@ -172,7 +172,7 @@ export interface SpawnOptions {
   repositoryPath: string;
   additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
-  stage: TaskMode;
+  mode: TaskMode;
   model?: string;
   permissionMode?: PermissionMode;
   taskData: {

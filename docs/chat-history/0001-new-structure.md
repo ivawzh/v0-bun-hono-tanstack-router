@@ -543,7 +543,7 @@ private async assignTaskToAgent(
         agentSessionStatus: 'ACTIVE',
         lastAgentSessionStartedAt: new Date(),
         status: 'doing',
-        stage: task.stage || 'refine'
+        mode: task.mode || 'refine'
       })
       .where(eq(tasks.id, task.id));
 
@@ -573,7 +573,7 @@ private async assignTaskToAgent(
         agentSessionStatus: 'INACTIVE',
         lastAgentSessionStartedAt: null,
         status: 'todo',
-        stage: null
+        mode: null
       })
       .where(eq(tasks.id, task.id));
 

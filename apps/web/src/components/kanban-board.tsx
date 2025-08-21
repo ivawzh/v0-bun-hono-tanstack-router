@@ -289,7 +289,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         </div>
       </CardHeader>
       <CardContent className="pt-0">
-        {/* Priority, Author, AI Activity, and Stage badges */}
+        {/* Priority, Author, AI Activity, and Mode badges */}
         <div className="kanban-card-badges">
           <Badge variant="outline" className={getPriorityColors(task.priority)}>
             {getPriorityDisplay(task.priority)}

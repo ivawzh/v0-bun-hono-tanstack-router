@@ -75,7 +75,7 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_update",
     {
       title: "Update a task",
-      description: "Update task fields during workflow stages.",
+      description: "Update task fields during workflow modes.",
       inputSchema: {
         taskId: z.string().uuid(),
         refinedTitle: z.string().optional(),

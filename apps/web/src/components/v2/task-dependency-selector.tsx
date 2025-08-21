@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils';
 interface Task {
   id: string;
   rawTitle: string;
-  refinedTitle?: string;
+  refinedTitle?: string | null;
   list: 'todo' | 'doing' | 'done' | 'loop';
   priority: number;
 }

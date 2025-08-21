@@ -1,19 +1,19 @@
-# Master Plan: Introduce "Check" Stage for Human Verification
+# Master Plan: Introduce "Check" Mode for Human Verification
 
 ## Analysis Summary
 
-The user wants to add a new "Check" stage to allow human verification before tasks are marked as done. This is about adding a quality control step where humans can review AI work and provide feedback for iterations.
+The user wants to add a new "Check" mode to allow human verification before tasks are marked as done. This is about adding a quality control step where humans can review AI work and provide feedback for iterations.
 
 ## Current Architecture Analysis
 
 **Current Task Lifecycle:**
 - Status: `todo` → `doing` → `done` / `loop`
-- Stages: `clarify` → `plan` → `execute` (for regular tasks) / `loop` (for loop tasks)
-- Execute stage currently transitions directly to `done` status
+- Modes: `clarify` → `plan` → `execute` (for regular tasks) / `loop` (for loop tasks)
+- Execute mode currently transitions directly to `done` status
 
 **Current Database Schema:**
 - `status`: enum `["todo", "doing", "done", "loop"]`
-- `stage`: enum `["clarify", "plan", "execute", "loop"]`
+- `mode`: enum `["clarify", "plan", "execute", "loop"]`
 - Feedback storage: No current mechanism for human feedback/iterations
 
 ## Solution Options & Ranking
@@ -22,7 +22,7 @@ The user wants to add a new "Check" stage to allow human verification before tas
 **Concept:** New 5-list board: Todo → Doing → Check → Done → Loop
 
 **Pros:**
-- Clear visual separation of verification stage
+- Clear visual separation of verification mode
 - Maintains current workflow logic
 - Intuitive UX - humans see what needs checking
 - Easy to implement with existing architecture
@@ -30,12 +30,12 @@ The user wants to add a new "Check" stage to allow human verification before tas
 
 **Implementation:**
 - Add `check` to status enum
-- Add `check` to stage enum
+- Add `check` to mode enum
 - Add `feedbackHistory` jsonb field for iteration tracking
-- Execute stage transitions to `check` status instead of `done`
+- Execute mode transitions to `check` status instead of `done`
 - Human can approve (→ done) or reject with feedback (→ doing/clarify)
 
-### Option 2: Add "Check" as Sub-Stage within "Done" List ⭐⭐⭐
+### Option 2: Add "Check" as Sub-Mode within "Done" List ⭐⭐⭐
 **Concept:** Keep 4 lists, add checking state within Done list
 
 **Pros:**
@@ -80,7 +80,7 @@ Todo | Doing | Check | Done | Loop
 ```sql
 -- Update enums
 ALTER TYPE status_enum ADD VALUE 'check';
-ALTER TYPE stage_enum ADD VALUE 'check';
+ALTER TYPE mode_enum ADD VALUE 'check';
 
 -- Add feedback tracking
 ALTER TABLE tasks ADD COLUMN feedback_history JSONB DEFAULT '[]';
@@ -95,8 +95,8 @@ ALTER TABLE tasks ADD COLUMN iteration_count INTEGER DEFAULT 0;
       "id": "uuid",
       "timestamp": "2024-01-01T10:00:00Z",
       "feedback": "The button styling doesn't match the design. Please use primary color.",
-      "rejectedFromStage": "check",
-      "sentBackToStage": "clarify"
+      "rejectedFromMode": "check",
+      "sentBackToMode": "clarify"
     }
   ],
   "iterationCount": 3
@@ -108,23 +108,23 @@ ALTER TABLE tasks ADD COLUMN iteration_count INTEGER DEFAULT 0;
 #### Modified Execute Prompt
 Current execute prompt step 4:
 ```
-4. **FINISH**: Use MCP tool task_update with status="done", stage=null
+4. **FINISH**: Use MCP tool task_update with status="done", mode=null
 ```
 
 New execute prompt step 4:
 ```
-4. **FINISH**: Use MCP tool task_update with status="check", stage="check"
+4. **FINISH**: Use MCP tool task_update with status="check", mode="check"
 ```
 
-#### New Check Stage Logic
-1. Agent completes execute stage → task moves to Check list
+#### New Check Mode Logic
+1. Agent completes execute mode → task moves to Check list
 2. Human reviews work in Check list
 3. Human decides:
-   - **Approve**: Click ✓ → status="done", stage=null
-   - **Reject**: Click ❌ → modal for feedback → status="doing", stage="clarify", add to feedbackHistory
+   - **Approve**: Click ✓ → status="done", mode=null
+   - **Reject**: Click ❌ → modal for feedback → status="doing", mode="clarify", add to feedbackHistory
 
 #### Feedback Integration
-- When task returns to clarify stage, AI gets access to `feedbackHistory`
+- When task returns to clarify mode, AI gets access to `feedbackHistory`
 - Clarify prompt includes previous iterations and specific feedback
 - Each iteration increments `iterationCount`
 
@@ -138,7 +138,7 @@ New execute prompt step 4:
 #### 2. Feedback Modal
 - Rich text input for feedback
 - Quick feedback templates ("Doesn't match design", "Missing feature", "Bug found")
-- Option to send back to clarify, plan, or execute stage
+- Option to send back to clarify, plan, or execute mode
 
 #### 3. Task Card Enhancements
 - Show iteration count badge if > 0
@@ -153,7 +153,7 @@ New execute prompt step 4:
 ### Prompt Changes Needed
 
 #### Modified Execute Prompt
-- Change final step to transition to check stage
+- Change final step to transition to check mode
 - Add summary of work completed for human review
 
 #### Enhanced Clarify Prompt
@@ -161,7 +161,7 @@ New execute prompt step 4:
 - Show iteration count and previous attempts
 - Focus on addressing specific feedback points
 
-#### New Check Stage Prompt (Optional)
+#### New Check Mode Prompt (Optional)
 - For AI to provide work summary to human
 - Self-assessment of implementation quality
 
@@ -183,7 +183,7 @@ Todo List Layout:
 
 ## Implementation Priority
 
-### Phase 1: Core Check Stage
+### Phase 1: Core Check Mode
 1. Database schema updates
 2. Backend API changes
 3. Basic Check list UI
@@ -207,7 +207,7 @@ Todo List Layout:
 - Gradual rollout possible
 
 **Medium Risk:**
-- Need to handle tasks currently in execute stage
+- Need to handle tasks currently in execute mode
 - UI changes may need user education
 
 **Mitigation:**

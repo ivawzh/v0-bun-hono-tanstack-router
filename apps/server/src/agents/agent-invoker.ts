@@ -37,7 +37,7 @@ export interface SpawnOptions {
   repositoryPath: string;
   additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
-  stage: TaskMode;
+  mode: TaskMode;
   model?: string;
   permissionMode?: PermissionMode;
   taskData: {
@@ -61,20 +61,20 @@ export async function spawnClaudeSession(
       projectId,
       repositoryPath,
       claudeConfigDir,
-      stage,
+      mode,
       taskData,
     } = options;
     const { task } = taskData;
 
-    // Generate the appropriate prompt for the task stage
+    // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
-    const stagePrompt = generatePrompt(stage, taskData);
+    const modePrompt = generatePrompt(mode, taskData);
 
-    if (!stagePrompt || !stagePrompt.trim()) {
+    if (!modePrompt || !modePrompt.trim()) {
       return {
         success: false,
-        error: `No prompt generated. Stage: ${stage}, Task ID: ${taskId}. Task title: ${taskData.task.rawTitle || taskData.task.refinedTitle}.`,
+        error: `No prompt generated. Mode: ${mode}, Task ID: ${taskId}. Task title: ${taskData.task.rawTitle || taskData.task.refinedTitle}.`,
       };
     }
 
@@ -83,7 +83,7 @@ export async function spawnClaudeSession(
       attachments,
       repositoryPath
     );
-    const prompt = stagePrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
+    const prompt = modePrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
 
     // Prepare environment variables
     const env = {

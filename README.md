@@ -155,13 +155,13 @@ See the [Public Hosting Guide](docs/hosting.md) for complete setup instructions 
 Tasks have two dimensions:
 
 - **Status**: Todo → In Progress → Blocked → Paused → Done
-- **Stage**: Kickoff → Spec → Design → Dev → QA → Done
+- **Mode**: Kickoff → Spec → Design → Dev → QA → Done
 
 Each task includes:
 
 - Description (Markdown supported)
 - Priority (0-10)
-- Checklist items per stage
+- Checklist items per mode
 - Messages and conversations
 - Questions (for agent-human interaction)
 - Artifacts (links, files, diffs, logs)
@@ -323,7 +323,7 @@ Agents can be configured with different AI models:
 
 ### Task Hooks (Automations)
 
-Task hooks trigger actions on stage changes:
+Task hooks trigger actions on mode changes:
 
 - Create checklists
 - Send notifications

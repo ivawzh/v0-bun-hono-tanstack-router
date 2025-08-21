@@ -125,7 +125,7 @@ export const tasks = pgTable("tasks", {
   refinedDescription: text("refined_description"),
 
   // Plan results
-  plan: jsonb("plan").default({}), // Final solution and spec from plan stage
+  plan: jsonb("plan").default({}), // Final solution and spec from plan mode
 
   // List and mode
   list: text("list", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),

@@ -225,19 +225,19 @@ interface QuickTemplates {
     title: 'Bug: ',
     description: 'Steps to reproduce:\n1. \n\nExpected:\n\nActual:\n',
     priority: 4,
-    stage: 'clarify'
+    mode: 'clarify'
   },
   '/feature': {
     title: 'Feature: ',
     description: 'User story:\nAs a [user], I want to [goal] so that [benefit]\n\nAcceptance criteria:\n- ',
     priority: 3,
-    stage: 'plan'
+    mode: 'plan'
   },
   '/doc': {
     title: 'Documentation: ',
     description: 'Document [feature/process] to help [audience]\n\nSections needed:\n- ',
     priority: 2,
-    stage: 'clarify'
+    mode: 'clarify'
   }
 }
 ```

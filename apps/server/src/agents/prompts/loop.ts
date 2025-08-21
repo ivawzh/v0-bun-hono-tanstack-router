@@ -1,5 +1,5 @@
 /**
- * Loop Stage Prompt Template
+ * Loop Mode Prompt Template
  * Used for repeatable tasks that cycle infinitely
  */
 
@@ -19,7 +19,7 @@ Execute this repeatable task. This is a loop task that will return to the loop l
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="loop", agentSessionStatus="ACTIVE"
-2. **Execute Task**: Perform the task as described (no clarify/plan stages for loop tasks)
+2. **Execute Task**: Perform the task as described (no clarify/plan modes for loop tasks)
 3. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="loop", mode=null, agentSessionStatus="INACTIVE"
 
 **Note**: This task will automatically cycle back to the Loop list (positioned after other loop tasks) for fair rotation through all loop tasks.

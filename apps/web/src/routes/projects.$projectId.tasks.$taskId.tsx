@@ -277,13 +277,13 @@ function TaskPage() {
   }
 
   // Full page mode - render task content in a card layout
-  const stageOptions = [
+  const modeOptions = [
     { value: "clarify", label: "clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
 
-  const currentStage = stageOptions.find(s => s.value === task?.mode);
+  const currentMode = modeOptions.find(s => s.value === task?.mode);
 
   return (
     <div className="min-h-screen bg-background">
@@ -332,9 +332,9 @@ function TaskPage() {
                   agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
                   list={task.list}
                 />
-                {currentStage && (
-                  <Badge variant="outline" className={currentStage.color}>
-                    {currentStage.label}
+                {currentMode && (
+                  <Badge variant="outline" className={currentMode.color}>
+                    {currentMode.label}
                   </Badge>
                 )}
                 <span className="text-xs text-muted-foreground">

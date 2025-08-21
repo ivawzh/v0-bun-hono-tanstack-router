@@ -1,5 +1,5 @@
 /**
- * Execute Stage Prompt Template
+ * Execute Mode Prompt Template
  * Used when agents need to implement solutions
  */
 

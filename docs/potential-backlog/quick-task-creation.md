@@ -36,7 +36,7 @@ User Flow:
 - **Auto-Select Project**: Current project context or last used
 - **Auto-Select Repo Agent**: Single agent projects auto-fill
 - **Intelligent Priority**: Parse voice/text for priority keywords ("urgent", "low priority")
-- **Stage Detection**: Analyze description for stage hints ("plan the...", "implement...", "research...")
+- **Mode Detection**: Analyze description for mode hints ("plan the...", "implement...", "research...")
 
 ### Quick Text Mode
 - **Inline Input**: Expandable text field with smart parsing
@@ -82,10 +82,10 @@ User Flow:
 "low|minor|small" → Priority 1
 "medium|normal" → Priority 3
 
-// Stage detection
-"plan|design|spec" → Stage: plan
-"implement|code|build" → Stage: execute
-"research|investigate" → Stage: clarify
+// Mode detection
+"plan|design|spec" → Mode: plan
+"implement|code|build" → Mode: execute
+"research|investigate" → Mode: clarify
 
 // Template expansion
 "/bug" → "Bug: [title]" + bug template
@@ -107,7 +107,7 @@ interface QuickTaskInput {
   priority?: Priority // Auto-detected from input
   projectId: string // Context-aware default
   repoAgentId?: string // Auto-selected if single option
-  stage?: string // Smart-detected from content
+  mode?: string // Smart-detected from content
   tags?: string[] // Parsed from hashtags
   templateType?: 'bug' | 'feature' | 'research' | 'doc'
 }

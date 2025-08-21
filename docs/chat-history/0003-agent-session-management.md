@@ -982,7 +982,7 @@ This plan provides a detailed breakdown of all tasks needed to implement the new
 ### 6.2 Prompt Generation
 - [ ] **Update prompt generation for direct CLI**
   - File: `apps/server/src/agents/prompt-generator.ts` - NEW FILE OR UPDATE EXISTING
-  - Function: `generatePrompt(stage, { task, actor, project })`
+  - Function: `generatePrompt(mode, { task, actor, project })`
   - Reference: Current prompt generation in orchestrator.ts
   - Changes: Adapt for direct Claude CLI stdin input instead of CCU API
 

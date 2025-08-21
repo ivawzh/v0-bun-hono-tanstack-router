@@ -1,5 +1,5 @@
 /**
- * Plan Stage Prompt Template
+ * Plan Mode Prompt Template
  * Used when agents need to create implementation plans
  */
 
