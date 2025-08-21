@@ -35,7 +35,7 @@ export function TodoColumnSections({
   TaskCardComponent,
 }: TodoColumnSectionsProps) {
   const [normalSectionCollapsed, setNormalSectionCollapsed] = useState(false);
-  const [loopSectionCollapsed, setLoopSectionCollapsed] = useState(false);
+  const [loopSectionCollapsed, setLoopSectionCollapsed] = useState(true);
 
   const totalTasks = normalTasks.length + loopTasks.length;
 
@@ -111,7 +111,7 @@ export function TodoColumnSections({
         loopSectionCollapsed ? "flex-shrink-0" : "flex-1 min-h-0"
       )}>
         {/* Loop Section Header */}
-        <div className="flex items-center justify-between p-2 bg-purple-50/50 border-b border-purple-200/30">
+        <div className="flex items-center justify-between p-2 bg-muted/30 border-b border-border/20">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -125,8 +125,8 @@ export function TodoColumnSections({
                 <ChevronUp className="h-3 w-3" />
               )}
             </Button>
-            <span className="text-sm font-medium text-purple-700">Loop</span>
-            <Badge variant="outline" className="h-5 text-xs bg-purple-50 text-purple-700 border-purple-200">
+            <span className="text-sm font-medium text-muted-foreground">Loop</span>
+            <Badge variant="outline" className="h-5 text-xs">
               {loopTasks.length}
             </Badge>
           </div>
