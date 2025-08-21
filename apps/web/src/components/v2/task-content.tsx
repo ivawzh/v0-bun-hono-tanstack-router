@@ -244,15 +244,15 @@ export function TaskContent({
                         <Card key={dep.id} className={cn(
                           "p-3",
                           isCompleted
-                            ? "bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800"
-                            : "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+                            ? "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
+                            : "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800"
                         )}>
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2 min-w-0 flex-1">
                               {isBlocking ? (
-                                <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                                <Lock className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
                               ) : (
-                                <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                                <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
                               )}
                               <div className="min-w-0 flex-1">
                                 <p className="font-medium text-sm truncate">
@@ -298,9 +298,9 @@ export function TaskContent({
 
               {/* Blocked Status Warning */}
               {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.list !== 'done') && (
-                <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
                   <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300">
-                    <Lock className="h-4 w-4" />
+                    <Lock className="h-4 w-4 text-amber-700 dark:text-amber-300" />
                     <span className="font-medium text-sm">Task is blocked</span>
                   </div>
                   <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
@@ -332,7 +332,7 @@ export function TaskContent({
                   <Label className="text-sm font-medium">Tasks Depending on This ({dependencyData.dependents.length})</Label>
                   <div className="mt-2 space-y-2">
                     {dependencyData.dependents.map((dependent) => (
-                      <Card key={dependent.id} className="p-3 bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+                      <Card key={dependent.id} className="p-3 bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
                         <div className="flex items-center gap-2">
                           <GitBranch className="h-4 w-4 text-blue-600 dark:text-blue-400 shrink-0" />
                           <div className="min-w-0 flex-1">
