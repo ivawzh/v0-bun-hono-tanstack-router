@@ -94,7 +94,7 @@ function registerMcpTools(server: McpServer) {
       const updates: any = { refinedTitle, refinedDescription, plan, status, stage };
 
       // Special handling for loop tasks that are marked as "done"
-      // Loop tasks should never stay in "done" status, they should cycle back to "loop"
+      // Loop tasks should cycle to "todo" status with smart positioning for fair rotation
       let shouldHandleLoopCompletion = false;
       if (status === "done") {
         const task = await db.query.tasks.findFirst({
@@ -104,8 +104,8 @@ function registerMcpTools(server: McpServer) {
         if (task && task.stage === "loop") {
           // This is a loop task being completed, handle it specially
           shouldHandleLoopCompletion = true;
-          updates.status = "loop"; // Override to loop instead of done
-          updates.stage = "loop";
+          updates.status = "todo"; // Move to todo instead of loop for fair rotation
+          updates.stage = "loop"; // Keep stage as loop to maintain loop task identity
         }
       }
 
@@ -153,29 +153,54 @@ function registerMcpTools(server: McpServer) {
 
         // Handle fair rotation for loop tasks completion
         if (shouldHandleLoopCompletion) {
-          // Get the highest column order in the loop column to append at bottom
-          const loopTasks = await db
+          // Get all loop tasks in the todo column (tasks with stage="loop" and status="todo")
+          // and all normal tasks in todo column (tasks with stage!="loop" and status="todo")
+          const todoLoopTasks = await db
             .select({ columnOrder: tasks.columnOrder })
             .from(tasks)
             .where(
               and(
                 eq(tasks.projectId, task.projectId),
-                eq(tasks.status, 'loop')
+                eq(tasks.status, 'todo'),
+                eq(tasks.stage, 'loop')
               )
             )
             .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
             .limit(1);
 
-          let newColumnOrder = "1000"; // Default if no loop tasks exist
-          if (loopTasks.length > 0) {
-            const highestOrder = parseFloat(loopTasks[0].columnOrder);
-            newColumnOrder = (highestOrder + 1000).toString(); // Add 1000 to be at bottom
+          let newColumnOrder = "1000"; // Default if no loop tasks exist in todo
+          if (todoLoopTasks.length > 0) {
+            // Place after the last loop task in todo column
+            const highestLoopOrder = parseFloat(todoLoopTasks[0].columnOrder);
+            newColumnOrder = (highestLoopOrder + 1000).toString();
+          } else {
+            // No existing loop tasks in todo, check if there are normal tasks to place after
+            const normalTodoTasks = await db
+              .select({ columnOrder: tasks.columnOrder })
+              .from(tasks)
+              .where(
+                and(
+                  eq(tasks.projectId, task.projectId),
+                  eq(tasks.status, 'todo'),
+                  sql`${tasks.stage} != 'loop' OR ${tasks.stage} IS NULL`
+                )
+              )
+              .orderBy(sql`CAST(${tasks.columnOrder} AS DECIMAL) DESC`)
+              .limit(1);
+
+            if (normalTodoTasks.length > 0) {
+              // Place after all normal tasks
+              const highestNormalOrder = parseFloat(normalTodoTasks[0].columnOrder);
+              newColumnOrder = (highestNormalOrder + 1000).toString();
+            }
+            // else use default 1000
           }
 
           filteredUpdates.columnOrder = newColumnOrder;
-          logger.tool("task_update", "loop_task_completion - appending to bottom of loop column", {
+          logger.tool("task_update", "loop_task_completion - placing in todo column after other loop tasks", {
             taskId,
-            newColumnOrder
+            newColumnOrder,
+            todoLoopTasksCount: todoLoopTasks.length
           });
         }
 

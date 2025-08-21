@@ -22,7 +22,7 @@ Execute this repeatable task. This is a loop task that will return to the loop c
 2. **Execute Task**: Perform the task as described (no clarify/plan stages for loop tasks)
 3. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", stage="loop", agentSessionStatus="NON_ACTIVE"
 
-**Note**: This task will automatically return to the Loop column for future execution.
+**Note**: This task will automatically cycle back to the Todo column (positioned after other loop tasks) for fair rotation through all loop tasks.
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? `**Project Context**: ${JSON.stringify(project.memory)}` : ''}${task.plan ? `\n\n**Implementation Plan**:\n${JSON.stringify(task.plan, null, 2)}` : ''}`;

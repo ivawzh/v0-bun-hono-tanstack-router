@@ -51,6 +51,7 @@ import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
 import { DeleteTaskDialog } from "@/components/delete-task-dialog";
 import { ResetAgentModal } from "@/components/reset-agent-modal";
+import { TodoColumnSections } from "@/components/todo-column-sections";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
@@ -524,7 +525,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Create task mutation
   const createTaskMutation = useMutation(orpc.tasks.create.mutationOptions({
-    onMutate: async (variables) => {
+    onMutate: async (variables: any) => {
       // Cancel any outgoing refetches
       const queryKey = cache.queryKeys.projects.withTasks();
       await cache.cancelQueries(queryKey);
@@ -546,7 +547,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       const context = await cache.optimistic.addTaskToProject(projectId, newTask);
       return context;
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success("Task created successfully");
       setShowNewTaskDialog(false);
       clearDraft(); // Clear the auto-saved draft
@@ -586,7 +587,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       }
       console.log('✅ Task created successfully');
     },
-    onError: (error, variables, context) => {
+    onError: (error: any, variables: any, context: any) => {
       // Rollback optimistic update
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
@@ -597,7 +598,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Toggle ready mutation
   const toggleReadyMutation = useMutation(orpc.tasks.toggleReady.mutationOptions({
-    onMutate: async (variables) => {
+    onMutate: async (variables: any) => {
       // Optimistically update the task's ready state
       const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
@@ -609,7 +610,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Don't invalidate immediately - optimistic update should persist
       console.log('\u2705 Task ready state updated successfully');
     },
-    onError: (error, variables, context) => {
+    onError: (error: any, variables: any, context: any) => {
       // Rollback optimistic update
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
@@ -620,7 +621,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Update stage mutation
   const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
-    onMutate: async (variables) => {
+    onMutate: async (variables: any) => {
       // Optimistically update the task's stage
       const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
@@ -632,7 +633,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Don't invalidate immediately - optimistic update should persist
       console.log('\u2705 Task stage updated successfully');
     },
-    onError: (error, variables, context) => {
+    onError: (error: any, variables: any, context: any) => {
       // Rollback optimistic update
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
@@ -643,12 +644,12 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Delete task mutation
   const deleteTaskMutation = useMutation(orpc.tasks.delete.mutationOptions({
-    onMutate: async (variables) => {
+    onMutate: async (variables: any) => {
       // Use standardized optimistic removal
       const context = await cache.task.optimisticRemove(variables.id);
       return context;
     },
-    onError: (error, variables, context) => {
+    onError: (error: any, variables: any, context: any) => {
       // Use standardized rollback
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
@@ -667,7 +668,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Reset agent mutation
   const resetAgentMutation = useMutation(orpc.tasks.resetAgent.mutationOptions({
-    onMutate: async (variables) => {
+    onMutate: async (variables: any) => {
       // Optimistically update the task's agent session status
       const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
@@ -684,7 +685,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Don't invalidate - optimistic update should persist
       console.log('✅ Agent reset successfully');
     },
-    onError: (error, variables, context) => {
+    onError: (error: any, variables: any, context: any) => {
       // Rollback optimistic update on error
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
@@ -695,7 +696,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
   // Update task order mutation
   const updateOrderMutation = useMutation(orpc.tasks.updateOrder.mutationOptions({
-    onMutate: async (variables) => {
+    onMutate: async (variables: any) => {
       const queryKey = cache.queryKeys.projects.withTasks();
       
       // Cancel any outgoing refetches
@@ -725,7 +726,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       // Return context for rollback
       return { previousData, queryKey };
     },
-    onError: (error, variables, context) => {
+    onError: (error: any, variables: any, context: any) => {
       // Use standardized rollback
       if (context?.previousData && context?.queryKey) {
         cache.optimistic.rollback(context.queryKey, context.previousData);
@@ -808,6 +809,10 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     return acc;
   }, {} as Record<string, any[]>);
 
+  // Separate normal and loop tasks for Todo column
+  const todoNormalTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.stage !== 'loop') : [];
+  const todoLoopTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.stage === 'loop') : [];
+
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   };
@@ -832,13 +837,15 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     // Check if dropped on a different column
     if (statusColumns.some(col => col.id === overId)) {
       targetStatus = overId as "todo" | "doing" | "done" | "loop";
-      targetTasks = groupedTasks[targetStatus];
+      // For Todo column, use combined tasks from both sections
+      targetTasks = targetStatus === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetStatus];
     } else {
       // Find which column the target task belongs to
       for (const column of statusColumns) {
-        if (groupedTasks[column.id].some((t: any) => t.id === overId)) {
+        const columnTasks = column.id === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[column.id];
+        if (columnTasks.some((t: any) => t.id === overId)) {
           targetStatus = column.id as "todo" | "doing" | "done" | "loop";
-          targetTasks = groupedTasks[column.id];
+          targetTasks = columnTasks;
           break;
         }
       }
@@ -1082,7 +1089,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                       <div className="flex items-center gap-2">
                         <div className={cn("w-3 h-3 rounded-full", column.color)} />
                         <h3 className="font-semibold">{column.label}</h3>
-                        <Badge variant="secondary">{columnTasks.length}</Badge>
+                        <Badge variant="secondary">
+                          {column.id === 'todo' ? todoNormalTasks.length + todoLoopTasks.length : columnTasks.length}
+                        </Badge>
                       </div>
                       <div className="flex items-center gap-1">
                         {/* Add task button */}
@@ -1115,23 +1124,36 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                     </div>
 
                     {/* Tasks */}
-                    <ScrollArea className="h-[calc(100vh-250px)] max-sm:h-[calc(100vh-200px)]">
-                      <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
-                        <div className="kanban-tasks-container">
-                          {columnTasks.map((task) => (
-                            <TaskCard
-                              key={task.id}
-                              task={task}
-                              onTaskClick={handleTaskClick}
-                              onToggleReady={handleToggleReady}
-                              onStageChange={handleStageChange}
-                              onDeleteTask={handleDeleteTask}
-                              onResetAgent={handleResetAgent}
-                            />
-                          ))}
-                        </div>
-                      </SortableContext>
-                    </ScrollArea>
+                    {column.id === 'todo' ? (
+                      <TodoColumnSections
+                        normalTasks={todoNormalTasks}
+                        loopTasks={todoLoopTasks}
+                        onTaskClick={handleTaskClick}
+                        onToggleReady={handleToggleReady}
+                        onStageChange={handleStageChange}
+                        onDeleteTask={handleDeleteTask}
+                        onResetAgent={handleResetAgent}
+                        TaskCardComponent={TaskCard}
+                      />
+                    ) : (
+                      <ScrollArea className="h-[calc(100vh-250px)] max-sm:h-[calc(100vh-200px)]">
+                        <SortableContext items={columnTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                          <div className="kanban-tasks-container">
+                            {columnTasks.map((task) => (
+                              <TaskCard
+                                key={task.id}
+                                task={task}
+                                onTaskClick={handleTaskClick}
+                                onToggleReady={handleToggleReady}
+                                onStageChange={handleStageChange}
+                                onDeleteTask={handleDeleteTask}
+                                onResetAgent={handleResetAgent}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
+                      </ScrollArea>
+                    )}
                   </div>
                 </div>
               );
