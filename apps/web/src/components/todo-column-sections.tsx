@@ -11,14 +11,14 @@ interface TodoColumnSectionsProps {
   loopTasks: any[];
   onTaskClick: (taskId: string) => void;
   onToggleReady: (taskId: string, ready: boolean) => void;
-  onStageChange: (taskId: string, stage: string | null) => void;
+  onModeChange: (taskId: string, mode: string | null) => void;
   onDeleteTask: (task: any) => void;
   onResetAgent: (task: any) => void;
   TaskCardComponent: React.ComponentType<{
     task: any;
     onTaskClick: (taskId: string) => void;
     onToggleReady: (taskId: string, ready: boolean) => void;
-    onStageChange: (taskId: string, stage: string | null) => void;
+    onModeChange: (taskId: string, mode: string | null) => void;
     onDeleteTask: (task: any) => void;
     onResetAgent: (task: any) => void;
   }>;
@@ -29,7 +29,7 @@ export function TodoColumnSections({
   loopTasks,
   onTaskClick,
   onToggleReady,
-  onStageChange,
+  onModeChange,
   onDeleteTask,
   onResetAgent,
   TaskCardComponent,
@@ -89,7 +89,7 @@ export function TodoColumnSections({
                     task={task}
                     onTaskClick={onTaskClick}
                     onToggleReady={onToggleReady}
-                    onStageChange={onStageChange}
+                    onModeChange={onModeChange}
                     onDeleteTask={onDeleteTask}
                     onResetAgent={onResetAgent}
                   />
@@ -146,7 +146,7 @@ export function TodoColumnSections({
                     task={task}
                     onTaskClick={onTaskClick}
                     onToggleReady={onToggleReady}
-                    onStageChange={onStageChange}
+                    onModeChange={onModeChange}
                     onDeleteTask={onDeleteTask}
                     onResetAgent={onResetAgent}
                   />

@@ -46,7 +46,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { ProjectSettingsV2 } from "@/components/v2/project-settings-v2";
-import { TaskStageSelector } from "@/components/task-stage-selector";
+import { TaskModeSelector } from "@/components/task-mode-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
 import { DeleteTaskDialog } from "@/components/delete-task-dialog";
@@ -154,12 +154,12 @@ interface TaskCardProps {
   task: any;
   onTaskClick: (taskId: string) => void;
   onToggleReady: (taskId: string, ready: boolean) => void;
-  onStageChange: (taskId: string, stage: string | null) => void;
+  onModeChange: (taskId: string, mode: string | null) => void;
   onDeleteTask: (task: any) => void;
   onResetAgent: (task: any) => void;
 }
 
-function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTask, onResetAgent }: TaskCardProps) {
+function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask, onResetAgent }: TaskCardProps) {
   const [showMore, setShowMore] = useState(false);
   const {
     attributes,
@@ -304,10 +304,10 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
             agentSessionStatus={task.agentSessionStatus}
             status={task.column}
           />
-          <TaskStageSelector
-            stage={task.mode}
-            status={task.column}
-            onStageChange={(stage) => onStageChange(task.id, stage)}
+          <TaskModeSelector
+            mode={task.mode}
+            column={task.column}
+            onModeChange={(mode) => onModeChange(task.id, mode)}
             size="sm"
           />
         </div>
@@ -350,7 +350,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
         )}
 
         {/* Ready toggle - only show for non-completed and non-loop tasks */}
-        {task.status !== 'done' && task.status !== 'loop' && (
+        {task.column !== 'done' && task.column !== 'loop' && (
           <div className="kanban-card-status">
             <div className="kanban-card-ready-toggle">
               <Switch
@@ -631,13 +631,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   }));
 
-  // Update stage mutation
-  const updateStageMutation = useMutation(orpc.tasks.updateStage.mutationOptions({
+  // Update mode mutation
+  const updateModeMutation = useMutation(orpc.tasks.updateMode.mutationOptions({
     onMutate: async (variables: any) => {
-      // Optimistically update the task's stage
+      // Optimistically update the task's mode
       const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
         ...task,
-        stage: variables.stage
+        mode: variables.mode
       }));
       return context;
     },
@@ -727,7 +727,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               return {
                 ...task,
                 columnOrder: update.columnOrder,
-                status: update.status || task.status
+                column: update.column || task.column
               };
             }
             return task;
@@ -754,7 +754,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   // Group tasks by status and sort them with proper columnOrder initialization
   const groupedTasks = statusColumns.reduce((acc, column) => {
     let columnTasks = (project?.tasks || [])
-      .filter((task: any) => task.status === column.id);
+      .filter((task: any) => task.column === column.id);
 
     // First sort by priority and creation date to establish proper initial order
     columnTasks = columnTasks.sort((a: any, b: any) => {
@@ -978,8 +978,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     toggleReadyMutation.mutate({ id: taskId, ready });
   };
 
-  const handleStageChange = (taskId: string, stage: string | null) => {
-    updateStageMutation.mutate({ id: taskId, stage: stage as "clarify" | "plan" | "execute" | "loop" | null });
+  const handleModeChange = (taskId: string, mode: string | null) => {
+    updateModeMutation.mutate({ id: taskId, mode: mode as "clarify" | "plan" | "execute" | "loop" | null });
   };
 
   const handleDeleteTask = (task: any) => {
@@ -1033,8 +1033,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      status: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
-      stage: newTask.stage as "clarify" | "plan" | "execute" | "loop" | null
+      column: newTaskColumn as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop column
+      mode: newTask.mode as "clarify" | "plan" | "execute" | "loop" | null
     });
   };
 
@@ -1148,7 +1148,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                         loopTasks={todoLoopTasks}
                         onTaskClick={handleTaskClick}
                         onToggleReady={handleToggleReady}
-                        onStageChange={handleStageChange}
+                        onModeChange={handleModeChange}
                         onDeleteTask={handleDeleteTask}
                         onResetAgent={handleResetAgent}
                         TaskCardComponent={TaskCard}
@@ -1163,7 +1163,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                                 task={task}
                                 onTaskClick={handleTaskClick}
                                 onToggleReady={handleToggleReady}
-                                onStageChange={handleStageChange}
+                                onModeChange={handleModeChange}
                                 onDeleteTask={handleDeleteTask}
                                 onResetAgent={handleResetAgent}
                               />
@@ -1187,7 +1187,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               task={activeTask}
               onTaskClick={() => {}}
               onToggleReady={() => {}}
-              onStageChange={() => {}}
+              onModeChange={() => {}}
               onDeleteTask={() => {}}
               onResetAgent={() => {}}
             />
@@ -1338,12 +1338,12 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               </Select>
             </div>
             <div className="space-y-2 max-sm:space-y-3">
-              <Label htmlFor="task-stage">Stage (Optional)</Label>
+              <Label htmlFor="task-mode">Mode (Optional)</Label>
               <div className="flex items-center gap-2">
-                <TaskStageSelector
-                  stage={newTask.stage}
-                  status="doing" // Force showing stage selector in creation mode
-                  onStageChange={(stage) => updateDraft({ stage })}
+                <TaskModeSelector
+                  mode={newTask.mode}
+                  column="doing" // Force showing mode selector in creation mode
+                  onModeChange={(mode) => updateDraft({ mode })}
                   size="md"
                 />
                 <span className="text-xs text-muted-foreground">

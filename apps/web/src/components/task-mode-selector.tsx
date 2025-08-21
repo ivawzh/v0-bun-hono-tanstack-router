@@ -7,15 +7,15 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
-interface TaskStageSelectorProps {
-  stage: string | null;
-  status: string;
-  onStageChange: (stage: string | null) => void;
+interface TaskModeSelectorProps {
+  mode: string | null;
+  column: string;
+  onModeChange: (mode: string | null) => void;
   disabled?: boolean;
   size?: "sm" | "md";
 }
 
-const stages = [
+const modes = [
   { value: "clarify", label: "clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
@@ -23,54 +23,54 @@ const stages = [
   { value: "talk", label: "Talk", color: "bg-green-100 text-green-800 border-green-200" },
 ];
 
-export function TaskStageSelector({
-  stage,
-  status,
-  onStageChange,
+export function TaskModeSelector({
+  mode,
+  column,
+  onModeChange,
   disabled = false,
   size = "sm"
-}: TaskStageSelectorProps) {
-  // Don't show stage selector for Done tasks or Todo tasks
-  if (status === "done" || status === "todo") {
+}: TaskModeSelectorProps) {
+  // Don't show mode selector for Done tasks or Todo tasks
+  if (column === "done" || column === "todo") {
     return null;
   }
 
-  // For loop tasks, show read-only loop stage badge
-  if (status === "loop") {
-    const loopStage = stages.find(s => s.value === "loop");
+  // For loop tasks, show read-only loop mode badge
+  if (column === "loop") {
+    const loopMode = modes.find(m => m.value === "loop");
     return (
       <div className={cn(
         "h-6 text-xs px-2 py-1 rounded font-medium border inline-flex items-center",
-        loopStage?.color || "bg-orange-100 text-orange-800 border-orange-200"
+        loopMode?.color || "bg-orange-100 text-orange-800 border-orange-200"
       )}>
         Loop
       </div>
     );
   }
 
-  const currentStage = stages.find(s => s.value === stage);
+  const currentMode = modes.find(m => m.value === mode);
 
   return (
     <Select
-      value={stage || ""}
-      onValueChange={(value) => onStageChange(value || null)}
+      value={mode || ""}
+      onValueChange={(value) => onModeChange(value || null)}
       disabled={disabled}
     >
       <SelectTrigger
         className={cn(
           "h-6 text-xs border-0 bg-transparent p-1 font-medium",
           size === "sm" ? "w-auto min-w-[70px]" : "w-auto min-w-[80px]",
-          currentStage?.color || "bg-gray-100 text-gray-800"
+          currentMode?.color || "bg-gray-100 text-gray-800"
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <SelectValue placeholder="No stage" />
+        <SelectValue placeholder="No mode" />
       </SelectTrigger>
       <SelectContent>
-        {stages.map((stageOption) => (
-          <SelectItem key={stageOption.value} value={stageOption.value}>
-            <span className={cn("px-2 py-1 rounded text-xs", stageOption.color)}>
-              {stageOption.label}
+        {modes.map((modeOption) => (
+          <SelectItem key={modeOption.value} value={modeOption.value}>
+            <span className={cn("px-2 py-1 rounded text-xs", modeOption.color)}>
+              {modeOption.label}
             </span>
           </SelectItem>
         ))}

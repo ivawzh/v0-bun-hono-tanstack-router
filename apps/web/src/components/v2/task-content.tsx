@@ -34,7 +34,7 @@ import {
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getPriorityColors, getPriorityDisplay, getPriorityOptions, type Priority } from "@/utils/priority";
-import { TaskStageSelector } from "@/components/task-stage-selector";
+import { TaskModeSelector } from "@/components/task-mode-selector";
 import { AttachmentList } from "@/components/attachment-list";
 import { EditableField } from "@/components/editable-field";
 import { ClaudeCodeSessionLink } from "@/components/claude-code-session-link";
@@ -451,7 +451,7 @@ export function TaskContent({
                         id: task.id,
                         rawTitle: task.rawTitle,
                         refinedTitle: task.refinedTitle,
-                        status: task.status as any,
+                        column: task.column as any,
                         priority: task.priority
                       }}
                       dependencies={dependencyData?.dependencies}
@@ -525,7 +525,7 @@ export function TaskContent({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label>Status</Label>
-                      <Select value={task.status} onValueChange={onStatusChange}>
+                      <Select value={task.column} onValueChange={onStatusChange}>
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
