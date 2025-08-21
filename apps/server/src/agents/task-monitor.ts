@@ -101,7 +101,7 @@ export function startTaskMonitoring(): void {
   );
 
   console.log(`🎯 Task monitoring system started successfully`);
-  console.log(`  🚀 Task pushing: every 1 second`);
+  console.log(`  🚀 Task pushing: every 10 second`);
   console.log(`  🔍 Out-of-sync checking: every 2 minutes`);
   console.log(`  🧹 Session cleanup: every 10 minutes (stale > ${config.sessionCleanupStaleMinutes} minutes)`);
 }

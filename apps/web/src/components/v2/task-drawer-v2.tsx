@@ -52,6 +52,10 @@ import {
   User,
   FolderOpen,
   Settings2,
+  GitBranch,
+  Lock,
+  Plus,
+  X,
 } from "lucide-react";
 import { orpc } from "@/utils/orpc";
 import { getPriorityColors, getPriorityDisplay, getPriorityOptions, type Priority } from "@/utils/priority";
@@ -68,6 +72,8 @@ import { ClaudeCodeSessionLink } from "@/components/claude-code-session-link";
 import { TaskAttachmentUpload } from "@/components/task-attachment-upload";
 import { MultiSelectAgents } from "./multi-select-agents";
 import { MultiSelectRepositories } from "./multi-select-repositories";
+import { TaskDependencySelector } from "./task-dependency-selector";
+import { TaskDependencyGraph } from "./task-dependency-graph";
 
 interface Repository {
   id: string;
@@ -123,6 +129,13 @@ interface TaskV2 {
   assignedAgents?: Agent[];
   actor?: Actor;
   activeSession?: any;
+  dependencies?: Array<{
+    id: string;
+    rawTitle: string;
+    refinedTitle?: string;
+    status: 'todo' | 'doing' | 'done' | 'loop';
+    priority: number;
+  }>;
 }
 
 interface TaskDrawerV2Props {
@@ -184,6 +197,25 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     })
   );
 
+  // Fetch task dependencies
+  const { data: dependencyData } = useQuery(
+    orpc.tasks.getDependencies.queryOptions({
+      input: { taskId: taskId! },
+      enabled: !!taskId
+    })
+  );
+
+  // Fetch available tasks for dependency selection
+  const { data: availableTasks = [] } = useQuery(
+    orpc.tasks.getAvailableDependencies.queryOptions({
+      input: { 
+        projectId: task?.projectId || '', 
+        excludeTaskId: taskId || undefined 
+      },
+      enabled: !!task?.projectId && !!taskId
+    })
+  );
+
   // Update task mutation using oRPC
   const updateTaskMutation = useMutation(orpc.tasks.update.mutationOptions({
     onSuccess: () => {
@@ -197,6 +229,32 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
     },
     onError: (error: any) => {
       toast.error(`Failed to update task: ${error.message}`);
+    }
+  }));
+
+  // Add dependency mutation
+  const addDependencyMutation = useMutation(orpc.tasks.addDependency.mutationOptions({
+    onSuccess: () => {
+      toast.success("Dependency added successfully");
+      if (task?.projectId) {
+        cache.invalidateProject(task.projectId);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to add dependency: ${error.message}`);
+    }
+  }));
+
+  // Remove dependency mutation
+  const removeDependencyMutation = useMutation(orpc.tasks.removeDependency.mutationOptions({
+    onSuccess: () => {
+      toast.success("Dependency removed successfully");
+      if (task?.projectId) {
+        cache.invalidateProject(task.projectId);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(`Failed to remove dependency: ${error.message}`);
     }
   }));
 
@@ -345,6 +403,34 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
         onError: (error) => reject(error)
       });
     });
+  };
+
+  const handleAddDependency = (dependsOnTaskId: string) => {
+    addDependencyMutation.mutate({
+      taskId: taskId!,
+      dependsOnTaskId
+    });
+  };
+
+  const handleRemoveDependency = (dependsOnTaskId: string) => {
+    removeDependencyMutation.mutate({
+      taskId: taskId!,
+      dependsOnTaskId
+    });
+  };
+
+  const handleDependencySelectionChange = (selectedIds: string[]) => {
+    const currentDependencyIds = dependencyData?.dependencies?.map(d => d.id) || [];
+    
+    // Find dependencies to add
+    const toAdd = selectedIds.filter(id => !currentDependencyIds.includes(id));
+    // Find dependencies to remove
+    const toRemove = currentDependencyIds.filter(id => !selectedIds.includes(id));
+
+    // Add new dependencies
+    toAdd.forEach(id => handleAddDependency(id));
+    // Remove removed dependencies
+    toRemove.forEach(id => handleRemoveDependency(id));
   };
 
   // V2 specific handlers
@@ -505,6 +591,16 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                 <div className="flex-shrink-0">
                   <TabsList className="px-4 sm:px-6 w-full justify-start rounded-none border-b h-10 sm:h-12">
                     <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3">Overview</TabsTrigger>
+                    <TabsTrigger value="dependencies" className="text-xs sm:text-sm px-2 sm:px-3">
+                      <GitBranch className="h-3 w-3 mr-1" />
+                      <span className="hidden sm:inline">Dependencies</span>
+                      <span className="sm:hidden">Deps</span>
+                      {dependencyData?.dependencies && dependencyData.dependencies.length > 0 && (
+                        <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
+                          {dependencyData.dependencies.length}
+                        </Badge>
+                      )}
+                    </TabsTrigger>
                     <TabsTrigger value="plan" className="text-xs sm:text-sm px-2 sm:px-3">Plan</TabsTrigger>
                     <TabsTrigger value="attachments" className="text-xs sm:text-sm px-2 sm:px-3">
                       <span className="hidden sm:inline">Attachments</span>
@@ -610,6 +706,164 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                             {format(new Date(task.createdAt), "PPP 'at' p")}
                           </p>
                         </div>
+                      </div>
+                    </TabsContent>
+
+                    {/* Dependencies Tab */}
+                    <TabsContent value="dependencies" className="mt-0">
+                      <div className="space-y-6">
+                        {/* Current Dependencies */}
+                        {dependencyData?.dependencies && dependencyData.dependencies.length > 0 && (
+                          <div>
+                            <Label className="text-sm font-medium">Current Dependencies ({dependencyData.dependencies.length})</Label>
+                            <div className="mt-2 space-y-2">
+                              {dependencyData.dependencies.map((dep) => {
+                                const isCompleted = dep.status === 'done';
+                                const isBlocking = !isCompleted;
+                                
+                                return (
+                                  <Card key={dep.id} className={cn(
+                                    "p-3",
+                                    isCompleted ? "bg-green-50 border-green-200" : "bg-amber-50 border-amber-200"
+                                  )}>
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                                        {isBlocking ? (
+                                          <Lock className="h-4 w-4 text-amber-600 shrink-0" />
+                                        ) : (
+                                          <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                          <p className="font-medium text-sm truncate">
+                                            {dep.refinedTitle || dep.rawTitle}
+                                          </p>
+                                          <div className="flex items-center gap-2 mt-1">
+                                            <Badge
+                                              variant="outline"
+                                              className={cn(
+                                                "text-xs",
+                                                isCompleted 
+                                                  ? "bg-green-100 text-green-700 border-green-300"
+                                                  : "bg-amber-100 text-amber-700 border-amber-300"
+                                              )}
+                                            >
+                                              {dep.status}
+                                            </Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                              P{dep.priority}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleRemoveDependency(dep.id)}
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  </Card>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Blocked Status Warning */}
+                        {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.status !== 'done') && (
+                          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                            <div className="flex items-center gap-2 text-amber-700">
+                              <Lock className="h-4 w-4" />
+                              <span className="font-medium text-sm">Task is blocked</span>
+                            </div>
+                            <p className="text-xs text-amber-600 mt-1">
+                              This task cannot start until all dependencies are completed
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Add Dependencies */}
+                        <div>
+                          <Label className="text-sm font-medium">Manage Dependencies</Label>
+                          <div className="mt-2">
+                            <TaskDependencySelector
+                              availableTasks={availableTasks}
+                              selectedDependencyIds={dependencyData?.dependencies?.map(d => d.id) || []}
+                              onSelectionChange={handleDependencySelectionChange}
+                              placeholder="Select tasks that must be completed first..."
+                              maxSelections={10}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">
+                            Add or remove task dependencies. This task will be blocked until all dependencies are completed.
+                          </p>
+                        </div>
+
+                        {/* Dependents */}
+                        {dependencyData?.dependents && dependencyData.dependents.length > 0 && (
+                          <div>
+                            <Label className="text-sm font-medium">Tasks Depending on This ({dependencyData.dependents.length})</Label>
+                            <div className="mt-2 space-y-2">
+                              {dependencyData.dependents.map((dependent) => (
+                                <Card key={dependent.id} className="p-3 bg-blue-50 border-blue-200">
+                                  <div className="flex items-center gap-2">
+                                    <GitBranch className="h-4 w-4 text-blue-600 shrink-0" />
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium text-sm truncate">
+                                        {dependent.refinedTitle || dependent.rawTitle}
+                                      </p>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                                          {dependent.status}
+                                        </Badge>
+                                        <span className="text-xs text-muted-foreground">
+                                          P{dependent.priority}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </Card>
+                              ))}
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-2">
+                              These tasks are waiting for this task to be completed
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Dependency Graph Visualization */}
+                        {(dependencyData?.dependencies && dependencyData.dependencies.length > 0) ||
+                         (dependencyData?.dependents && dependencyData.dependents.length > 0) ? (
+                          <div>
+                            <Label className="text-sm font-medium">Dependency Flow</Label>
+                            <div className="mt-2 border rounded-lg p-4 bg-gray-50">
+                              <TaskDependencyGraph
+                                currentTask={{
+                                  id: task.id,
+                                  rawTitle: task.rawTitle,
+                                  refinedTitle: task.refinedTitle,
+                                  status: task.status as any,
+                                  priority: task.priority
+                                }}
+                                dependencies={dependencyData?.dependencies}
+                                dependents={dependencyData?.dependents}
+                                onTaskClick={(taskId) => {
+                                  // Could implement navigation to other tasks here
+                                  console.log('Navigate to task:', taskId);
+                                }}
+                              />
+                            </div>
+                          </div>
+                        ) : (
+                          /* Empty State */
+                          <div className="text-center py-8 text-muted-foreground">
+                            <GitBranch className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                            <p className="text-sm">No dependencies configured</p>
+                            <p className="text-xs mt-1">Use the selector above to add task dependencies</p>
+                          </div>
+                        )}
                       </div>
                     </TabsContent>
 

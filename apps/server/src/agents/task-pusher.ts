@@ -113,11 +113,11 @@ async function releaseDatabaseLock(): Promise<void> {
 export async function tryPushTasks(): Promise<{ pushed: number; errors: string[] }> {
   // Check and acquire database lock
   if (!(await acquireDatabaseLock())) {
-    // console.log('🚧 tryPushTasks] already in progress');
+    console.log('🚧 [tryPushTasks] already in progress');
     return { pushed: 0, errors: [] };
   }
 
-  // console.log('🚀 [tryPushTasks] starting');
+  console.log('🚀 [tryPushTasks] starting');
 
   try {
     const errors: string[] = [];
@@ -236,6 +236,7 @@ async function pushTaskToAgent(
     });
 
     if (!spawnResult.success) {
+      console.error(`🚧 [pushTaskToAgent] failed to spawn claude session for task ${task.id}. Reverting task status to NON_ACTIVE.`);
       // Revert task status if spawn failed
       await db
         .update(schema.tasks)

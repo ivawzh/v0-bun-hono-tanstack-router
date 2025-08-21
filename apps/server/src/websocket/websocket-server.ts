@@ -73,6 +73,36 @@ class WebSocketServer {
     }
   }
 
+  // Broadcast agent rate limit updates
+  broadcastAgentRateLimit(projectId: string, agentId: string, rateLimitResetAt: Date | null) {
+    const message = {
+      type: 'agent.rate_limit_updated',
+      data: { 
+        projectId, 
+        agentId, 
+        rateLimitResetAt: rateLimitResetAt?.toISOString() || null,
+        timestamp: new Date().toISOString() 
+      }
+    };
+
+    let sentCount = 0;
+    for (const [clientId, client] of this.clients.entries()) {
+      if (client.projectId === projectId) {
+        try {
+          client.ws.send(JSON.stringify(message));
+          sentCount++;
+        } catch (error) {
+          console.error(`Failed to send rate limit update to client ${clientId}:`, error);
+          this.removeClient(clientId);
+        }
+      }
+    }
+
+    if (sentCount > 0) {
+      console.log(`📤 Broadcasted agent rate limit update to ${sentCount} clients in project ${projectId}`);
+    }
+  }
+
   sendToClient(clientId: string, message: any) {
     const client = this.clients.get(clientId);
     if (client) {
@@ -171,4 +201,9 @@ export function handleWebSocketMessage(ws: ServerWebSocket<any>, clientId: strin
 // SIMPLIFIED: Single function to broadcast flush after any data change
 export function broadcastFlush(projectId?: string) {
   wsManager.broadcastFlush(projectId);
+}
+
+// Export specific rate limit broadcast function
+export function broadcastAgentRateLimit(projectId: string, agentId: string, rateLimitResetAt: Date | null) {
+  wsManager.broadcastAgentRateLimit(projectId, agentId, rateLimitResetAt);
 }

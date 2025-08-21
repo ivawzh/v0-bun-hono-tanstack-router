@@ -3,7 +3,7 @@
  * Includes repository and agent selection for V2 architecture
  */
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,9 +13,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { FolderOpen, Bot, Plus, AlertTriangle } from "lucide-react";
+import { FolderOpen, Bot, Plus, AlertTriangle, GitBranch } from "lucide-react";
 import { MultiSelectAgents } from "./multi-select-agents";
 import { MultiSelectRepositories } from "./multi-select-repositories";
+import { TaskDependencySelector } from "./task-dependency-selector";
 import { TaskCreationWarning } from "./project-setup-warning";
 import { AttachmentDropzone, type AttachmentFile } from "../attachment-dropzone";
 import { client } from '@/utils/orpc';
@@ -56,6 +57,7 @@ interface TaskFormData {
   priority: number;
   ready: boolean;
   attachments: File[];
+  dependencyIds: string[];
 }
 
 interface EnhancedTaskFormV2Props {
@@ -88,10 +90,18 @@ export function EnhancedTaskFormV2({
     actorId: '',
     priority: 3,
     ready: false,
-    attachments: []
+    attachments: [],
+    dependencyIds: []
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availableTasks, setAvailableTasks] = useState<Array<{
+    id: string;
+    rawTitle: string;
+    refinedTitle?: string;
+    status: 'todo' | 'doing' | 'done' | 'loop';
+    priority: number;
+  }>>([]);
 
   const hasRepositories = repositories.length > 0;
   const hasAgents = agents.length > 0;
@@ -100,6 +110,15 @@ export function EnhancedTaskFormV2({
   const defaultActor = actors.find(actor => actor.isDefault);
   const availableRepositories = repositories.filter(repo => repo.isAvailable !== false);
   const availableAgents = agents.filter(agent => agent.isAvailable !== false);
+
+  // Fetch available tasks for dependencies when form opens
+  React.useEffect(() => {
+    if (open && projectId) {
+      client.tasks.getAvailableDependencies({ projectId })
+        .then(tasks => setAvailableTasks(tasks))
+        .catch(console.error);
+    }
+  }, [open, projectId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,6 +144,7 @@ export function EnhancedTaskFormV2({
         rawDescription: formData.rawDescription,
         priority: formData.priority,
         status: "todo",
+        dependencyIds: formData.dependencyIds,
         attachments: formData.attachments.map(file => ({
           file: file
         }))
@@ -146,7 +166,8 @@ export function EnhancedTaskFormV2({
         actorId: '',
         priority: 3,
         ready: false,
-        attachments: []
+        attachments: [],
+        dependencyIds: []
       });
       
       onOpenChange(false);
@@ -206,6 +227,34 @@ export function EnhancedTaskFormV2({
             </div>
 
             <Separator />
+
+            {/* Task Dependencies */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <GitBranch className="h-4 w-4" />
+                  Task Dependencies (Optional)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Dependencies</Label>
+                  <TaskDependencySelector
+                    availableTasks={availableTasks}
+                    selectedDependencyIds={formData.dependencyIds}
+                    onSelectionChange={(ids) => setFormData(prev => ({ 
+                      ...prev, 
+                      dependencyIds: ids 
+                    }))}
+                    placeholder="Select tasks that must be completed first..."
+                    maxSelections={10}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This task will be blocked until all selected dependencies are completed
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Repository Configuration */}
             <Card>

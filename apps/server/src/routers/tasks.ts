@@ -189,7 +189,8 @@ export const tasksRouter = o.router({
         preview: z.string().optional()
       })).optional().default([]),
       status: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
-      stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional()
+      stage: z.enum(["clarify", "plan", "execute", "loop"]).nullable().optional(),
+      dependencyIds: z.array(z.string().uuid()).optional().default([])
     }))
     .handler(async ({ context, input }) => {
       console.log('Task creation with', input.attachments?.length || 0, 'attachments');
@@ -373,6 +374,31 @@ export const tasksRouter = o.router({
         }));
 
         await db.insert(taskAgents).values(agentInserts);
+      }
+
+      // Insert dependencies
+      if (input.dependencyIds && input.dependencyIds.length > 0) {
+        // Verify all dependency tasks exist and belong to the same project
+        const dependencyTasks = await db
+          .select()
+          .from(tasks)
+          .where(
+            and(
+              inArray(tasks.id, input.dependencyIds),
+              eq(tasks.projectId, input.projectId)
+            )
+          );
+
+        if (dependencyTasks.length !== input.dependencyIds.length) {
+          throw new Error("Some dependency tasks not found or don't belong to project");
+        }
+
+        const dependencyInserts = input.dependencyIds.map(dependsOnTaskId => ({
+          taskId,
+          dependsOnTaskId
+        }));
+
+        await db.insert(taskDependencies).values(dependencyInserts);
       }
 
       // Broadcast flush to invalidate all queries for this project
@@ -960,5 +986,282 @@ export const tasksRouter = o.router({
         console.error('Download error:', error);
         throw new Error('File not found');
       }
+    }),
+
+  // Dependency management endpoints
+  addDependency: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      dependsOnTaskId: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const db = getDb();
+      
+      // Verify both tasks exist and belong to user's projects
+      const [task, dependsOnTask] = await Promise.all([
+        db
+          .select({
+            task: tasks,
+            project: projects
+          })
+          .from(tasks)
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+          .where(
+            and(
+              eq(tasks.id, input.taskId),
+              eq(projectUsers.userId, context.user.id)
+            )
+          )
+          .limit(1),
+        db
+          .select({
+            task: tasks,
+            project: projects
+          })
+          .from(tasks)
+          .innerJoin(projects, eq(tasks.projectId, projects.id))
+          .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+          .where(
+            and(
+              eq(tasks.id, input.dependsOnTaskId),
+              eq(projectUsers.userId, context.user.id)
+            )
+          )
+          .limit(1)
+      ]);
+
+      if (task.length === 0 || dependsOnTask.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Prevent self-dependency
+      if (input.taskId === input.dependsOnTaskId) {
+        throw new Error("Task cannot depend on itself");
+      }
+
+      // Check for circular dependencies using simple depth-first search
+      async function hasCircularDependency(startTaskId: string, targetTaskId: string, visited = new Set<string>()): Promise<boolean> {
+        if (visited.has(startTaskId)) {
+          return true; // Found a cycle
+        }
+        
+        if (startTaskId === targetTaskId) {
+          return true; // Found the target, would create a cycle
+        }
+
+        visited.add(startTaskId);
+
+        const dependencies = await db
+          .select({ dependsOnTaskId: taskDependencies.dependsOnTaskId })
+          .from(taskDependencies)
+          .where(eq(taskDependencies.taskId, startTaskId));
+
+        for (const dep of dependencies) {
+          if (await hasCircularDependency(dep.dependsOnTaskId, targetTaskId, new Set(visited))) {
+            return true;
+          }
+        }
+
+        return false;
+      }
+
+      // Check if adding this dependency would create a circular dependency
+      if (await hasCircularDependency(input.dependsOnTaskId, input.taskId)) {
+        throw new Error("Adding this dependency would create a circular dependency");
+      }
+
+      // Check if dependency already exists
+      const existingDep = await db
+        .select()
+        .from(taskDependencies)
+        .where(
+          and(
+            eq(taskDependencies.taskId, input.taskId),
+            eq(taskDependencies.dependsOnTaskId, input.dependsOnTaskId)
+          )
+        )
+        .limit(1);
+
+      if (existingDep.length > 0) {
+        throw new Error("Dependency already exists");
+      }
+
+      // Add the dependency
+      await db.insert(taskDependencies).values({
+        taskId: input.taskId,
+        dependsOnTaskId: input.dependsOnTaskId
+      });
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return { success: true };
+    }),
+
+  removeDependency: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid()),
+      dependsOnTaskId: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const db = getDb();
+      
+      // Verify task exists and belongs to user's project
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.taskId),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Remove the dependency
+      await db
+        .delete(taskDependencies)
+        .where(
+          and(
+            eq(taskDependencies.taskId, input.taskId),
+            eq(taskDependencies.dependsOnTaskId, input.dependsOnTaskId)
+          )
+        );
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return { success: true };
+    }),
+
+  getDependencies: protectedProcedure
+    .input(v.object({
+      taskId: v.pipe(v.string(), v.uuid())
+    }))
+    .handler(async ({ context, input }) => {
+      const db = getDb();
+      
+      // Verify task exists and belongs to user's project
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(tasks.id, input.taskId),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Get all dependencies and dependents
+      const [dependencies, dependents] = await Promise.all([
+        // Tasks this task depends on
+        db
+          .select({
+            id: tasks.id,
+            rawTitle: tasks.rawTitle,
+            refinedTitle: tasks.refinedTitle,
+            status: tasks.status,
+            priority: tasks.priority
+          })
+          .from(taskDependencies)
+          .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
+          .where(eq(taskDependencies.taskId, input.taskId)),
+        
+        // Tasks that depend on this task
+        db
+          .select({
+            id: tasks.id,
+            rawTitle: tasks.rawTitle,
+            refinedTitle: tasks.refinedTitle,
+            status: tasks.status,
+            priority: tasks.priority
+          })
+          .from(taskDependencies)
+          .innerJoin(tasks, eq(taskDependencies.taskId, tasks.id))
+          .where(eq(taskDependencies.dependsOnTaskId, input.taskId))
+      ]);
+
+      return {
+        dependencies,
+        dependents
+      };
+    }),
+
+  getAvailableDependencies: protectedProcedure
+    .input(v.object({
+      projectId: v.pipe(v.string(), v.uuid()),
+      excludeTaskId: v.optional(v.pipe(v.string(), v.uuid()))
+    }))
+    .handler(async ({ context, input }) => {
+      const db = getDb();
+      
+      // Verify project membership
+      const membership = await db
+        .select()
+        .from(projectUsers)
+        .where(
+          and(
+            eq(projectUsers.projectId, input.projectId),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (membership.length === 0) {
+        throw new Error("Project not found or unauthorized");
+      }
+
+      // Get all tasks in the project except the excluded one and completed tasks
+      let query = db
+        .select({
+          id: tasks.id,
+          rawTitle: tasks.rawTitle,
+          refinedTitle: tasks.refinedTitle,
+          status: tasks.status,
+          priority: tasks.priority
+        })
+        .from(tasks)
+        .where(
+          and(
+            eq(tasks.projectId, input.projectId),
+            // Exclude done tasks as they can't be dependencies for new tasks
+            sql`${tasks.status} != 'done'`
+          )
+        )
+        .orderBy(desc(tasks.priority), tasks.rawTitle);
+
+      if (input.excludeTaskId) {
+        query = query.where(
+          and(
+            eq(tasks.projectId, input.projectId),
+            sql`${tasks.status} != 'done'`,
+            sql`${tasks.id} != ${input.excludeTaskId}`
+          )
+        );
+      }
+
+      const availableTasks = await query;
+
+      return availableTasks;
     }),
 });

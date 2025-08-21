@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ChevronDown
+  Plus, MoreHorizontal, Clock, Play, CheckCircle, Settings, AlertCircle, GripVertical, ExternalLink, RotateCcw, ChevronDown, GitBranch, Lock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -375,14 +375,46 @@ function TaskCard({ task, onTaskClick, onToggleReady, onStageChange, onDeleteTas
           </div>
         )}
 
-        {/* Dependencies */}
+        {/* Dependencies - Enhanced Visual Display */}
         {task.dependencies && task.dependencies.length > 0 && (
-          <div className="text-xs text-muted-foreground mt-1">
-            <span className="text-orange-600">
-              Depends on: {task.dependencies
-                .map((dep: any) => dep.refinedTitle || dep.rawTitle)
-                .join(", ")}
-            </span>
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-1 text-xs text-amber-600">
+              <GitBranch className="h-3 w-3" />
+              <span className="font-medium">Dependencies ({task.dependencies.length})</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {task.dependencies.map((dep: any) => {
+                const isCompleted = dep.status === 'done';
+                const isBlocking = !isCompleted;
+                
+                return (
+                  <Badge
+                    key={dep.id}
+                    variant="outline"
+                    className={cn(
+                      "text-xs flex items-center gap-1",
+                      isCompleted 
+                        ? "bg-green-50 text-green-700 border-green-200" 
+                        : "bg-amber-50 text-amber-700 border-amber-200"
+                    )}
+                  >
+                    {isBlocking && <Lock className="h-2 w-2" />}
+                    {isCompleted && <CheckCircle className="h-2 w-2" />}
+                    <span className="truncate max-w-24">
+                      {dep.refinedTitle || dep.rawTitle}
+                    </span>
+                  </Badge>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Show if task is blocked by dependencies */}
+        {task.dependencies && task.dependencies.some((dep: any) => dep.status !== 'done') && (
+          <div className="mt-1 flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-1 rounded border border-amber-200">
+            <Lock className="h-3 w-3" />
+            <span className="font-medium">Blocked by dependencies</span>
           </div>
         )}
 

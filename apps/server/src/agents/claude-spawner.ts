@@ -1,6 +1,5 @@
 /**
  * Direct Claude Code process spawning
- * Replaces Claude Code UI dependency
  */
 
 import { spawn } from "child_process";

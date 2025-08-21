@@ -3,6 +3,7 @@ import * as v from "valibot";
 import { db } from "../db";
 import { agents, actors, tasks, projects, projectUsers } from "../db/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
+import { broadcastFlush, broadcastAgentRateLimit } from "../websocket/websocket-server";
 
 // Helper function to get or create agent by type (project-based agents)
 async function getOrCreateAgentByType(projectId: string, type: "CLAUDE_CODE" | "CURSOR_CLI" | "OPENCODE"): Promise<string> {
@@ -62,7 +63,19 @@ export const agentsRouter = o.router({
 
       // Get agents for this specific project only
       const projectAgents = await db
-        .select()
+        .select({
+          id: agents.id,
+          projectId: agents.projectId,
+          name: agents.name,
+          agentType: agents.agentType,
+          agentSettings: agents.agentSettings,
+          maxConcurrencyLimit: agents.maxConcurrencyLimit,
+          lastTaskPushedAt: agents.lastTaskPushedAt,
+          rateLimitResetAt: agents.rateLimitResetAt,
+          state: agents.state,
+          createdAt: agents.createdAt,
+          updatedAt: agents.updatedAt
+        })
         .from(agents)
         .where(eq(agents.projectId, input.projectId))
         .orderBy(desc(agents.createdAt));
@@ -238,7 +251,19 @@ export const agentsRouter = o.router({
 
       // Get agents for this specific project only
       const projectAgents = await db
-        .select()
+        .select({
+          id: agents.id,
+          projectId: agents.projectId,
+          name: agents.name,
+          agentType: agents.agentType,
+          agentSettings: agents.agentSettings,
+          maxConcurrencyLimit: agents.maxConcurrencyLimit,
+          lastTaskPushedAt: agents.lastTaskPushedAt,
+          rateLimitResetAt: agents.rateLimitResetAt,
+          state: agents.state,
+          createdAt: agents.createdAt,
+          updatedAt: agents.updatedAt
+        })
         .from(agents)
         .where(eq(agents.projectId, input.projectId))
         .orderBy(desc(agents.createdAt));
@@ -387,6 +412,51 @@ export const agentsRouter = o.router({
       await db.delete(agents).where(eq(agents.id, input.id));
 
       return { success: true };
+    }),
+
+  // Update agent rate limit status
+  updateRateLimit: protectedProcedure
+    .input(v.object({
+      id: v.pipe(v.string(), v.uuid()),
+      rateLimitResetAt: v.optional(v.nullish(v.pipe(v.string(), v.isoTimestamp())))
+    }))
+    .handler(async ({ context, input }) => {
+      // Verify ownership through project
+      const agent = await db
+        .select({
+          agent: agents,
+          project: projects
+        })
+        .from(agents)
+        .innerJoin(projects, eq(agents.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(
+            eq(agents.id, input.id),
+            eq(projectUsers.userId, context.user.id)
+          )
+        )
+        .limit(1);
+
+      if (agent.length === 0) {
+        throw new Error("Agent not found or unauthorized");
+      }
+
+      const resetAt = input.rateLimitResetAt ? new Date(input.rateLimitResetAt) : null;
+      
+      const updated = await db
+        .update(agents)
+        .set({
+          rateLimitResetAt: resetAt,
+          updatedAt: new Date()
+        })
+        .where(eq(agents.id, input.id))
+        .returning();
+
+      // Broadcast specific rate limit update via WebSocket
+      broadcastAgentRateLimit(agent[0].project.id, input.id, resetAt);
+
+      return updated[0];
     }),
 
   // Note: Code agent HTTP endpoints moved to MCP server tools

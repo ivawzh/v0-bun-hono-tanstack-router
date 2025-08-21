@@ -95,6 +95,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
     )
     .limit(1);
 
+  console.log(`🚀 -> findNextAssignableTask -> readyTasks:`, readyTasks);
   if (readyTasks.length === 0) {
     return null;
   }

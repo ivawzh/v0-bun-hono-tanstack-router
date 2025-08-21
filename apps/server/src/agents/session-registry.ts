@@ -215,9 +215,9 @@ export async function getSessionsForTask(taskId: string): Promise<SessionData[]>
 }
 
 /**
- * Clean up stale active sessions (older than specified minutes)
+ * Delete old active session IDs (older than specified minutes) from file registry
  */
-export async function cleanupStaleActiveSessions(staleMinutes = 120): Promise<number> {
+export async function deleteOldActiveSessions(staleMinutes = 120): Promise<number> {
   const allSessions = await getAllActiveSessions();
   const staleThreshold = Date.now() - (staleMinutes * 60 * 1000);
   let cleanedCount = 0;
