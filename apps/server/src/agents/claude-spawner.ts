@@ -153,13 +153,19 @@ export async function spawnClaudeSession(
           hooks: {
             SessionStart: [
               {
+                /**
+                 * matcher: startup | resume | clear | compact
+                 * @see https://docs.anthropic.com/en/docs/claude-code/hooks#sessionstart
+                 */
+                matcher: '*',
                 hooks: [
                   async (input, toolUseID, options) => {
                     console.log(
-                      "SessionStart hook called. ",
+                      "[Claude Code] SessionStart hook called. ",
                       task.stage,
                       task.rawTitle || task.refinedTitle,
                     );
+                    console.log("[Claude Code] Path to conversation: ", input.transcript_path);
 
                     await Promise.all([
                       // Update task with captured session ID and ACTIVE status
@@ -189,6 +195,7 @@ export async function spawnClaudeSession(
             ],
             Stop: [
               {
+                matcher: '*',
                 hooks: [
                   async (input, toolUseID, options) => {
                     console.log("[Claude Code] Stop hook called. ", task.stage, task.rawTitle || task.refinedTitle);

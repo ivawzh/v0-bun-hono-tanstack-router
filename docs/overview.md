@@ -34,6 +34,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
    - Supports additional working directories for multi-repo access and all-in-one manipulation
    - Rate limit refresh times are provided when limits are hit
    - Can switch accounts via `CLAUDE_CONFIG_DIR` environment variable
+   - Session resuming: Reusing session IDs preserves conversation context and memory across task stages
 4. **Conflict Management Philosophy**: Easier to maintain one active session per repo to avoid git conflicts, but should be configurable
 5. **Rate Limit Handling**: Need to re-feed ongoing tasks when rate limits refresh
 

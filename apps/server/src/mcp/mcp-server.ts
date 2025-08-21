@@ -4,7 +4,7 @@ import { toFetchResponse, toReqRes } from "fetch-to-node";
 import { z } from "zod";
 import { db } from "../db";
 import { projects, tasks, taskDependencies, taskAdditionalRepositories, taskAgents } from "../db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, inArray } from "drizzle-orm";
 import { broadcastFlush } from "@/websocket/websocket-server";
 
 // Logging utilities for debug and history tracing
@@ -436,7 +436,7 @@ function registerMcpTools(server: McpServer) {
             .from(tasks)
             .where(
               and(
-                sql`${tasks.id} = ANY(${dependsOn})`,
+                inArray(tasks.id, dependsOn),
                 eq(tasks.projectId, projectId)
               )
             );
