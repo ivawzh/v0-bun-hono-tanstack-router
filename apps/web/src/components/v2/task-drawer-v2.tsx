@@ -97,7 +97,7 @@ interface TaskV2 {
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>;
 }
@@ -446,7 +446,7 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                     <AIActivityBadge
                       ready={task.ready}
                       agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                      status={task.column}
+                      column={task.column}
                     />
                     {currentStage && (
                       <Badge variant="outline" className={currentStage.color}>
@@ -560,9 +560,9 @@ export function TaskDrawerV2({ taskId, open, onOpenChange }: TaskDrawerV2Props) 
                 onSaveRefinedTitle={handleSaveRefinedTitle}
                 onSaveRefinedDescription={handleSaveRefinedDescription}
                 onSavePlan={handleSavePlan}
-                onStatusChange={handleStatusChange}
+                onColumnChange={handleStatusChange}
                 onPriorityChange={handlePriorityChange}
-                onStageChange={handleStageChange}
+                onModeChange={handleStageChange}
                 onMainRepositoryChange={handleMainRepositoryChange}
                 onAdditionalRepositoriesChange={handleAdditionalRepositoriesChange}
                 onAssignedAgentsChange={handleAssignedAgentsChange}

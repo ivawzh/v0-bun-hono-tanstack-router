@@ -102,7 +102,7 @@ interface TaskV2 {
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>;
 }
@@ -112,14 +112,14 @@ interface DependencyData {
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>;
   dependents?: Array<{
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>;
 }
@@ -134,7 +134,7 @@ interface TaskContentProps {
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>;
   editingDescription: boolean;
@@ -145,9 +145,9 @@ interface TaskContentProps {
   onSaveRefinedTitle: (value: string) => Promise<void>;
   onSaveRefinedDescription: (value: string) => Promise<void>;
   onSavePlan: (value: string) => Promise<void>;
-  onStatusChange: (status: string) => void;
+  onColumnChange: (column: string) => void;
   onPriorityChange: (priority: string) => void;
-  onStageChange: (stage: string | null) => void;
+  onModeChange: (mode: string | null) => void;
   onMainRepositoryChange: (repositoryId: string) => void;
   onAdditionalRepositoriesChange: (repositoryIds: string[]) => void;
   onAssignedAgentsChange: (agentIds: string[]) => void;
@@ -178,9 +178,9 @@ export function TaskContent({
   onSaveRefinedTitle,
   onSaveRefinedDescription,
   onSavePlan,
-  onStatusChange,
+  onColumnChange,
   onPriorityChange,
-  onStageChange,
+  onModeChange,
   onMainRepositoryChange,
   onAdditionalRepositoriesChange,
   onAssignedAgentsChange,
@@ -321,7 +321,7 @@ export function TaskContent({
                   <Label className="text-sm font-medium">Current Dependencies ({dependencyData.dependencies.length})</Label>
                   <div className="mt-2 space-y-2">
                     {dependencyData.dependencies.map((dep) => {
-                      const isCompleted = dep.status === 'done';
+                      const isCompleted = dep.column === 'done';
                       const isBlocking = !isCompleted;
                       
                       return (
@@ -350,7 +350,7 @@ export function TaskContent({
                                         : "bg-amber-100 text-amber-700 border-amber-300"
                                     )}
                                   >
-                                    {dep.status}
+                                    {dep.column}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground">
                                     P{dep.priority}
@@ -379,7 +379,7 @@ export function TaskContent({
               )}
 
               {/* Blocked Status Warning */}
-              {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.status !== 'done') && (
+              {dependencyData?.dependencies && dependencyData.dependencies.some(dep => dep.column !== 'done') && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
                   <div className="flex items-center gap-2 text-amber-700">
                     <Lock className="h-4 w-4" />
@@ -423,7 +423,7 @@ export function TaskContent({
                             </p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
-                                {dependent.status}
+                                {dependent.column}
                               </Badge>
                               <span className="text-xs text-muted-foreground">
                                 P{dependent.priority}
@@ -525,7 +525,7 @@ export function TaskContent({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label>Status</Label>
-                      <Select value={task.column} onValueChange={onStatusChange}>
+                      <Select value={task.column} onValueChange={onColumnChange}>
                         <SelectTrigger className="mt-1">
                           <SelectValue />
                         </SelectTrigger>
@@ -563,7 +563,7 @@ export function TaskContent({
                         <TaskModeSelector
                           mode={task.mode || null}
                           column={task.column}
-                          onModeChange={onStageChange}
+                          onModeChange={onModeChange}
                           size="md"
                         />
                       </div>

@@ -99,7 +99,7 @@ interface TaskV2 {
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>;
 }
@@ -425,7 +425,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
   ];
   
-  const currentStage = stageOptions.find(s => s.value === task?.stage);
+  const currentStage = stageOptions.find(s => s.value === task?.mode);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -457,7 +457,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                   <AIActivityBadge
                     ready={task.ready}
                     agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                    status={task.column}
+                    column={task.column}
                   />
                   {currentStage && (
                     <Badge variant="outline" className={currentStage.color}>
@@ -601,9 +601,9 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
                 onSaveRefinedTitle={handleSaveRefinedTitle}
                 onSaveRefinedDescription={handleSaveRefinedDescription}
                 onSavePlan={handleSavePlan}
-                onStatusChange={handleStatusChange}
+                onColumnChange={handleStatusChange}
                 onPriorityChange={handlePriorityChange}
-                onStageChange={handleStageChange}
+                onModeChange={handleStageChange}
                 onMainRepositoryChange={handleMainRepositoryChange}
                 onAdditionalRepositoriesChange={handleAdditionalRepositoriesChange}
                 onAssignedAgentsChange={handleAssignedAgentsChange}

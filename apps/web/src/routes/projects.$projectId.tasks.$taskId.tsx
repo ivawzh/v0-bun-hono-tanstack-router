@@ -320,7 +320,7 @@ function TaskPage() {
                 <AIActivityBadge
                   ready={task.ready}
                   agentSessionStatus={task.agentSessionStatus as "INACTIVE" | "PUSHING" | "ACTIVE" | null | undefined}
-                  status={task.column}
+                  column={task.column}
                 />
                 {currentStage && (
                   <Badge variant="outline" className={currentStage.color}>
@@ -453,7 +453,7 @@ function TaskPage() {
                   });
                 });
               }}
-              onStatusChange={(column: string) => {
+              onColumnChange={(column: string) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
                   column: column as 'todo' | 'doing' | 'done'
@@ -465,7 +465,7 @@ function TaskPage() {
                   priority: parseInt(priority) as any
                 });
               }}
-              onStageChange={(mode: string | null) => {
+              onModeChange={(mode: string | null) => {
                 updateTaskMutation.mutate({
                   id: taskId!,
                   mode: mode as "execute" | "plan" | "clarify" | undefined

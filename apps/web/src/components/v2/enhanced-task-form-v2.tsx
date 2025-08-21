@@ -99,7 +99,7 @@ export function EnhancedTaskFormV2({
     id: string;
     rawTitle: string;
     refinedTitle?: string;
-    status: 'todo' | 'doing' | 'done' | 'loop';
+    column: 'todo' | 'doing' | 'done' | 'loop';
     priority: number;
   }>>([]);
 

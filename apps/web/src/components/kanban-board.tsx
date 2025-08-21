@@ -302,7 +302,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
           <AIActivityBadge
             ready={task.ready}
             agentSessionStatus={task.agentSessionStatus}
-            status={task.column}
+            column={task.column}
           />
           <TaskModeSelector
             mode={task.mode}
@@ -395,7 +395,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
             </div>
             <div className="flex flex-wrap gap-1">
               {task.dependencies.map((dep: any) => {
-                const isCompleted = dep.status === 'done';
+                const isCompleted = dep.column === 'done';
                 const isBlocking = !isCompleted;
 
                 return (
@@ -422,7 +422,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         )}
 
         {/* Show if task is blocked by dependencies */}
-        {task.dependencies && task.dependencies.some((dep: any) => dep.status !== 'done') && (
+        {task.dependencies && task.dependencies.some((dep: any) => dep.column !== 'done') && (
           <div className="mt-1 flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-1 rounded border border-amber-200">
             <Lock className="h-3 w-3" />
             <span className="font-medium">Blocked by dependencies</span>
@@ -959,7 +959,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (updates.length > 0) {
       updateOrderMutation.mutate({
         projectId,
-        tasks: updates as Array<{ id: string; columnOrder: string; status?: "todo" | "doing" | "done" | "loop" }>
+        tasks: updates as Array<{ id: string; columnOrder: string; column?: "todo" | "doing" | "done" | "loop" }>
       });
     }
   };
