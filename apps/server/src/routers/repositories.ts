@@ -70,7 +70,7 @@ export const repositoriesRouter = o.router({
       name: v.pipe(v.string(), v.minLength(1), v.maxLength(100)),
       repoPath: v.pipe(v.string(), v.minLength(1)),
       isDefault: v.optional(v.boolean(), false),
-      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(10)), 1)
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10)), 1)
     }))
     .handler(async ({ context, input }) => {
       // Verify project membership
@@ -122,7 +122,7 @@ export const repositoriesRouter = o.router({
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(100))),
       repoPath: v.optional(v.pipe(v.string(), v.minLength(1))),
       isDefault: v.optional(v.boolean()),
-      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(1), v.maxValue(10)))
+      maxConcurrencyLimit: v.optional(v.pipe(v.number(), v.minValue(0), v.maxValue(10)))
     }))
     .handler(async ({ context, input }) => {
       // Verify ownership
