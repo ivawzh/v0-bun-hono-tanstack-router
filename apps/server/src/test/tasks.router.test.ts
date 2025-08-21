@@ -7,8 +7,8 @@ import { describe, it, expect, beforeEach } from "bun:test";
 import { randomUUID } from "crypto";
 
 import { setupDatabaseTests } from "./test-utils";
-import { 
-  createTestUser, 
+import {
+  createTestUser,
   createTestProject,
   createTestRepository,
   createTestActor,
@@ -17,7 +17,7 @@ import {
   createTestUsers,
   createCompleteTestSetup
 } from "./fixtures";
-import { 
+import {
   testProtectedProcedure,
   assertRealRPCUnauthorized,
   testProjectMembershipValidation
@@ -37,19 +37,19 @@ describe("Tasks Router", () => {
       const sampleAgentId = "123e4567-e89b-12d3-a456-426614174003";
       const sampleAttachmentId = "123e4567-e89b-12d3-a456-426614174004";
       const fakeFile = new File(["test"], "test.txt", { type: "text/plain" });
-      
+
       const endpointsToTest = [
         { name: "list", input: { projectId: sampleProjectId } },
         { name: "get", input: { id: sampleTaskId } },
-        { name: "create", input: { 
-          projectId: sampleProjectId, 
+        { name: "create", input: {
+          projectId: sampleProjectId,
           mainRepositoryId: sampleRepoId,
           rawTitle: "Test Task"
         } },
         { name: "update", input: { id: sampleTaskId, rawTitle: "Updated Task" } },
         { name: "delete", input: { id: sampleTaskId } },
         { name: "toggleReady", input: { id: sampleTaskId, ready: true } },
-        { name: "updateOrder", input: { 
+        { name: "updateOrder", input: {
           projectId: sampleProjectId,
           tasks: [{ id: sampleTaskId, columnOrder: "1000" }]
         } },
@@ -77,15 +77,15 @@ describe("Tasks Router", () => {
   describe("list", () => {
     it("should return tasks only from user's project", async () => {
       const [user1, user2] = await createTestUsers(2);
-      
+
       // Create projects for each user
       const user1Project = await createTestProject(user1.id, { name: "User 1 Project" });
       const user2Project = await createTestProject(user2.id, { name: "User 2 Project" });
-      
+
       // Create repositories for each project
       const user1Repo = await createTestRepository(user1Project.id);
       const user2Repo = await createTestRepository(user2Project.id);
-      
+
       // Create tasks for each project
       const user1Task = await createTestTask(user1Project.id, user1Repo.id, {
         rawTitle: "User 1 Task"
@@ -93,25 +93,25 @@ describe("Tasks Router", () => {
       const user2Task = await createTestTask(user2Project.id, user2Repo.id, {
         rawTitle: "User 2 Task"
       });
-      
+
       // User 1 should only see their project's tasks
       const user1Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user1,
         { projectId: user1Project.id }
       );
-      
+
       expect(user1Tasks).toHaveLength(1);
       expect(user1Tasks[0].id).toBe(user1Task.id);
       expect(user1Tasks[0].rawTitle).toBe("User 1 Task");
-      
+
       // User 2 should only see their project's tasks
       const user2Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user2,
         { projectId: user2Project.id }
       );
-      
+
       expect(user2Tasks).toHaveLength(1);
       expect(user2Tasks[0].id).toBe(user2Task.id);
       expect(user2Tasks[0].rawTitle).toBe("User 2 Task");
@@ -120,14 +120,14 @@ describe("Tasks Router", () => {
     it("should enforce project membership", async () => {
       const [owner, nonMember] = await createTestUsers(2);
       const project = await createTestProject(owner.id);
-      
+
       // Owner should be able to access
       await testProtectedProcedure(
         tasksRouter.list,
         owner,
         { projectId: project.id }
       );
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(
@@ -144,20 +144,20 @@ describe("Tasks Router", () => {
     it("should return empty list for project with no tasks", async () => {
       const user = await createTestUser();
       const project = await createTestProject(user.id);
-      
+
       const tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
         { projectId: project.id }
       );
-      
+
       expect(tasks).toHaveLength(0);
     });
 
     it("should order tasks by status, priority, and creation order", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       // Create tasks with different priorities and statuses
       const task1 = await createTestTask(project.id, repository.id, {
         rawTitle: "High Priority Todo",
@@ -165,27 +165,27 @@ describe("Tasks Router", () => {
         priority: 5,
         columnOrder: "1000"
       });
-      
+
       const task2 = await createTestTask(project.id, repository.id, {
-        rawTitle: "Low Priority Todo", 
+        rawTitle: "Low Priority Todo",
         status: "todo",
         priority: 1,
         columnOrder: "2000"
       });
-      
+
       const task3 = await createTestTask(project.id, repository.id, {
         rawTitle: "Doing Task",
         status: "doing",
         priority: 3,
         columnOrder: "1000"
       });
-      
+
       const tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
         { projectId: project.id }
       );
-      
+
       expect(tasks).toHaveLength(3);
       // Should be ordered by status first (doing comes before todo), then by priority desc
       expect(tasks[0].rawTitle).toBe("Doing Task");
@@ -198,19 +198,19 @@ describe("Tasks Router", () => {
     it("should return task for authorized user", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository, actor } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         rawTitle: "Test Task",
         rawDescription: "Test Description",
         actorId: actor.id
       });
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
       );
-      
+
       expect(result.id).toBe(task.id);
       expect(result.rawTitle).toBe("Test Task");
       expect(result.rawDescription).toBe("Test Description");
@@ -223,10 +223,10 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Owner should be able to access
       await testProtectedProcedure(tasksRouter.get, owner, { id: task.id });
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(tasksRouter.get, nonMember, { id: task.id });
@@ -239,24 +239,24 @@ describe("Tasks Router", () => {
     it("should return task with relationships", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository, agent, actor } = setup;
-      
+
       // Create additional repository
-      const additionalRepo = await createTestRepository(project.id, { 
+      const additionalRepo = await createTestRepository(project.id, {
         name: "Additional Repo",
-        isDefault: false 
+        isDefault: false
       });
-      
+
       const task = await createTestTask(project.id, repository.id, {
         rawTitle: "Complex Task",
         actorId: actor.id
       });
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
       );
-      
+
       expect(result.mainRepository?.id).toBe(repository.id);
       expect(result.actor?.id).toBe(actor.id);
       expect(result.project?.id).toBe(project.id);
@@ -267,7 +267,7 @@ describe("Tasks Router", () => {
     it("should create task with all fields", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository, agent, actor } = setup;
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.create,
         user,
@@ -282,7 +282,7 @@ describe("Tasks Router", () => {
           status: "todo"
         }
       );
-      
+
       expect(result.rawTitle).toBe("New Task");
       expect(result.rawDescription).toBe("New Description");
       expect(result.priority).toBe(4);
@@ -297,7 +297,7 @@ describe("Tasks Router", () => {
       const [owner, nonMember] = await createTestUsers(2);
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
-      
+
       // Owner should be able to create
       await testProtectedProcedure(
         tasksRouter.create,
@@ -308,7 +308,7 @@ describe("Tasks Router", () => {
           rawTitle: "Owner Task"
         }
       );
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(
@@ -329,7 +329,7 @@ describe("Tasks Router", () => {
     it("should set correct default stage for loop tasks", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.create,
         user,
@@ -340,7 +340,7 @@ describe("Tasks Router", () => {
           status: "loop"
         }
       );
-      
+
       expect(result.status).toBe("loop");
       expect(result.stage).toBe("loop");
       expect(result.ready).toBe(true); // Loop tasks are auto-ready
@@ -351,7 +351,7 @@ describe("Tasks Router", () => {
       const project1 = await createTestProject(user1.id);
       const project2 = await createTestProject(user2.id);
       const repo2 = await createTestRepository(project2.id);
-      
+
       // Try to create task in project1 with repo from project2
       try {
         await testProtectedProcedure(
@@ -375,7 +375,7 @@ describe("Tasks Router", () => {
       const project2 = await createTestProject(user2.id);
       const repo1 = await createTestRepository(project1.id);
       const agent2 = await createTestAgent(project2.id);
-      
+
       // Try to create task in project1 with agent from project2
       try {
         await testProtectedProcedure(
@@ -399,13 +399,13 @@ describe("Tasks Router", () => {
     it("should update task fields", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         rawTitle: "Original Title",
         rawDescription: "Original Description",
         priority: 3
       });
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.update,
         user,
@@ -418,7 +418,7 @@ describe("Tasks Router", () => {
           stage: "plan"
         }
       );
-      
+
       expect(result.rawTitle).toBe("Updated Title");
       expect(result.rawDescription).toBe("Updated Description");
       expect(result.priority).toBe(5);
@@ -431,14 +431,14 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Owner should be able to update
       await testProtectedProcedure(
         tasksRouter.update,
         owner,
         { id: task.id, rawTitle: "Owner Update" }
       );
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(
@@ -457,17 +457,17 @@ describe("Tasks Router", () => {
     it("should delete task for authorized user", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id);
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.delete,
         user,
         { id: task.id }
       );
-      
+
       expect(result.success).toBe(true);
-      
+
       // Verify task is deleted
       try {
         await testProtectedProcedure(tasksRouter.get, user, { id: task.id });
@@ -482,7 +482,7 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(tasksRouter.delete, nonMember, { id: task.id });
@@ -497,25 +497,25 @@ describe("Tasks Router", () => {
     it("should toggle task ready status", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, { ready: false });
-      
+
       // Set to ready
       const result1 = await testProtectedProcedure(
         tasksRouter.toggleReady,
         user,
         { id: task.id, ready: true }
       );
-      
+
       expect(result1.ready).toBe(true);
-      
+
       // Set to not ready
       const result2 = await testProtectedProcedure(
         tasksRouter.toggleReady,
         user,
         { id: task.id, ready: false }
       );
-      
+
       expect(result2.ready).toBe(false);
     });
 
@@ -524,7 +524,7 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(
@@ -543,19 +543,19 @@ describe("Tasks Router", () => {
     it("should update task orders and status", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task1 = await createTestTask(project.id, repository.id, {
         rawTitle: "Task 1",
         columnOrder: "1000",
         status: "todo"
       });
-      
+
       const task2 = await createTestTask(project.id, repository.id, {
-        rawTitle: "Task 2", 
+        rawTitle: "Task 2",
         columnOrder: "2000",
         status: "todo"
       });
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.updateOrder,
         user,
@@ -567,7 +567,7 @@ describe("Tasks Router", () => {
           ]
         }
       );
-      
+
       expect(result.success).toBe(true);
       expect(result.updated).toHaveLength(2);
     });
@@ -577,7 +577,7 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(
@@ -599,18 +599,18 @@ describe("Tasks Router", () => {
     it("should update task stage", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         status: "doing",
         stage: "clarify"
       });
-      
+
       const result = await testProtectedProcedure(
         tasksRouter.updateStage,
         user,
         { id: task.id, stage: "execute" }
       );
-      
+
       expect(result.stage).toBe("execute");
     });
 
@@ -619,7 +619,7 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Non-member should be denied
       try {
         await testProtectedProcedure(
@@ -638,18 +638,18 @@ describe("Tasks Router", () => {
     it("should reset agent session status", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository, agent } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         agentSessionStatus: "ACTIVE",
         activeAgentId: agent.id
       });
-      
+
       const result = await testProtectedProcedure(
-        tasksRouter.resetAgent,
+        tasksRouter.resetAi,
         user,
         { id: task.id }
       );
-      
+
       expect(result.agentSessionStatus).toBe("INACTIVE");
       expect(result.activeAgentId).toBeNull();
     });
@@ -659,10 +659,10 @@ describe("Tasks Router", () => {
       const project = await createTestProject(owner.id);
       const repository = await createTestRepository(project.id);
       const task = await createTestTask(project.id, repository.id);
-      
+
       // Non-member should be denied
       try {
-        await testProtectedProcedure(tasksRouter.resetAgent, nonMember, { id: task.id });
+        await testProtectedProcedure(tasksRouter.resetAi, nonMember, { id: task.id });
         throw new Error("Should have been denied access");
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
@@ -677,7 +677,7 @@ describe("Tasks Router", () => {
     describe("uploadAttachment", () => {
       it("should require authentication", async () => {
         const fakeFile = new File(["test"], "test.txt", { type: "text/plain" });
-        
+
         try {
           await assertRealRPCUnauthorized(
             tasksRouter.uploadAttachment,
@@ -693,9 +693,9 @@ describe("Tasks Router", () => {
         const project = await createTestProject(owner.id);
         const repository = await createTestRepository(project.id);
         const task = await createTestTask(project.id, repository.id);
-        
+
         const fakeFile = new File(["test"], "test.txt", { type: "text/plain" });
-        
+
         // Non-member should be denied
         try {
           await testProtectedProcedure(
@@ -713,10 +713,10 @@ describe("Tasks Router", () => {
         const setup = await createCompleteTestSetup();
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
-        
+
         // Test with empty file content - this should still work but be handled gracefully
         const emptyFile = new File([""], "empty.txt", { type: "text/plain" });
-        
+
         // This should either succeed or fail gracefully with proper error handling
         try {
           const result = await testProtectedProcedure(
@@ -742,14 +742,14 @@ describe("Tasks Router", () => {
         const setup = await createCompleteTestSetup();
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
-        
+
         // Test with various file types
         const testFiles = [
           new File(["text content"], "test.txt", { type: "text/plain" }),
           new File(["json content"], "test.json", { type: "application/json" }),
           new File(["image content"], "test.png", { type: "image/png" })
         ];
-        
+
         for (const file of testFiles) {
           try {
             const result = await testProtectedProcedure(
@@ -778,12 +778,12 @@ describe("Tasks Router", () => {
         const project2 = await createTestProject(user2.id);
         const repo1 = await createTestRepository(project1.id);
         const repo2 = await createTestRepository(project2.id);
-        
+
         const task1 = await createTestTask(project1.id, repo1.id);
         const task2 = await createTestTask(project2.id, repo2.id);
-        
+
         const testFile = new File(["test"], "test.txt", { type: "text/plain" });
-        
+
         // User1 cannot upload to User2's task
         try {
           await testProtectedProcedure(
@@ -795,7 +795,7 @@ describe("Tasks Router", () => {
         } catch (error: any) {
           expect(error.message).toContain("Task not found or unauthorized");
         }
-        
+
         // User2 cannot upload to User1's task
         try {
           await testProtectedProcedure(
@@ -817,7 +817,7 @@ describe("Tasks Router", () => {
         const repository = await createTestRepository(project.id);
         const task = await createTestTask(project.id, repository.id);
         const attachmentId = randomUUID();
-        
+
         // Non-member should be denied
         try {
           await testProtectedProcedure(
@@ -836,7 +836,7 @@ describe("Tasks Router", () => {
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
         const nonExistentAttachmentId = randomUUID();
-        
+
         // Should handle missing attachment properly
         try {
           await testProtectedProcedure(
@@ -857,7 +857,7 @@ describe("Tasks Router", () => {
         const setup = await createCompleteTestSetup();
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
-        
+
         // Should validate UUID format
         try {
           await testProtectedProcedure(
@@ -879,11 +879,11 @@ describe("Tasks Router", () => {
       it("should prevent access to attachments across different tasks", async () => {
         const setup = await createCompleteTestSetup();
         const { user, project, repository } = setup;
-        
+
         const task1 = await createTestTask(project.id, repository.id, { rawTitle: "Task 1" });
         const task2 = await createTestTask(project.id, repository.id, { rawTitle: "Task 2" });
         const attachmentId = randomUUID();
-        
+
         // Even if user owns both tasks, specific attachment should belong to specific task
         try {
           await testProtectedProcedure(
@@ -908,7 +908,7 @@ describe("Tasks Router", () => {
         const repository = await createTestRepository(project.id);
         const task = await createTestTask(project.id, repository.id);
         const attachmentId = randomUUID();
-        
+
         // Non-member should be denied
         try {
           await testProtectedProcedure(
@@ -927,7 +927,7 @@ describe("Tasks Router", () => {
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
         const nonExistentAttachmentId = randomUUID();
-        
+
         // Should handle missing attachment deletion gracefully
         try {
           const result = await testProtectedProcedure(
@@ -950,13 +950,13 @@ describe("Tasks Router", () => {
       it("should validate UUID formats for both task and attachment IDs", async () => {
         const setup = await createCompleteTestSetup();
         const { user } = setup;
-        
+
         const invalidInputs = [
           { taskId: "invalid-task-id", attachmentId: randomUUID() },
           { taskId: randomUUID(), attachmentId: "invalid-attachment-id" },
           { taskId: "invalid-task", attachmentId: "invalid-attachment" }
         ];
-        
+
         for (const input of invalidInputs) {
           try {
             await testProtectedProcedure(
@@ -982,11 +982,11 @@ describe("Tasks Router", () => {
         const project2 = await createTestProject(user2.id);
         const repo1 = await createTestRepository(project1.id);
         const repo2 = await createTestRepository(project2.id);
-        
+
         const task1 = await createTestTask(project1.id, repo1.id);
         const task2 = await createTestTask(project2.id, repo2.id);
         const attachmentId = randomUUID();
-        
+
         // User1 cannot delete attachments from User2's project
         try {
           await testProtectedProcedure(
@@ -998,7 +998,7 @@ describe("Tasks Router", () => {
         } catch (error: any) {
           expect(error.message).toContain("Task not found or unauthorized");
         }
-        
+
         // User2 cannot delete attachments from User1's project
         try {
           await testProtectedProcedure(
@@ -1017,10 +1017,10 @@ describe("Tasks Router", () => {
       it("should enforce project membership through task ownership", async () => {
         const [owner, nonMember] = await createTestUsers(2);
         const project = await createTestProject(owner.id);
-        const repository = await createTestRepository(project.id);  
+        const repository = await createTestRepository(project.id);
         const task = await createTestTask(project.id, repository.id);
         const attachmentId = randomUUID();
-        
+
         // Non-member should be denied
         try {
           await testProtectedProcedure(
@@ -1043,7 +1043,7 @@ describe("Tasks Router", () => {
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
         const attachmentId = randomUUID();
-        
+
         // Should return proper structure or proper error for missing file
         try {
           const result = await testProtectedProcedure(
@@ -1051,7 +1051,7 @@ describe("Tasks Router", () => {
             user,
             { taskId: task.id, attachmentId }
           );
-          
+
           // If successful, verify structure
           expect(result.buffer).toBeDefined();
           expect(result.metadata).toBeDefined();
@@ -1070,18 +1070,18 @@ describe("Tasks Router", () => {
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
         const attachmentId = randomUUID();
-        
+
         // Multiple concurrent download attempts should be handled gracefully
-        const downloadPromises = Array(3).fill(null).map(() => 
+        const downloadPromises = Array(3).fill(null).map(() =>
           testProtectedProcedure(
             tasksRouter.downloadAttachment,
             user,
             { taskId: task.id, attachmentId }
           )
         );
-        
+
         const results = await Promise.allSettled(downloadPromises);
-        
+
         // All should either succeed or fail with the same expected error
         results.forEach((result) => {
           if (result.status === 'rejected') {
@@ -1101,14 +1101,14 @@ describe("Tasks Router", () => {
       it("should prevent unauthorized cross-task access", async () => {
         const setup = await createCompleteTestSetup();
         const { user, project, repository } = setup;
-        
+
         // Create two tasks in the same project
         const task1 = await createTestTask(project.id, repository.id, { rawTitle: "Task 1" });
         const task2 = await createTestTask(project.id, repository.id, { rawTitle: "Task 2" });
-        
+
         // Create attachment ID that doesn't belong to either task
         const fakeAttachmentId = randomUUID();
-        
+
         // Should not be able to download non-existent attachment from either task
         for (const task of [task1, task2]) {
           try {
@@ -1134,11 +1134,11 @@ describe("Tasks Router", () => {
         const setup = await createCompleteTestSetup();
         const { user, project, repository } = setup;
         const task = await createTestTask(project.id, repository.id);
-        
-        const testFile = new File(["test attachment content"], "test-file.txt", { 
-          type: "text/plain" 
+
+        const testFile = new File(["test attachment content"], "test-file.txt", {
+          type: "text/plain"
         });
-        
+
         try {
           // Upload attachment
           const uploadResult = await testProtectedProcedure(
@@ -1146,38 +1146,38 @@ describe("Tasks Router", () => {
             user,
             { taskId: task.id, file: testFile }
           );
-          
+
           const attachmentId = uploadResult.attachment.id;
-          
+
           // Get attachment metadata
           const getResult = await testProtectedProcedure(
             tasksRouter.getAttachment,
             user,
             { taskId: task.id, attachmentId }
           );
-          
+
           expect(getResult.metadata.originalName).toBe("test-file.txt");
           expect(getResult.metadata.type).toBe("text/plain");
-          
+
           // Download attachment
           const downloadResult = await testProtectedProcedure(
             tasksRouter.downloadAttachment,
             user,
             { taskId: task.id, attachmentId }
           );
-          
+
           expect(downloadResult.buffer).toBeDefined();
           expect(downloadResult.metadata.originalName).toBe("test-file.txt");
-          
+
           // Delete attachment
           const deleteResult = await testProtectedProcedure(
             tasksRouter.deleteAttachment,
             user,
             { taskId: task.id, attachmentId }
           );
-          
+
           expect(deleteResult.success).toBe(true);
-          
+
           // Verify attachment is deleted
           try {
             await testProtectedProcedure(
@@ -1189,7 +1189,7 @@ describe("Tasks Router", () => {
           } catch (error: any) {
             expect(error.message).toContain("Attachment not found");
           }
-          
+
         } catch (error: any) {
           // If file storage isn't configured in test environment, that's expected
           const isExpectedStorageError = error.message.includes("ENOENT") ||
@@ -1206,13 +1206,13 @@ describe("Tasks Router", () => {
         const project2 = await createTestProject(user2.id);
         const repo1 = await createTestRepository(project1.id);
         const repo2 = await createTestRepository(project2.id);
-        
+
         const task1 = await createTestTask(project1.id, repo1.id);
         const task2 = await createTestTask(project2.id, repo2.id);
         const attachmentId = randomUUID();
-        
+
         const testFile = new File(["test"], "test.txt", { type: "text/plain" });
-        
+
         // All attachment operations should deny cross-project access consistently
         const operationsToTest = [
           { name: "uploadAttachment", input: { taskId: task2.id, file: testFile } },
@@ -1220,7 +1220,7 @@ describe("Tasks Router", () => {
           { name: "downloadAttachment", input: { taskId: task2.id, attachmentId } },
           { name: "deleteAttachment", input: { taskId: task2.id, attachmentId } }
         ];
-        
+
         for (const operation of operationsToTest) {
           try {
             await testProtectedProcedure(
@@ -1240,20 +1240,20 @@ describe("Tasks Router", () => {
   describe("Data Isolation", () => {
     it("should properly isolate task data across all endpoints", async () => {
       const [user1, user2] = await createTestUsers(2);
-      
+
       const user1Project = await createTestProject(user1.id);
       const user2Project = await createTestProject(user2.id);
-      
+
       const user1Repo = await createTestRepository(user1Project.id);
       const user2Repo = await createTestRepository(user2Project.id);
-      
+
       const user1Task = await createTestTask(user1Project.id, user1Repo.id, {
         rawTitle: "User 1 Task"
       });
       const user2Task = await createTestTask(user2Project.id, user2Repo.id, {
-        rawTitle: "User 2 Task"  
+        rawTitle: "User 2 Task"
       });
-      
+
       // User 1 should not see User 2's tasks in list
       const user1Tasks = await testProtectedProcedure(
         tasksRouter.list,
@@ -1262,7 +1262,7 @@ describe("Tasks Router", () => {
       );
       expect(user1Tasks).toHaveLength(1);
       expect(user1Tasks[0].rawTitle).toBe("User 1 Task");
-      
+
       // User 1 should not be able to access User 2's task
       try {
         await testProtectedProcedure(tasksRouter.get, user1, { id: user2Task.id });
@@ -1270,7 +1270,7 @@ describe("Tasks Router", () => {
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
       }
-      
+
       // User 1 should not be able to update User 2's task
       try {
         await testProtectedProcedure(
@@ -1282,7 +1282,7 @@ describe("Tasks Router", () => {
       } catch (error: any) {
         expect(error.message).toContain("Task not found or unauthorized");
       }
-      
+
       // User 1 should not be able to delete User 2's task
       try {
         await testProtectedProcedure(tasksRouter.delete, user1, { id: user2Task.id });
@@ -1296,13 +1296,13 @@ describe("Tasks Router", () => {
       const user = await createTestUser();
       const project1 = await createTestProject(user.id, { name: "Project 1" });
       const project2 = await createTestProject(user.id, { name: "Project 2" });
-      
+
       const repo1 = await createTestRepository(project1.id);
       const repo2 = await createTestRepository(project2.id);
-      
+
       const task1 = await createTestTask(project1.id, repo1.id);
       const task2 = await createTestTask(project2.id, repo2.id);
-      
+
       // Project 1 list should not include Project 2 tasks
       const project1Tasks = await testProtectedProcedure(
         tasksRouter.list,
@@ -1311,8 +1311,8 @@ describe("Tasks Router", () => {
       );
       expect(project1Tasks).toHaveLength(1);
       expect(project1Tasks[0].id).toBe(task1.id);
-      
-      // Project 2 list should not include Project 1 tasks  
+
+      // Project 2 list should not include Project 1 tasks
       const project2Tasks = await testProtectedProcedure(
         tasksRouter.list,
         user,
@@ -1327,7 +1327,7 @@ describe("Tasks Router", () => {
     it("should handle non-existent task IDs", async () => {
       const user = await createTestUser();
       const nonExistentId = "123e4567-e89b-12d3-a456-426614174000";
-      
+
       try {
         await testProtectedProcedure(tasksRouter.get, user, { id: nonExistentId });
         throw new Error("Should have thrown not found error");
@@ -1338,7 +1338,7 @@ describe("Tasks Router", () => {
 
     it("should handle invalid UUID validation", async () => {
       const user = await createTestUser();
-      
+
       try {
         await testProtectedProcedure(tasksRouter.get, user, { id: "invalid-uuid" });
         throw new Error("Should have thrown validation error");
@@ -1351,7 +1351,7 @@ describe("Tasks Router", () => {
       const user = await createTestUser();
       const project = await createTestProject(user.id);
       const repository = await createTestRepository(project.id);
-      
+
       // Test missing title - this should trigger validation error
       try {
         await testProtectedProcedure(
@@ -1371,7 +1371,7 @@ describe("Tasks Router", () => {
           error.message.includes("min") ||
           error.message.includes("required");
         const hasAuthError = error.message.includes("Project not found or unauthorized");
-        
+
         expect(hasValidationError || hasAuthError).toBe(true);
       }
     });
@@ -1379,10 +1379,10 @@ describe("Tasks Router", () => {
     it("should handle attachment operations on non-existent attachments", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id);
       const nonExistentAttachmentId = "123e4567-e89b-12d3-a456-426614174000";
-      
+
       // Test getAttachment with non-existent attachment
       try {
         await testProtectedProcedure(
@@ -1394,7 +1394,7 @@ describe("Tasks Router", () => {
       } catch (error: any) {
         // The error could be either "Task not found" (due to project access) or "Attachment not found"
         expect(
-          error.message.includes("Task not found or unauthorized") || 
+          error.message.includes("Task not found or unauthorized") ||
           error.message.includes("Attachment not found")
         ).toBe(true);
       }
@@ -1405,12 +1405,12 @@ describe("Tasks Router", () => {
     it("should handle status transitions correctly", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         status: "todo",
         stage: null
       });
-      
+
       // Move to doing should set clarify stage
       await testProtectedProcedure(
         tasksRouter.updateOrder,
@@ -1420,13 +1420,13 @@ describe("Tasks Router", () => {
           tasks: [{ id: task.id, columnOrder: "1000", status: "doing" }]
         }
       );
-      
+
       const updatedTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
       );
-      
+
       expect(updatedTask.status).toBe("doing");
       // Note: Stage should be handled by business logic, not necessarily auto-set
     });
@@ -1434,12 +1434,12 @@ describe("Tasks Router", () => {
     it("should handle loop task transitions", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         status: "loop",
         stage: "loop"
       });
-      
+
       // Move loop task to doing should maintain loop stage
       await testProtectedProcedure(
         tasksRouter.updateOrder,
@@ -1449,13 +1449,13 @@ describe("Tasks Router", () => {
           tasks: [{ id: task.id, columnOrder: "1000", status: "doing" }]
         }
       );
-      
+
       const updatedTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: task.id }
       );
-      
+
       expect(updatedTask.status).toBe("doing");
       // Loop tasks should maintain their special behavior
     });
@@ -1465,7 +1465,7 @@ describe("Tasks Router", () => {
     it("should support full task lifecycle", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository, agent, actor } = setup;
-      
+
       // Create task
       const createdTask = await testProtectedProcedure(
         tasksRouter.create,
@@ -1480,18 +1480,18 @@ describe("Tasks Router", () => {
           priority: 3
         }
       );
-      
+
       expect(createdTask.rawTitle).toBe("Lifecycle Task");
-      
+
       // Read task
       const readTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: createdTask.id }
       );
-      
+
       expect(readTask.id).toBe(createdTask.id);
-      
+
       // Update task
       const updatedTask = await testProtectedProcedure(
         tasksRouter.update,
@@ -1503,31 +1503,31 @@ describe("Tasks Router", () => {
           status: "doing"
         }
       );
-      
+
       expect(updatedTask.rawTitle).toBe("Updated Lifecycle Task");
       expect(updatedTask.priority).toBe(5);
-      
+
       // Toggle ready status
       await testProtectedProcedure(
         tasksRouter.toggleReady,
         user,
         { id: createdTask.id, ready: true }
       );
-      
+
       // Update stage
       await testProtectedProcedure(
         tasksRouter.updateStage,
         user,
         { id: createdTask.id, stage: "execute" }
       );
-      
+
       // Reset agent
       await testProtectedProcedure(
-        tasksRouter.resetAgent,
+        tasksRouter.resetAi,
         user,
         { id: createdTask.id }
       );
-      
+
       // Update order/status
       await testProtectedProcedure(
         tasksRouter.updateOrder,
@@ -1537,24 +1537,24 @@ describe("Tasks Router", () => {
           tasks: [{ id: createdTask.id, columnOrder: "2000", status: "done" }]
         }
       );
-      
+
       // Verify final state
       const finalTask = await testProtectedProcedure(
         tasksRouter.get,
         user,
         { id: createdTask.id }
       );
-      
+
       expect(finalTask.status).toBe("done");
       expect(finalTask.agentSessionStatus).toBe("INACTIVE");
-      
+
       // Delete task
       const deleteResult = await testProtectedProcedure(
         tasksRouter.delete,
         user,
         { id: createdTask.id }
       );
-      
+
       expect(deleteResult.success).toBe(true);
     });
   });
@@ -1562,7 +1562,7 @@ describe("Tasks Router", () => {
   describe("Advanced Security and Edge Cases", () => {
     it("should prevent task operations with malformed UUIDs", async () => {
       const user = await createTestUser();
-      
+
       const malformedUUIDs = [
         "",
         "not-a-uuid",
@@ -1572,7 +1572,7 @@ describe("Tasks Router", () => {
         null,
         undefined
       ];
-      
+
       for (const malformedUUID of malformedUUIDs) {
         try {
           await testProtectedProcedure(
@@ -1597,18 +1597,18 @@ describe("Tasks Router", () => {
     it("should handle concurrent task operations gracefully", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         rawTitle: "Concurrent Test Task"
       });
-      
+
       // Test concurrent read operations
       const readPromises = Array(5).fill(null).map(() =>
         testProtectedProcedure(tasksRouter.get, user, { id: task.id })
       );
-      
+
       const readResults = await Promise.allSettled(readPromises);
-      
+
       // All reads should succeed
       readResults.forEach((result) => {
         expect(result.status).toBe("fulfilled");
@@ -1616,7 +1616,7 @@ describe("Tasks Router", () => {
           expect(result.value.rawTitle).toBe("Concurrent Test Task");
         }
       });
-      
+
       // Test concurrent update operations
       const updatePromises = Array(3).fill(null).map((_, index) =>
         testProtectedProcedure(
@@ -1629,9 +1629,9 @@ describe("Tasks Router", () => {
           }
         )
       );
-      
+
       const updateResults = await Promise.allSettled(updatePromises);
-      
+
       // At least some updates should succeed
       const successfulUpdates = updateResults.filter(r => r.status === "fulfilled");
       expect(successfulUpdates.length).toBeGreaterThan(0);
@@ -1640,7 +1640,7 @@ describe("Tasks Router", () => {
     it("should enforce proper data types in task operations", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const invalidInputs = [
         // Invalid priority values
         { priority: 0 }, // below min
@@ -1648,21 +1648,21 @@ describe("Tasks Router", () => {
         { priority: -1 }, // negative
         { priority: 3.5 }, // decimal
         { priority: "high" }, // string
-        
+
         // Invalid status values
         { status: "invalid-status" },
         { status: "DOING" }, // wrong case
         { status: 123 }, // number
-        
+
         // Invalid stage values
         { stage: "invalid-stage" },
         { stage: "PLAN" }, // wrong case
-        
-        // Invalid ready values  
+
+        // Invalid ready values
         { ready: "true" }, // string instead of boolean
         { ready: 1 }, // number instead of boolean
       ];
-      
+
       for (const invalidInput of invalidInputs) {
         try {
           await testProtectedProcedure(
@@ -1694,11 +1694,11 @@ describe("Tasks Router", () => {
     it("should handle extremely long input strings appropriately", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       // Create very long strings
       const longTitle = "A".repeat(300); // Exceeds max length
       const longDescription = "B".repeat(10000); // Very long description
-      
+
       try {
         await testProtectedProcedure(
           tasksRouter.create,
@@ -1725,13 +1725,13 @@ describe("Tasks Router", () => {
     it("should maintain data consistency during status transitions", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       const task = await createTestTask(project.id, repository.id, {
         status: "todo",
         stage: null,
         ready: false
       });
-      
+
       // Test various status transitions
       const transitions = [
         { status: "doing", expectedStage: null }, // Stage should not auto-change
@@ -1739,27 +1739,27 @@ describe("Tasks Router", () => {
         { status: "loop", expectedStage: "loop" }, // Loop should set stage
         { status: "todo", expectedStage: null }
       ];
-      
+
       for (const transition of transitions) {
         await testProtectedProcedure(
           tasksRouter.updateOrder,
           user,
           {
             projectId: project.id,
-            tasks: [{ 
-              id: task.id, 
-              columnOrder: "1000", 
-              status: transition.status as any 
+            tasks: [{
+              id: task.id,
+              columnOrder: "1000",
+              status: transition.status as any
             }]
           }
         );
-        
+
         const updatedTask = await testProtectedProcedure(
           tasksRouter.get,
           user,
           { id: task.id }
         );
-        
+
         expect(updatedTask.status).toBe(transition.status);
         if (transition.expectedStage === "loop") {
           expect(updatedTask.stage).toBe("loop");
@@ -1770,7 +1770,7 @@ describe("Tasks Router", () => {
     it("should handle task operations with missing optional fields", async () => {
       const setup = await createCompleteTestSetup();
       const { user, project, repository } = setup;
-      
+
       // Create task with minimal required fields
       const minimalTask = await testProtectedProcedure(
         tasksRouter.create,
@@ -1782,13 +1782,13 @@ describe("Tasks Router", () => {
           // No optional fields provided
         }
       );
-      
+
       expect(minimalTask.rawTitle).toBe("Minimal Task");
       expect(minimalTask.priority).toBe(3); // Default priority
       expect(minimalTask.status).toBe("todo"); // Default status
       expect(minimalTask.rawDescription).toBeNull();
       expect(minimalTask.actorId).toBeNull();
-      
+
       // Update with partial fields
       const partialUpdate = await testProtectedProcedure(
         tasksRouter.update,
@@ -1799,7 +1799,7 @@ describe("Tasks Router", () => {
           // Only updating description
         }
       );
-      
+
       expect(partialUpdate.rawDescription).toBe("Added description");
       expect(partialUpdate.rawTitle).toBe("Minimal Task"); // Should remain unchanged
     });

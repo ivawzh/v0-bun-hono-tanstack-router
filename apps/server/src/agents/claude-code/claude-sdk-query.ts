@@ -165,6 +165,8 @@ export async function executeClaudeQuery(options: ClaudeQueryOptions): Promise<v
     }
 
     throw error;
+  } finally {
+    updateTaskSessionCompleted(options.taskId);
   }
 }
 

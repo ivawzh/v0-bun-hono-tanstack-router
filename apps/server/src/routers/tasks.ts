@@ -17,14 +17,14 @@ import { randomUUID } from "crypto";
 // Use test database when running tests, otherwise use main database
 function getDb() {
   // Check various indicators that we're in a test environment
-  const isTestEnvironment = 
-    process.env.NODE_ENV === "test" || 
+  const isTestEnvironment =
+    process.env.NODE_ENV === "test" ||
     process.env.BUN_TEST ||
     // Check if we're being called from a test file by examining the call stack
     (new Error().stack?.includes('.test.') || new Error().stack?.includes('bun:test')) ||
     // Check if the test setup module is available and has been initialized
     (global as any).__TEST_DB_ACTIVE;
-  
+
   if (isTestEnvironment) {
     try {
       const { getTestDb } = require("../test/setup");
@@ -311,24 +311,24 @@ export const tasksRouter = o.router({
 
       // Process file attachments after task creation so we have the real task ID
       let processedAttachments: AttachmentMetadata[] = [];
-      
+
       if (input.attachments && input.attachments.length > 0) {
         for (const attachmentWrapper of input.attachments) {
           try {
             // Extract the actual File object from the wrapper
             const file = attachmentWrapper.file;
-            
+
             if (!file || !(file instanceof File)) {
               console.warn('Skipping invalid attachment - not a File object:', attachmentWrapper);
               continue;
             }
-            
+
             // Convert File to buffer for processing
             const buffer = new Uint8Array(await file.arrayBuffer());
-            
+
             // Validate total size before processing
             await validateTotalAttachmentSize(taskId, file.size, processedAttachments);
-            
+
             // Save the attachment using the actual task ID
             const attachment = await saveAttachment(taskId, {
               buffer: buffer,
@@ -336,7 +336,7 @@ export const tasksRouter = o.router({
               type: file.type,
               size: file.size
             });
-            
+
             processedAttachments.push(attachment);
           } catch (error) {
             console.error('Failed to process file attachment during task creation:', error);
@@ -813,7 +813,7 @@ export const tasksRouter = o.router({
       };
     }),
 
-  resetAgent: protectedProcedure
+  resetAi: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid())
     }))
@@ -996,7 +996,7 @@ export const tasksRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Verify both tasks exist and belong to user's projects
       const [task, dependsOnTask] = await Promise.all([
         db
@@ -1045,7 +1045,7 @@ export const tasksRouter = o.router({
         if (visited.has(startTaskId)) {
           return true; // Found a cycle
         }
-        
+
         if (startTaskId === targetTaskId) {
           return true; // Found the target, would create a cycle
         }
@@ -1106,7 +1106,7 @@ export const tasksRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Verify task exists and belongs to user's project
       const task = await db
         .select({
@@ -1150,7 +1150,7 @@ export const tasksRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Verify task exists and belongs to user's project
       const task = await db
         .select({
@@ -1186,7 +1186,7 @@ export const tasksRouter = o.router({
           .from(taskDependencies)
           .innerJoin(tasks, eq(taskDependencies.dependsOnTaskId, tasks.id))
           .where(eq(taskDependencies.taskId, input.taskId)),
-        
+
         // Tasks that depend on this task
         db
           .select({
@@ -1214,7 +1214,7 @@ export const tasksRouter = o.router({
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
-      
+
       // Verify project membership
       const membership = await db
         .select()

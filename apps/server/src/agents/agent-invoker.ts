@@ -515,29 +515,29 @@ async function spawnClaudeSdkChildProcess(args: SpawnClaudeSdkChildProcessArgs):
 
       } catch (parseError) {
         // Not JSON, just log as regular output
-        console.log('[SDK Worker]', line);
+        console.log('[Claude SDK Worker]', line);
       }
     }
   });
 
   childProcess.stderr?.on('data', async (data) => {
     const errorMessage = data.toString();
-    console.error(`[SDK Worker] stderr [${args.taskId}]:`, errorMessage);
+    console.error(`[Claude SDK Worker] stderr [${args.taskId}]:`, errorMessage);
 
     // Check for rate limit in stderr
     await detectAndHandleRateLimit(errorMessage, args.agentId);
   });
 
   childProcess.on('close', async (code) => {
-    console.log(`[SDK Worker] Process [${args.taskId}] exited with code ${code}`);
+    console.log(`[Claude SDK Worker] Process child process exited with code ${code}. Task ID: ${args.taskId}`);
   });
 
   childProcess.on('error', (error) => {
-    console.error(`[SDK Worker] Spawn error for task ${args.taskId}:`, error);
+    console.error(`[Claude SDK Worker] Spawn error for task ${args.taskId}:`, error);
   });
 
   // Allow process to run detached
   childProcess.unref();
 
-  console.log(`🔄 [SDK Worker] Spawned Claude SDK session for task ${args.taskId}`);
+  console.log(`🔄 [Claude SDK Worker] Spawned Claude SDK session for task ${args.taskId}`);
 }

@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/tooltip";
 import { ProjectSettingsV2 } from "@/components/v2/project-settings-v2";
 import { TaskDrawerV2 } from "@/components/v2/task-drawer-v2";
+import { TaskPopup } from "@/components/v2/task-popup";
 import { TaskStageSelector } from "@/components/task-stage-selector";
 import { AIActivityBadge } from "@/components/ai-activity-badge";
 import { AttachmentDropzone } from "@/components/attachment-dropzone";
@@ -450,6 +451,13 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [taskToDelete, setTaskToDelete] = useState<any>(null);
   const [resetTaskId, setResetTaskId] = useState<string | null>(null);
   const [taskToReset, setTaskToReset] = useState<any>(null);
+  // Auto-detect mobile for using TaskPopup vs TaskDrawerV2
+  const [usePopupView] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth < 768; // Mobile-first: prefer popup on smaller screens
+    }
+    return false;
+  });
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskColumn);
 
@@ -676,7 +684,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   }));
 
   // Reset agent mutation
-  const resetAgentMutation = useMutation(orpc.tasks.resetAgent.mutationOptions({
+  const resetAgentMutation = useMutation(orpc.tasks.resetAi.mutationOptions({
     onMutate: async (variables: any) => {
       // Optimistically update the task's agent session status
       const context = await cache.task.optimisticUpdate(variables.id, (task: any) => ({
@@ -1376,16 +1384,28 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Task Detail Drawer */}
-      <TaskDrawerV2
-        taskId={selectedTaskId}
-        open={!!selectedTaskId}
-        onOpenChange={(open) => {
-          if (!open) {
-            setSelectedTaskId(null);
-          }
-        }}
-      />
+      {/* Task Detail View - Popup on mobile, Drawer on desktop */}
+      {usePopupView ? (
+        <TaskPopup
+          taskId={selectedTaskId}
+          open={!!selectedTaskId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedTaskId(null);
+            }
+          }}
+        />
+      ) : (
+        <TaskDrawerV2
+          taskId={selectedTaskId}
+          open={!!selectedTaskId}
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedTaskId(null);
+            }
+          }}
+        />
+      )}
 
       {/* Project Settings Dialog */}
       {showProjectSettings && project && (

@@ -136,7 +136,7 @@ export function spawnClaudeCodeCliChildProcess(args: SpawnClaudeChildProcessArgs
   // Handle process completion
   childProcess.on("close", async (code) => {
     console.log(
-      `Claude Code process [${args.sessionId}] exited with code ${code}`
+      `Claude Code SDK child process exited with code ${code}. Task ID: ${args.taskId}`
     );
 
     await Promise.all([
