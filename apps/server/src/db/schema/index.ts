@@ -8,6 +8,7 @@ export type Agent = typeof agents.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Helper = typeof helpers.$inferSelect;
+export type ProjectInvitation = typeof projectInvitations.$inferSelect;
 
 // Enum for agent client types
 export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
@@ -49,8 +50,24 @@ export const projectUsers = pgTable("project_users", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
-  role: text("role").notNull().default("member"), // member, admin (for future)
+  role: text("role").notNull().default("member"), // member, admin, owner
   createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+// Project Invitations table (email-based invitations)
+export const projectInvitations = pgTable("project_invitations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  projectId: uuid("project_id").notNull().references(() => projects.id, { onDelete: "cascade" }),
+  invitedByUserId: uuid("invited_by_user_id").notNull().references(() => users.id),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("member"), // member, admin, owner
+  token: text("token").notNull().unique(), // UUID token for invitation link
+  status: text("status").notNull().default("pending"), // pending, accepted, declined, expired
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  declinedAt: timestamp("declined_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
 // Agents table (replaces agentClients, now project-owned)
@@ -178,7 +195,8 @@ export const taskDependencies = pgTable("task_dependencies", {
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
-  projectMemberships: many(projectUsers)
+  projectMemberships: many(projectUsers),
+  sentInvitations: many(projectInvitations)
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -187,6 +205,7 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
     references: [users.id]
   }),
   projectUsers: many(projectUsers),
+  invitations: many(projectInvitations),
   repositories: many(repositories),
   actors: many(actors),
   agents: many(agents),
@@ -201,6 +220,17 @@ export const projectUsersRelations = relations(projectUsers, ({ one }) => ({
   project: one(projects, {
     fields: [projectUsers.projectId],
     references: [projects.id]
+  })
+}));
+
+export const projectInvitationsRelations = relations(projectInvitations, ({ one }) => ({
+  project: one(projects, {
+    fields: [projectInvitations.projectId],
+    references: [projects.id]
+  }),
+  invitedByUser: one(users, {
+    fields: [projectInvitations.invitedByUserId],
+    references: [users.id]
   })
 }));
 
