@@ -23,7 +23,8 @@ export const repositoriesRouter = o.router({
         .limit(1);
       
       if (membership.length === 0) {
-        throw new Error("Project not found or unauthorized");
+        // For fresh users who don't have access to any projects, return empty array
+        return [];
       }
       
       const results = await db
