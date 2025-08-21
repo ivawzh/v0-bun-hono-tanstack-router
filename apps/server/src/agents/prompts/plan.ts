@@ -25,7 +25,8 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
 4. **Select Final Approach**: Choose the best solution
 5. **Create Plan**: Write a detailed plan including:
    - Spec
-   - Detailed implementation steps
+   - Detailed implementation steps breakdown
+   - You may provide detailed modifying files, line numbers, function names, etc to help future agent look up the codebase.
    - Potential risks and mitigations (only if necessary)
 6. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
    - Count implementation steps (exclude planning/analysis steps)

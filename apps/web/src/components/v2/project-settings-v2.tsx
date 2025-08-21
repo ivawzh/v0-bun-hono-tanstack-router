@@ -327,6 +327,7 @@ function AgentCard({ agent, onDelete }: { agent: any; onDelete: (id: string) => 
 
 // Repository creation form
 function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onSuccess: () => void }) {
+  const cache = useCacheUtils();
   const [formData, setFormData] = useState({
     name: '',
     repoPath: '',
@@ -338,6 +339,8 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
     orpc.repositories.create.mutationOptions({
       onSuccess: () => {
         toast.success("Repository created successfully");
+        cache.invalidateRepository('', projectId);
+        cache.invalidateProjectLists();
         onSuccess();
       },
       onError: (error: any) => {
@@ -415,6 +418,7 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
 
 // Agent creation form
 function CreateAgentForm({ projectId, onSuccess }: { projectId: string; onSuccess: () => void }) {
+  const cache = useCacheUtils();
   const [formData, setFormData] = useState({
     name: '',
     agentType: 'CLAUDE_CODE' as 'CLAUDE_CODE' | 'CURSOR_CLI' | 'OPENCODE',
@@ -426,6 +430,8 @@ function CreateAgentForm({ projectId, onSuccess }: { projectId: string; onSucces
     orpc.agents.create.mutationOptions({
       onSuccess: () => {
         toast.success("Agent created successfully");
+        cache.invalidateAgent('');
+        cache.invalidateProjectLists();
         onSuccess();
       },
       onError: (error: any) => {
