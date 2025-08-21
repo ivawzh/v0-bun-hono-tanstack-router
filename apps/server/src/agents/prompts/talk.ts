@@ -21,7 +21,7 @@ ${actor.description}
     ? `**Project Context**: ${JSON.stringify(project.memory, null, 2)}`
     : '';
 
-  return `[talk] ${task.refinedTitle || task.rawTitle}
+  return `[talk] ${task.rawTitle || task.refinedTitle}
 
 ${actorContext}
 
@@ -84,5 +84,5 @@ You MUST create a markdown document to record your work:
 
 **Remember**: This is pure thinking work. No code, no implementation, just research, analysis, and strategic thinking. Your output should be comprehensive documentation that provides value through insights and recommendations.
 
-When complete, update your task list to "done" while maintaining mode="talk" using the MCP tool.`;
+When complete, use the MCP tool \`task_update\` with taskId="${task.id}", list="done", mode="talk", agentSessionStatus="INACTIVE".`;
 }
