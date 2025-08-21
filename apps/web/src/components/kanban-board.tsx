@@ -296,7 +296,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
           </Badge>
           {task.author === "ai" && (
             <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
-              AI
+              AI created
             </Badge>
           )}
           <AIActivityBadge
