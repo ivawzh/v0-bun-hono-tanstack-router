@@ -81,22 +81,22 @@ function registerMcpTools(server: McpServer) {
         refinedTitle: z.string().optional(),
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
-        status: z.enum(["todo", "doing", "done", "loop"]).optional(),
-        stage: z.enum(["clarify", "plan", "execute", "loop", "talk"]).optional().nullable(),
+        column: z.enum(["todo", "doing", "done", "loop"]).optional(),
+        mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).optional().nullable(),
         agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
     },
     async (input, { requestInfo }) => {
-      const { taskId, refinedTitle, refinedDescription, plan, status, stage, agentSessionStatus } = input;
+      const { taskId, refinedTitle, refinedDescription, plan, column, mode, agentSessionStatus } = input;
       logger.tool("task_update", "init", { input });
 
       // Prepare initial updates
-      const updates: any = { refinedTitle, refinedDescription, plan, status, stage };
+      const updates: any = { refinedTitle, refinedDescription, plan, column, mode };
 
       // Special handling for loop tasks that are marked as "done"
       // Loop tasks should cycle to "todo" status with smart positioning for fair rotation
       let shouldHandleLoopCompletion = false;
-      if (status === "done") {
+      if (column === "done") {
         const task = await db.query.tasks.findFirst({
           where: eq(tasks.id, taskId),
         });
@@ -389,12 +389,12 @@ function registerMcpTools(server: McpServer) {
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
         priority: z.number().min(1).max(5).default(3),
-        stage: z.enum(["plan", "execute", "talk"]).optional(),
+        mode: z.enum(["plan", "execute", "talk"]).optional(),
         dependsOnTaskIds: z.array(z.string().uuid()).optional().default([]),
       },
     },
     async (input, { requestInfo }) => {
-      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, stage, dependsOnTaskIds: dependsOn } = input;
+      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, mode, dependsOnTaskIds: dependsOn } = input;
       logger.tool("task_create", "init", { input });
 
       try {
@@ -487,7 +487,7 @@ function registerMcpTools(server: McpServer) {
         }
 
         // Determine task status and stage
-        const status = "todo";
+        const column = "todo";
 
         // Create the task
         const newTask = await db
@@ -503,10 +503,10 @@ function registerMcpTools(server: McpServer) {
             refinedDescription,
             plan,
             priority,
-            status: status,
-            stage: stage,
+            column: column,
+            mode: mode,
             author: "ai",
-            ready: stage ? true : false, // AI tasks that skip clarify are automatically ready
+            ready: mode ? true : false, // AI tasks that skip clarify are automatically ready
           })
           .returning();
 
@@ -569,8 +569,8 @@ function registerMcpTools(server: McpServer) {
           refinedTitle,
           projectId,
           createdByTaskId,
-          status: status,
-          stage: stage,
+          column: column,
+          mode: mode,
           author: "ai",
           inheritedAgents: parentAgents.length,
         });
@@ -590,7 +590,7 @@ function registerMcpTools(server: McpServer) {
       } catch (error) {
         logger.error("task_create failed", error, {
           createdByTaskId,
-          stage,
+          mode,
         });
         return {
           content: [

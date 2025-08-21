@@ -161,21 +161,21 @@ describe("Tasks Router", () => {
       // Create tasks with different priorities and statuses
       const task1 = await createTestTask(project.id, repository.id, {
         rawTitle: "High Priority Todo",
-        status: "todo",
+        column: "todo",
         priority: 5,
         columnOrder: "1000"
       });
 
       const task2 = await createTestTask(project.id, repository.id, {
         rawTitle: "Low Priority Todo",
-        status: "todo",
+        column: "todo",
         priority: 1,
         columnOrder: "2000"
       });
 
       const task3 = await createTestTask(project.id, repository.id, {
         rawTitle: "Doing Task",
-        status: "doing",
+        column: "doing",
         priority: 3,
         columnOrder: "1000"
       });
@@ -279,18 +279,18 @@ describe("Tasks Router", () => {
           rawTitle: "New Task",
           rawDescription: "New Description",
           priority: 4,
-          status: "todo"
+          column: "todo"
         }
       );
 
       expect(result.rawTitle).toBe("New Task");
       expect(result.rawDescription).toBe("New Description");
       expect(result.priority).toBe(4);
-      expect(result.status).toBe("todo");
+      expect(result.column).toBe("todo");
       expect(result.projectId).toBe(project.id);
       expect(result.mainRepositoryId).toBe(repository.id);
       expect(result.actorId).toBe(actor.id);
-      expect(result.stage).toBe("clarify"); // Default stage for todo
+      expect(result.mode).toBe("clarify"); // Default mode for todo
     });
 
     it("should enforce project membership", async () => {
@@ -337,12 +337,12 @@ describe("Tasks Router", () => {
           projectId: project.id,
           mainRepositoryId: repository.id,
           rawTitle: "Loop Task",
-          status: "loop"
+          column: "loop"
         }
       );
 
-      expect(result.status).toBe("loop");
-      expect(result.stage).toBe("loop");
+      expect(result.column).toBe("loop");
+      expect(result.mode).toBe("loop");
       expect(result.ready).toBe(true); // Loop tasks are auto-ready
     });
 
@@ -414,16 +414,16 @@ describe("Tasks Router", () => {
           rawTitle: "Updated Title",
           rawDescription: "Updated Description",
           priority: 5,
-          status: "doing",
-          stage: "plan"
+          column: "doing",
+          mode: "plan"
         }
       );
 
       expect(result.rawTitle).toBe("Updated Title");
       expect(result.rawDescription).toBe("Updated Description");
       expect(result.priority).toBe(5);
-      expect(result.status).toBe("doing");
-      expect(result.stage).toBe("plan");
+      expect(result.column).toBe("doing");
+      expect(result.mode).toBe("plan");
     });
 
     it("should enforce project membership", async () => {
@@ -601,17 +601,17 @@ describe("Tasks Router", () => {
       const { user, project, repository } = setup;
 
       const task = await createTestTask(project.id, repository.id, {
-        status: "doing",
-        stage: "clarify"
+        column: "doing",
+        mode: "clarify"
       });
 
       const result = await testProtectedProcedure(
-        tasksRouter.updateStage,
+        tasksRouter.updateMode,
         user,
         { id: task.id, stage: "execute" }
       );
 
-      expect(result.stage).toBe("execute");
+      expect(result.mode).toBe("execute");
     });
 
     it("should enforce project membership", async () => {
@@ -623,7 +623,7 @@ describe("Tasks Router", () => {
       // Non-member should be denied
       try {
         await testProtectedProcedure(
-          tasksRouter.updateStage,
+          tasksRouter.updateMode,
           nonMember,
           { id: task.id, stage: "plan" }
         );
@@ -1407,8 +1407,8 @@ describe("Tasks Router", () => {
       const { user, project, repository } = setup;
 
       const task = await createTestTask(project.id, repository.id, {
-        status: "todo",
-        stage: null
+        column: "todo",
+        mode: null
       });
 
       // Move to doing should set clarify stage
@@ -1427,7 +1427,7 @@ describe("Tasks Router", () => {
         { id: task.id }
       );
 
-      expect(updatedTask.status).toBe("doing");
+      expect(updatedTask.column).toBe("doing");
       // Note: Stage should be handled by business logic, not necessarily auto-set
     });
 
@@ -1436,8 +1436,8 @@ describe("Tasks Router", () => {
       const { user, project, repository } = setup;
 
       const task = await createTestTask(project.id, repository.id, {
-        status: "loop",
-        stage: "loop"
+        column: "loop",
+        mode: "loop"
       });
 
       // Move loop task to doing should maintain loop stage
@@ -1456,7 +1456,7 @@ describe("Tasks Router", () => {
         { id: task.id }
       );
 
-      expect(updatedTask.status).toBe("doing");
+      expect(updatedTask.column).toBe("doing");
       // Loop tasks should maintain their special behavior
     });
   });
@@ -1500,7 +1500,7 @@ describe("Tasks Router", () => {
           id: createdTask.id,
           rawTitle: "Updated Lifecycle Task",
           priority: 5,
-          status: "doing"
+          column: "doing"
         }
       );
 
@@ -1516,7 +1516,7 @@ describe("Tasks Router", () => {
 
       // Update stage
       await testProtectedProcedure(
-        tasksRouter.updateStage,
+        tasksRouter.updateMode,
         user,
         { id: createdTask.id, stage: "execute" }
       );
@@ -1545,7 +1545,7 @@ describe("Tasks Router", () => {
         { id: createdTask.id }
       );
 
-      expect(finalTask.status).toBe("done");
+      expect(finalTask.column).toBe("done");
       expect(finalTask.agentSessionStatus).toBe("INACTIVE");
 
       // Delete task
@@ -1727,17 +1727,17 @@ describe("Tasks Router", () => {
       const { user, project, repository } = setup;
 
       const task = await createTestTask(project.id, repository.id, {
-        status: "todo",
-        stage: null,
+        column: "todo",
+        mode: null,
         ready: false
       });
 
       // Test various status transitions
       const transitions = [
-        { status: "doing", expectedStage: null }, // Stage should not auto-change
-        { status: "done", expectedStage: null },
-        { status: "loop", expectedStage: "loop" }, // Loop should set stage
-        { status: "todo", expectedStage: null }
+        { column: "doing", expectedMode: null }, // Mode should not auto-change
+        { column: "done", expectedMode: null },
+        { column: "loop", expectedMode: "loop" }, // Loop should set mode
+        { column: "todo", expectedMode: null }
       ];
 
       for (const transition of transitions) {
@@ -1749,7 +1749,7 @@ describe("Tasks Router", () => {
             tasks: [{
               id: task.id,
               columnOrder: "1000",
-              status: transition.status as any
+              column: transition.column as any
             }]
           }
         );
@@ -1760,9 +1760,9 @@ describe("Tasks Router", () => {
           { id: task.id }
         );
 
-        expect(updatedTask.status).toBe(transition.status);
-        if (transition.expectedStage === "loop") {
-          expect(updatedTask.stage).toBe("loop");
+        expect(updatedTask.column).toBe(transition.column);
+        if (transition.expectedMode === "loop") {
+          expect(updatedTask.mode).toBe("loop");
         }
       }
     });
@@ -1785,7 +1785,7 @@ describe("Tasks Router", () => {
 
       expect(minimalTask.rawTitle).toBe("Minimal Task");
       expect(minimalTask.priority).toBe(3); // Default priority
-      expect(minimalTask.status).toBe("todo"); // Default status
+      expect(minimalTask.column).toBe("todo"); // Default column
       expect(minimalTask.rawDescription).toBeNull();
       expect(minimalTask.actorId).toBeNull();
 

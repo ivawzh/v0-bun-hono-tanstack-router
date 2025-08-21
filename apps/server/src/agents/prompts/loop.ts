@@ -18,9 +18,9 @@ ${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
 Execute this repeatable task. This is a loop task that will return to the loop column after completion.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="loop", agentSessionStatus="ACTIVE"
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", column="doing", mode="loop", agentSessionStatus="ACTIVE"
 2. **Execute Task**: Perform the task as described (no clarify/plan stages for loop tasks)
-3. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", stage="loop", agentSessionStatus="INACTIVE"
+3. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", column="done", mode="loop", agentSessionStatus="INACTIVE"
 
 **Note**: This task will automatically cycle back to the Todo column (positioned after other loop tasks) for fair rotation through all loop tasks.
 

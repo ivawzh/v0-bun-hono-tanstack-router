@@ -215,7 +215,7 @@ export const projectsRouter = o.router({
       // Get task counts by status
       const taskStats = await db
         .select({
-          status: tasks.status,
+          status: tasks.column,
           count: tasks.id
         })
         .from(tasks)

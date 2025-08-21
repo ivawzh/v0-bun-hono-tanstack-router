@@ -37,8 +37,8 @@ function getDb() {
   return mainDb;
 }
 
-const taskStatusEnum = v.picklist(["todo", "doing", "done", "loop"]);
-const taskStageEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop", "talk"]));
+const taskColumnEnum = v.picklist(["todo", "doing", "done", "loop"]);
+const taskModeEnum = v.nullable(v.picklist(["clarify", "plan", "execute", "loop", "talk"]));
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
 
 export const tasksRouter = o.router({
@@ -75,7 +75,7 @@ export const tasksRouter = o.router({
         .leftJoin(actors, eq(tasks.actorId, actors.id))
         .where(eq(tasks.projectId, input.projectId))
         .orderBy(
-          tasks.status,
+          tasks.column,
           desc(tasks.priority), // Higher numbers = higher priority (5 > 4 > 3 > 2 > 1)
           sql`CAST(${tasks.columnOrder} AS DECIMAL)`,
           desc(tasks.createdAt)
@@ -91,7 +91,7 @@ export const tasksRouter = o.router({
             id: tasks.id,
             rawTitle: tasks.rawTitle,
             refinedTitle: tasks.refinedTitle,
-            status: tasks.status
+            column: tasks.column
           }
         })
         .from(taskDependencies)
@@ -419,8 +419,8 @@ export const tasksRouter = o.router({
       refinedTitle: v.optional(v.string()),
       refinedDescription: v.optional(v.string()),
       plan: v.optional(v.any()),
-      status: v.optional(taskStatusEnum),
-      stage: v.optional(taskStageEnum),
+      column: v.optional(taskColumnEnum),
+      mode: v.optional(taskModeEnum),
       priority: v.optional(prioritySchema),
       ready: v.optional(v.boolean()),
       attachments: v.optional(v.array(v.any())),
@@ -605,7 +605,7 @@ export const tasksRouter = o.router({
       tasks: v.array(v.object({
         id: v.pipe(v.string(), v.uuid()),
         columnOrder: v.string(),
-        status: v.optional(taskStatusEnum) // Allow moving between columns
+        column: v.optional(taskColumnEnum) // Allow moving between columns
       }))
     }))
     .handler(async ({ context, input }) => {
@@ -676,10 +676,10 @@ export const tasksRouter = o.router({
       return { success: true, updated: updatedTasks };
     }),
 
-  updateStage: protectedProcedure
+  updateMode: protectedProcedure
     .input(v.object({
       id: v.pipe(v.string(), v.uuid()),
-      stage: taskStageEnum
+      mode: taskModeEnum
     }))
     .handler(async ({ context, input }) => {
       const db = getDb();
@@ -1180,7 +1180,7 @@ export const tasksRouter = o.router({
             id: tasks.id,
             rawTitle: tasks.rawTitle,
             refinedTitle: tasks.refinedTitle,
-            status: tasks.status,
+            column: tasks.column,
             priority: tasks.priority
           })
           .from(taskDependencies)
@@ -1193,7 +1193,7 @@ export const tasksRouter = o.router({
             id: tasks.id,
             rawTitle: tasks.rawTitle,
             refinedTitle: tasks.refinedTitle,
-            status: tasks.status,
+            column: tasks.column,
             priority: tasks.priority
           })
           .from(taskDependencies)
@@ -1237,7 +1237,7 @@ export const tasksRouter = o.router({
           id: tasks.id,
           rawTitle: tasks.rawTitle,
           refinedTitle: tasks.refinedTitle,
-          status: tasks.status,
+          status: tasks.column,
           priority: tasks.priority
         })
         .from(tasks)
@@ -1245,7 +1245,7 @@ export const tasksRouter = o.router({
           and(
             eq(tasks.projectId, input.projectId),
             // Exclude done tasks as they can't be dependencies for new tasks
-            sql`${tasks.status} != 'done'`
+            sql`${tasks.column} != 'done'`
           )
         )
         .orderBy(desc(tasks.priority), tasks.rawTitle);
@@ -1254,7 +1254,7 @@ export const tasksRouter = o.router({
         query = query.where(
           and(
             eq(tasks.projectId, input.projectId),
-            sql`${tasks.status} != 'done'`,
+            sql`${tasks.column} != 'done'`,
             sql`${tasks.id} != ${input.excludeTaskId}`
           )
         );

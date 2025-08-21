@@ -15,10 +15,10 @@ export function generateExecutePrompt(context: PromptParams): string {
 Implement the solution following the plan below.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="doing", stage="execute", agentSessionStatus="ACTIVE"
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", column="doing", mode="execute", agentSessionStatus="ACTIVE"
 2. **Follow the Plan**: Implement the solution as specified in the plan above
 3. **Commit Changes**: Make appropriate git commits when needed
-4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", status="done", stage=null, agentSessionStatus="INACTIVE"
+4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", column="done", mode=null, agentSessionStatus="INACTIVE"
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}

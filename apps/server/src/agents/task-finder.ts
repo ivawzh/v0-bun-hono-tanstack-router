@@ -45,7 +45,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
             .where(
               and(
                 eq(schema.taskDependencies.taskId, schema.tasks.id),
-                ne((schema.tasks as any).status, 'done')
+                ne((schema.tasks as any).column, 'done')
               )
             )
         ),
@@ -58,7 +58,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
             FROM tasks AS repo_tasks
             WHERE repo_tasks.main_repository_id = ${schema.tasks.mainRepositoryId}
               AND repo_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
-              AND repo_tasks.status != 'done'
+              AND repo_tasks.column != 'done'
           ) < ${schema.repositories.maxConcurrencyLimit}
         )`,
         // Has at least one available agent (embedded subquery)
@@ -76,7 +76,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
                 FROM tasks agent_tasks
                 WHERE agent_tasks.active_agent_id = a.id
                   AND agent_tasks.agent_session_status IN ('PUSHING', 'ACTIVE')
-                  AND agent_tasks.status != 'done'
+                  AND agent_tasks.column != 'done'
               ) < a.max_concurrency_limit
             )
         )`

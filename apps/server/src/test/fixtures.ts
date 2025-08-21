@@ -160,7 +160,7 @@ export async function createTestTask(
   const taskData = {
     rawTitle: `Test Task ${Date.now()}`,
     rawDescription: "A test task description",
-    status: "todo" as const,
+    column: "todo" as const,
     priority: 3,
     columnOrder: "1000",
     ready: false,
@@ -262,21 +262,21 @@ export async function createComplexTestScenario() {
   // Create some tasks
   const todoTask = await createTestTask(project.id, repository.id, {
     rawTitle: "Todo Task",
-    status: "todo",
+    column: "todo",
     ready: true,
     priority: 2,
   });
   
   const doingTask = await createTestTask(project.id, repository.id, {
     rawTitle: "Doing Task",
-    status: "doing",
-    stage: "plan",
+    column: "doing",
+    mode: "plan",
     priority: 1,
   });
   
   const doneTask = await createTestTask(project.id, repository.id, {
     rawTitle: "Done Task",
-    status: "done",
+    column: "done",
     priority: 3,
   });
   
@@ -317,13 +317,13 @@ export async function seedTestDatabase(options: {
       
       // Create tasks for this project
       for (let t = 0; t < tasksPerProject; t++) {
-        const statuses = ["todo", "doing", "done"] as const;
-        const status = statuses[t % 3];
+        const columns = ["todo", "doing", "done"] as const;
+        const column = columns[t % 3];
         const task = await createTestTask(project.id, repository.id, {
           rawTitle: `Task ${t + 1} for ${project.name}`,
-          status,
+          column,
           priority: Math.floor(Math.random() * 5) + 1,
-          ready: status === "todo" && Math.random() > 0.5,
+          ready: column === "todo" && Math.random() > 0.5,
         });
         allTasks.push(task);
       }
