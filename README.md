@@ -369,6 +369,49 @@ POST /agent/sessions/:sessionId/complete
 - CORS configured for security
 - Environment variables for sensitive data
 
+## 🔧 Troubleshooting
+
+### PostgreSQL Connection Issues
+
+If you encounter database connection errors like "connect ECONNREFUSED 127.0.0.1:5432":
+
+1. **Check PostgreSQL Status**:
+   ```bash
+   brew services info postgresql@17
+   ```
+
+2. **Start PostgreSQL Service**:
+   ```bash
+   brew services start postgresql@17
+   ```
+
+3. **Remove Stale Lock Files** (if service won't start):
+   ```bash
+   # Check for stale processes
+   ps aux | grep postgres
+   
+   # Remove stale lock file if no PostgreSQL process is running
+   rm -f $(brew --prefix)/var/postgresql@17/postmaster.pid
+   
+   # Restart service
+   brew services restart postgresql@17
+   ```
+
+4. **Verify Connection**:
+   ```bash
+   psql -h localhost -U $USER -d postgres -c "SELECT version();"
+   ```
+
+5. **Check Database Exists**:
+   ```bash
+   psql -h localhost -U $USER -d postgres -c "SELECT datname FROM pg_database WHERE datname = 'solo_unicorn_dev';"
+   ```
+
+If the database doesn't exist, create it:
+```bash
+bun run --filter server db:create
+```
+
 ## 🧪 Testing
 
 ### E2E Testing with Playwright
