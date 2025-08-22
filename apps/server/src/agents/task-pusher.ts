@@ -232,7 +232,7 @@ async function pushTaskToAgent(
       additionalRepositories: taskWithContext.additionalRepositories,
       claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
       mode: task.mode || 'clarify',
-      taskData: { task, actor, project }
+      taskData: { task, actor, project, agent: selectedAgent }
     });
 
     if (!spawnResult.success) {

@@ -5,11 +5,13 @@
 
 import { defaultActorDescription } from './defaultActor';
 import type { PromptParams } from './index';
+import { getAgentTypeDisplayName } from './index';
 
 export function generateExecutePrompt(context: PromptParams): string {
-  const { task, actor, project } = context;
+  const { task, actor, project, agent } = context;
 
   const planSummary = task.plan ? JSON.stringify(task.plan) : 'No plan available';
+  const agentDisplayName = getAgentTypeDisplayName(agent.agentType);
 
   return `[execute] ${task.rawTitle || task.refinedTitle}
 Implement the solution following the plan below.
@@ -17,7 +19,7 @@ Implement the solution following the plan below.
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="execute", agentSessionStatus="ACTIVE"
 2. **Follow the Plan**: Implement the solution as specified in the plan above
-3. **Commit Changes**: Make appropriate git commits when needed
+3. **Commit Changes**: When making git commits, use author "Solo Unicorn! ${agentDisplayName}" to maintain consistent Solo Unicorn branding
 4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="done", mode=null, agentSessionStatus="INACTIVE"
 
 **Your Role**: ${actor?.description || defaultActorDescription}

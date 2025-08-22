@@ -44,6 +44,7 @@ export interface SpawnOptions {
     task: schema.Task;
     actor?: schema.Actor | null;
     project: schema.Project;
+    agent: schema.Agent;
   };
 }
 
