@@ -6,7 +6,7 @@ import { db } from '../db';
 import { eq, and } from 'drizzle-orm';
 import * as schema from '../db/schema/index';
 import { findNextAssignableTask, selectBestAvailableAgent, type TaskWithContext } from './task-finder';
-import { spawnClaudeSession } from './agent-invoker';
+import { spawnClaudeSession, spawnOpencodeSession } from './agent-invoker';
 
 // Database-based lock configuration
 const TASK_PUSH_LOCK_CODE = 'TASK_PUSH_LOCK';
@@ -222,21 +222,40 @@ async function pushTaskToAgent(
       })
       .where(eq(schema.repositories.id, mainRepository.id));
 
-    // Spawn Claude CLI session
-    const spawnResult = await spawnClaudeSession({
-      sessionId: task.lastAgentSessionId,
-      taskId: task.id,
-      agentId: selectedAgent.id,
-      projectId: project.id,
-      repositoryPath: mainRepository.repoPath,
-      additionalRepositories: taskWithContext.additionalRepositories,
-      claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
-      mode: task.mode || 'clarify',
-      taskData: { task, actor, project, agent: selectedAgent }
-    });
+    // Spawn agent session based on agent type
+    let spawnResult;
+    if (selectedAgent.agentType === 'OPENCODE') {
+      spawnResult = await spawnOpencodeSession({
+        sessionId: task.lastAgentSessionId,
+        taskId: task.id,
+        agentId: selectedAgent.id,
+        projectId: project.id,
+        repositoryPath: mainRepository.repoPath,
+        additionalRepositories: taskWithContext.additionalRepositories,
+        opencodeConfigDir: selectedAgent.agentSettings?.OPENCODE_CONFIG_DIR,
+        opcodeProviderID: selectedAgent.agentSettings?.OPENCODE_PROVIDER_ID || 'anthropic',
+        opcodeModelID: selectedAgent.agentSettings?.OPENCODE_MODEL_ID || 'claude-3-5-sonnet-20241022',
+        opcodeAgent: selectedAgent.agentSettings?.OPENCODE_AGENT || 'AGENTS.md',
+        mode: task.mode || 'clarify',
+        taskData: { task, actor, project, agent: selectedAgent }
+      });
+    } else {
+      // Default to Claude Code for CLAUDE_CODE and other types
+      spawnResult = await spawnClaudeSession({
+        sessionId: task.lastAgentSessionId,
+        taskId: task.id,
+        agentId: selectedAgent.id,
+        projectId: project.id,
+        repositoryPath: mainRepository.repoPath,
+        additionalRepositories: taskWithContext.additionalRepositories,
+        claudeConfigDir: selectedAgent.agentSettings?.CLAUDE_CONFIG_DIR,
+        mode: task.mode || 'clarify',
+        taskData: { task, actor, project, agent: selectedAgent }
+      });
+    }
 
     if (!spawnResult.success) {
-      console.error(`🚧 [pushTaskToAgent] failed to spawn claude session for task ${task.id}. Reverting task status to INACTIVE.`);
+      console.error(`🚧 [pushTaskToAgent] failed to spawn agent session for task ${task.id}. Reverting task status to INACTIVE.`);
       // Revert task status if spawn failed
       await db
         .update(schema.tasks)

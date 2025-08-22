@@ -25,6 +25,7 @@ import {
   type PermissionMode,
 } from "@anthropic-ai/claude-code";
 import { executeClaudeQuery, type ClaudeQueryOptions } from "./claude-code/claude-sdk-query";
+import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk";
 
 // Use cross-spawn on Windows for better command execution
 const spawnFunction = process.platform === "win32" ? crossSpawn : spawn;
@@ -37,9 +38,14 @@ export interface SpawnOptions {
   repositoryPath: string;
   additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
+  opencodeConfigDir?: string;
   mode: TaskMode;
   model?: string;
   permissionMode?: PermissionMode;
+  // OpenCode specific options
+  opcodeProviderID?: string;
+  opcodeModelID?: string;
+  opcodeAgent?: string;
   taskData: {
     task: schema.Task;
     actor?: schema.Actor | null;
@@ -541,4 +547,190 @@ async function spawnClaudeSdkChildProcess(args: SpawnClaudeSdkChildProcessArgs):
   childProcess.unref();
 
   console.log(`🔄 [Claude SDK Worker] Spawned Claude SDK session for task ${args.taskId}`);
+}
+
+/**
+ * Spawn OpenCode session for a task
+ */
+export async function spawnOpencodeSession(
+  options: SpawnOptions
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const {
+      sessionId,
+      taskId,
+      agentId,
+      projectId,
+      repositoryPath,
+      mode,
+      taskData,
+    } = options;
+    const { task } = taskData;
+
+    // Generate the appropriate prompt for the task mode
+    const attachments = (task.attachments as AttachmentMetadata[]) || [];
+
+    const modePrompt = generatePrompt(mode, taskData);
+
+    if (!modePrompt || !modePrompt.trim()) {
+      return {
+        success: false,
+        error: `No prompt generated. Mode: ${mode}, Task ID: ${taskId}. Task title: ${taskData.task.rawTitle || taskData.task.refinedTitle}.`,
+      };
+    }
+
+    const imagesPrompt = await processTaskImagesPrompt(
+      task.id,
+      attachments,
+      repositoryPath
+    );
+    const prompt = modePrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
+
+    // Prepare environment variables
+    const env = {
+      ...process.env,
+      // Session tracking
+      ...(sessionId && { SESSION_ID: sessionId }),
+      REPOSITORY_PATH: repositoryPath,
+      SOLO_UNICORN_PROJECT_ID: projectId,
+      SOLO_UNICORN_AGENT_ID: agentId,
+      SOLO_UNICORN_TASK_ID: taskId,
+    };
+
+    console.log(`🚀 Starting OpenCode session for task ${taskId}. [${task.mode}] ${taskData.task.rawTitle || taskData.task.refinedTitle}`);
+
+    // Create or connect to OpenCode server
+    const server = await createOpencodeServer({
+      host: "127.0.0.1",
+      port: 4096 + parseInt(agentId.slice(-3), 36) % 1000, // Use agent ID to vary port
+    });
+
+    // Create client
+    const client = createOpencodeClient({
+      baseUrl: server.url,
+    });
+
+    // Create session or reuse existing one
+    let newSessionId;
+    if (sessionId) {
+      // Try to get existing session
+      try {
+        const existingSession = await client.session.get({
+          path: { id: sessionId },
+        });
+        if (existingSession.data) {
+          newSessionId = sessionId;
+          console.log(`[OpenCode] Reusing existing session ${sessionId}`);
+        } else {
+          throw new Error("Session not found");
+        }
+      } catch (error) {
+        console.log(`[OpenCode] Session ${sessionId} not found, creating new session`);
+        const sessionResponse = await client.session.create({
+          body: {
+            title: `[Solo Unicorn] ${taskData.task.rawTitle || taskData.task.refinedTitle}`,
+          },
+        });
+        
+        if (!sessionResponse.data) {
+          server.close();
+          return {
+            success: false,
+            error: "Failed to create OpenCode session",
+          };
+        }
+        
+        newSessionId = sessionResponse.data.id;
+      }
+    } else {
+      // Create new session
+      const sessionResponse = await client.session.create({
+        body: {
+          title: `[Solo Unicorn] ${taskData.task.rawTitle || taskData.task.refinedTitle}`,
+        },
+      });
+
+      if (!sessionResponse.data) {
+        server.close();
+        return {
+          success: false,
+          error: "Failed to create OpenCode session",
+        };
+      }
+
+      newSessionId = sessionResponse.data.id;
+    }
+
+    // Update task with session info
+    await updateTaskSessionStarted(taskId, agentId, newSessionId, projectId);
+
+    // Broadcast session start  
+    broadcastFlush(projectId);
+    console.log(`✅ [OpenCode] Started session ${newSessionId} for task ${taskId}`);
+
+    // Send chat message to execute the task
+    const chatResponse = await client.session.chat({
+      path: { id: newSessionId },
+      body: {
+        providerID: options.opcodeProviderID || "anthropic",
+        modelID: options.opcodeModelID || "claude-3-5-sonnet-20241022", 
+        agent: options.opcodeAgent || "AGENTS.md",
+        system: `You are an AI coding agent working on task: ${taskData.task.rawTitle || taskData.task.refinedTitle}
+Project: ${taskData.project.name}
+Mode: ${mode}
+
+${taskData.actor ? `Acting as: ${taskData.actor.name}\n${taskData.actor.description}` : ''}
+
+You have access to Solo Unicorn MCP tools to update task status:
+- mcp__solo-unicorn__task_update
+- mcp__solo-unicorn__task_create  
+- mcp__solo-unicorn__project_memory_get
+- mcp__solo-unicorn__project_memory_update
+
+Environment variables:
+- SOLO_UNICORN_PROJECT_ID: ${projectId}
+- SOLO_UNICORN_AGENT_ID: ${agentId}
+- SOLO_UNICORN_TASK_ID: ${taskId}`,
+        parts: [
+          {
+            type: "text",
+            text: prompt,
+          },
+        ],
+      },
+    });
+
+    if (!chatResponse.data) {
+      server.close();
+      return {
+        success: false,
+        error: "Failed to send message to OpenCode session",
+      };
+    }
+
+    // Monitor session for completion (simplified approach)
+    // In a production system, you'd want more sophisticated monitoring
+    setTimeout(async () => {
+      try {
+        server.close();
+        console.log(`🔄 OpenCode server closed for task ${taskId}`);
+      } catch (error) {
+        console.error("[OpenCode] Error closing server:", error);
+      }
+    }, 30 * 60 * 1000); // Close after 30 minutes
+
+    return { success: true };
+  } catch (error) {
+    console.error("[OpenCode] Failed to spawn OpenCode session:", error);
+    
+    // Handle rate limit detection in error messages
+    if (error instanceof Error) {
+      await detectAndHandleRateLimit(error.message, options.agentId);
+    }
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown spawn error",
+    };
+  }
 }
