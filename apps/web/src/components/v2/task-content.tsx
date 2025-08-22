@@ -480,7 +480,7 @@ export function TaskContent({
                     </div>
                   </div>
 
-                  {task.list === "doing" && (
+                  {(task.list === "doing" || (task.list === "todo" && task.mode === "talk")) && (
                     <div>
                       <Label>Mode</Label>
                       <div className="mt-1">

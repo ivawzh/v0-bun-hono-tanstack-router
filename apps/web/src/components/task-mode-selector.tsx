@@ -30,8 +30,24 @@ export function TaskModeSelector({
   disabled = false,
   size = "sm"
 }: TaskModeSelectorProps) {
-  // Don't show mode selector for Done tasks or Todo tasks
-  if (list === "done" || list === "todo") {
+  // Don't show mode selector for Done tasks
+  if (list === "done") {
+    return null;
+  }
+
+  // For Todo tasks, only show Talk mode badge when mode is "talk"
+  if (list === "todo") {
+    if (mode === "talk") {
+      const talkMode = modes.find(m => m.value === "talk");
+      return (
+        <div className={cn(
+          "h-6 text-xs px-2 py-1 rounded font-medium border inline-flex items-center",
+          talkMode?.color || "bg-green-100 text-green-800 border-green-200"
+        )}>
+          Talk
+        </div>
+      );
+    }
     return null;
   }
 
