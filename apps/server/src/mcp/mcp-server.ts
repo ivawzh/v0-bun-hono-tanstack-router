@@ -69,6 +69,121 @@ function assertBearer(authHeader: string | string[] | undefined) {
   }
 }
 
+// Helper function to calculate new task listOrder based on positioning strategy
+async function calculateNewListOrder(
+  positioning: "FIRST" | "LAST" | "FIRST_IN_MODE" | "LAST_IN_MODE",
+  targetList: "todo" | "doing" | "done" | "loop",
+  targetMode: string | null | undefined,
+  projectId: string
+): Promise<string> {
+  const defaultOrder = "1000";
+  
+  try {
+    switch (positioning) {
+      case "FIRST": {
+        // Get highest listOrder in target list (to place before all existing tasks)
+        const highestTask = await db
+          .select({ listOrder: tasks.listOrder })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.projectId, projectId),
+              eq(tasks.list, targetList)
+            )
+          )
+          .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
+          .limit(1);
+
+        if (highestTask.length === 0) {
+          return defaultOrder;
+        }
+        
+        const highest = parseFloat(highestTask[0].listOrder);
+        return (highest + 1000).toString();
+      }
+
+      case "LAST": {
+        // Get lowest listOrder in target list (to place after all existing tasks)
+        const lowestTask = await db
+          .select({ listOrder: tasks.listOrder })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.projectId, projectId),
+              eq(tasks.list, targetList)
+            )
+          )
+          .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) ASC`)
+          .limit(1);
+
+        if (lowestTask.length === 0) {
+          return defaultOrder;
+        }
+
+        const lowest = parseFloat(lowestTask[0].listOrder);
+        return (lowest - 1000).toString();
+      }
+
+      case "FIRST_IN_MODE": {
+        // Get highest listOrder for tasks with same mode in target list
+        const highestInMode = await db
+          .select({ listOrder: tasks.listOrder })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.projectId, projectId),
+              eq(tasks.list, targetList),
+              targetMode ? eq(tasks.mode, targetMode as any) : sql`${tasks.mode} IS NULL`
+            )
+          )
+          .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
+          .limit(1);
+
+        if (highestInMode.length === 0) {
+          return defaultOrder;
+        }
+
+        const highest = parseFloat(highestInMode[0].listOrder);
+        return (highest + 1000).toString();
+      }
+
+      case "LAST_IN_MODE": {
+        // Get lowest listOrder for tasks with same mode in target list
+        const lowestInMode = await db
+          .select({ listOrder: tasks.listOrder })
+          .from(tasks)
+          .where(
+            and(
+              eq(tasks.projectId, projectId),
+              eq(tasks.list, targetList),
+              targetMode ? eq(tasks.mode, targetMode as any) : sql`${tasks.mode} IS NULL`
+            )
+          )
+          .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) ASC`)
+          .limit(1);
+
+        if (lowestInMode.length === 0) {
+          return defaultOrder;
+        }
+
+        const lowest = parseFloat(lowestInMode[0].listOrder);
+        return (lowest - 1000).toString();
+      }
+
+      default:
+        return defaultOrder;
+    }
+  } catch (error) {
+    logger.error("calculateNewListOrder failed", error, {
+      positioning,
+      targetList,
+      targetMode,
+      projectId,
+    });
+    return defaultOrder;
+  }
+}
+
 // Function to register all MCP tools on a server instance
 function registerMcpTools(server: McpServer) {
   // Register task_update tool
@@ -92,22 +207,6 @@ function registerMcpTools(server: McpServer) {
 
       // Prepare initial updates
       const updates: any = { refinedTitle, refinedDescription, plan, list, mode };
-
-      // Special handling for loop tasks that are marked as "done"
-      // Loop tasks should cycle to "todo" list with smart positioning for fair rotation
-      let shouldHandleLoopCompletion = false;
-      if (list === "done") {
-        const task = await db.query.tasks.findFirst({
-          where: eq(tasks.id, taskId),
-        });
-
-        if (task && task.mode === "loop") {
-          // This is a loop task being completed, handle it specially
-          shouldHandleLoopCompletion = true;
-          updates.list = "todo"; // Move to todo instead of loop for fair rotation
-          updates.mode = "loop"; // Keep mode as loop to maintain loop task identity
-        }
-      }
 
       // Handle agentSessionStatus with timestamp tracking
       if (agentSessionStatus !== undefined) {
@@ -151,58 +250,6 @@ function registerMcpTools(server: McpServer) {
           };
         }
 
-        // Handle fair rotation for loop tasks completion
-        if (shouldHandleLoopCompletion) {
-          // Get all loop tasks in the todo list (tasks with mode="loop" and list="todo")
-          // and all normal tasks in todo list (tasks with mode!="loop" and list="todo")
-          const todoLoopTasks = await db
-            .select({ listOrder: tasks.listOrder })
-            .from(tasks)
-            .where(
-              and(
-                eq(tasks.projectId, task.projectId),
-                eq(tasks.list, 'todo'),
-                eq(tasks.mode, 'loop')
-              )
-            )
-            .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
-            .limit(1);
-
-          let newListOrder = "1000"; // Default if no loop tasks exist in todo
-          if (todoLoopTasks.length > 0) {
-            // Place after the last loop task in todo list
-            const highestLoopOrder = parseFloat(todoLoopTasks[0].listOrder);
-            newListOrder = (highestLoopOrder + 1000).toString();
-          } else {
-            // No existing loop tasks in todo, check if there are normal tasks to place after
-            const normalTodoTasks = await db
-              .select({ listOrder: tasks.listOrder })
-              .from(tasks)
-              .where(
-                and(
-                  eq(tasks.projectId, task.projectId),
-                  eq(tasks.list, 'todo'),
-                  sql`${tasks.mode} != 'loop' OR ${tasks.mode} IS NULL`
-                )
-              )
-              .orderBy(sql`CAST(${tasks.listOrder} AS DECIMAL) DESC`)
-              .limit(1);
-
-            if (normalTodoTasks.length > 0) {
-              // Place after all normal tasks
-              const highestNormalOrder = parseFloat(normalTodoTasks[0].listOrder);
-              newListOrder = (highestNormalOrder + 1000).toString();
-            }
-            // else use default 1000
-          }
-
-          filteredUpdates.listOrder = newListOrder;
-          logger.tool("task_update", "loop_task_completion - placing in todo list after other loop tasks", {
-            taskId,
-            newListOrder,
-            todoLoopTasksCount: todoLoopTasks.length
-          });
-        }
 
         await db
           .update(tasks)
@@ -380,7 +427,7 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_create",
     {
       title: "Create a new task",
-      description: "Create a new task for breaking down complex work. Only use dependsOnTaskIds if tasks must execute in specific order - otherwise leave empty.",
+      description: "Create a new task for breaking down complex work. Only use dependsOnTaskIds if tasks must execute in specific order - otherwise leave empty. Use setListOrder to control task positioning within lists.",
       inputSchema: {
         createdByTaskId: z.string().uuid(),
         rawTitle: z.string().min(1).max(255).optional(),
@@ -391,10 +438,12 @@ function registerMcpTools(server: McpServer) {
         priority: z.number().min(1).max(5).default(3),
         mode: z.enum(["plan", "execute", "talk"]).optional(),
         dependsOnTaskIds: z.array(z.string().uuid()).optional().default([]),
+        setListOrder: z.enum(["FIRST", "LAST", "FIRST_IN_MODE", "LAST_IN_MODE"]).optional().default("FIRST"),
+        list: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
       },
     },
     async (input, { requestInfo }) => {
-      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, mode, dependsOnTaskIds: dependsOn } = input;
+      const { createdByTaskId, rawTitle, rawDescription, refinedTitle, refinedDescription, plan, priority, mode, dependsOnTaskIds: dependsOn, setListOrder, list: targetList } = input;
       logger.tool("task_create", "init", { input });
 
       try {
@@ -487,7 +536,15 @@ function registerMcpTools(server: McpServer) {
         }
 
         // Determine task list and mode
-        const list = "todo";
+        const list = targetList || "todo";
+
+        // Calculate listOrder based on positioning strategy
+        const listOrder = await calculateNewListOrder(
+          setListOrder || "FIRST", 
+          list, 
+          mode, 
+          projectId
+        );
 
         // Create the task
         const newTask = await db
@@ -504,6 +561,7 @@ function registerMcpTools(server: McpServer) {
             plan,
             priority,
             list: list,
+            listOrder: listOrder,
             mode: mode,
             author: "ai",
             ready: mode ? true : false, // AI tasks that skip clarify are automatically ready

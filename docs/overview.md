@@ -2,9 +2,9 @@
 
 ## Vision and Goal
 
-Build a minimal, local-first task management system for dispatching coding cards to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage cards through a simple 4-list board where agents automatically pick up and complete work.
+Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-list board where agents automatically pick up and complete work.
 
-- AI agents autonomously clarify, plan, execute and loop cards
+- AI agents autonomously clarify, plan, execute and loop tasks
 - Create project, configure repo, agents, and start tasking
 
 ## Tech stack
@@ -154,13 +154,13 @@ The Loop column stores repeatable cards that cycle infinitely to maintain projec
 - "Research competitor features and document findings."
 - "Run comprehensive project health checks."
 
-**Infinite Cycling Logic:**
-- **Regular cards**: Todo → Doing → Done ✓
-- **Loop cards**: Loop → Doing → Loop → Doing → Loop... (never Done)
+**Lifecyle**:
+- **Regular tasks**: Todo → Doing → Done ✓
+- **Loop tasks**: Loop → Doing → Loop → Doing → Loop... (never Done)
 
-**List Priority:**
-1. Todo and Doing cards (highest priority)
-2. Loop cards (when no regular cards available)
+**Task Priority:**
+1. Todo and Doing tasks (highest priority)
+2. Loop tasks (when no regular tasks available)
 3. Bottom placement after completion ensures fair rotation
 
 The Loop list ensures projects never run out of productive work while maintaining continuous improvement and innovation cycles.
@@ -189,7 +189,7 @@ Solo Unicorn invokes Claude Code via its SDK:
 
 - **Environment Variables**: Each spawned process gets task-specific environment variables (`SOLO_UNICORN_TASK_ID`, `SOLO_UNICORN_AGENT_ID`,  etc.)
 - **Working Directory**: Processes are spawned in the repository's working directory
-- **Rate Limit Hook**: Read session result and detect if Claude Code hits rate limits. If so, update agent and cards status.
+- **Rate Limit Hook**: Read session result and detect if Claude Code hits rate limits. If so, update agent and tasks status.
 
 ### Claude Code Hook System
 
@@ -203,7 +203,7 @@ Hook scripts track session lifecycle and maintain synchronization:
 Claude Code communicates back via MCP tools embedded in prompts:
 
 - **Card Updates**: `mcp__solo-unicorn__task_update` - Update card status, refined title/description, plan
-- **Card Creation**: `mcp__solo-unicorn__task_create` - Create new cards during execution
+- **Card Creation**: `mcp__solo-unicorn__task_create` - Create new tasks during execution
 - **Project Memory**: `mcp__solo-unicorn__project_memory_update` - Update shared project context
 
 ### Synchronization Strategy

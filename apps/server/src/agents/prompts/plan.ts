@@ -12,6 +12,7 @@ export function generatePlanPrompt(context: PromptParams): string {
   return `[plan] ${task.rawTitle || task.refinedTitle}
 **Do not write any code!**
 Plan a task - create a comprehensive implementation plan and detailed specification.
+Start with recalling a related problem, and then solve this one. Use first-principles reasoning to think step by step.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="plan", agentSessionStatus="ACTIVE"
@@ -23,7 +24,7 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Industry standards & best practices
    - Maintainability
 4. **Select Final Approach**: Choose the best solution
-5. **Create Plan**: Write a detailed plan including:
+5. **Create Plan**: Write a plan as detailed as possible. The plan will include:
    - Spec
    - Detailed implementation steps breakdown
    - You may provide detailed modifying files, line numbers, function names, etc to help future agent look up the codebase.
@@ -33,12 +34,14 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
      * Split into smaller tasks using \`task_create\` with:
+       - Clear and detailed context for the task - what, why, how, etc.
+       - Full plan in same format as step 5.
        - createdByTaskId="${task.id}", refinedTitle, refinedDescription, plan, priority=${task.priority}, mode="execute"
        - **Only use dependsOnTaskIds if tasks must execute in specific order**
        - For ordered tasks: Create first task without dependsOnTaskIds, note returned task ID, use it for next task, e.g. dependsOnTaskIds=[prerequisite_task_id]
        - For parallel tasks: Leave dependsOnTaskIds empty for all
      * Mark current task done: \`task_update\` with taskId="${task.id}", list="done", agentSessionStatus="INACTIVE"
-7. **FINISH**: If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above]
+   - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}

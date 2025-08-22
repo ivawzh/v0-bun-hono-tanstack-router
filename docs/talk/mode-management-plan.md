@@ -1,25 +1,35 @@
-# Mode Management System - Architecture & UX Plan
+# Mode Management System - Architecture & Implementation Plan
 
 ## Original Request
-Plan ability to Mode management, add, view, edit delete. We will provide the default Modes. The ones we have are reserved and cannot be changed. However, users can have their own namespace and create new modes customized for themselves.
+
+Plan ability to Mode management, add, view, edit delete. We will provide the default Modes. The ones we have are reserved and cannot be changed. However, users can have their own namespace and create new modes customized for themselves. Plan architecture, UX, everything. Start with thinking about related settings from existing experiences or similar apps. Then use first principle to drive step by step. List ideas, options and rank them.
 
 ## Analysis
 
-### Current System Understanding
-From analyzing the codebase, the current mode system has:
+### Current Solo Unicorn Mode System
 
-**Reserved System Modes:**
-- `clarify` - Agent refines raw title/description 
-- `plan` - Agent creates solution options and implementation plan
+**Existing Modes (Reserved/System):**
+- `clarify` - Agent refines raw task titles/descriptions
+- `plan` - Agent creates solution options and implementation plans
 - `execute` - Agent implements the planned solution
-- `loop` - Infinite cycle mode for repeatable tasks
-- `talk` - Research/analysis mode without code implementation
+- `loop` - Agent executes repeatable tasks infinitely
+- `talk` - Agent performs research and strategic thinking (no code)
 
 **Current Architecture:**
-- Modes are hardcoded in `apps/server/src/agents/prompts/index.ts` as `TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk'`
-- Each mode has a dedicated prompt generator function
-- Tasks have a `mode` field in the database schema (line 132 in schema/index.ts)
-- Mode transitions are handled in the agent workflow system
+- Modes are hardcoded in `TaskMode` type in `/apps/server/src/agents/prompts/index.ts`
+- Prompts stored in `/apps/server/src/agents/prompts/` directory
+- Each mode has its own prompt generator function
+- Mode selection happens through task workflow progression
+- Database schema stores mode as enum field: `text("mode", { enum: ["clarify", "plan", "execute", "loop", "talk"] })`
+
+**Key Constraints & Requirements:**
+
+1. **Reserved Modes**: System modes cannot be modified/deleted by users
+2. **User Namespacing**: Users need their own namespace for custom modes
+3. **Prompt Customization**: Users need ability to define custom prompts
+4. **Full CRUD**: Add, view, edit, delete custom modes
+5. **Backward Compatibility**: Existing tasks and workflows must continue working
+6. **Project Isolation**: Custom modes should be project-scoped
 
 ## Research & Findings
 

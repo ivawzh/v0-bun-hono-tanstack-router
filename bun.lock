@@ -71,6 +71,7 @@
         "@hono/zod-validator": "0.7.2",
         "@modelcontextprotocol/sdk": "^1.17.2",
         "@openauthjs/openauth": "^0.4.3",
+        "@opencode-ai/sdk": "^0.5.13",
         "@orpc/client": "^1.5.0",
         "@orpc/server": "^1.5.0",
         "ai": "^4.3.16",
@@ -603,6 +604,8 @@
     "@oclif/screen": ["@oclif/screen@1.0.4", "", {}, "sha512-60CHpq+eqnTxLZQ4PGHYNwUX572hgpMHGPtTWMjdTMsAvlm69lZV/4ly6O3sAYkomo4NggGcomrDpBe34rxUqw=="],
 
     "@openauthjs/openauth": ["@openauthjs/openauth@0.4.3", "", { "dependencies": { "@standard-schema/spec": "1.0.0-beta.3", "aws4fetch": "1.0.20", "jose": "5.9.6" }, "peerDependencies": { "arctic": "^2.2.2", "hono": "^4.0.0" } }, "sha512-RlnjqvHzqcbFVymEwhlUEuac4utA5h4nhSK/i2szZuQmxTIqbGUxZ+nM+avM+VV4Ing+/ZaNLKILoXS3yrkOOw=="],
+
+    "@opencode-ai/sdk": ["@opencode-ai/sdk@0.5.13", "", {}, "sha512-O+NFD/8390l/zlnjBlPNhDIwGmd2jiZuAZ4j7h9d+u5Fx7H5ESS0THjRAYIDEV0aYYY9JKvQsF+05v0bbIDr7A=="],
 
     "@opentelemetry/api": ["@opentelemetry/api@1.9.0", "", {}, "sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg=="],
 

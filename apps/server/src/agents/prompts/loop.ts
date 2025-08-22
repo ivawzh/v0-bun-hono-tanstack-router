@@ -20,9 +20,9 @@ Execute this repeatable task. This is a loop task that will return to the loop l
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="loop", agentSessionStatus="ACTIVE"
 2. **Execute Task**: Perform the task as described (no clarify/plan modes for loop tasks)
-3. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="loop", mode=null, agentSessionStatus="INACTIVE"
+3. **FINISH**: Use Solo Unicorn MCP tool \`task_create\` with createdByTaskId="${task.id}", rawTitle="${titleSection}", rawDescription="${descriptionSection}", mode="loop", list="loop", setListOrder="LAST_IN_MODE" to create a new loop task positioned at the bottom of the loop queue; then use \`task_update\` with taskId="${task.id}", list="done", agentSessionStatus="INACTIVE"
 
-**Note**: This task will automatically cycle back to the Loop list (positioned after other loop tasks) for fair rotation through all loop tasks.
+**Note**: This creates a new loop task positioned at the bottom for fair rotation through all loop tasks.
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? `**Project Context**: ${JSON.stringify(project.memory)}` : ''}${task.plan ? `\n\n**Implementation Plan**:\n${JSON.stringify(task.plan, null, 2)}` : ''}`;
