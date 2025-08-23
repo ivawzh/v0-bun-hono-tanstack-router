@@ -119,7 +119,7 @@ export function TodoListSections({
         loopSectionCollapsed ? "flex-shrink-0" : "flex-1 min-h-0"
       )}>
         {/* Loop Section Header */}
-        <div className="flex items-center justify-between p-2 bg-orange-50/50 border-b border-orange-200/40">
+        <div className="flex items-center justify-between p-2 bg-muted/30 border-b border-border/20">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -133,9 +133,9 @@ export function TodoListSections({
                 <ChevronUp className="h-3 w-3" />
               )}
             </Button>
-            <RotateCcw className="h-3 w-3 text-orange-600" />
-            <span className="text-sm font-medium text-orange-700">Loop Tasks</span>
-            <Badge variant="outline" className="h-5 text-xs bg-orange-100 text-orange-800 border-orange-300">
+            <RotateCcw className="h-3 w-3 text-muted-foreground" />
+            <span className="text-sm font-medium text-muted-foreground">Loop Tasks</span>
+            <Badge variant="outline" className="h-5 text-xs">
               {loopTasks.length}
             </Badge>
           </div>
@@ -143,7 +143,7 @@ export function TodoListSections({
 
         {/* Loop Tasks Content */}
         <div className={cn(
-          "transition-all duration-300 overflow-hidden bg-orange-50/20",
+          "transition-all duration-300 overflow-hidden",
           getContentHeight(loopSectionCollapsed, normalSectionCollapsed)
         )}>
           <ScrollArea className="h-full">
