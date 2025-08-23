@@ -4,10 +4,10 @@
 
 **We provide**:
 
-- Task management system for dispatching tasks to AI agents.
+- Task management system for dispatching tasks to AI agents. We are like
 - Efficient AI agent orchestration.
 - Flexible AI workflow framework.
-- Easy switch across agent types. We are like OpenRouter for coding agent CLIs.
+- Easy switch to different agent types. We are like OpenRouter for coding agent CLIs.
 - Web UI for code agent CLIs.
 - Context preservation across repos, agents, tasks and sessions.
 - Multi-repo coordination.

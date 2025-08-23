@@ -19,6 +19,7 @@ import { MultiSelectRepositories } from "./multi-select-repositories";
 import { TaskDependencySelector } from "./task-dependency-selector";
 import { TaskCreationWarning } from "./project-setup-warning";
 import { AttachmentDropzone, type AttachmentFile } from "../attachment-dropzone";
+import { TaskModeSelector } from "../task-mode-selector";
 import { client } from '@/utils/orpc';
 
 interface Repository {
@@ -58,6 +59,7 @@ interface TaskFormData {
   ready: boolean;
   attachments: File[];
   dependencyIds: string[];
+  mode: "clarify" | "plan" | "execute" | "loop" | "talk" | null;
 }
 
 interface EnhancedTaskFormV2Props {
@@ -91,7 +93,8 @@ export function EnhancedTaskFormV2({
     priority: 3,
     ready: false,
     attachments: [],
-    dependencyIds: []
+    dependencyIds: [],
+    mode: null
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -144,6 +147,7 @@ export function EnhancedTaskFormV2({
         rawDescription: formData.rawDescription,
         priority: formData.priority,
         list: "todo",
+        mode: formData.mode,
         dependencyIds: formData.dependencyIds,
         attachments: formData.attachments.map(file => ({
           file: file
@@ -167,7 +171,8 @@ export function EnhancedTaskFormV2({
         priority: 3,
         ready: false,
         attachments: [],
-        dependencyIds: []
+        dependencyIds: [],
+        mode: null
       });
 
       onOpenChange(false);
@@ -344,6 +349,19 @@ export function EnhancedTaskFormV2({
                 <CardTitle className="text-sm">Task Settings</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="task-mode">Task Mode (Optional)</Label>
+                  <TaskModeSelector
+                    mode={formData.mode}
+                    list="todo"
+                    onModeChange={(mode) => setFormData(prev => ({ ...prev, mode: mode as "clarify" | "plan" | "execute" | "loop" | "talk" | null }))}
+                    size="md"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Select the initial mode for this task. If not specified, the agent will start with clarify mode.
+                  </p>
+                </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="actor">Actor (Optional)</Label>
