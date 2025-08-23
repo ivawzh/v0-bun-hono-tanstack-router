@@ -96,6 +96,7 @@ const modeColors = {
   clarify: "bg-purple-100 text-purple-800 border-purple-200",
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
+  iterate: "bg-yellow-100 text-yellow-800 border-yellow-200",
   check: "bg-amber-100 text-amber-800 border-amber-200",
   loop: "bg-orange-100 text-orange-800 border-orange-200",
   talk: "bg-green-100 text-green-800 border-green-200",
@@ -197,7 +198,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         "max-sm:active:scale-[0.98] max-sm:hover:scale-[1.02]",
         "min-h-[44px] focus-visible:ring-2 focus-visible:ring-offset-2",
         // Special styling for check mode tasks
-        task.list === 'check' && "ring-2 ring-amber-200 bg-amber-50 border-amber-200",
+        task.list === 'check' && "ring-2 ring-amber-200",
         isDragging && "opacity-50 cursor-grabbing scale-105 shadow-xl z-50"
       )}
       {...attributes}
@@ -218,10 +219,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
       <CardHeader className="pb-2">
         <div className="kanban-card-header-content">
           <div className="kanban-card-title-wrapper">
-            <CardTitle className={cn(
-              "text-sm font-medium kanban-card-title",
-              task.list === 'check' && "text-amber-900"
-            )}>
+            <CardTitle className="text-sm font-medium kanban-card-title">
               {task.refinedTitle || task.rawTitle}
             </CardTitle>
           </div>
@@ -304,6 +302,12 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
           <Badge variant="outline" className={getPriorityColors(task.priority)}>
             {getPriorityDisplay(task.priority)}
           </Badge>
+          {/* Iteration number badge - only show if task has iterations */}
+          {(task as any).iterations && Array.isArray((task as any).iterations) && (task as any).iterations.length > 0 && (
+            <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200 text-xs">
+              #{(task as any).iterations.length}
+            </Badge>
+          )}
           {task.author === "ai" && (
             <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
               AI created
@@ -326,8 +330,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         {description && (
           <div className="mb-2">
             <div className={cn(
-              "text-xs kanban-card-text relative",
-              task.list === 'check' ? "text-amber-800" : "text-muted-foreground",
+              "text-xs kanban-card-text relative text-muted-foreground",
               !showMore && shouldTruncate && "max-h-16 overflow-hidden"
             )}>
               <p className="whitespace-pre-wrap">
@@ -408,26 +411,17 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
 
         {/* Repository and Actor info */}
         {task.mainRepository && (
-          <div className={cn(
-            "text-xs mt-1 kanban-card-text",
-            task.list === 'check' ? "text-amber-700" : "text-muted-foreground"
-          )}>
+          <div className="text-xs mt-1 kanban-card-text text-muted-foreground">
             Repo: {task.mainRepository.name}
           </div>
         )}
         {task.assignedAgents && task.assignedAgents.length > 0 && (
-          <div className={cn(
-            "text-xs mt-1 kanban-card-text",
-            task.list === 'check' ? "text-amber-700" : "text-muted-foreground"
-          )}>
+          <div className="text-xs mt-1 kanban-card-text text-muted-foreground">
             Agents: {task.assignedAgents.map((agent: any) => `${agent.agentType} (${agent.name})`).join(", ")}
           </div>
         )}
         {task.actor && (
-          <div className={cn(
-            "text-xs kanban-card-text",
-            task.list === 'check' ? "text-amber-700" : "text-muted-foreground"
-          )}>
+          <div className="text-xs kanban-card-text text-muted-foreground">
             Actor: {task.actor.name}
           </div>
         )}
