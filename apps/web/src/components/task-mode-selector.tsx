@@ -74,15 +74,24 @@ export function TaskModeSelector({
     >
       <SelectTrigger
         className={cn(
-          "h-6 text-xs border-0 bg-transparent p-1 font-medium",
-          size === "sm" ? "w-auto min-w-[70px]" : "w-auto min-w-[80px]",
-          currentMode?.color || "bg-gray-100 text-gray-800"
+          "font-medium",
+          size === "sm" 
+            ? "h-6 text-xs border-0 bg-transparent p-1 w-auto min-w-[70px]" 
+            : "h-10 text-sm border border-input bg-background px-3 py-2 w-full min-w-[140px]",
+          currentMode?.color || (size === "sm" ? "bg-gray-100 text-gray-800" : "")
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <SelectValue placeholder="Select mode" />
+        <SelectValue placeholder={size === "md" ? "Default: clarify" : "Select mode"} />
       </SelectTrigger>
       <SelectContent>
+        {size === "md" && (
+          <SelectItem value="">
+            <span className="px-2 py-1 rounded text-xs text-muted-foreground">
+              Default: clarify
+            </span>
+          </SelectItem>
+        )}
         {modes.map((modeOption) => (
           <SelectItem key={modeOption.value} value={modeOption.value}>
             <span className={cn("px-2 py-1 rounded text-xs", modeOption.color)}>
