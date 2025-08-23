@@ -429,7 +429,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         {/* Dependencies - Enhanced Visual Display */}
         {task.dependencies && task.dependencies.length > 0 && (
           <div className="mt-2 space-y-1">
-            <div className="flex items-center gap-1 text-xs text-amber-600">
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <GitBranch className="h-3 w-3" />
               <span className="font-medium">Dependencies ({task.dependencies.length})</span>
             </div>
@@ -446,7 +446,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
                       "text-xs flex items-center gap-1",
                       isCompleted
                         ? "bg-green-50 text-green-700 border-green-200"
-                        : "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-muted text-muted-foreground border-muted"
                     )}
                   >
                     {isBlocking && <Lock className="h-2 w-2" />}
@@ -463,7 +463,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
 
         {/* Show if task is blocked by dependencies */}
         {task.dependencies && task.dependencies.some((dep: any) => dep.list !== 'done') && (
-          <div className="mt-1 flex items-center gap-1 text-xs text-amber-600 bg-amber-50 p-1 rounded border border-amber-200">
+          <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground bg-muted p-1 rounded border border-muted">
             <Lock className="h-3 w-3" />
             <span className="font-medium">Blocked by dependencies</span>
           </div>
