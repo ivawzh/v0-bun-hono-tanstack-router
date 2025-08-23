@@ -8,6 +8,9 @@ import { registerActiveSession, registerCompletedSession } from "../session-regi
 import { db } from "@/db";
 import * as schema from "@/db/schema";
 import { eq } from "drizzle-orm";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
 
 export interface ClaudeQueryOptions {
   prompt: string;
@@ -55,7 +58,7 @@ export async function executeClaudeQuery(options: ClaudeQueryOptions): Promise<v
         disallowedTools: options.disallowedTools,
         permissionMode: options.permissionMode || "bypassPermissions",
         model: options.model || "sonnet",
-        mcpServers: options.mcpServers,
+        mcpServers: mergeExistingMcpServers(options.mcpServers, options.repositoryPath),
         cwd: options.repositoryPath,
         env: options.env,
         hooks: {
@@ -219,4 +222,46 @@ async function updateTaskSessionCompleted(
   } catch (error) {
     console.error("[Claude Code] Failed to update task completion state:", error);
   }
+}
+
+export function mergeExistingMcpServers(mcpServers: Options["mcpServers"], repositoryPath: string) {
+  const claudeConfigPath = path.join(os.homedir(), ".claude.json");
+  const totalMcpServers: Options["mcpServers"] = {};
+
+  // Check Claude config for MCP servers
+  if (fs.existsSync(claudeConfigPath)) {
+    try {
+      const claudeConfig = JSON.parse(
+        fs.readFileSync(claudeConfigPath, "utf8")
+      );
+
+      // Check global MCP servers - lowest priority
+      if (
+        claudeConfig.mcpServers &&
+        Object.keys(claudeConfig.mcpServers).length > 0
+      ) {
+        const globalMcpServers = claudeConfig.mcpServers;
+        console.log(`🚀 -> mergeExistingMcpServers -> globalMcpServers:`, globalMcpServers);
+        Object.assign(totalMcpServers, globalMcpServers);
+      }
+
+      // Check project-specific MCP servers - higher priority
+      if (claudeConfig.projects) {
+        const projectConfig = claudeConfig.projects[repositoryPath];
+        if (
+          projectConfig &&
+          projectConfig.mcpServers &&
+          Object.keys(projectConfig.mcpServers).length > 0
+        ) {
+          const projectMcpServers = projectConfig.mcpServers;
+          console.log(`🚀 -> mergeExistingMcpServers -> projectMcpServers:`, projectMcpServers);
+          Object.assign(totalMcpServers, projectMcpServers);
+        }
+      }
+    } catch (e) {
+      console.log(`❌ Failed to parse Claude config:`, e);
+    }
+
+  }// our override mcpServers has the highest priority
+  return Object.assign({}, totalMcpServers, mcpServers);
 }
