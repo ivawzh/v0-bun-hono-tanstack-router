@@ -16,12 +16,36 @@ interface TaskModeSelectorProps {
 }
 
 const modes = [
-  { value: "clarify", label: "Clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
-  { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
-  { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
-  { value: "iterate", label: "Iterate", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
-  { value: "loop", label: "Loop", color: "bg-orange-100 text-orange-800 border-orange-200" },
-  { value: "talk", label: "Talk", color: "bg-green-100 text-green-800 border-green-200" },
+  { 
+    value: "clarify", 
+    label: "Clarify", 
+    color: "bg-purple-100 text-purple-800 border-purple-200",
+    description: "Agent reviews and refines the task requirements"
+  },
+  { 
+    value: "plan", 
+    label: "Plan", 
+    color: "bg-pink-100 text-pink-800 border-pink-200",
+    description: "Agent creates a detailed implementation plan"
+  },
+  { 
+    value: "execute", 
+    label: "Execute", 
+    color: "bg-blue-100 text-blue-800 border-blue-200",
+    description: "Agent directly implements the solution"
+  },
+  { 
+    value: "loop", 
+    label: "Loop", 
+    color: "bg-orange-100 text-orange-800 border-orange-200",
+    description: "Repeatable task that cycles continuously"
+  },
+  { 
+    value: "talk", 
+    label: "Talk", 
+    color: "bg-green-100 text-green-800 border-green-200",
+    description: "Interactive discussion mode with the agent"
+  },
 ];
 
 export function TaskModeSelector({
@@ -103,18 +127,28 @@ export function TaskModeSelector({
         {size === "md" && (
           <>
             <SelectItem value="">
-              <span className="px-2 py-1 rounded text-xs text-muted-foreground">
-                ✨ Default: clarify
-              </span>
+              <div className="flex flex-col gap-1 py-1">
+                <span className="px-2 py-1 rounded text-xs text-muted-foreground">
+                  ✨ Default: Clarify
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Agent will start by reviewing and refining task requirements
+                </span>
+              </div>
             </SelectItem>
             <div className="h-px bg-border my-1" />
           </>
         )}
         {modes.map((modeOption) => (
           <SelectItem key={modeOption.value} value={modeOption.value}>
-            <span className={cn("px-2 py-1 rounded text-xs font-medium", modeOption.color)}>
-              {modeOption.label}
-            </span>
+            <div className="flex flex-col gap-1 py-1">
+              <span className={cn("px-2 py-1 rounded text-xs font-medium w-fit", modeOption.color)}>
+                {modeOption.label}
+              </span>
+              <span className="text-xs text-muted-foreground">
+                {modeOption.description}
+              </span>
+            </div>
           </SelectItem>
         ))}
       </SelectContent>
