@@ -60,12 +60,3 @@ export function generatePrompt(mode: TaskMode, context: PromptParams): string {
       throw new Error(`Unknown mode: ${mode}`);
   }
 }
-
-// Re-export individual prompt generators
-export {
-  generateRefinePrompt,
-  generatePlanPrompt,
-  generateExecutePrompt,
-  generateLoopPrompt,
-  generateTalkPrompt
-};

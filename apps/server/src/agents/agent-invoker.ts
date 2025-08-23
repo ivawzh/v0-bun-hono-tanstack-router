@@ -586,7 +586,7 @@ export async function spawnOpencodeSession(
 
     // Fetch task iterations for execute mode to provide feedback context
     let taskIterations: schema.TaskIteration[] = [];
-    if (mode === 'execute') {
+    if (mode === 'plan') {
       taskIterations = await db
         .select()
         .from(schema.taskIterations)
@@ -659,7 +659,7 @@ export async function spawnOpencodeSession(
             title: `[Solo Unicorn] ${taskData.task.rawTitle || taskData.task.refinedTitle}`,
           },
         });
-        
+
         if (!sessionResponse.data) {
           server.close();
           return {
@@ -667,7 +667,7 @@ export async function spawnOpencodeSession(
             error: "Failed to create OpenCode session",
           };
         }
-        
+
         newSessionId = sessionResponse.data.id;
       }
     } else {
@@ -692,7 +692,7 @@ export async function spawnOpencodeSession(
     // Update task with session info
     await updateTaskSessionStarted(taskId, agentId, newSessionId, projectId);
 
-    // Broadcast session start  
+    // Broadcast session start
     broadcastFlush(projectId);
     console.log(`✅ [OpenCode] Started session ${newSessionId} for task ${taskId}`);
 
@@ -701,7 +701,7 @@ export async function spawnOpencodeSession(
       path: { id: newSessionId },
       body: {
         providerID: options.opcodeProviderID || "anthropic",
-        modelID: options.opcodeModelID || "claude-3-5-sonnet-20241022", 
+        modelID: options.opcodeModelID || "claude-3-5-sonnet-20241022",
         agent: options.opcodeAgent || "AGENTS.md",
         system: `You are an AI coding agent working on task: ${taskData.task.rawTitle || taskData.task.refinedTitle}
 Project: ${taskData.project.name}
@@ -711,7 +711,7 @@ ${taskData.actor ? `Acting as: ${taskData.actor.name}\n${taskData.actor.descript
 
 You have access to Solo Unicorn MCP tools to update task status:
 - mcp__solo-unicorn__task_update
-- mcp__solo-unicorn__task_create  
+- mcp__solo-unicorn__task_create
 - mcp__solo-unicorn__project_memory_get
 - mcp__solo-unicorn__project_memory_update
 
@@ -750,12 +750,12 @@ Environment variables:
     return { success: true };
   } catch (error) {
     console.error("[OpenCode] Failed to spawn OpenCode session:", error);
-    
+
     // Handle rate limit detection in error messages
     if (error instanceof Error) {
       await detectAndHandleRateLimit(error.message, options.agentId);
     }
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown spawn error",

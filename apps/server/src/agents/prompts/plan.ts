@@ -3,11 +3,22 @@
  * Used when agents need to create implementation plans
  */
 
-import { defaultActorDescription } from './defaultActor';
-import { type PromptParams } from './index';
+import { defaultActorDescription } from "./defaultActor";
+import { type PromptParams } from "./index";
 
 export function generatePlanPrompt(context: PromptParams): string {
-  const { task, actor, project } = context;
+  const { task, actor, project, taskIterations } = context;
+
+  const iterationsInfo =
+    taskIterations && taskIterations.length > 0
+      ? `\n\n**Previous Iterations & Feedback**:
+${taskIterations
+  .map(
+    (iteration) =>
+      `- **Iteration ${iteration.iterationNumber}**: ${iteration.feedbackReason} (rejected by ${iteration.rejectedBy})`
+  )
+  .join("\n")}`
+      : "";
 
   return `[plan] ${task.rawTitle || task.refinedTitle}
 **Do not write any code!**
@@ -45,9 +56,9 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above], checkInstruction=[check instructions from step 7]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
-${project.memory ? '**Project Context**: ' + project.memory : ''}
+${project.memory ? "**Project Context**: " + project.memory : ""}
 
 **Task to Plan**:
 - **Title**: ${task.refinedTitle || task.rawTitle}
-- **Description**: ${task.refinedDescription || task.rawDescription || 'No description provided'}`;
+- **Description**: ${task.refinedDescription || task.rawDescription || "No description provided"}`;
 }

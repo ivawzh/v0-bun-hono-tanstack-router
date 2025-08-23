@@ -383,7 +383,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
           // Base styles
           "p-0 gap-0 rounded-lg border shadow-lg duration-200 flex flex-col",
           // Mobile: Full screen with minimal padding
-          "max-md:fixed max-md:inset-2 max-md:w-auto max-md:h-auto max-md:max-w-none max-md:max-h-none max-md:translate-x-0 max-md:translate-y-0 max-md:top-2 max-md:left-2 max-md:right-2 max-md:bottom-2",
+          "max-md:inset-2 max-md:w-auto max-md:h-auto max-md:max-w-none max-md:max-h-none",
           // Desktop: Fixed height like Trello - 80% of viewport height
           "md:w-full md:max-w-4xl md:h-[80vh]"
         )}

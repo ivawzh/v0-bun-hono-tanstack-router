@@ -1305,7 +1305,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
           // Don't clear draft when closing - preserve for later
         }}
       >
-        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col sm:max-w-4xl sm:w-[95vw] max-sm:fixed max-sm:inset-4 max-sm:max-w-none max-sm:w-auto max-sm:h-auto max-sm:rounded-lg max-sm:max-h-[calc(100vh-2rem)]">
+        <DialogContent className="max-sm:inset-2 max-sm:w-auto max-sm:h-auto max-sm:max-w-none max-sm:max-h-none sm:max-w-4xl sm:w-[95vw] max-h-[90vh] flex flex-col">
           <DialogHeader className="flex-shrink-0 pb-4 max-sm:p-4 max-sm:border-b">
             <DialogTitle>Create New Task</DialogTitle>
             <DialogDescription>

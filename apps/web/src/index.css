@@ -386,42 +386,7 @@ body {
       line-height: 1.3;
     }
 
-    /* Mobile modal optimizations */
-    .dialog-content-mobile {
-      position: fixed;
-      inset: 0;
-      max-width: none;
-      width: 100%;
-      height: 100%;
-      border-radius: 0;
-      max-height: none;
-    }
-
-    /* Mobile form input improvements */
-    .mobile-input {
-      font-size: 16px; /* Prevents zoom on iOS */
-      height: 48px;
-      touch-action: manipulation;
-    }
-
-    .mobile-textarea {
-      font-size: 16px;
-      min-height: 80px;
-      touch-action: manipulation;
-    }
-
-    .mobile-select {
-      font-size: 16px;
-      height: 48px;
-      touch-action: manipulation;
-    }
-
-    /* Mobile button improvements */
-    .mobile-button {
-      min-height: 44px;
-      touch-action: manipulation;
-      user-select: none;
-    }
+    /* Essential mobile optimizations (keep these for iOS zoom prevention and touch targets) */
 
     /* Enhanced touch feedback for all interactive elements */
     button, [role="button"], [role="switch"] {
