@@ -41,17 +41,19 @@ export function generateTalkPrompt({
 - Provide architectural guidance at high level
 - Create specifications and requirements
 
-**Required Output**:
-1. Task's title and description
-2. **Analysis**: First-principles analysis of the task. Describe the essences of the subject.
-3. **Options**: List, measure, and rank viable options
-4. Nice to have only when applicable: point of views from business, UX, and architect; mermaid diagrams.
-
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="talk", agentSessionStatus="ACTIVE"
-2. Follow instructions above. Accomplish the task described below in **Task to Work On** section.
-3. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding
-3. **FINISH**: use the MCP tool \`task_update\` with taskId="${task.id}", list="done", mode="talk", agentSessionStatus="INACTIVE".
+2. Read the required task described below in **Task to Work On** section.
+3. Start with recalling a related problem, and then solve this one. Use first-principles reasoning to think step by step.
+4. Create new \`docs/talk/[incremental-number-start-from-000001]-[short-name].md\` file UNLESS task request to update an existing talk file.
+   File ouput:
+    - Oneliner executive summary of the task
+    - Full record of the task's original title and description
+    - **Analysis**: First-principles analysis of the task. Describe the essences of the subject.
+    - **Options**: List, measure, and rank viable options.
+    - Nice to have only when applicable: point of views from business, UX, and architect; mermaid diagrams.
+5. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding
+6. **FINISH**: use the MCP tool \`task_update\` with taskId="${task.id}", list="done", mode="talk", agentSessionStatus="INACTIVE".
 
 ${actorContext}
 ${projectMemory}
