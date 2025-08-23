@@ -196,7 +196,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         "max-sm:active:scale-[0.98] max-sm:hover:scale-[1.02]",
         "min-h-[44px] focus-visible:ring-2 focus-visible:ring-offset-2",
         // Special styling for check mode tasks
-        task.list === 'check' && "ring-2 ring-amber-200 bg-amber-50/50 border-amber-200",
+        task.list === 'check' && "ring-2 ring-amber-200 bg-amber-50 border-amber-200",
         isDragging && "opacity-50 cursor-grabbing scale-105 shadow-xl z-50"
       )}
       {...attributes}
@@ -217,7 +217,10 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
       <CardHeader className="pb-2">
         <div className="kanban-card-header-content">
           <div className="kanban-card-title-wrapper">
-            <CardTitle className="text-sm font-medium kanban-card-title">
+            <CardTitle className={cn(
+              "text-sm font-medium kanban-card-title",
+              task.list === 'check' && "text-amber-900"
+            )}>
               {task.refinedTitle || task.rawTitle}
             </CardTitle>
           </div>
@@ -322,7 +325,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         {description && (
           <div className="mb-2">
             <div className={cn(
-              "text-xs text-muted-foreground kanban-card-text relative",
+              "text-xs kanban-card-text relative",
+              task.list === 'check' ? "text-amber-800" : "text-muted-foreground",
               !showMore && shouldTruncate && "max-h-16 overflow-hidden"
             )}>
               <p className="whitespace-pre-wrap">
@@ -359,7 +363,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         {task.list === 'check' && onApprove && onReject && (
           <div className="kanban-card-list">
             <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-muted-foreground">Approval required</span>
+              <span className="text-xs text-amber-700">Approval required</span>
               <ApprovalActions
                 onApprove={() => onApprove(task.id)}
                 onReject={() => onReject(task.id)}
@@ -391,17 +395,26 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
 
         {/* Repository and Actor info */}
         {task.mainRepository && (
-          <div className="text-xs text-muted-foreground mt-1 kanban-card-text">
+          <div className={cn(
+            "text-xs mt-1 kanban-card-text",
+            task.list === 'check' ? "text-amber-700" : "text-muted-foreground"
+          )}>
             Repo: {task.mainRepository.name}
           </div>
         )}
         {task.assignedAgents && task.assignedAgents.length > 0 && (
-          <div className="text-xs text-muted-foreground mt-1 kanban-card-text">
+          <div className={cn(
+            "text-xs mt-1 kanban-card-text",
+            task.list === 'check' ? "text-amber-700" : "text-muted-foreground"
+          )}>
             Agents: {task.assignedAgents.map((agent: any) => `${agent.agentType} (${agent.name})`).join(", ")}
           </div>
         )}
         {task.actor && (
-          <div className="text-xs text-muted-foreground kanban-card-text">
+          <div className={cn(
+            "text-xs kanban-card-text",
+            task.list === 'check' ? "text-amber-700" : "text-muted-foreground"
+          )}>
             Actor: {task.actor.name}
           </div>
         )}
