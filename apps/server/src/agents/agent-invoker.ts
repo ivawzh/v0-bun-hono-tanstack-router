@@ -76,7 +76,10 @@ export async function spawnClaudeSession(
     // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
-    const modePrompt = generatePrompt(mode, taskData);
+    const modePrompt = generatePrompt(mode, {
+      ...taskData,
+      webUrl: process.env.WEB_APP_URL || 'http://localhost:8302'
+    });
 
     if (!modePrompt || !modePrompt.trim()) {
       return {
@@ -570,7 +573,10 @@ export async function spawnOpencodeSession(
     // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
-    const modePrompt = generatePrompt(mode, taskData);
+    const modePrompt = generatePrompt(mode, {
+      ...taskData,
+      webUrl: process.env.WEB_APP_URL || 'http://localhost:8302'
+    });
 
     if (!modePrompt || !modePrompt.trim()) {
       return {

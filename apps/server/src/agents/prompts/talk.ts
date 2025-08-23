@@ -16,6 +16,7 @@ export function generateTalkPrompt({
   actor,
   project,
   agent,
+  webUrl,
 }: PromptParams): string {
   const actorContext = `**Your Role**: ${actor?.description || defaultActorDescription}`;
   const projectMemory =
@@ -50,7 +51,7 @@ Most importantly, **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode tas
     - **Analysis**: First-principles analysis of the task. Describe the essences of the subject.
     - **Options**: List, measure, and rank viable options.
     - Nice to have only when applicable: point of views from business, UX, and architect; mermaid diagrams.
-5. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding
+5. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding. Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/${task.id}
 6. **FINISH**: use the MCP tool \`task_update\` with taskId="${task.id}", list="done", mode="talk", agentSessionStatus="INACTIVE".
 
 ${actorContext}

@@ -8,7 +8,7 @@ import { defaultCommitAuthorName } from './defaultCommitAuthorName';
 import type { PromptParams } from './index';
 
 export function generateExecutePrompt(context: PromptParams): string {
-  const { task, actor, project, agent } = context;
+  const { task, actor, project, agent, webUrl } = context;
 
   const planSummary = task.plan ? JSON.stringify(task.plan) : 'No plan available';
   const commitAuthorName = defaultCommitAuthorName(agent.agentType);
@@ -19,7 +19,7 @@ Implement the solution following the plan below.
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="execute", agentSessionStatus="ACTIVE"
 2. **Follow the Plan**: Implement the solution as specified in the plan above
-3. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding
+3. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding. Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/${task.id}
 4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="done", mode=null, agentSessionStatus="INACTIVE"
 
 **Your Role**: ${actor?.description || defaultActorDescription}

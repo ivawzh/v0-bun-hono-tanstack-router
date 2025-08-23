@@ -15,6 +15,7 @@ export type PromptParams = {
   actor?: Actor | null;
   project: Project;
   agent: Agent;
+  webUrl: string;
 }
 
 export type TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk';
