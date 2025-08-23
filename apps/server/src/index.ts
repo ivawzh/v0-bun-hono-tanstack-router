@@ -17,7 +17,7 @@ app.use(logger((str, ...rest) => {
   console.log(`${new Date().toISOString()} ${str}`, ...rest);
 }));
 app.use("/*", cors({
-  origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(",") : ["http://localhost:8302", "https://solounicorn.lol", "https://www.solounicorn.lol", "https://api.solounicorn.lol"],
+  origin: process.env.WEB_APP_URL ? process.env.WEB_APP_URL.split(",") : ["http://localhost:8302", "https://solounicorn.lol", "https://www.solounicorn.lol", "https://api.solounicorn.lol"],
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowHeaders: ["Content-Type", "Authorization", "x-forwarded-for", "x-forwarded-proto"],
   credentials: true,

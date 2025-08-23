@@ -90,7 +90,7 @@ Create `apps/server/.env.development`:
 VITE_MONSTER_AUTH_URL=https://auth.alpha.monstermake.limited
 
 # CORS - Development origins
-CORS_ORIGIN=http://localhost:8302
+WEB_APP_URL=http://localhost:8302
 
 # Agent Gateway Authentication
 # Generate a secure token with: openssl rand -hex 32
@@ -389,10 +389,10 @@ If you encounter database connection errors like "connect ECONNREFUSED 127.0.0.1
    ```bash
    # Check for stale processes
    ps aux | grep postgres
-   
+
    # Remove stale lock file if no PostgreSQL process is running
    rm -f $(brew --prefix)/var/postgresql@17/postmaster.pid
-   
+
    # Restart service
    brew services restart postgresql@17
    ```

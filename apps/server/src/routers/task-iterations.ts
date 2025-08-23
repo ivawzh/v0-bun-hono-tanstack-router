@@ -85,10 +85,7 @@ export const taskIterationsRouter = o.router({
     .input(
       v.object({
         taskId: v.pipe(v.string(), v.uuid()),
-        feedbackReason: v.pipe(v.string(), v.minLength(1)),
-        rejectedBy: v.optional(
-          v.union([v.literal("human"), v.literal("ai")])
-        ),
+        feedback: v.pipe(v.string(), v.minLength(1)),
       })
     )
     .handler(async ({ context, input }) => {
@@ -127,8 +124,8 @@ export const taskIterationsRouter = o.router({
         .values({
           taskId: input.taskId,
           iterationNumber,
-          feedbackReason: input.feedbackReason,
-          rejectedBy: input.rejectedBy || "human",
+          feedback: input.feedback,
+          createdBy: context.user.id,
         })
         .returning();
 

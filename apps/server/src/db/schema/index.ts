@@ -11,9 +11,11 @@ export type Helper = typeof helpers.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
 export type TaskIteration = typeof taskIterations.$inferSelect;
 export type AgentType = (typeof agentClientTypeEnum.enumValues)[number];
+export type TaskMode = (typeof taskModeEnum.enumValues)[number];
 
 // Enum for agent client types
 export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
+export const taskModeEnum = pgEnum("task_mode", ["clarify", "plan", "execute", "iterate", "loop", "talk", "check"]);
 
 // User table (minimal for single user)
 export const users = pgTable("users", {
@@ -128,13 +130,13 @@ export const tasks = pgTable("tasks", {
 
   // Plan results
   plan: jsonb("plan").default({}), // Final solution and spec from plan mode
-  
+
   // Check instructions for human review
   checkInstruction: text("check_instruction"), // QA instructions for Check column tasks
 
   // List and mode
   list: text("list", { enum: ["todo", "doing", "done", "loop", "check"] }).notNull().default("todo"),
-  mode: text("mode", { enum: ["clarify", "plan", "execute", "loop", "talk", "check"] }),
+  mode: taskModeEnum("mode"),
 
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest
@@ -202,9 +204,8 @@ export const taskIterations = pgTable("task_iterations", {
   id: uuid("id").primaryKey().defaultRandom(),
   taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   iterationNumber: integer("iteration_number").notNull(),
-  feedbackReason: text("feedback_reason").notNull(),
-  rejectedAt: timestamp("rejected_at").defaultNow().notNull(),
-  rejectedBy: text("rejected_by").notNull().default("human"), // human, ai
+  feedback: text("feedback").notNull(),
+  createdBy: uuid("created_by").references(() => users.id), // User who provided the feedback
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
@@ -212,7 +213,8 @@ export const taskIterations = pgTable("task_iterations", {
 export const usersRelations = relations(users, ({ many }) => ({
   projects: many(projects),
   projectMemberships: many(projectUsers),
-  sentInvitations: many(projectInvitations)
+  sentInvitations: many(projectInvitations),
+  taskIterations: many(taskIterations)
 }));
 
 export const projectsRelations = relations(projects, ({ one, many }) => ({
@@ -348,5 +350,9 @@ export const taskIterationsRelations = relations(taskIterations, ({ one }) => ({
   task: one(tasks, {
     fields: [taskIterations.taskId],
     references: [tasks.id]
+  }),
+  createdByUser: one(users, {
+    fields: [taskIterations.createdBy],
+    references: [users.id]
   })
 }));

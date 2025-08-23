@@ -37,7 +37,7 @@ export function RejectTaskModal({
   open,
   onOpenChange,
 }: RejectTaskModalProps) {
-  const [feedbackReason, setFeedbackReason] = useState("");
+  const [feedback, setFeedback] = useState("");
   const cache = useCacheUtils();
 
   const rejectTask = useMutation(
@@ -51,19 +51,19 @@ export function RejectTaskModal({
             (currentTask) => ({
               ...currentTask,
               list: 'todo' as const,
-              mode: 'plan' as const,
-              feedbackReason: variables.feedbackReason,
+              mode: 'execute' as const,
+              feedback: variables.feedback,
               rejectedAt: new Date().toISOString()
             })
           );
-          
+
           return { context };
         }
         return {};
       },
       onSuccess: () => {
         toast.success("Task sent back for revision with feedback");
-        setFeedbackReason("");
+        setFeedback("");
         onOpenChange(false);
         // Invalidate project data for consistency
         if (projectId) {
@@ -81,20 +81,20 @@ export function RejectTaskModal({
   );
 
   const handleReject = () => {
-    if (!taskId || !feedbackReason.trim()) return;
-    rejectTask.mutate({ 
-      id: taskId, 
-      feedbackReason: feedbackReason.trim() 
+    if (!taskId || !feedback.trim()) return;
+    rejectTask.mutate({
+      id: taskId,
+      feedback: feedback.trim()
     });
   };
 
   const handleClose = () => {
     if (rejectTask.isPending) return;
-    setFeedbackReason("");
+    setFeedback("");
     onOpenChange(false);
   };
 
-  const isFormValid = feedbackReason.trim().length > 0;
+  const isFormValid = feedback.trim().length > 0;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -106,7 +106,7 @@ export function RejectTaskModal({
           </DialogTitle>
           <DialogDescription className="space-y-2">
             <p>
-              Task <strong className="font-semibold">"{taskTitle || "Untitled"}"</strong> will be 
+              Task <strong className="font-semibold">"{taskTitle || "Untitled"}"</strong> will be
               sent back to the Todo list for revision.
             </p>
             <p className="text-amber-600 dark:text-amber-500 font-medium">
@@ -123,11 +123,11 @@ export function RejectTaskModal({
             <Textarea
               id="feedback-reason"
               placeholder="Explain what needs to be changed or improved..."
-              value={feedbackReason}
-              onChange={(e) => setFeedbackReason(e.target.value)}
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
               className={cn(
                 "min-h-[120px] resize-none",
-                feedbackReason.trim() && feedbackReason.trim().length < 10 && "border-amber-300 focus:border-amber-400"
+                feedback.trim() && feedback.trim().length < 10 && "border-amber-300 focus:border-amber-400"
               )}
               disabled={rejectTask.isPending}
               maxLength={2000}
@@ -135,12 +135,12 @@ export function RejectTaskModal({
             />
             <div className="flex items-center justify-between text-xs">
               <div className="text-muted-foreground">
-                {feedbackReason.trim().length < 10 && feedbackReason.length > 0 && (
+                {feedback.trim().length < 10 && feedback.length > 0 && (
                   <span className="text-amber-600">Please provide more detailed feedback</span>
                 )}
               </div>
               <span className="text-muted-foreground">
-                {feedbackReason.length}/2000
+                {feedback.length}/2000
               </span>
             </div>
           </div>
@@ -170,7 +170,7 @@ export function RejectTaskModal({
           <Button
             variant="default"
             onClick={handleReject}
-            disabled={!isFormValid || rejectTask.isPending || feedbackReason.trim().length < 10}
+            disabled={!isFormValid || rejectTask.isPending || feedback.trim().length < 10}
             className="min-w-[140px] bg-amber-600 hover:bg-amber-700 text-white"
           >
             {rejectTask.isPending ? (

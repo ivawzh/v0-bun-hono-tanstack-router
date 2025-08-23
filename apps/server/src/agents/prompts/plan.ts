@@ -7,18 +7,7 @@ import { defaultActorDescription } from "./defaultActor";
 import { type PromptParams } from "./index";
 
 export function generatePlanPrompt(context: PromptParams): string {
-  const { task, actor, project, taskIterations } = context;
-
-  const iterationsInfo =
-    taskIterations && taskIterations.length > 0
-      ? `\n\n**Previous Iterations & Feedback**:
-${taskIterations
-  .map(
-    (iteration) =>
-      `- **Iteration ${iteration.iterationNumber}**: ${iteration.feedbackReason} (rejected by ${iteration.rejectedBy})`
-  )
-  .join("\n")}`
-      : "";
+  const { task, actor, project } = context;
 
   return `[plan] ${task.rawTitle || task.refinedTitle}
 **Do not write any code!**
@@ -40,20 +29,21 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Detailed implementation steps breakdown
    - You may provide detailed modifying files, line numbers, function names, etc to help future agent look up the codebase.
    - Potential risks and mitigations (only if necessary)
-7. **Generate Check Instructions**: Based on your plan, create 2-4 concise bullet-point QA instructions that will help humans review and approve the task when it moves to Check column. Focus on key validation points like functionality, integration, testing, and quality.
-8. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
+7. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
    - Count implementation steps (exclude planning/analysis steps)
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
      * Split into smaller tasks using \`task_create\` with:
        - Clear and detailed context for the new task - what, why, how, etc. Also provide parent task and immediate prerequisite tasks' context. Be extra clear because the agent will execute the new task only based on this context.
        - Full plan in same format as step 5.
-       - createdByTaskId="${task.id}", refinedTitle, refinedDescription, plan, priority=${task.priority}, mode="execute"
+       - createdByTaskId="${task.id}", refinedTitle, refinedDescription, plan, priority=${task.priority}, mode="execute", checkInstruction=[human review instructions]
        - **Only use dependsOnTaskIds if tasks must execute in specific order**
        - For ordered tasks: Create first task without dependsOnTaskIds, note returned task ID, use it for next task, e.g. dependsOnTaskIds=[prerequisite_task_id]
        - For parallel tasks: Leave dependsOnTaskIds empty for all
      * Mark current task done: \`task_update\` with taskId="${task.id}", list="done", agentSessionStatus="INACTIVE"
-   - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above], checkInstruction=[check instructions from step 7]
+   - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above], checkInstruction=[human review instructions]
+
+**Human review instructions**: should be end-user UX oriented instructions when possible. You may mention changes made and expected outcome accordingly.
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? "**Project Context**: " + project.memory : ""}

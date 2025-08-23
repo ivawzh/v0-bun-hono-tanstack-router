@@ -50,9 +50,9 @@ export interface TaskIteration {
   id: string;
   taskId: string;
   iterationNumber: number;
-  feedbackReason: string;
-  rejectedAt: string | Date;
-  rejectedBy: string;
+  feedback: string;
+  createdBy: string | null;
+  createdAt: string | Date;
 }
 
 export interface TaskV2 {
@@ -63,7 +63,7 @@ export interface TaskV2 {
   refinedTitle: string | null;
   refinedDescription: string | null;
   list: 'todo' | 'doing' | 'done' | 'loop' | 'check';
-  mode: 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | 'check' | null;
+  mode: 'clarify' | 'plan' | 'execute' | 'iterate' | 'loop' | 'talk' | 'check' | null;
   priority: number;
   ready: boolean;
   plan?: any;

@@ -3,12 +3,7 @@
  */
 
 import { spawn } from "child_process";
-import crossSpawn from "cross-spawn";
-import { generatePrompt, type TaskMode } from "./prompts";
-import {
-  registerActiveSession,
-  registerCompletedSession,
-} from "./session-registry";
+import { generatePrompt } from "./prompts";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 import * as schema from "../db/schema/index";
@@ -27,9 +22,6 @@ import {
 import { executeClaudeQuery, type ClaudeQueryOptions } from "./claude-code/claude-sdk-query";
 import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk";
 
-// Use cross-spawn on Windows for better command execution
-const spawnFunction = process.platform === "win32" ? crossSpawn : spawn;
-
 export interface SpawnOptions {
   sessionId?: string | null;
   taskId: string;
@@ -39,7 +31,7 @@ export interface SpawnOptions {
   additionalRepositories?: schema.Repository[];
   claudeConfigDir?: string;
   opencodeConfigDir?: string;
-  mode: TaskMode;
+  mode: schema.TaskMode;
   model?: string;
   permissionMode?: PermissionMode;
   // OpenCode specific options
@@ -586,7 +578,7 @@ export async function spawnOpencodeSession(
 
     // Fetch task iterations for execute mode to provide feedback context
     let taskIterations: schema.TaskIteration[] = [];
-    if (mode === 'plan') {
+    if (mode === 'iterate') {
       taskIterations = await db
         .select()
         .from(schema.taskIterations)

@@ -86,7 +86,7 @@ app.get('/callback', async (c) => {
 
   const frontendOrigin =
     process.env.FRONTEND_ORIGIN ||
-    process.env.CORS_ORIGIN ||
+    process.env.WEB_APP_URL ||
     'http://localhost:8302';
   console.log('🔁 Redirecting back to frontend:', frontendOrigin);
   return c.redirect(frontendOrigin);

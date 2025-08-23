@@ -19,6 +19,7 @@ const modes = [
   { value: "clarify", label: "Clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
   { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
   { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
+  { value: "iterate", label: "Iterate", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
   { value: "loop", label: "Loop", color: "bg-orange-100 text-orange-800 border-orange-200" },
   { value: "talk", label: "Talk", color: "bg-green-100 text-green-800 border-green-200" },
 ];
@@ -30,23 +31,28 @@ export function TaskModeSelector({
   disabled = false,
   size = "sm"
 }: TaskModeSelectorProps) {
-  // For Doing and Done tasks, show read-only mode badges
-  if (list === "doing" || list === "done") {
+  // For Doing, Done, and Check tasks, show read-only mode badges
+  if (list === "doing" || list === "done" || list === "check") {
     if (!mode) {
       return null;
     }
     
     const currentMode = modes.find(m => m.value === mode);
-    if (!currentMode) {
+    // For check mode, show special "Review" label
+    const displayMode = list === "check" && mode === "check" 
+      ? { label: "Review", color: "bg-amber-100 text-amber-800 border-amber-200" }
+      : currentMode;
+      
+    if (!displayMode) {
       return null;
     }
 
     return (
       <div className={cn(
         "h-6 text-xs px-2 py-1 rounded font-medium border inline-flex items-center",
-        currentMode.color
+        displayMode.color
       )}>
-        {currentMode.label}
+        {displayMode.label}
       </div>
     );
   }

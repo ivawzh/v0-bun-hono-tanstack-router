@@ -550,7 +550,7 @@ export const tasksRouter = o.router({
           input.list,
           input.mode !== undefined ? input.mode : null
         );
-        
+
         if (!validation.valid) {
           throw new Error(validation.error);
         }
@@ -767,7 +767,7 @@ export const tasksRouter = o.router({
             taskUpdate.list,
             null // We'll determine new mode below
           );
-          
+
           if (!validation.valid) {
             throw new Error(validation.error);
           }
@@ -1469,7 +1469,7 @@ export const tasksRouter = o.router({
     .input(
       v.object({
         id: v.pipe(v.string(), v.uuid()),
-        feedbackReason: v.pipe(v.string(), v.minLength(1)),
+        feedback: v.pipe(v.string(), v.minLength(1)),
       })
     )
     .handler(async ({ context, input }) => {
@@ -1510,16 +1510,16 @@ export const tasksRouter = o.router({
         .values({
           taskId: input.id,
           iterationNumber,
-          feedbackReason: input.feedbackReason,
-          rejectedBy: "human",
+          feedback: input.feedback,
+          createdBy: context.user.id, // Reference to the user who provided the feedback
         });
 
-      // Move task back to todo and reset mode
+      // Move task back to todo and set mode to execute (skip clarify/plan for iterations)
       const updated = await db
         .update(tasks)
         .set({
           list: "todo",
-          mode: "clarify",
+          mode: "execute",
           ready: true, // Make ready for pickup
           updatedAt: new Date(),
         })
@@ -1527,7 +1527,7 @@ export const tasksRouter = o.router({
         .returning();
 
       // Broadcast detailed task rejected message for real-time UI updates
-      broadcastTaskRejected(task[0].project.id, updated[0], iterationNumber, input.feedbackReason);
+      broadcastTaskRejected(task[0].project.id, updated[0], iterationNumber, input.feedback);
 
       // Broadcast flush to invalidate all queries for this project as fallback
       broadcastFlush(task[0].project.id);
@@ -1535,7 +1535,7 @@ export const tasksRouter = o.router({
       return {
         task: updated[0],
         iterationNumber,
-        feedbackReason: input.feedbackReason,
+        feedback: input.feedback,
       };
     }),
 });

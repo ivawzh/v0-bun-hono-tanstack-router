@@ -134,7 +134,7 @@ class WebSocketServer {
   }
 
   // Broadcast task rejection with detailed state changes
-  broadcastTaskRejected(projectId: string, taskData: any, iterationNumber: number, feedbackReason: string) {
+  broadcastTaskRejected(projectId: string, taskData: any, iterationNumber: number, feedback: string) {
     const message = {
       type: 'task.rejected',
       data: {
@@ -142,7 +142,7 @@ class WebSocketServer {
         taskId: taskData.id,
         task: taskData,
         iterationNumber,
-        feedbackReason,
+        feedback,
         timestamp: new Date().toISOString()
       }
     };
@@ -272,6 +272,6 @@ export function broadcastTaskApproved(projectId: string, taskData: any) {
   wsManager.broadcastTaskApproved(projectId, taskData);
 }
 
-export function broadcastTaskRejected(projectId: string, taskData: any, iterationNumber: number, feedbackReason: string) {
-  wsManager.broadcastTaskRejected(projectId, taskData, iterationNumber, feedbackReason);
+export function broadcastTaskRejected(projectId: string, taskData: any, iterationNumber: number, feedback: string) {
+  wsManager.broadcastTaskRejected(projectId, taskData, iterationNumber, feedback);
 }

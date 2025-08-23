@@ -402,7 +402,7 @@ export const projectsRouter = o.router({
         .returning();
 
       // Send invitation email
-      const invitationUrl = `${process.env.CORS_ORIGIN}/invite/${token}`;
+      const invitationUrl = `${process.env.WEB_APP_URL}/invite/${token}`;
 
       await EmailService.sendInvitation({
         inviterName: context.user.displayName,

@@ -8,7 +8,10 @@ import { generatePlanPrompt } from './plan';
 import { generateExecutePrompt } from './execute';
 import { generateLoopPrompt } from './loop';
 import { generateTalkPrompt } from './talk';
-import { type Actor, type Agent, type Project, type Task, type TaskIteration } from '../../db/schema';
+import { type Actor, type Agent, type Project, type Task, type TaskIteration, type TaskMode } from '../../db/schema';
+import { generateIteratePrompt } from './iterate';
+
+export type { TaskMode } from '../../db/schema';
 
 export type PromptParams = {
   task: Task;
@@ -18,8 +21,6 @@ export type PromptParams = {
   webUrl: string;
   taskIterations?: Array<TaskIteration>;
 }
-
-export type TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | 'check';
 
 /**
  * Convert agent type enum to user-friendly display name
@@ -52,10 +53,8 @@ export function generatePrompt(mode: TaskMode, context: PromptParams): string {
       return generateLoopPrompt(context);
     case 'talk':
       return generateTalkPrompt(context);
-    case 'check':
-      // For check mode, we'll reuse the execute prompt since check is essentially
-      // a retry of execution after feedback
-      return generateExecutePrompt(context);
+    case 'iterate':
+      return generateIteratePrompt(context);
     default:
       throw new Error(`Unknown mode: ${mode}`);
   }

@@ -371,6 +371,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     { value: "clarify", label: "Clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
+    { value: "iterate", label: "Iterate", color: "bg-yellow-100 text-yellow-800 border-yellow-200" },
     { value: "check", label: "Review", color: "bg-orange-100 text-orange-800 border-orange-200" },
   ];
 

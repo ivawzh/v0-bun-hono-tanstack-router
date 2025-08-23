@@ -32,14 +32,14 @@ export function TaskIterationHistory({ iterations, className }: TaskIterationHis
       <Label className="text-sm font-medium">Iteration History ({iterations.length})</Label>
       <div className="space-y-3 max-h-[300px] overflow-y-auto">
         {iterations
-          .sort((a, b) => new Date(b.rejectedAt).getTime() - new Date(a.rejectedAt).getTime())
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
           .map((iteration, index) => (
-          <Card 
-            key={iteration.id} 
+          <Card
+            key={iteration.id}
             className={cn(
               "border-l-4",
-              index === 0 
-                ? "border-l-red-500 bg-red-50/50 dark:bg-red-950/20" 
+              index === 0
+                ? "border-l-red-500 bg-red-50/50 dark:bg-red-950/20"
                 : "border-l-amber-400 bg-amber-50/30 dark:bg-amber-950/10"
             )}
           >
@@ -50,12 +50,12 @@ export function TaskIterationHistory({ iterations, className }: TaskIterationHis
                     Iteration #{iteration.iterationNumber}
                   </Badge>
                   <span className="text-muted-foreground">
-                    rejected by {iteration.rejectedBy}
+                    feedback provided
                   </span>
                 </div>
                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                   <Clock className="h-3 w-3" />
-                  {format(new Date(iteration.rejectedAt), "MMM d, yyyy 'at' h:mm a")}
+                  {format(new Date(iteration.createdAt), "MMM d, yyyy 'at' h:mm a")}
                 </div>
               </CardTitle>
             </CardHeader>
@@ -63,7 +63,7 @@ export function TaskIterationHistory({ iterations, className }: TaskIterationHis
               <div className="bg-muted/50 p-3 rounded-md">
                 <Label className="text-xs text-muted-foreground font-medium">Feedback Reason:</Label>
                 <p className="text-sm whitespace-pre-wrap mt-1">
-                  {iteration.feedbackReason}
+                  {iteration.feedback}
                 </p>
               </div>
             </CardContent>

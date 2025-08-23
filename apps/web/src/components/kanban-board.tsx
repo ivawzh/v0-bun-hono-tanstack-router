@@ -197,7 +197,7 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         "touch-manipulation select-none",
         "max-sm:active:scale-[0.98] max-sm:hover:scale-[1.02]",
         "min-h-[44px] focus-visible:ring-2 focus-visible:ring-offset-2",
-        // Special styling for check mode tasks
+        // Special styling for check mode tasks - keep subtle amber ring for visual distinction
         task.list === 'check' && "ring-2 ring-amber-200",
         isDragging && "opacity-50 cursor-grabbing scale-105 shadow-xl z-50"
       )}
