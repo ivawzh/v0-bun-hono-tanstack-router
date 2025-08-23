@@ -69,7 +69,7 @@ export function TaskModeSelector({
   return (
     <Select
       value={mode || ""}
-      onValueChange={(value) => onModeChange(value || null)}
+      onValueChange={(value) => onModeChange(value === "" ? null : value)}
       disabled={disabled}
     >
       <SelectTrigger
@@ -78,7 +78,8 @@ export function TaskModeSelector({
           size === "sm" 
             ? "h-6 text-xs border-0 bg-transparent p-1 w-auto min-w-[70px]" 
             : "h-10 text-sm border border-input bg-background px-3 py-2 w-full min-w-[140px]",
-          currentMode?.color || (size === "sm" ? "bg-gray-100 text-gray-800" : "")
+          size === "sm" && currentMode?.color,
+          size === "sm" && !currentMode && "bg-gray-100 text-gray-800"
         )}
         onClick={(e) => e.stopPropagation()}
       >
