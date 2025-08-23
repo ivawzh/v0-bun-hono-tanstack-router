@@ -83,14 +83,12 @@ export function TaskModeSelector({
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <SelectValue placeholder={size === "md" ? "Default: clarify" : "Select mode"}>  
-          {mode && currentMode ? (
+        <SelectValue 
+          placeholder={size === "md" ? "Default: clarify" : "Select mode"}
+        >
+          {mode && currentMode && (
             <span className={cn("px-2 py-1 rounded text-xs font-medium", currentMode.color)}>
               {currentMode.label}
-            </span>
-          ) : (
-            <span className="text-muted-foreground">
-              {size === "md" ? "Default: clarify" : "Select mode"}
             </span>
           )}
         </SelectValue>
