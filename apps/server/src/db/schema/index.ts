@@ -9,6 +9,7 @@ export type Project = typeof projects.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Helper = typeof helpers.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
+export type AgentType = (typeof agentClientTypeEnum.enumValues)[number];
 
 // Enum for agent client types
 export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);

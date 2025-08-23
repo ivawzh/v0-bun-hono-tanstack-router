@@ -3,18 +3,28 @@
  * For brainstorming, research, planning, and discussion tasks that require NO code writing
  */
 
-import { type PromptParams } from '.';
-import { defaultActorDescription } from './defaultActor';
+import { type PromptParams } from ".";
+import { defaultActorDescription } from "./defaultActor";
+import { defaultCommitAuthorName } from "./defaultCommitAuthorName";
 
 /**
  * Generate prompt for talk mode tasks
  * These tasks focus on thinking, research, and documentation without any code implementation
  */
-export function generateTalkPrompt({ task, actor, project }: PromptParams): string {
-  const actorContext = `**Your Role**: ${actor?.description || defaultActorDescription}`
-  const projectMemory = project.memory && typeof project.memory === 'object' && Object.keys(project.memory).length > 0
-    ? `**Project Context**: ${JSON.stringify(project.memory, null, 2)}`
-    : '';
+export function generateTalkPrompt({
+  task,
+  actor,
+  project,
+  agent,
+}: PromptParams): string {
+  const actorContext = `**Your Role**: ${actor?.description || defaultActorDescription}`;
+  const projectMemory =
+    project.memory &&
+    typeof project.memory === "object" &&
+    Object.keys(project.memory).length > 0
+      ? `**Project Context**: ${JSON.stringify(project.memory, null, 2)}`
+      : "";
+  const commitAuthorName = defaultCommitAuthorName(agent.agentType);
 
   return `[talk] ${task.rawTitle || task.refinedTitle}
 
@@ -33,13 +43,14 @@ export function generateTalkPrompt({ task, actor, project }: PromptParams): stri
 
 **Required Output**:
 1. Task's title and description
-2. **Analysis**: First-principles analysis of the task
+2. **Analysis**: First-principles analysis of the task. Describe the essences of the subject.
 3. **Options**: List, measure, and rank viable options
 4. Nice to have only when applicable: point of views from business, UX, and architect; mermaid diagrams.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="talk", agentSessionStatus="ACTIVE"
 2. Follow instructions above. Accomplish the task described below in **Task to Work On** section.
+3. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding
 3. **FINISH**: use the MCP tool \`task_update\` with taskId="${task.id}", list="done", mode="talk", agentSessionStatus="INACTIVE".
 
 ${actorContext}
@@ -47,6 +58,6 @@ ${projectMemory}
 
 **Task to Work On**:
 - **Title**: ${task.refinedTitle || task.rawTitle}
-- **Description**: ${task.refinedDescription || task.rawDescription || 'No description provided'}
+- **Description**: ${task.refinedDescription || task.rawDescription || "No description provided"}
 `;
 }
