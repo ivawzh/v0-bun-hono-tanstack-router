@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +14,8 @@ interface TodoListSectionsProps {
   onModeChange: (taskId: string, mode: string | null) => void;
   onDeleteTask: (task: any) => void;
   onResetAgent: (task: any) => void;
+  onApprove?: (taskId: string) => void;
+  onReject?: (taskId: string) => void;
   TaskCardComponent: React.ComponentType<{
     task: any;
     onTaskClick: (taskId: string) => void;
@@ -21,6 +23,8 @@ interface TodoListSectionsProps {
     onModeChange: (taskId: string, mode: string | null) => void;
     onDeleteTask: (task: any) => void;
     onResetAgent: (task: any) => void;
+    onApprove?: (taskId: string) => void;
+    onReject?: (taskId: string) => void;
   }>;
 }
 
@@ -32,6 +36,8 @@ export function TodoListSections({
   onModeChange,
   onDeleteTask,
   onResetAgent,
+  onApprove,
+  onReject,
   TaskCardComponent,
 }: TodoListSectionsProps) {
   const [normalSectionCollapsed, setNormalSectionCollapsed] = useState(false);
@@ -92,6 +98,8 @@ export function TodoListSections({
                     onModeChange={onModeChange}
                     onDeleteTask={onDeleteTask}
                     onResetAgent={onResetAgent}
+                    onApprove={onApprove}
+                    onReject={onReject}
                   />
                 ))}
                 {normalTasks.length === 0 && (
@@ -111,7 +119,7 @@ export function TodoListSections({
         loopSectionCollapsed ? "flex-shrink-0" : "flex-1 min-h-0"
       )}>
         {/* Loop Section Header */}
-        <div className="flex items-center justify-between p-2 bg-muted/30 border-b border-border/20">
+        <div className="flex items-center justify-between p-2 bg-orange-50/50 border-b border-orange-200/40">
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
@@ -125,8 +133,9 @@ export function TodoListSections({
                 <ChevronUp className="h-3 w-3" />
               )}
             </Button>
-            <span className="text-sm font-medium text-muted-foreground">Loop</span>
-            <Badge variant="outline" className="h-5 text-xs">
+            <RotateCcw className="h-3 w-3 text-orange-600" />
+            <span className="text-sm font-medium text-orange-700">Loop Tasks</span>
+            <Badge variant="outline" className="h-5 text-xs bg-orange-100 text-orange-800 border-orange-300">
               {loopTasks.length}
             </Badge>
           </div>
@@ -134,7 +143,7 @@ export function TodoListSections({
 
         {/* Loop Tasks Content */}
         <div className={cn(
-          "transition-all duration-300 overflow-hidden",
+          "transition-all duration-300 overflow-hidden bg-orange-50/20",
           getContentHeight(loopSectionCollapsed, normalSectionCollapsed)
         )}>
           <ScrollArea className="h-full">
@@ -149,6 +158,8 @@ export function TodoListSections({
                     onModeChange={onModeChange}
                     onDeleteTask={onDeleteTask}
                     onResetAgent={onResetAgent}
+                    onApprove={onApprove}
+                    onReject={onReject}
                   />
                 ))}
                 {loopTasks.length === 0 && (

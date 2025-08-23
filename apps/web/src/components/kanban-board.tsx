@@ -53,6 +53,7 @@ import { DeleteTaskDialog } from "@/components/delete-task-dialog";
 import { ResetAgentModal } from "@/components/reset-agent-modal";
 import { TodoListSections } from "@/components/todo-list-sections";
 import { TaskPopup } from "@/components/v2/task-popup";
+import { ApprovalActions } from "@/components/approval-actions";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
@@ -82,10 +83,11 @@ interface KanbanBoardProps {
   projectId: string;
 }
 
-// 3-column structure with Loop tasks integrated into Todo
+// 4-column structure with Check column between Doing and Done
 const lists = [
   { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
   { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
+  { id: "check", label: "Check", icon: AlertCircle, color: "bg-amber-500" },
   { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
 ];
 
@@ -93,6 +95,7 @@ const modeColors = {
   clarify: "bg-purple-100 text-purple-800 border-purple-200",
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
+  check: "bg-amber-100 text-amber-800 border-amber-200",
   loop: "bg-orange-100 text-orange-800 border-orange-200",
   talk: "bg-green-100 text-green-800 border-green-200",
 };
@@ -156,9 +159,11 @@ interface TaskCardProps {
   onModeChange: (taskId: string, mode: string | null) => void;
   onDeleteTask: (task: any) => void;
   onResetAgent: (task: any) => void;
+  onApprove?: (taskId: string) => void;
+  onReject?: (taskId: string) => void;
 }
 
-function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask, onResetAgent }: TaskCardProps) {
+function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask, onResetAgent, onApprove, onReject }: TaskCardProps) {
   const [showMore, setShowMore] = useState(false);
   const {
     attributes,
@@ -190,6 +195,8 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
         "touch-manipulation select-none",
         "max-sm:active:scale-[0.98] max-sm:hover:scale-[1.02]",
         "min-h-[44px] focus-visible:ring-2 focus-visible:ring-offset-2",
+        // Special styling for check mode tasks
+        task.list === 'check' && "ring-2 ring-amber-200 bg-amber-50/50 border-amber-200",
         isDragging && "opacity-50 cursor-grabbing scale-105 shadow-xl z-50"
       )}
       {...attributes}
@@ -348,8 +355,22 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
           </div>
         )}
 
-        {/* Ready toggle - only show for non-completed and non-loop tasks */}
-        {task.list !== 'done' && task.list !== 'loop' && (
+        {/* Approval actions for check mode tasks */}
+        {task.list === 'check' && onApprove && onReject && (
+          <div className="kanban-card-list">
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-xs text-muted-foreground">Approval required</span>
+              <ApprovalActions
+                onApprove={() => onApprove(task.id)}
+                onReject={() => onReject(task.id)}
+                size="sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Ready toggle - only show for non-completed, non-loop, and non-check tasks */}
+        {task.list !== 'done' && task.list !== 'loop' && task.list !== 'check' && (
           <div className="kanban-card-list">
             <div className="kanban-card-ready-toggle">
               <Switch
@@ -862,7 +883,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
     // Check if dropped on a different list
     if (lists.some(col => col.id === overId)) {
-      targetList = overId as "todo" | "doing" | "done";
+      targetList = overId as "todo" | "doing" | "check" | "done";
       // For Todo list, use combined tasks from both sections
       targetTasks = targetList === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetList];
     } else {
@@ -986,7 +1007,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     if (updates.length > 0) {
       updateOrderMutation.mutate({
         projectId,
-        tasks: updates as Array<{ id: string; listOrder: string; list?: "todo" | "doing" | "done" | "loop" }>
+        tasks: updates as Array<{ id: string; listOrder: string; list?: "todo" | "doing" | "check" | "done" | "loop" }>
       });
     }
   };
@@ -1006,7 +1027,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleModeChange = (taskId: string, mode: string | null) => {
-    updateModeMutation.mutate({ id: taskId, mode: mode as "clarify" | "plan" | "execute" | "loop" | null });
+    updateModeMutation.mutate({ id: taskId, mode: mode as "clarify" | "plan" | "execute" | "check" | "loop" | null });
   };
 
   const handleDeleteTask = (task: any) => {
@@ -1031,6 +1052,21 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     }
   };
 
+  const handleApprove = (taskId: string) => {
+    // Move task from check to done
+    updateOrderMutation.mutate({
+      projectId,
+      tasks: [{ id: taskId, listOrder: "1000", list: "done" }]
+    });
+  };
+
+  const handleReject = (taskId: string) => {
+    // Move task from check back to doing
+    updateOrderMutation.mutate({
+      projectId,
+      tasks: [{ id: taskId, listOrder: "1000", list: "doing" }]
+    });
+  };
 
   const handleCreateTask = async () => {
     // Check if project has required setup
@@ -1185,6 +1221,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                         onModeChange={handleModeChange}
                         onDeleteTask={handleDeleteTask}
                         onResetAgent={handleResetAgent}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
                         TaskCardComponent={TaskCard}
                       />
                     ) : (
@@ -1200,6 +1238,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                                 onModeChange={handleModeChange}
                                 onDeleteTask={handleDeleteTask}
                                 onResetAgent={handleResetAgent}
+                                onApprove={handleApprove}
+                                onReject={handleReject}
                               />
                             ))}
                           </div>
@@ -1224,6 +1264,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
               onModeChange={() => {}}
               onDeleteTask={() => {}}
               onResetAgent={() => {}}
+              onApprove={() => {}}
+              onReject={() => {}}
             />
           ) : null}
         </DragOverlay>
