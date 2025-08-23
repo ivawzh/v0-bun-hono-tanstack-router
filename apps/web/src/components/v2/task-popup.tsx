@@ -240,7 +240,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
   const handleListChange = (list: string) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      list: list as 'todo' | 'doing' | 'done'
+      list: list as 'todo' | 'doing' | 'done' | 'loop' | 'check'
     });
   };
 
@@ -254,7 +254,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
   const handleModeChange = (mode: string | null) => {
     updateTaskMutation.mutate({
       id: taskId!,
-      mode: mode as "execute" | "plan" | "clarify" | undefined
+      mode: mode as "execute" | "plan" | "clarify" | "check" | "loop" | "talk" | undefined
     });
   };
 
@@ -371,6 +371,7 @@ export function TaskPopup({ taskId, open, onOpenChange }: TaskPopupProps) {
     { value: "clarify", label: "Clarify", color: "bg-purple-100 text-purple-800 border-purple-200" },
     { value: "plan", label: "Plan", color: "bg-pink-100 text-pink-800 border-pink-200" },
     { value: "execute", label: "Execute", color: "bg-blue-100 text-blue-800 border-blue-200" },
+    { value: "check", label: "Review", color: "bg-orange-100 text-orange-800 border-orange-200" },
   ];
 
   const currentMode = modeOptions.find(s => s.value === task?.mode);

@@ -43,6 +43,8 @@ import { MultiSelectAgents } from "./multi-select-agents";
 import { MultiSelectRepositories } from "./multi-select-repositories";
 import { TaskDependencySelector } from "./task-dependency-selector";
 import { TaskDependencyGraph } from "./task-dependency-graph";
+import { TaskIterationHistory } from "@/components/task-iteration-history";
+import { TaskApprovalControls } from "@/components/task-approval-controls";
 import type { TaskV2, DependencyData, Repository, Agent, Actor, AvailableTask } from "@/types/task";
 
 
@@ -77,6 +79,8 @@ const listOptions = [
   { value: "todo", label: "Todo", color: "bg-slate-500" },
   { value: "doing", label: "Doing", color: "bg-blue-500" },
   { value: "done", label: "Done", color: "bg-green-500" },
+  { value: "loop", label: "Loop", color: "bg-purple-500" },
+  { value: "check", label: "Check", color: "bg-orange-500" },
 ];
 
 export function TaskContent({
@@ -106,7 +110,7 @@ export function TaskContent({
   onDeleteTask,
 }: TaskContentProps) {
   return (
-    <Tabs defaultValue="overview" className="flex flex-col h-full">
+    <Tabs defaultValue={task.list === 'check' ? 'check' : 'overview'} className="flex flex-col h-full">
       <div className="flex-shrink-0">
         <TabsList className="px-4 sm:px-6 w-full justify-start rounded-none border-b h-10 sm:h-12">
           <TabsTrigger value="overview" className="text-xs sm:text-sm px-2 sm:px-3">Overview</TabsTrigger>
@@ -121,6 +125,18 @@ export function TaskContent({
             )}
           </TabsTrigger>
           <TabsTrigger value="plan" className="text-xs sm:text-sm px-2 sm:px-3">Plan</TabsTrigger>
+          {task.list === 'check' && (
+            <TabsTrigger value="check" className="text-xs sm:text-sm px-2 sm:px-3">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Review</span>
+              <span className="sm:hidden">Review</span>
+              {task.iterations && task.iterations.length > 0 && (
+                <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
+                  {task.iterations.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="attachments" className="text-xs sm:text-sm px-2 sm:px-3">
             <span className="hidden sm:inline">Attachments</span>
             <span className="sm:hidden">Files</span>
@@ -419,6 +435,21 @@ export function TaskContent({
               />
             </div>
           </TabsContent>
+
+          {/* Check Mode Tab - Only visible for tasks in check list */}
+          {task.list === 'check' && (
+            <TabsContent value="check" className="mt-0">
+              <div className="space-y-6">
+                {/* Approval Controls */}
+                <TaskApprovalControls task={task} />
+                
+                <Separator />
+                
+                {/* Iteration History */}
+                <TaskIterationHistory iterations={task.iterations || []} />
+              </div>
+            </TabsContent>
+          )}
 
           {/* Attachments Tab */}
           <TabsContent value="attachments" className="mt-0">

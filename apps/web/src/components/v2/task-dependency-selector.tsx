@@ -15,7 +15,7 @@ interface Task {
   id: string;
   rawTitle: string;
   refinedTitle?: string | null;
-  list: 'todo' | 'doing' | 'done' | 'loop';
+  list: 'todo' | 'doing' | 'done' | 'loop' | 'check';
   priority: number;
 }
 

@@ -33,7 +33,7 @@ export interface TaskDependency {
   id: string;
   rawTitle: string;
   refinedTitle: string | null;
-  list: 'todo' | 'doing' | 'done' | 'loop';
+  list: 'todo' | 'doing' | 'done' | 'loop' | 'check';
   priority: number;
 }
 
@@ -42,8 +42,17 @@ export interface AvailableTask {
   id: string;
   rawTitle: string;
   refinedTitle?: string | null;
-  list: 'todo' | 'doing' | 'done' | 'loop';
+  list: 'todo' | 'doing' | 'done' | 'loop' | 'check';
   priority: number;
+}
+
+export interface TaskIteration {
+  id: string;
+  taskId: string;
+  iterationNumber: number;
+  feedbackReason: string;
+  rejectedAt: string | Date;
+  rejectedBy: string;
 }
 
 export interface TaskV2 {
@@ -53,8 +62,8 @@ export interface TaskV2 {
   rawDescription: string | null;
   refinedTitle: string | null;
   refinedDescription: string | null;
-  list: 'todo' | 'doing' | 'done' | 'loop';
-  mode: 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | null;
+  list: 'todo' | 'doing' | 'done' | 'loop' | 'check';
+  mode: 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | 'check' | null;
   priority: number;
   ready: boolean;
   plan?: any;
@@ -76,6 +85,7 @@ export interface TaskV2 {
   actor?: Actor | null;
   activeSession?: any;
   dependencies?: TaskDependency[];
+  iterations?: TaskIteration[];
 
   // Compatibility
   project?: any; // For backward compatibility with API responses

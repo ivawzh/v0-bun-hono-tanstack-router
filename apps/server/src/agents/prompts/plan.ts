@@ -34,7 +34,7 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
      * Split into smaller tasks using \`task_create\` with:
-       - Clear and detailed context for the task - what, why, how, etc.
+       - Clear and detailed context for the new task - what, why, how, etc. Also provide parent task and immediate prerequisite tasks' context. Be extra clear because the agent will execute the new task only based on this context.
        - Full plan in same format as step 5.
        - createdByTaskId="${task.id}", refinedTitle, refinedDescription, plan, priority=${task.priority}, mode="execute"
        - **Only use dependsOnTaskIds if tasks must execute in specific order**

@@ -186,6 +186,13 @@ export const tasksRouter = o.router({
         .innerJoin(agents, eq(taskAgents.agentId, agents.id))
         .where(eq(taskAgents.taskId, taskId));
 
+      // Fetch task iterations
+      const iterations = await db
+        .select()
+        .from(taskIterations)
+        .where(eq(taskIterations.taskId, taskId))
+        .orderBy(desc(taskIterations.iterationNumber));
+
       return {
         ...result[0].task,
         project: result[0].project,
@@ -195,6 +202,7 @@ export const tasksRouter = o.router({
         additionalRepositoryIds: additionalRepos.map((r) => r.repository.id),
         assignedAgents: assignedAgentsData.map((a) => a.agent),
         assignedAgentIds: assignedAgentsData.map((a) => a.agent.id),
+        iterations,
       };
     }),
 
