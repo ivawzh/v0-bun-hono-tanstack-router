@@ -65,6 +65,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         await handleAgentRateLimitMessage(message);
         break;
 
+      case 'task.approved':
+        await handleTaskApprovedMessage(message);
+        break;
+
+      case 'task.rejected':
+        await handleTaskRejectedMessage(message);
+        break;
+
       default:
         console.log(`📨 Unknown WebSocket message type: ${message.type}`);
     }
@@ -117,6 +125,44 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
     await enhancedCacheUtils.smartInvalidate(queryClient, {
       entityType: 'agent',
       entityId: agentId,
+      projectId,
+      action: 'update'
+    });
+  }, [queryClient]);
+
+  // Handle task.approved messages
+  const handleTaskApprovedMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    const { taskId, projectId, task } = message.data || {};
+    if (!taskId || !projectId) return;
+
+    console.log('✅ Task approved - updating cache:', { taskId, projectId, taskList: task?.list });
+    
+    // Use enhanced cache utils to smartly update the task state
+    await enhancedCacheUtils.smartInvalidate(queryClient, {
+      entityType: 'task',
+      entityId: taskId,
+      projectId,
+      action: 'update'
+    });
+  }, [queryClient]);
+
+  // Handle task.rejected messages  
+  const handleTaskRejectedMessage = useCallback(async (message: WebSocketMessage): Promise<void> => {
+    const { taskId, projectId, task, iterationNumber, feedbackReason } = message.data || {};
+    if (!taskId || !projectId) return;
+
+    console.log('❌ Task rejected - updating cache:', { 
+      taskId, 
+      projectId, 
+      taskList: task?.list, 
+      iterationNumber,
+      feedbackReason: feedbackReason?.slice(0, 50) + '...'
+    });
+    
+    // Use enhanced cache utils to smartly update the task state
+    await enhancedCacheUtils.smartInvalidate(queryClient, {
+      entityType: 'task',
+      entityId: taskId,
       projectId,
       action: 'update'
     });
@@ -182,6 +228,14 @@ export function useWebSocket(options: UseWebSocketOptions = {}) {
         'Malformed flush command fallback',
         { maxRetries: 1, fallbackStrategy }
       ).catch(() => console.error('❌ Parsing error fallback failed'));
+    } else if (rawData.includes('task.approved') || rawData.includes('task.rejected')) {
+      console.log('🔄 Detected task approval/rejection in malformed message, executing task fallback');
+      cacheRecoveryService.executeWithRecovery(
+        queryClient,
+        () => queryClient.invalidateQueries({ queryKey: ['tasks'] }),
+        'Malformed task approval/rejection fallback',
+        { maxRetries: 1, fallbackStrategy }
+      ).catch(() => console.error('❌ Task approval/rejection parsing error fallback failed'));
     }
   }, [queryClient, fallbackStrategy]);
 

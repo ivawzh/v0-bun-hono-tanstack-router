@@ -72,7 +72,7 @@ function assertBearer(authHeader: string | string[] | undefined) {
 // Helper function to calculate new task listOrder based on positioning strategy
 async function calculateNewListOrder(
   positioning: "FIRST" | "LAST" | "FIRST_IN_MODE" | "LAST_IN_MODE",
-  targetList: "todo" | "doing" | "done" | "loop",
+  targetList: "todo" | "doing" | "done" | "loop" | "check",
   targetMode: string | null | undefined,
   projectId: string
 ): Promise<string> {

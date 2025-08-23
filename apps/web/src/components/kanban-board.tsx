@@ -54,6 +54,7 @@ import { ResetAgentModal } from "@/components/reset-agent-modal";
 import { TodoListSections } from "@/components/todo-list-sections";
 import { TaskPopup } from "@/components/v2/task-popup";
 import { ApprovalActions } from "@/components/approval-actions";
+import { RejectTaskModal } from "@/components/reject-task-modal";
 import type { AttachmentFile } from "@/hooks/use-task-draft";
 import { useWebSocket } from "@/hooks/use-websocket";
 import { useTaskDraft } from "@/hooks/use-task-draft";
@@ -486,6 +487,8 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   const [taskToReset, setTaskToReset] = useState<any>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
   const [showTaskPopup, setShowTaskPopup] = useState(false);
+  const [rejectTaskId, setRejectTaskId] = useState<string | null>(null);
+  const [showRejectModal, setShowRejectModal] = useState(false);
   // Use task draft hook for auto-save functionality
   const { draft: newTask, updateDraft, clearDraft, hasDraft } = useTaskDraft(newTaskList);
 
@@ -1074,11 +1077,9 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
   };
 
   const handleReject = (taskId: string) => {
-    // Move task from check back to doing
-    updateOrderMutation.mutate({
-      projectId,
-      tasks: [{ id: taskId, listOrder: "1000", list: "doing" }]
-    });
+    // Open reject modal to collect feedback
+    setRejectTaskId(taskId);
+    setShowRejectModal(true);
   };
 
   const handleCreateTask = async () => {
@@ -1511,6 +1512,15 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         taskTitle={taskToReset?.refinedTitle || taskToReset?.rawTitle || ""}
         onConfirm={handleConfirmReset}
         loading={resetAgentMutation.isPending}
+      />
+
+      {/* Reject Task Modal */}
+      <RejectTaskModal
+        taskId={rejectTaskId}
+        taskTitle={rejectTaskId ? project?.tasks?.find((t: any) => t.id === rejectTaskId)?.rawTitle : undefined}
+        projectId={projectId}
+        open={showRejectModal}
+        onOpenChange={setShowRejectModal}
       />
 
       {/* Task Popup */}

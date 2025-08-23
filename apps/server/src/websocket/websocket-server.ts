@@ -103,6 +103,68 @@ class WebSocketServer {
     }
   }
 
+  // Broadcast task approval with detailed state changes
+  broadcastTaskApproved(projectId: string, taskData: any) {
+    const message = {
+      type: 'task.approved',
+      data: {
+        projectId,
+        taskId: taskData.id,
+        task: taskData,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    let sentCount = 0;
+    for (const [clientId, client] of this.clients.entries()) {
+      if (client.projectId === projectId) {
+        try {
+          client.ws.send(JSON.stringify(message));
+          sentCount++;
+        } catch (error) {
+          console.error(`Failed to send task approved update to client ${clientId}:`, error);
+          this.removeClient(clientId);
+        }
+      }
+    }
+
+    if (sentCount > 0) {
+      console.log(`📤 Broadcasted task approved update to ${sentCount} clients in project ${projectId}`);
+    }
+  }
+
+  // Broadcast task rejection with detailed state changes
+  broadcastTaskRejected(projectId: string, taskData: any, iterationNumber: number, feedbackReason: string) {
+    const message = {
+      type: 'task.rejected',
+      data: {
+        projectId,
+        taskId: taskData.id,
+        task: taskData,
+        iterationNumber,
+        feedbackReason,
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    let sentCount = 0;
+    for (const [clientId, client] of this.clients.entries()) {
+      if (client.projectId === projectId) {
+        try {
+          client.ws.send(JSON.stringify(message));
+          sentCount++;
+        } catch (error) {
+          console.error(`Failed to send task rejected update to client ${clientId}:`, error);
+          this.removeClient(clientId);
+        }
+      }
+    }
+
+    if (sentCount > 0) {
+      console.log(`📤 Broadcasted task rejected update to ${sentCount} clients in project ${projectId}`);
+    }
+  }
+
   sendToClient(clientId: string, message: any) {
     const client = this.clients.get(clientId);
     if (client) {
@@ -204,4 +266,12 @@ export function broadcastFlush(projectId?: string) {
 
 export function broadcastAgentRateLimit(projectId: string, agentId: string, rateLimitResetAt: Date | null) {
   wsManager.broadcastAgentRateLimit(projectId, agentId, rateLimitResetAt);
+}
+
+export function broadcastTaskApproved(projectId: string, taskData: any) {
+  wsManager.broadcastTaskApproved(projectId, taskData);
+}
+
+export function broadcastTaskRejected(projectId: string, taskData: any, iterationNumber: number, feedbackReason: string) {
+  wsManager.broadcastTaskRejected(projectId, taskData, iterationNumber, feedbackReason);
 }

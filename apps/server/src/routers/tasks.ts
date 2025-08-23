@@ -14,7 +14,7 @@ import {
   taskIterations,
 } from "../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
-import { broadcastFlush } from "../websocket/websocket-server";
+import { broadcastFlush, broadcastTaskApproved, broadcastTaskRejected } from "../websocket/websocket-server";
 import {
   saveAttachment,
   deleteAttachment,
@@ -1456,7 +1456,10 @@ export const tasksRouter = o.router({
         .where(eq(tasks.id, input.id))
         .returning();
 
-      // Broadcast flush to invalidate all queries for this project
+      // Broadcast detailed task approved message for real-time UI updates
+      broadcastTaskApproved(task[0].project.id, updated[0]);
+
+      // Broadcast flush to invalidate all queries for this project as fallback
       broadcastFlush(task[0].project.id);
 
       return updated[0];
@@ -1523,7 +1526,10 @@ export const tasksRouter = o.router({
         .where(eq(tasks.id, input.id))
         .returning();
 
-      // Broadcast flush to invalidate all queries for this project
+      // Broadcast detailed task rejected message for real-time UI updates
+      broadcastTaskRejected(task[0].project.id, updated[0], iterationNumber, input.feedbackReason);
+
+      // Broadcast flush to invalidate all queries for this project as fallback
       broadcastFlush(task[0].project.id);
 
       return {
