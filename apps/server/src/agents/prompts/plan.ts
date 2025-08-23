@@ -29,7 +29,8 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
    - Detailed implementation steps breakdown
    - You may provide detailed modifying files, line numbers, function names, etc to help future agent look up the codebase.
    - Potential risks and mitigations (only if necessary)
-7. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
+7. **Generate Check Instructions**: Based on your plan, create 2-4 concise bullet-point QA instructions that will help humans review and approve the task when it moves to Check column. Focus on key validation points like functionality, integration, testing, and quality.
+8. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
    - Count implementation steps (exclude planning/analysis steps)
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
@@ -41,7 +42,7 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
        - For ordered tasks: Create first task without dependsOnTaskIds, note returned task ID, use it for next task, e.g. dependsOnTaskIds=[prerequisite_task_id]
        - For parallel tasks: Leave dependsOnTaskIds empty for all
      * Mark current task done: \`task_update\` with taskId="${task.id}", list="done", agentSessionStatus="INACTIVE"
-   - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above]
+   - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="execute", agentSessionStatus="INACTIVE", plan=[from above], checkInstruction=[check instructions from step 7]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? '**Project Context**: ' + project.memory : ''}

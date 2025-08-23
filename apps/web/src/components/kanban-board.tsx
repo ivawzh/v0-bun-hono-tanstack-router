@@ -360,6 +360,18 @@ function TaskCard({ task, onTaskClick, onToggleReady, onModeChange, onDeleteTask
           </div>
         )}
 
+        {/* Check instructions for check mode tasks */}
+        {task.list === 'check' && task.checkInstruction && (
+          <div className="kanban-card-list">
+            <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+              <div className="text-xs font-medium text-amber-800 mb-1">Review Instructions:</div>
+              <div className="text-xs text-amber-700 whitespace-pre-wrap">
+                {task.checkInstruction}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Approval actions for check mode tasks */}
         {task.list === 'check' && onApprove && onReject && (
           <div className="kanban-card-list">

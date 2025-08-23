@@ -128,6 +128,9 @@ export const tasks = pgTable("tasks", {
 
   // Plan results
   plan: jsonb("plan").default({}), // Final solution and spec from plan mode
+  
+  // Check instructions for human review
+  checkInstruction: text("check_instruction"), // QA instructions for Check column tasks
 
   // List and mode
   list: text("list", { enum: ["todo", "doing", "done", "loop", "check"] }).notNull().default("todo"),

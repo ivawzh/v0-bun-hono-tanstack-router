@@ -30,7 +30,7 @@ Implement the solution following the plan below.
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="execute", agentSessionStatus="ACTIVE"
 2. **Follow the Plan**: Implement the solution as specified in the plan above
 3. **Commit Changes**: When making git commits, use author "${commitAuthorName}" to maintain consistent Solo Unicorn branding. Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/${task.id}
-4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="check", mode="check", agentSessionStatus="INACTIVE"
+4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="check", mode="check", agentSessionStatus="INACTIVE"${task.checkInstruction ? `, checkInstruction="${task.checkInstruction}"` : ""}
 
 **Check Mode Expectations**:
 - Your completed work will go to the check column for human review before final approval

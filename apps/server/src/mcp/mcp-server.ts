@@ -196,17 +196,18 @@ function registerMcpTools(server: McpServer) {
         refinedTitle: z.string().optional(),
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
+        checkInstruction: z.string().optional(),
         list: z.enum(["todo", "doing", "done", "loop", "check"]).optional(),
         mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).optional().nullable(),
         agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
     },
     async (input, { requestInfo }) => {
-      const { taskId, refinedTitle, refinedDescription, plan, list, mode, agentSessionStatus } = input;
+      const { taskId, refinedTitle, refinedDescription, plan, checkInstruction, list, mode, agentSessionStatus } = input;
       logger.tool("task_update", "init", { input });
 
       // Prepare initial updates
-      const updates: any = { refinedTitle, refinedDescription, plan, list, mode };
+      const updates: any = { refinedTitle, refinedDescription, plan, checkInstruction, list, mode };
 
       // Handle agentSessionStatus with timestamp tracking
       if (agentSessionStatus !== undefined) {
