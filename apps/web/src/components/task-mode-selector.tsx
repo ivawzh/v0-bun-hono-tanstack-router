@@ -30,8 +30,8 @@ export function TaskModeSelector({
   disabled = false,
   size = "sm"
 }: TaskModeSelectorProps) {
-  // For Todo and Done tasks, show read-only mode badges
-  if (list === "todo" || list === "done") {
+  // For Doing and Done tasks, show read-only mode badges
+  if (list === "doing" || list === "done") {
     if (!mode) {
       return null;
     }
