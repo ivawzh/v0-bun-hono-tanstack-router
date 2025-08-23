@@ -28,18 +28,16 @@ export function generateTalkPrompt({
 
   return `[talk] ${task.rawTitle || task.refinedTitle}
 
-**What You MUST Do**:
-- Start with recalling a related problem, and then solve this one. Use first-principles reasoning to think step by step.
-- **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode task focused on thinking, research, and discussion only. Do not write, modify, or suggest specific code implementations
-- Document in file. Create new \`docs/talk/[incremental-number-start-from-000001]-[short-name].md\` file UNLESS task request to update an existing talk file.
+Most importantly, **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode task focused on thinking, research, and discussion only. No actions except writing response to the file. Do not write any implementation code.
 
 **What You Can Do**:
 - Research and analyze the topic
 - Challenge the original idea, assumptions, and constraints
 - Brainstorm ideas and approaches. List, measure, and rank them.
 - Discuss trade-offs and considerations
-- Provide architectural guidance at high level
+- Provide architectural design at high level
 - Create specifications and requirements
+- Do not to write execution task breakdown or sprint plans unless task explicitly asks for it.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="talk", agentSessionStatus="ACTIVE"
