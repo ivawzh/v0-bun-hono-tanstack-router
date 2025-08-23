@@ -1,6 +1,7 @@
 import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
 import { projectsRouter } from "./projects";
 import { tasksRouter } from "./tasks";
+import { taskIterationsRouter } from "./task-iterations";
 import { agentsRouter } from "./agents";
 import { actorsRouter } from "./actors";
 import { repositoriesRouter } from "./repositories";
@@ -25,6 +26,7 @@ export const appRouter = o.router({
   actors: actorsRouter,
   repositories: repositoriesRouter,
   tasks: tasksRouter,
+  taskIterations: taskIterationsRouter,
   invitations: invitationsRouter,
 });
 export type AppRouter = typeof appRouter;

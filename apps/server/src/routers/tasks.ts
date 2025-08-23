@@ -11,6 +11,7 @@ import {
   taskAgents,
   taskAdditionalRepositories,
   projectUsers,
+  taskIterations,
 } from "../db/schema";
 import { eq, and, desc, sql, inArray } from "drizzle-orm";
 import { broadcastFlush } from "../websocket/websocket-server";
@@ -23,11 +24,42 @@ import {
 } from "../utils/file-storage";
 import { db } from "@/db";
 
-const taskListEnum = v.picklist(["todo", "doing", "done", "loop"]);
+const taskListEnum = v.picklist(["todo", "doing", "done", "loop", "check"]);
 const taskModeEnum = v.nullable(
-  v.picklist(["clarify", "plan", "execute", "loop", "talk"])
+  v.picklist(["clarify", "plan", "execute", "loop", "talk", "check"])
 );
 const prioritySchema = v.pipe(v.number(), v.minValue(1), v.maxValue(5));
+
+// Helper function to validate task state transitions
+function validateTaskStateTransition(
+  fromList: string,
+  fromMode: string | null,
+  toList: string,
+  toMode: string | null
+): { valid: boolean; error?: string } {
+  // Moving to check state - should only be allowed from execute mode
+  if (toList === "check") {
+    if (fromMode !== "execute") {
+      return {
+        valid: false,
+        error: "Tasks can only be moved to check state from execute mode",
+      };
+    }
+  }
+
+  // Moving from check state - should only be allowed to done or back to todo
+  if (fromList === "check") {
+    if (toList !== "done" && toList !== "todo") {
+      return {
+        valid: false,
+        error: "Tasks in check state can only be moved to done or back to todo",
+      };
+    }
+  }
+
+  // Other validations can be added here as needed
+  return { valid: true };
+}
 
 export const tasksRouter = o.router({
   list: protectedProcedure
@@ -191,11 +223,11 @@ export const tasksRouter = o.router({
           .optional()
           .default([]),
         list: z
-          .enum(["todo", "doing", "done", "loop"])
+          .enum(["todo", "doing", "done", "loop", "check"])
           .optional()
           .default("todo"),
         mode: z
-          .enum(["clarify", "plan", "execute", "loop", "talk"])
+          .enum(["clarify", "plan", "execute", "loop", "talk", "check"])
           .nullable()
           .optional(),
         dependencyIds: z.array(z.string().uuid()).optional().default([]),
@@ -306,6 +338,8 @@ export const tasksRouter = o.router({
         // Apply intelligent defaults if no mode provided
         if (input.list === "loop") {
           modeToUse = "loop";
+        } else if (input.list === "check") {
+          modeToUse = "check";
         } else {
           modeToUse = "clarify"; // Default for non-loop tasks
         }
@@ -500,6 +534,21 @@ export const tasksRouter = o.router({
 
       const updates: any = { updatedAt: new Date() };
 
+      // Validate list/mode transitions if being updated
+      if (input.list !== undefined) {
+        const validation = validateTaskStateTransition(
+          task[0].task.list,
+          task[0].task.mode,
+          input.list,
+          input.mode !== undefined ? input.mode : null
+        );
+        
+        if (!validation.valid) {
+          throw new Error(validation.error);
+        }
+        updates.list = input.list;
+      }
+
       if (input.rawTitle !== undefined) updates.rawTitle = input.rawTitle;
       if (input.rawDescription !== undefined)
         updates.rawDescription = input.rawDescription;
@@ -508,7 +557,6 @@ export const tasksRouter = o.router({
       if (input.refinedDescription !== undefined)
         updates.refinedDescription = input.refinedDescription;
       if (input.plan !== undefined) updates.plan = input.plan;
-      if (input.list !== undefined) updates.list = input.list;
       if (input.mode !== undefined) updates.mode = input.mode;
       if (input.priority !== undefined) updates.priority = input.priority;
       if (input.ready !== undefined) updates.ready = input.ready;
@@ -703,12 +751,27 @@ export const tasksRouter = o.router({
         };
 
         if (taskUpdate.list !== undefined) {
+          // Validate the transition before updating
+          const currentTask = task[0];
+          const validation = validateTaskStateTransition(
+            currentTask.list,
+            currentTask.mode,
+            taskUpdate.list,
+            null // We'll determine new mode below
+          );
+          
+          if (!validation.valid) {
+            throw new Error(validation.error);
+          }
+
           updates.list = taskUpdate.list;
           // Handle mode transitions for different lists
           if (taskUpdate.list === "todo" || taskUpdate.list === "done") {
             updates.mode = null;
           } else if (taskUpdate.list === "loop") {
             updates.mode = "loop"; // Loop tasks always have loop mode
+          } else if (taskUpdate.list === "check") {
+            updates.mode = "check"; // Check tasks always have check mode
           }
         }
 
@@ -1342,5 +1405,123 @@ export const tasksRouter = o.router({
       const availableTasks = await query;
 
       return availableTasks;
+    }),
+
+  approveTask: protectedProcedure
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      // Verify ownership and check current state
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects,
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Verify task is in check state
+      if (task[0].task.list !== "check") {
+        throw new Error("Task must be in check state to approve");
+      }
+
+      // Move task to done
+      const updated = await db
+        .update(tasks)
+        .set({
+          list: "done",
+          mode: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, input.id))
+        .returning();
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return updated[0];
+    }),
+
+  rejectTask: protectedProcedure
+    .input(
+      v.object({
+        id: v.pipe(v.string(), v.uuid()),
+        feedbackReason: v.pipe(v.string(), v.minLength(1)),
+      })
+    )
+    .handler(async ({ context, input }) => {
+      // Verify ownership and check current state
+      const task = await db
+        .select({
+          task: tasks,
+          project: projects,
+        })
+        .from(tasks)
+        .innerJoin(projects, eq(tasks.projectId, projects.id))
+        .innerJoin(projectUsers, eq(projectUsers.projectId, projects.id))
+        .where(
+          and(eq(tasks.id, input.id), eq(projectUsers.userId, context.user.id))
+        )
+        .limit(1);
+
+      if (task.length === 0) {
+        throw new Error("Task not found or unauthorized");
+      }
+
+      // Verify task is in check state
+      if (task[0].task.list !== "check") {
+        throw new Error("Task must be in check state to reject");
+      }
+
+      // Get current iteration count for this task
+      const currentIterations = await db
+        .select()
+        .from(taskIterations)
+        .where(eq(taskIterations.taskId, input.id));
+
+      const iterationNumber = currentIterations.length + 1;
+
+      // Create task iteration record
+      await db
+        .insert(taskIterations)
+        .values({
+          taskId: input.id,
+          iterationNumber,
+          feedbackReason: input.feedbackReason,
+          rejectedBy: "human",
+        });
+
+      // Move task back to todo and reset mode
+      const updated = await db
+        .update(tasks)
+        .set({
+          list: "todo",
+          mode: "clarify",
+          ready: true, // Make ready for pickup
+          updatedAt: new Date(),
+        })
+        .where(eq(tasks.id, input.id))
+        .returning();
+
+      // Broadcast flush to invalidate all queries for this project
+      broadcastFlush(task[0].project.id);
+
+      return {
+        task: updated[0],
+        iterationNumber,
+        feedbackReason: input.feedbackReason,
+      };
     }),
 });

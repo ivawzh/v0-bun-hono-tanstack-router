@@ -30,15 +30,15 @@ Todo → Doing (clarify → plan → execute) → Done
 ```
 Todo (including loop tasks) → Doing → Check → Done
                                         ↓
-                                 (reject) → back to Todo/plan
+                                 (reject) → back to Todo+plan
 ```
 
 ### Core Design Principles
 
-1. **Verification as Default**: All agent work must pass through human review
+1. **Verification as Default**: All agent work must pass through human review except for loop tasks
 2. **Iterative Refinement**: Support multiple send-back cycles
-3. **Clear Feedback**: Each rejection needs actionable reasoning
-4. **Minimal Friction**: Approval should be one-click when work is good
+3. **Clear Feedback**: Each rejection needs reasoning
+4. **Minimal Friction**: Approval should be one-click when work is good. Then move to Done list.
 5. **History Preservation**: Track all iterations for learning
 
 ## Options Analysis
@@ -95,33 +95,28 @@ Todo (including loop tasks) → Doing → Check → Done
 ```typescript
 interface Task {
   // Existing fields...
-  
+
   // Verification workflow
-  verificationStatus: 'pending' | 'approved' | 'rejected'
-  checkHistory: CheckIteration[]
-  currentIteration: number
+  mode: 'check'
+  list: 'check'
+  taskIterations: TaskIteration[]
+  iterationNumber: number
+  checkApprovedBy?: UserId
 }
 
-interface CheckIteration {
+interface TaskIteration {
+  id: number
+  requirement?: string
   iterationNumber: number
-  submittedAt: timestamp
-  status: 'pending' | 'approved' | 'rejected'
-  
-  // Rejection details (when status === 'rejected')
-  rejectionReason?: string
-  rejectedAt?: timestamp
-  rejectedBy?: string
-  
-  // Approval details (when status === 'approved')
-  approvedAt?: timestamp
-  approvedBy?: string
+  createdAt: timestamp
+  createdBy?: UserId
 }
 ```
 
 ### State Machine Updates
 
 **Enhanced Enums:**
-- `list`: "todo" | "doing" | "check" | "done"  
+- `list`: "todo" | "doing" | "check" | "done"
 - `mode`: "clarify" | "plan" | "execute" | "check"
 
 **State Transitions:**
@@ -147,8 +142,8 @@ interface CheckIteration {
 - **CheckCard**: Shows task summary and completion preview
 - **VerificationActions**: Approve/Reject buttons
 - **SendBackDialog**: Rejection reason form
-- **IterationBadge**: Shows current iteration count
-- **CheckHistory**: Expandable history of all iterations
+- **IterationBadge**: Shows current iteration number
+- **IterationHistory**: history of expandable iterations on Task view popup. Latest iteration is at the top.
 
 **Shadcn Components:**
 - `Button` (variant="default" for approve, variant="destructive" for reject)
@@ -160,22 +155,8 @@ interface CheckIteration {
 
 ### Field Naming Conventions
 
-**Task Fields:**
-- `verificationStatus` - Current verification state
-- `checkHistory` - Array of all verification attempts
-- `currentIteration` - Counter for tracking cycles
-- `lastSubmittedAt` - Timestamp of latest agent completion
-- `lastCheckedBy` - User who performed last verification
-
-**Iteration Fields:**
-- `iterationNumber` - Sequential counter (1, 2, 3...)
-- `rejectionReason` - Human feedback text
-- `rejectedAt` / `approvedAt` - Action timestamps
-- `actionBy` - User ID who took action
-
 **Database Entities:**
-- `TaskCheckHistory` - Separate table for iteration tracking
-- `VerificationAction` - Event log for all verification activities
+- `taskIterations` - Separate table for iteration tracking. 1:n relationshipt with tasks table.
 
 ## Implementation Strategy
 
@@ -185,7 +166,7 @@ interface CheckIteration {
 3. **API Endpoints**: Create verification endpoints
 4. **State Machine**: Update transition logic
 
-### Phase 2: Agent Integration  
+### Phase 2: Agent Integration
 1. **Execute Prompt**: Change target from `done` to `check`
 2. **MCP Tools**: Update `task_update` to handle check mode
 3. **Loop Logic**: Update loop task completion flow

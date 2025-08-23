@@ -22,6 +22,7 @@ export interface TaskWithContext {
  * Scope:
  * - task is ready
  * - task is not in done column
+ * - task is not in check list (awaiting human verification)
  * - task is not in the loop list
  * - task doesn't have an active agent session and is not being pushed
  * - task doesn't have any incomplete dependencies
@@ -54,6 +55,7 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
         eq(schema.tasks.ready, true),
         eq(schema.tasks.agentSessionStatus, 'INACTIVE'),
         ne(schema.tasks.list, 'done'),
+        ne(schema.tasks.list, 'check'), // Exclude tasks awaiting human verification
         // Only tasks with no incomplete dependencies
         notExists(
           db.select()
@@ -62,7 +64,8 @@ export async function findNextAssignableTask(): Promise<TaskWithContext | null> 
             .where(
               and(
                 eq(schema.taskDependencies.taskId, schema.tasks.id),
-                ne((schema.tasks as any).list, 'done')
+                ne((schema.tasks as any).list, 'done'),
+                ne((schema.tasks as any).list, 'check') // Dependencies in check state are also considered incomplete
               )
             )
         ),
