@@ -198,7 +198,7 @@ function registerMcpTools(server: McpServer) {
         plan: z.unknown().optional(),
         checkInstruction: z.string().optional(),
         list: z.enum(["todo", "doing", "done", "loop", "check"]).optional(),
-        mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).optional().nullable(),
+        mode: z.enum(["clarify", "plan", "execute", "loop", "talk", "check"]).optional().nullable(),
         agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
     },
