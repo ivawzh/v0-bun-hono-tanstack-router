@@ -333,7 +333,7 @@ function CreateRepositoryForm({ projectId, onSuccess }: { projectId: string; onS
     name: '',
     repoPath: '',
     isDefault: false,
-    maxConcurrencyLimit: 0
+    maxConcurrencyLimit: 1
   });
 
   const createRepository = useMutation(
