@@ -77,25 +77,38 @@ export function TaskModeSelector({
           "font-medium",
           size === "sm" 
             ? "h-6 text-xs border-0 bg-transparent p-1 w-auto min-w-[70px]" 
-            : "h-10 text-sm border border-input bg-background px-3 py-2 w-full min-w-[140px]",
+            : "h-10 text-sm border border-input bg-background px-3 py-2 w-full min-w-[200px] hover:bg-accent hover:text-accent-foreground cursor-pointer",
           size === "sm" && currentMode?.color,
           size === "sm" && !currentMode && "bg-gray-100 text-gray-800"
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        <SelectValue placeholder={size === "md" ? "Default: clarify" : "Select mode"} />
+        <SelectValue placeholder={size === "md" ? "Default: clarify" : "Select mode"}>  
+          {mode && currentMode ? (
+            <span className={cn("px-2 py-1 rounded text-xs font-medium", currentMode.color)}>
+              {currentMode.label}
+            </span>
+          ) : (
+            <span className="text-muted-foreground">
+              {size === "md" ? "Default: clarify" : "Select mode"}
+            </span>
+          )}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
         {size === "md" && (
-          <SelectItem value="">
-            <span className="px-2 py-1 rounded text-xs text-muted-foreground">
-              Default: clarify
-            </span>
-          </SelectItem>
+          <>
+            <SelectItem value="">
+              <span className="px-2 py-1 rounded text-xs text-muted-foreground">
+                ✨ Default: clarify
+              </span>
+            </SelectItem>
+            <div className="h-px bg-border my-1" />
+          </>
         )}
         {modes.map((modeOption) => (
           <SelectItem key={modeOption.value} value={modeOption.value}>
-            <span className={cn("px-2 py-1 rounded text-xs", modeOption.color)}>
+            <span className={cn("px-2 py-1 rounded text-xs font-medium", modeOption.color)}>
               {modeOption.label}
             </span>
           </SelectItem>
