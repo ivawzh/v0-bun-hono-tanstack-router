@@ -9,8 +9,8 @@ export interface TestTask {
   rawDescription?: string | null
   refinedTitle?: string | null
   refinedDescription?: string | null
-  list: 'todo' | 'doing' | 'done' | 'loop'
-  mode?: 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | null
+  list: 'todo' | 'doing' | 'done' | 'loop' | 'check'
+  mode?: 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | 'check' | null
   priority: number
   ready: boolean | null
   agentSessionStatus: string

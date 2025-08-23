@@ -18,7 +18,7 @@ export type PromptParams = {
   webUrl: string;
 }
 
-export type TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk';
+export type TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | 'check';
 
 /**
  * Convert agent type enum to user-friendly display name
@@ -51,6 +51,10 @@ export function generatePrompt(mode: TaskMode, context: PromptParams): string {
       return generateLoopPrompt(context);
     case 'talk':
       return generateTalkPrompt(context);
+    case 'check':
+      // For check mode, we'll reuse the execute prompt since check is essentially
+      // a retry of execution after feedback
+      return generateExecutePrompt(context);
     default:
       throw new Error(`Unknown mode: ${mode}`);
   }

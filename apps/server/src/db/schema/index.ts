@@ -9,6 +9,7 @@ export type Project = typeof projects.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type Helper = typeof helpers.$inferSelect;
 export type ProjectInvitation = typeof projectInvitations.$inferSelect;
+export type TaskIteration = typeof taskIterations.$inferSelect;
 export type AgentType = (typeof agentClientTypeEnum.enumValues)[number];
 
 // Enum for agent client types
@@ -129,8 +130,8 @@ export const tasks = pgTable("tasks", {
   plan: jsonb("plan").default({}), // Final solution and spec from plan mode
 
   // List and mode
-  list: text("list", { enum: ["todo", "doing", "done", "loop"] }).notNull().default("todo"),
-  mode: text("mode", { enum: ["clarify", "plan", "execute", "loop", "talk"] }),
+  list: text("list", { enum: ["todo", "doing", "done", "loop", "check"] }).notNull().default("todo"),
+  mode: text("mode", { enum: ["clarify", "plan", "execute", "loop", "talk", "check"] }),
 
   // Priority (1-5 where 5=highest, 1=lowest)
   priority: integer("priority").notNull().default(3), // 1=Lowest, 2=Low, 3=Medium, 4=High, 5=Highest
@@ -190,6 +191,17 @@ export const taskDependencies = pgTable("task_dependencies", {
   id: uuid("id").primaryKey().defaultRandom(),
   taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
   dependsOnTaskId: uuid("depends_on_task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull()
+});
+
+// Task Iterations table (for check mode feedback tracking)
+export const taskIterations = pgTable("task_iterations", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  taskId: uuid("task_id").notNull().references(() => tasks.id, { onDelete: "cascade" }),
+  iterationNumber: integer("iteration_number").notNull(),
+  feedbackReason: text("feedback_reason").notNull(),
+  rejectedAt: timestamp("rejected_at").defaultNow().notNull(),
+  rejectedBy: text("rejected_by").notNull().default("human"), // human, ai
   createdAt: timestamp("created_at").defaultNow().notNull()
 });
 
@@ -290,7 +302,8 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   // Reference to parent task that created this one (e.g. for AI-generated tasks)
   createdTasks: many(tasks, {
     relationName: "taskCreator"
-  })
+  }),
+  iterations: many(taskIterations)
 }));
 
 export const taskAdditionalRepositoriesRelations = relations(taskAdditionalRepositories, ({ one }) => ({
@@ -325,5 +338,12 @@ export const taskDependenciesRelations = relations(taskDependencies, ({ one }) =
     fields: [taskDependencies.dependsOnTaskId],
     references: [tasks.id],
     relationName: "dependentTasks"
+  })
+}));
+
+export const taskIterationsRelations = relations(taskIterations, ({ one }) => ({
+  task: one(tasks, {
+    fields: [taskIterations.taskId],
+    references: [tasks.id]
   })
 }));

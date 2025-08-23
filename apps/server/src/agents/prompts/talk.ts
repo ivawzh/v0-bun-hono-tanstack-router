@@ -43,7 +43,7 @@ Most importantly, **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode tas
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="talk", agentSessionStatus="ACTIVE"
 2. Read the required task described below in **Task to Work On** section.
-3. Start with recalling a related problem, and then solve this one. Use first-principles reasoning to think step by step.
+3. Start with recalling a related problem, and then solve this one. Use first-principles (1. Enumerate assumptions; 2. Extract factual root limits; 3. Restate the task with root facts not without conventions.). Think step by step.
 4. Create new \`docs/talk/[incremental-number-start-from-000001]-[short-name].md\` file UNLESS task request to update an existing talk file.
    File ouput:
     - Oneliner executive summary of the task
