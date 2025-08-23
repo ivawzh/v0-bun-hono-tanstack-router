@@ -24,14 +24,36 @@ export function TaskApprovalControls({ task, className }: TaskApprovalControlsPr
 
   const approveTask = useMutation(
     orpc.tasks.approveTask.mutationOptions({
+      onMutate: async () => {
+        // Optimistically update task to done list
+        if (task.projectId) {
+          const context = await cache.optimistic.updateTaskInProject(
+            task.projectId,
+            task.id,
+            (currentTask) => ({
+              ...currentTask,
+              list: 'done' as const,
+              mode: 'done' as const,
+              completedAt: new Date().toISOString()
+            })
+          );
+          
+          return { context };
+        }
+        return {};
+      },
       onSuccess: () => {
         toast.success("Task approved and moved to Done!");
-        // Invalidate project data for immediate UI updates
+        // Invalidate project data for consistency
         if (task.projectId) {
           cache.invalidateProject(task.projectId);
         }
       },
-      onError: (error: any) => {
+      onError: (error: any, variables, context) => {
+        // Rollback optimistic update on error
+        if (context?.context) {
+          cache.optimistic.rollback(context.context.queryKey, context.context.previousData);
+        }
         toast.error(`Failed to approve task: ${error.message}`);
       }
     })

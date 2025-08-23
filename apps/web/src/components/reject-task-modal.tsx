@@ -42,16 +42,39 @@ export function RejectTaskModal({
 
   const rejectTask = useMutation(
     orpc.tasks.rejectTask.mutationOptions({
+      onMutate: async (variables) => {
+        // Optimistically update task back to todo list
+        if (projectId && taskId) {
+          const context = await cache.optimistic.updateTaskInProject(
+            projectId,
+            taskId,
+            (currentTask) => ({
+              ...currentTask,
+              list: 'todo' as const,
+              mode: 'plan' as const,
+              feedbackReason: variables.feedbackReason,
+              rejectedAt: new Date().toISOString()
+            })
+          );
+          
+          return { context };
+        }
+        return {};
+      },
       onSuccess: () => {
         toast.success("Task sent back for revision with feedback");
         setFeedbackReason("");
         onOpenChange(false);
-        // Invalidate project data for immediate UI updates
+        // Invalidate project data for consistency
         if (projectId) {
           cache.invalidateProject(projectId);
         }
       },
-      onError: (error: any) => {
+      onError: (error: any, variables, context) => {
+        // Rollback optimistic update on error
+        if (context?.context) {
+          cache.optimistic.rollback(context.context.queryKey, context.context.previousData);
+        }
         toast.error(`Failed to reject task: ${error.message}`);
       }
     })
