@@ -20,6 +20,7 @@ import { TaskDependencySelector } from "./task-dependency-selector";
 import { TaskCreationWarning } from "./project-setup-warning";
 import { AttachmentDropzone, type AttachmentFile } from "../attachment-dropzone";
 import { TaskModeSelector } from "../task-mode-selector";
+import { EnhancedDescriptionEditor } from "../enhanced-description-editor";
 import { client } from '@/utils/orpc';
 
 interface Repository {
@@ -219,16 +220,14 @@ export function EnhancedTaskFormV2({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="task-description">Description (Optional)</Label>
-                <Textarea
-                  id="task-description"
-                  placeholder="Provide more details about what needs to be done..."
-                  value={formData.rawDescription}
-                  onChange={(e) => setFormData(prev => ({ ...prev, rawDescription: e.target.value }))}
-                  rows={3}
-                />
-              </div>
+              <EnhancedDescriptionEditor
+                value={formData.rawDescription}
+                onChange={(value) => setFormData(prev => ({ ...prev, rawDescription: value }))}
+                placeholder="Provide more details about what needs to be done..."
+                label="Description (Optional)"
+                rows={3}
+                showViewToggle={false}
+              />
             </div>
 
             <Separator />

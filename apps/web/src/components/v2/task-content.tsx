@@ -45,6 +45,8 @@ import { TaskDependencySelector } from "./task-dependency-selector";
 import { TaskDependencyGraph } from "./task-dependency-graph";
 import { TaskIterationHistory } from "@/components/task-iteration-history";
 import { TaskApprovalControls } from "@/components/task-approval-controls";
+import { EnhancedDescriptionEditor } from "@/components/enhanced-description-editor";
+import { DescriptionRenderer } from "@/components/description-renderer";
 import type { TaskV2, DependencyData, Repository, Agent, Actor, AvailableTask } from "@/types/task";
 
 
@@ -183,11 +185,14 @@ export function TaskContent({
                 </div>
                 {editingDescription ? (
                   <div className="space-y-2">
-                    <Textarea
+                    <EnhancedDescriptionEditor
                       value={tempDescription}
-                      onChange={(e) => onTempDescriptionChange(e.target.value)}
+                      onChange={onTempDescriptionChange}
                       placeholder="Add a description..."
                       rows={6}
+                      taskId={task.id}
+                      projectId={task.projectId}
+                      showViewToggle={false}
                     />
                     <div className="flex gap-2 flex-col sm:flex-row">
                       <Button size="sm" onClick={onSaveDescription} className="h-9">
@@ -199,10 +204,12 @@ export function TaskContent({
                     </div>
                   </div>
                 ) : (
-                  <div className="p-3 bg-muted/50 rounded-md min-h-[100px]">
-                    <p className="text-sm whitespace-pre-wrap">
-                      {task.rawDescription || "No description yet"}
-                    </p>
+                  <div className="min-h-[100px]">
+                    <DescriptionRenderer 
+                      content={task.rawDescription || ""}
+                      taskId={task.id}
+                      className="p-3 bg-muted/50 rounded-md"
+                    />
                   </div>
                 )}
               </div>
