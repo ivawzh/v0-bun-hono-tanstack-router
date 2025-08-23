@@ -1,6 +1,6 @@
 /**
  * TaskContent Component
- * Reusable task content component extracted from TaskDrawerV2
+ * Reusable task content component used by TaskPopup and task pages
  * Contains all tab content logic for task management
  */
 

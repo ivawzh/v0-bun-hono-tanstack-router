@@ -2,7 +2,7 @@
  * TaskPopup Component
  * Mobile-optimized task modal using Dialog primitive for better mobile UX
  * Full-screen modal on mobile (< 768px), centered modal on desktop
- * Maintains complete feature parity with TaskDrawerV2
+ * Primary task management interface with full task editing capabilities
  */
 
 import { useState } from "react";
