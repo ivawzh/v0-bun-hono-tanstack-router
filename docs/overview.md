@@ -2,10 +2,28 @@
 
 ## Vision and Goal
 
-Build a minimal, local-first task management system for dispatching coding tasks to AI agents. Extreme simplification: one user, one machine, one coding session at a time. Projects manage tasks through a simple 4-list board where agents automatically pick up and complete work.
+**We provide**:
 
-- AI agents autonomously clarify, plan, execute and loop tasks
-- Create project, configure repo, agents, and start tasking
+- Task management system for dispatching tasks to AI agents.
+- Efficient AI agent orchestration.
+- Flexible AI workflow framework.
+- Easy switch across agent types. We are like OpenRouter for coding agent CLIs.
+- Web UI for code agent CLIs.
+- Context preservation across repos, agents, tasks and sessions.
+- Multi-repo coordination.
+
+**Our differentiator to other AI tools**: We're the only solution focused purely on AI task orchestration while leaving coding execution to proven tools.
+
+**Typical user groups**:
+
+- For dev users, we are the "task management brain" that sits between requirements and their AI coding agents.
+- For startup founders without tech background, we are the (TBD).
+- For (TBD), we are the magic between ideas to results.
+
+## Basic UX
+
+- Setup UX: Create project, configure repo, agents, and start tasking
+- Tasking UX: AI agents autonomously clarify, plan, execute and loop tasks
 
 ## Tech stack
 
@@ -71,8 +89,8 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 - `ready` checkbox to mark ready for AI pickup
 - `mode` controls what prompt to use. Eventually, we might allow user to create and modify mode and prompt.
-- **Regular cards**: Todo → Doing → Done
-- **Loop cards**: Loop → Doing → Loop (infinite cycle)
+- **Regular tasks**: Todo → Doing → Done
+- **Loop tasks**: Loop → Doing → Loop (infinite cycle)
 - Doing has 3 modes: clarify → Plan → Execute
 - Loop has 1 mode: loop (never changes)
 - Must have repo(s) and agent(s) assigned
@@ -87,7 +105,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
    - Add agent. E.g. "Claude Code"
 3. **Configure Actors** (Optional):
    - Define agent personalities/methodologies
-   - Assign to specific cards or use default
+   - Assign to specific tasks or use default
 4. **Project Memory**:
    - Stored in database (not git submodule)
    - Viewable and editable by human
@@ -96,7 +114,7 @@ Build a minimal, local-first task management system for dispatching coding tasks
 
 ## Task Workflow
 
-### Human Creates Card
+### Human Creates Task
 
 - Write raw title and optional raw description
 - Add optional attachments
@@ -104,9 +122,30 @@ Build a minimal, local-first task management system for dispatching coding tasks
 - Optionally select actor (or use default)
 - Tick "Ready" checkbox when ready for AI pickup
 
-### Agent Picks Up Card
+### Agent Picks Up Task
 
-Agents automatically pick up ready cards in priority order (5-1, then card order within list).
+Agents automatically pick up ready tasks in criteria -
+
+**Scope**:
+
+- task is ready
+- task is not in done column
+- task is not in the loop list
+- task doesn't have an active agent session and is not being pushed
+- task doesn't have any incomplete dependencies
+- repo has not reached max concurrency limit
+- has at least one available agent that
+- is not rate limited
+- has not reached max concurrency limit
+
+**Order by**:
+
+- priority (5-1)
+- list order (doing > todo > loop)
+- list order (3 > 2 > 1)
+- createdAt (oldest first)
+
+## Task modes
 
 **Mode 1: clarify**
 
@@ -137,17 +176,20 @@ Agents automatically pick up ready cards in priority order (5-1, then card order
 The Loop column stores repeatable cards that cycle infinitely to maintain project momentum.
 
 **Loop Purpose:**
+
 - **Repeatable Cards**: Cards that should be executed regularly (brainstorming, maintenance, reviews)
 - **Project Continuity**: When Todo and Doing are empty, agents pick from Loop
 - **Infinite Cycling**: Loop cards never reach "Done" - they return to Loop after completion
 
 **Loop Workflow:**
+
 1. **Card Selection**: When no regular cards available, agent picks from Loop (top of list)
 2. **Execution**: Loop card moves to Doing with mode="loop" (never changes mode)
 3. **Completion**: After execution, card returns to Loop (bottom of list)
 4. **Rotation**: Bottom placement ensures all Loop cards get cycled through
 
 **Loop Card Examples:
+
 - "Brainstorm new feature ideas. Document in wiki."
 - "Review and refactor old code for improvements."
 - "Update project documentation and README."
@@ -155,10 +197,12 @@ The Loop column stores repeatable cards that cycle infinitely to maintain projec
 - "Run comprehensive project health checks."
 
 **Lifecyle**:
+
 - **Regular tasks**: Todo → Doing → Done ✓
 - **Loop tasks**: Loop → Doing → Loop → Doing → Loop... (never Done)
 
 **Task Priority:**
+
 1. Todo and Doing tasks (highest priority)
 2. Loop tasks (when no regular tasks available)
 3. Bottom placement after completion ensures fair rotation

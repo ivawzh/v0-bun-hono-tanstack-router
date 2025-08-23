@@ -18,6 +18,23 @@ export interface TaskWithContext {
 /**
  * Find the next assignable task using a single optimized query
  * This query includes all necessary joins and conditions to avoid N+1 queries
+ *
+ * Scope:
+ * - task is ready
+ * - task is not in done column
+ * - task is not in the loop list
+ * - task doesn't have an active agent session and is not being pushed
+ * - task doesn't have any incomplete dependencies
+ * - repo has not reached max concurrency limit
+ * - has at least one available agent that
+ *  - is not rate limited
+ *  - has not reached max concurrency limit
+ *
+ * Order by:
+ * - priority (5-1)
+ * - list order (doing > todo > loop)
+ * - list order (3 > 2 > 1)
+ * - createdAt (oldest first)
  */
 export async function findNextAssignableTask(): Promise<TaskWithContext | null> {
   // Single query with embedded subqueries to get the highest priority ready task

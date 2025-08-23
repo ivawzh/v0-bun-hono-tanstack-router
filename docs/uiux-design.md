@@ -4,29 +4,33 @@ This document describes the extremely simplified UI/UX for Solo Unicorn, reflect
 
 ## Board Layout
 
-### 4-Column Kanban Board
+### 3-Column Kanban Board
 
-Simple, clean board with essential workflow columns including iterative Loop:
+Simple, clean board with essential workflow columns and loop tasks integrated into Todo:
 
 ```text
-+-------------------------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------+
 | Solo Unicorn | Project: My App [▼] | + New Card | Repo Agents: Claude Code (active) | Profile |
-+-------------------------------------------------------------------------------------------------------------------------------+
-|  Todo                   |  Doing                  |  Done                   |  Loop                   |
-|  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|  ┌─────────────────────┐|
-|  | [P1] Card A         ||  | [P2] Card C (clarify)||  | [P3] Card E         ||  | [∞] Brainstorm      ||
-|  | Main Repo (Claude)  ||  | Main Repo (Claude)  ||  | Frontend (OpenCode) ||  | ideas & document    ||
-|  | Default Actor       ||  | Custom Actor        ||  | Default Actor       ||  | Main Repo (Claude)  ||
-|  | Ready [☑]   📎2     ||  | Mode: clarify ●○○   ||  | Completed 2h ago    ||  | Mode: loop ♻️      ||
-|  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||  | [Delete]            ||
-|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|  └─────────────────────┘|
-|  ┌─────────────────────┐|  ┌─────────────────────┐|                         |  ┌─────────────────────┐|
-|  | [P1] Card B         ||  | [∞] Code review &   ||                         ||  | [∞] Update docs     ||
-|  | Main Repo (Claude)  ||  | refactoring         ||                         ||  | & README            ||
-|  | Ready [☐]           ||  | Mode: loop ♻️      ||                         ||  | Main Repo (Claude)  ||
-|  | [Delete]            ||  | [Delete]            ||                         ||  | Mode: loop ♻️      ||
-|  └─────────────────────┘|  └─────────────────────┘|                         |  └─────────────────────┘|
-+-------------------------------------------------------------------------------------------------------------------------------+
++---------------------------------------------------------------------------------------------------------------+
+|  Todo                   |  Doing                  |  Done                   |
+|  ┌─ Normal Tasks ────┐  |  ┌─────────────────────┐|  ┌─────────────────────┐|
+|  | [P1] Card A       |  |  | [P2] Card C (clarify)||  | [P3] Card E         ||
+|  | Main Repo (Claude)|  |  | Main Repo (Claude)  ||  | Frontend (OpenCode) ||
+|  | Ready [☑]   📎2   |  |  | Mode: clarify ●○○   ||  | Completed 2h ago    ||
+|  | [Delete]          |  |  | [Delete]            ||  | [Delete]            ||
+|  └───────────────────┘  |  └─────────────────────┘|  └─────────────────────┘|
+|  ┌─ Loop Tasks ▼────┐  |                          |                          |
+|  | [∞] Brainstorm    |  |                          |                          |
+|  | ideas & document  |  |                          |                          |
+|  | Mode: loop ♻️    |  |                          |                          |
+|  | [Delete]          |  |                          |                          |
+|  └───────────────────┘  |                          |                          |
+|  | [∞] Update docs   |  |                          |                          |
+|  | & README          |  |                          |                          |
+|  | Mode: loop ♻️    |  |                          |                          |
+|  | [Delete]          |  |                          |                          |
+|  └───────────────────┘  |                          |                          |
++---------------------------------------------------------------------------------------------------------------+
 ```
 
 ### Card Information
@@ -53,12 +57,13 @@ Simple, clean board with essential workflow columns including iterative Loop:
 - Completion timestamp
 - Delete button
 
-**Loop Cards:**
+**Loop Cards (in Todo column subsection):**
 - Infinity symbol [∞] indicating repeatable nature
 - Title and description of repeatable card
 - Repo Agent and Actor
 - Mode: loop ♻️ (never changes)
 - Delete button (removes from Loop entirely)
+- Collapsible subsection within Todo column
 
 ## Card Creation Flow
 
@@ -182,18 +187,18 @@ Click any card to open simplified drawer:
 7. **Done**: Card completed ✓
 
 **Loop Cards:**
-1. **Create**: Human creates repeatable card directly in Loop column
+1. **Create**: Human creates repeatable card directly in Loop subsection
 2. **Pickup**: Agent picks Loop card when Todo/Doing are empty
 3. **Execute**: Card moves to Doing with mode="loop" (no clarify/Plan modes)
-4. **Return**: After completion, card returns to bottom of Loop column
+4. **Return**: After completion, card returns to bottom of Loop subsection in Todo column
 5. **Cycle**: Process repeats infinitely ♻️
 
 ### Drag and Drop
 - Drag from Todo → Doing: Sets column to doing (if ready)
 - Drag from Doing → Done: Marks as completed (regular cards)
-- Drag from Doing → Loop: Returns Loop card to bottom of Loop column
+- Drag from Doing → Todo: Returns Loop card to bottom of Loop subsection
 - Drag from Done → Todo: Reopens regular card
-- Drag from Loop → Doing: Manual execution of Loop card
+- Drag from Todo Loop subsection → Doing: Manual execution of Loop card
 - No dragging Loop cards to Done (infinite cycle only)
 
 ### Agent Status
@@ -222,7 +227,7 @@ All complex features removed for extreme simplification:
 ## Implementation Notes
 
 ### Components (apps/web)
-- `SimplifiedBoard` - 4 columns with drag/drop (Todo, Doing, Done, Loop)
+- `SimplifiedBoard` - 3 columns with drag/drop (Todo with Loop subsection, Doing, Done)
 - `TaskCard` - minimal card display with Loop card indicators
 - `TaskDrawer` - simplified card details
 - `CreateTaskModal` - basic card creation with Loop option
@@ -242,6 +247,6 @@ All complex features removed for extreme simplification:
 
 This design focuses on dual workflows:
 - **Regular cards**: create → mark ready → agent completes → done
-- **Loop cards**: create in Loop → agent cycles infinitely when no regular work available
+- **Loop cards**: create in Loop subsection → agent cycles infinitely when no regular work available
 
-The Loop column ensures projects maintain continuous momentum with repeatable cards like brainstorming, maintenance, and reviews.
+The Loop subsection ensures projects maintain continuous momentum with repeatable cards like brainstorming, maintenance, and reviews.

@@ -82,12 +82,11 @@ interface KanbanBoardProps {
   projectId: string;
 }
 
-// 4-list structure with Loop support
+// 3-column structure with Loop tasks integrated into Todo
 const lists = [
   { id: "todo", label: "Todo", icon: Clock, color: "bg-slate-500" },
   { id: "doing", label: "Doing", icon: Play, color: "bg-blue-500" },
   { id: "done", label: "Done", icon: CheckCircle, color: "bg-green-500" },
-  { id: "loop", label: "Loop", icon: RotateCcw, color: "bg-purple-500" },
 ];
 
 const modeColors = {
@@ -821,9 +820,24 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
     return acc;
   }, {} as Record<string, any[]>);
 
-  // Separate normal and loop tasks for Todo list
-  const todoNormalTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.mode !== 'loop') : [];
-  const todoLoopTasks = groupedTasks.todo ? groupedTasks.todo.filter((task: any) => task.mode === 'loop') : [];
+  // Get loop tasks from list: 'loop' and combine with Todo list
+  const loopTasks = (project?.tasks || [])
+    .filter((task: any) => task.list === 'loop')
+    .sort((a: any, b: any) => {
+      // Sort by priority first
+      const priorityComparison = comparePriority(a.priority, b.priority);
+      if (priorityComparison !== 0) {
+        return priorityComparison;
+      }
+      // Then sort by list order
+      const aOrder = parseFloat(a.listOrder || "1000");
+      const bOrder = parseFloat(b.listOrder || "1000");
+      return aOrder - bOrder;
+    });
+
+  // Separate normal tasks (from todo list) and loop tasks (from loop list)
+  const todoNormalTasks = groupedTasks.todo || [];
+  const todoLoopTasks = loopTasks;
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -848,7 +862,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
 
     // Check if dropped on a different list
     if (lists.some(col => col.id === overId)) {
-      targetList = overId as "todo" | "doing" | "done" | "loop";
+      targetList = overId as "todo" | "doing" | "done";
       // For Todo list, use combined tasks from both sections
       targetTasks = targetList === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[targetList];
     } else {
@@ -856,7 +870,7 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       for (const list of lists) {
         const listTasks = list.id === 'todo' ? [...todoNormalTasks, ...todoLoopTasks] : groupedTasks[list.id];
         if (listTasks.some((t: any) => t.id === overId)) {
-          targetList = list.id as "todo" | "doing" | "done" | "loop";
+          targetList = list.id as "todo" | "doing" | "done";
           targetTasks = listTasks;
           break;
         }
@@ -896,10 +910,23 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
         newOrder = ((prevOrder + nextOrder) / 2).toString();
       }
 
+      // Determine the correct list assignment
+      let newList = targetList;
+      
+      // Special handling for loop tasks
+      if (activeTask.list === 'loop') {
+        // Loop task moving to a different column - it becomes a regular task in that list
+        newList = targetList;
+      } else if (targetList === 'todo') {
+        // Regular task moving to Todo column - check if it's being dropped in loop section
+        // For now, we'll keep it as list: 'todo' - loop section behavior handled by UI only
+        newList = 'todo';
+      }
+
       updates.push({
         id: activeId,
         listOrder: newOrder,
-        list: targetList
+        list: newList
       });
     } else {
       // Reordering within the same list
@@ -1028,12 +1055,19 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
       return;
     }
 
+    // Determine the correct list assignment
+    let finalList = newTaskList;
+    if (newTask.mode === "loop") {
+      // If mode is loop, task should be stored in loop list regardless of which column was clicked
+      finalList = "loop";
+    }
+
     createTaskMutation.mutate({
       projectId,
       ...newTask,
       // Convert __default__ back to undefined for the API
       actorId: newTask.actorId === "__default__" ? undefined : newTask.actorId,
-      list: newTaskList as "todo" | "doing" | "done" | "loop", // Support creating tasks in loop list
+      list: finalList as "todo" | "doing" | "done" | "loop",
       mode: newTask.mode as "clarify" | "plan" | "execute" | "loop" | null
     });
   };
