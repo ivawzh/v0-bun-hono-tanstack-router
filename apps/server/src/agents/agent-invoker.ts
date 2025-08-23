@@ -76,9 +76,20 @@ export async function spawnClaudeSession(
     // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
+    // Fetch task iterations for execute mode to provide feedback context
+    let taskIterations: schema.TaskIteration[] = [];
+    if (mode === 'execute') {
+      taskIterations = await db
+        .select()
+        .from(schema.taskIterations)
+        .where(eq(schema.taskIterations.taskId, task.id))
+        .orderBy(schema.taskIterations.iterationNumber);
+    }
+
     const modePrompt = generatePrompt(mode, {
       ...taskData,
-      webUrl: process.env.WEB_APP_URL || 'http://localhost:8302'
+      webUrl: process.env.WEB_APP_URL || 'http://localhost:8302',
+      taskIterations
     });
 
     if (!modePrompt || !modePrompt.trim()) {
@@ -573,9 +584,20 @@ export async function spawnOpencodeSession(
     // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
+    // Fetch task iterations for execute mode to provide feedback context
+    let taskIterations: schema.TaskIteration[] = [];
+    if (mode === 'execute') {
+      taskIterations = await db
+        .select()
+        .from(schema.taskIterations)
+        .where(eq(schema.taskIterations.taskId, task.id))
+        .orderBy(schema.taskIterations.iterationNumber);
+    }
+
     const modePrompt = generatePrompt(mode, {
       ...taskData,
-      webUrl: process.env.WEB_APP_URL || 'http://localhost:8302'
+      webUrl: process.env.WEB_APP_URL || 'http://localhost:8302',
+      taskIterations
     });
 
     if (!modePrompt || !modePrompt.trim()) {

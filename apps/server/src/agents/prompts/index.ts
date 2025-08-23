@@ -8,7 +8,7 @@ import { generatePlanPrompt } from './plan';
 import { generateExecutePrompt } from './execute';
 import { generateLoopPrompt } from './loop';
 import { generateTalkPrompt } from './talk';
-import { type Actor, type Agent, type Project, type Task } from '../../db/schema';
+import { type Actor, type Agent, type Project, type Task, type TaskIteration } from '../../db/schema';
 
 export type PromptParams = {
   task: Task;
@@ -16,6 +16,7 @@ export type PromptParams = {
   project: Project;
   agent: Agent;
   webUrl: string;
+  taskIterations?: Array<TaskIteration>;
 }
 
 export type TaskMode = 'clarify' | 'plan' | 'execute' | 'loop' | 'talk' | 'check';

@@ -190,13 +190,13 @@ function registerMcpTools(server: McpServer) {
   server.registerTool("task_update",
     {
       title: "Update a task",
-      description: "Update task fields during workflow modes.",
+      description: "Update task fields during workflow modes. Use 'check' list for completed work pending human approval, 'done' list for approved completed work.",
       inputSchema: {
         taskId: z.string().uuid(),
         refinedTitle: z.string().optional(),
         refinedDescription: z.string().optional(),
         plan: z.unknown().optional(),
-        list: z.enum(["todo", "doing", "done", "loop"]).optional(),
+        list: z.enum(["todo", "doing", "done", "loop", "check"]).optional(),
         mode: z.enum(["clarify", "plan", "execute", "loop", "talk"]).optional().nullable(),
         agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
       },
@@ -439,7 +439,7 @@ function registerMcpTools(server: McpServer) {
         mode: z.enum(["plan", "execute", "talk"]).optional(),
         dependsOnTaskIds: z.array(z.string().uuid()).optional().default([]),
         setListOrder: z.enum(["FIRST", "LAST", "FIRST_IN_MODE", "LAST_IN_MODE"]).optional().default("FIRST"),
-        list: z.enum(["todo", "doing", "done", "loop"]).optional().default("todo"),
+        list: z.enum(["todo", "doing", "done", "loop", "check"]).optional().default("todo"),
       },
     },
     async (input, { requestInfo }) => {
