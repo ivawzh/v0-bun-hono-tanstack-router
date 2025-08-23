@@ -12,24 +12,24 @@ export function generatePlanPrompt(context: PromptParams): string {
   return `[plan] ${task.rawTitle || task.refinedTitle}
 **Do not write any code!**
 Plan a task - create a comprehensive implementation plan and detailed specification.
-Start with recalling a related problem, and then solve this one. Use first-principles reasoning to think step by step.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="plan", agentSessionStatus="ACTIVE"
-2. **List Solution Options**: List viable potential solution options
-3. **Evaluate and Rank**: Compare the options considering in order of importance:
+2. Think step by step. Start with recalling a related problem. Then apply first-principles - 1. Enumerate assumptions; 2. Extract factual root limits; 3. Restate the task with root facts not route dependencies.
+3. **List Solution Options**: List viable potential solution options
+4. **Evaluate and Rank**: Compare the options considering in order of importance:
    - Most importantly - UX
    - Alignment with project goals
    - Design simplicity
    - Industry standards & best practices
    - Maintainability
-4. **Select Final Approach**: Choose the best solution
-5. **Create Plan**: Write a plan as detailed as possible. The plan will include:
+5. **Select Final Approach**: Choose the best solution
+6. **Create Plan**: Write a plan as detailed as possible. The plan will include:
    - Spec
    - Detailed implementation steps breakdown
    - You may provide detailed modifying files, line numbers, function names, etc to help future agent look up the codebase.
    - Potential risks and mitigations (only if necessary)
-6. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
+7. **Evaluate Plan Complexity**: After creating your plan, evaluate if it exceeds manageable limits:
    - Count implementation steps (exclude planning/analysis steps)
    - Estimate total lines of code changes across all files
    - If plan has >6 implementation steps OR >600 lines of code changes:
