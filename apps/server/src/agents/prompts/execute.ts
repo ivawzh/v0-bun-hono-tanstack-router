@@ -9,7 +9,6 @@ import { taskPrompt } from './taskPrompt';
 
 export function generateExecutePrompt(context: PromptParams): SplitPrompt {
   const { task, project, agent, webUrl } = context;
-  const commitAuthorName = defaultCommitAuthorName(agent.agentType);
 
   const systemPromptContent = `
   You are a task execution agent responsible for implementing solutions based on detailed plans.
