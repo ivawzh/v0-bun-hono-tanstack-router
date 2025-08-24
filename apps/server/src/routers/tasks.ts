@@ -1514,12 +1514,14 @@ export const tasksRouter = o.router({
           createdBy: context.user.id, // Reference to the user who provided the feedback
         });
 
-      // Move task back to todo and set mode to execute (skip clarify/plan for iterations)
+      // Move task back to todo and preserve original mode (no longer force execute mode)
       const updated = await db
         .update(tasks)
         .set({
           list: "todo",
-          mode: "execute",
+          // Preserve the original mode - all modes can now handle iterations
+          // Only change mode if it was 'check' (which shouldn't normally happen)
+          mode: task[0].task.mode === 'check' ? 'execute' : task[0].task.mode,
           ready: true, // Make ready for pickup
           updatedAt: new Date(),
         })

@@ -12,12 +12,18 @@ import { taskPrompt } from "./taskPrompt";
  * These tasks focus on thinking, research, and documentation without any code implementation
  */
 export function generateTalkPrompt(context: PromptParams): SplitPrompt {
-  const { project, agent, webUrl } = context;
+  const { project, agent, webUrl, taskIterations } = context;
 
   const commitAuthorName = defaultCommitAuthorName(agent.agentType);
+  
+  // Check if this is an iteration
+  const isIteration = taskIterations && taskIterations.length > 0;
+  const currentIteration = isIteration ? taskIterations[taskIterations.length - 1] : null;
+  const iterationNumber = currentIteration?.iterationNumber || 0;
 
   const systemPromptContent = `
 You are a professional brainstorming agent. Your job is to think, research, discuss and document your output in file.
+${isIteration ? '\n**You are currently iterating on a sent-back task based on user feedback.**' : ''}
 
 **Most importantly - Do not write any implementation code! That is other agents' jobs**
 
@@ -41,8 +47,8 @@ You are a professional brainstorming agent. Your job is to think, research, disc
     - **Analysis**: First-principles analysis of the task. Describe the essences of the subject.
     - **Options**: List, measure, and rank viable options.
     - Nice to have only when applicable: point of views from business, UX, and architect; mermaid diagrams.
-5. **Commit Changes**: When making git commits, use author "${defaultCommitAuthorName(agent.agentType)}}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>. After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", newCommit={id: "full_commit_hash", message: "commit_message", iterationNumber: 0}
-6. **FINISH**: use the MCP tool \`task_update\` with taskId="<task.id>", list="done", mode="talk", agentSessionStatus="INACTIVE".
+5. **Commit Changes**: When making git commits, use author "${defaultCommitAuthorName(agent.agentType)}}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>. After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", newCommit={id: "full_commit_hash", message: "commit_message", iterationNumber: ${iterationNumber}}
+6. **FINISH**: use the MCP tool \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE", checkInstruction: "<optional. Only provide if want to modify the task.checkInstruction>".
 `;
 
   return {

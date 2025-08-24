@@ -96,7 +96,6 @@ const modeColors = {
   clarify: "bg-purple-100 text-purple-800 border-purple-200",
   plan: "bg-pink-100 text-pink-800 border-pink-200",
   execute: "bg-blue-100 text-blue-800 border-blue-200",
-  iterate: "bg-yellow-100 text-yellow-800 border-yellow-200",
   check: "bg-amber-100 text-amber-800 border-amber-200",
   loop: "bg-orange-100 text-orange-800 border-orange-200",
   talk: "bg-green-100 text-green-800 border-green-200",

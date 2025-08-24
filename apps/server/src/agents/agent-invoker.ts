@@ -68,15 +68,13 @@ export async function spawnClaudeSession(
     // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
-    // Fetch task iterations for execute mode to provide feedback context
+    // Fetch task iterations for all modes to provide feedback context when iterating
     let taskIterations: schema.TaskIteration[] = [];
-    if (mode === 'execute') {
-      taskIterations = await db
-        .select()
-        .from(schema.taskIterations)
-        .where(eq(schema.taskIterations.taskId, task.id))
-        .orderBy(schema.taskIterations.iterationNumber);
-    }
+    taskIterations = await db
+      .select()
+      .from(schema.taskIterations)
+      .where(eq(schema.taskIterations.taskId, task.id))
+      .orderBy(schema.taskIterations.iterationNumber);
 
     const { systemPrompt, taskPrompt } = generatePrompt(mode, {
       ...taskData,
@@ -579,15 +577,13 @@ export async function spawnOpencodeSession(
     // Generate the appropriate prompt for the task mode
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
-    // Fetch task iterations for execute mode to provide feedback context
+    // Fetch task iterations for all modes to provide feedback context when iterating
     let taskIterations: schema.TaskIteration[] = [];
-    if (mode === 'iterate') {
-      taskIterations = await db
-        .select()
-        .from(schema.taskIterations)
-        .where(eq(schema.taskIterations.taskId, task.id))
-        .orderBy(schema.taskIterations.iterationNumber);
-    }
+    taskIterations = await db
+      .select()
+      .from(schema.taskIterations)
+      .where(eq(schema.taskIterations.taskId, task.id))
+      .orderBy(schema.taskIterations.iterationNumber);
 
     const { systemPrompt, taskPrompt } = generatePrompt(mode, {
       ...taskData,

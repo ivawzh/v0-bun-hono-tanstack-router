@@ -9,7 +9,6 @@ import { generateExecutePrompt } from './execute';
 import { generateLoopPrompt } from './loop';
 import { generateTalkPrompt } from './talk';
 import { type Actor, type Agent, type Project, type Task, type TaskIteration, type TaskMode } from '../../db/schema';
-import { generateIteratePrompt } from './iterate';
 
 export type { TaskMode } from '../../db/schema';
 
@@ -58,8 +57,6 @@ export function generatePrompt(mode: TaskMode, context: PromptParams): SplitProm
       return generateLoopPrompt(context);
     case 'talk':
       return generateTalkPrompt(context);
-    case 'iterate':
-      return generateIteratePrompt(context);
     default:
       throw new Error(`Unknown mode: ${mode}`);
   }

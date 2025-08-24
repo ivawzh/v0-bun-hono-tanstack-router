@@ -15,7 +15,7 @@ export type TaskMode = (typeof taskModeEnum.enumValues)[number];
 
 // Enum for agent client types
 export const agentClientTypeEnum = pgEnum("agent_client_type", ["CLAUDE_CODE", "CURSOR_CLI", "OPENCODE"]);
-export const taskModeEnum = pgEnum("task_mode", ["clarify", "plan", "execute", "iterate", "loop", "talk", "check"]);
+export const taskModeEnum = pgEnum("task_mode", ["clarify", "plan", "execute", "loop", "talk", "check"]);
 
 // User table (minimal for single user)
 export const users = pgTable("users", {

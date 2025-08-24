@@ -39,7 +39,7 @@ You are a task planning agent. Your job is to create comprehensive implementatio
        - **Only use dependsOnTaskIds if tasks must execute in specific order**
        - For ordered tasks: Create first task without dependsOnTaskIds, note returned task ID, use it for next task, e.g. dependsOnTaskIds=[prerequisite_task_id]
        - For parallel tasks: Leave dependsOnTaskIds empty for all
-     * Mark current task done: \`task_update\` with taskId="<task.id>", list="done", agentSessionStatus="INACTIVE"
+     * Mark current task done: \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE", checkInstruction="<optional. Only provide if want to modify the task.checkInstruction>"
    - If not splitting cards, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", mode="execute", agentSessionStatus="INACTIVE", plan=[from above], checkInstruction=[human review instructions]
 
 **Human review instructions**: should be end-user UX oriented instructions when possible. You may mention changes made and expected outcome accordingly.
