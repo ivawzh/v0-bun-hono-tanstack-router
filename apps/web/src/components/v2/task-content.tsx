@@ -601,7 +601,7 @@ export function TaskContent({
                   <div>
                     <Label>Main Repository</Label>
                     <Select
-                      value={task.mainRepositoryId || ""}
+                      value={task.mainRepositoryId || undefined}
                       onValueChange={onMainRepositoryChange}
                     >
                       <SelectTrigger className="mt-1">
@@ -672,7 +672,7 @@ export function TaskContent({
                   <div>
                     <Label>Actor (Optional)</Label>
                     <Select
-                      value={task.actorId || ""}
+                      value={task.actorId || undefined}
                       onValueChange={onActorChange}
                     >
                       <SelectTrigger className="mt-1">
