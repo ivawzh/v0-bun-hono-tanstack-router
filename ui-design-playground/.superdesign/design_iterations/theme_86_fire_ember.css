@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 86: Fire Ember */
+:root {
+  --background: oklch(0.08 0.03 25);
+  --foreground: oklch(0.92 0.15 55);
+  --card: oklch(0.12 0.04 20);
+  --card-foreground: oklch(0.92 0.15 55);
+  --popover: oklch(0.12 0.04 20);
+  --popover-foreground: oklch(0.92 0.15 55);
+  --primary: oklch(0.72 0.30 40);
+  --primary-foreground: oklch(0.08 0.03 25);
+  --secondary: oklch(0.58 0.25 15);
+  --secondary-foreground: oklch(0.92 0.15 55);
+  --muted: oklch(0.15 0.025 22);
+  --muted-foreground: oklch(0.72 0.12 57);
+  --accent: oklch(0.82 0.35 50);
+  --accent-foreground: oklch(0.08 0.03 25);
+  --destructive: oklch(0.65 0.32 10);
+  --destructive-foreground: oklch(0.08 0.03 25);
+  --border: oklch(0.72 0.30 40);
+  --input: oklch(0.10 0.035 23);
+  --ring: oklch(0.72 0.30 40);
+  --chart-1: oklch(0.72 0.30 40);
+  --chart-2: oklch(0.82 0.35 50);
+  --chart-3: oklch(0.58 0.25 15);
+  --chart-4: oklch(0.68 0.28 30);
+  --chart-5: oklch(0.65 0.32 10);
+  --sidebar: oklch(0.10 0.035 23);
+  --sidebar-foreground: oklch(0.92 0.15 55);
+  --sidebar-primary: oklch(0.72 0.30 40);
+  --sidebar-primary-foreground: oklch(0.08 0.03 25);
+  --sidebar-accent: oklch(0.58 0.25 15);
+  --sidebar-accent-foreground: oklch(0.92 0.15 55);
+  --sidebar-border: oklch(0.72 0.30 40);
+  --sidebar-ring: oklch(0.72 0.30 40);
+  --font-sans: 'Roboto', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'Roboto Mono', monospace;
+  --radius: 1rem;
+  --shadow-2xs: 0 0 12px oklch(0.72 0.30 40), 0 0 24px oklch(0.82 0.35 50 / 0.6), 0 0 36px oklch(0.58 0.25 15 / 0.4);
+  --shadow-xs: 0 0 18px oklch(0.72 0.30 40), 0 0 36px oklch(0.82 0.35 50 / 0.7), 0 0 54px oklch(0.58 0.25 15 / 0.5);
+  --shadow-sm: 0 0 24px oklch(0.72 0.30 40), 0 0 48px oklch(0.82 0.35 50 / 0.8), 0 0 72px oklch(0.58 0.25 15 / 0.6);
+  --shadow: 0 0 36px oklch(0.72 0.30 40), 0 0 72px oklch(0.82 0.35 50 / 0.9), 0 0 108px oklch(0.58 0.25 15 / 0.7);
+  --shadow-md: 0 0 48px oklch(0.72 0.30 40), 0 0 96px oklch(0.82 0.35 50 / 1.0), 0 0 144px oklch(0.58 0.25 15 / 0.8);
+  --shadow-lg: 0 0 72px oklch(0.72 0.30 40), 0 0 144px oklch(0.82 0.35 50 / 1.0), 0 0 216px oklch(0.58 0.25 15 / 0.9);
+  --shadow-xl: 0 0 96px oklch(0.72 0.30 40), 0 0 192px oklch(0.82 0.35 50 / 1.0), 0 0 288px oklch(0.58 0.25 15 / 1.0);
+  --shadow-2xl: 0 0 144px oklch(0.72 0.30 40), 0 0 288px oklch(0.82 0.35 50 / 1.0), 0 0 432px oklch(0.58 0.25 15 / 1.0);
+  --tracking-normal: 0.02em;
+  --spacing: 1.25rem;
+  
+  --gradient-ember: radial-gradient(ellipse at center, oklch(0.82 0.35 50), oklch(0.72 0.30 40), oklch(0.58 0.25 15), oklch(0.08 0.03 25));
+  --texture-sparks: radial-gradient(circle at 25% 25%, oklch(0.82 0.35 50 / 0.8) 1px, transparent 1px), radial-gradient(circle at 75% 75%, oklch(0.72 0.30 40 / 0.6) 0.5px, transparent 0.5px);
+  
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+}

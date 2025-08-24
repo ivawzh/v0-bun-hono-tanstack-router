@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 40: Newspaper Print */
+:root {
+  --background: oklch(0.96 0.003 60);
+  --foreground: oklch(0.12 0.01 50);
+  --card: oklch(0.98 0.002 65);
+  --card-foreground: oklch(0.12 0.01 50);
+  --popover: oklch(0.98 0.002 65);
+  --popover-foreground: oklch(0.12 0.01 50);
+  --primary: oklch(0.15 0.02 45);
+  --primary-foreground: oklch(0.96 0.003 60);
+  --secondary: oklch(0.75 0.005 55);
+  --secondary-foreground: oklch(0.12 0.01 50);
+  --muted: oklch(0.92 0.002 62);
+  --muted-foreground: oklch(0.35 0.01 52);
+  --accent: oklch(0.25 0.03 40);
+  --accent-foreground: oklch(0.96 0.003 60);
+  --destructive: oklch(0.30 0.04 35);
+  --destructive-foreground: oklch(0.96 0.003 60);
+  --border: oklch(0.15 0.02 45);
+  --input: oklch(0.97 0.002 63);
+  --ring: oklch(0.15 0.02 45);
+  --chart-1: oklch(0.15 0.02 45);
+  --chart-2: oklch(0.25 0.03 40);
+  --chart-3: oklch(0.75 0.005 55);
+  --chart-4: oklch(0.20 0.025 47);
+  --chart-5: oklch(0.30 0.035 42);
+  --sidebar: oklch(0.97 0.002 63);
+  --sidebar-foreground: oklch(0.12 0.01 50);
+  --sidebar-primary: oklch(0.15 0.02 45);
+  --sidebar-primary-foreground: oklch(0.96 0.003 60);
+  --sidebar-accent: oklch(0.75 0.005 55);
+  --sidebar-accent-foreground: oklch(0.12 0.01 50);
+  --sidebar-border: oklch(0.15 0.02 45);
+  --sidebar-ring: oklch(0.15 0.02 45);
+  --font-sans: 'Times New Roman', serif;
+  --font-serif: 'Georgia', serif;
+  --font-mono: 'Courier New', monospace;
+  --radius: 0px;
+  --shadow-2xs: 1px 1px 0px oklch(0.15 0.02 45);
+  --shadow-xs: 2px 2px 0px oklch(0.15 0.02 45);
+  --shadow-sm: 3px 3px 0px oklch(0.15 0.02 45);
+  --shadow: 4px 4px 0px oklch(0.15 0.02 45);
+  --shadow-md: 5px 5px 0px oklch(0.15 0.02 45);
+  --shadow-lg: 6px 6px 0px oklch(0.15 0.02 45);
+  --shadow-xl: 8px 8px 0px oklch(0.15 0.02 45);
+  --shadow-2xl: 12px 12px 0px oklch(0.15 0.02 45);
+  --tracking-normal: 0em;
+  --spacing: 0.5rem;
+  
+  --gradient-newsprint: linear-gradient(90deg, oklch(0.98 0.002 65), oklch(0.96 0.003 60));
+  --texture-dots: radial-gradient(circle, oklch(0.15 0.02 45) 0.5px, transparent 0.5px);
+  
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}

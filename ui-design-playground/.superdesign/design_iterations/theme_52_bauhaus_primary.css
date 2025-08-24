@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 52: Bauhaus Primary */
+:root {
+  --background: oklch(0.95 0.01 90);
+  --foreground: oklch(0.15 0.02 45);
+  --card: oklch(0.97 0.008 95);
+  --card-foreground: oklch(0.15 0.02 45);
+  --popover: oklch(0.97 0.008 95);
+  --popover-foreground: oklch(0.15 0.02 45);
+  --primary: oklch(0.45 0.28 30);
+  --primary-foreground: oklch(0.95 0.01 90);
+  --secondary: oklch(0.60 0.25 250);
+  --secondary-foreground: oklch(0.95 0.01 90);
+  --muted: oklch(0.92 0.012 92);
+  --muted-foreground: oklch(0.35 0.015 47);
+  --accent: oklch(0.65 0.30 85);
+  --accent-foreground: oklch(0.15 0.02 45);
+  --destructive: oklch(0.15 0.02 45);
+  --destructive-foreground: oklch(0.95 0.01 90);
+  --border: oklch(0.15 0.02 45);
+  --input: oklch(0.96 0.009 93);
+  --ring: oklch(0.15 0.02 45);
+  --chart-1: oklch(0.45 0.28 30);
+  --chart-2: oklch(0.60 0.25 250);
+  --chart-3: oklch(0.65 0.30 85);
+  --chart-4: oklch(0.15 0.02 45);
+  --chart-5: oklch(0.95 0.01 90);
+  --sidebar: oklch(0.96 0.009 93);
+  --sidebar-foreground: oklch(0.15 0.02 45);
+  --sidebar-primary: oklch(0.45 0.28 30);
+  --sidebar-primary-foreground: oklch(0.95 0.01 90);
+  --sidebar-accent: oklch(0.60 0.25 250);
+  --sidebar-accent-foreground: oklch(0.95 0.01 90);
+  --sidebar-border: oklch(0.15 0.02 45);
+  --sidebar-ring: oklch(0.15 0.02 45);
+  --font-sans: 'Futura', sans-serif;
+  --font-serif: 'Times New Roman', serif;
+  --font-mono: 'Monaco', monospace;
+  --radius: 0px;
+  --shadow-2xs: 2px 2px 0px oklch(0.15 0.02 45);
+  --shadow-xs: 3px 3px 0px oklch(0.15 0.02 45);
+  --shadow-sm: 4px 4px 0px oklch(0.15 0.02 45);
+  --shadow: 6px 6px 0px oklch(0.15 0.02 45);
+  --shadow-md: 8px 8px 0px oklch(0.15 0.02 45);
+  --shadow-lg: 10px 10px 0px oklch(0.15 0.02 45);
+  --shadow-xl: 15px 15px 0px oklch(0.15 0.02 45);
+  --shadow-2xl: 20px 20px 0px oklch(0.15 0.02 45);
+  --tracking-normal: 0.05em;
+  --spacing: 2rem;
+  
+  --gradient-bauhaus: linear-gradient(90deg, oklch(0.45 0.28 30), oklch(0.60 0.25 250), oklch(0.65 0.30 85));
+  --texture-geometric: repeating-linear-gradient(45deg, oklch(0.45 0.28 30), oklch(0.45 0.28 30) 10px, oklch(0.60 0.25 250) 10px, oklch(0.60 0.25 250) 20px, oklch(0.65 0.30 85) 20px, oklch(0.65 0.30 85) 30px);
+  
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}

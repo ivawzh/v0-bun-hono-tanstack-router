@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 83: Plaid Flannel */
+:root {
+  --background: oklch(0.88 0.06 25);
+  --foreground: oklch(0.18 0.08 340);
+  --card: oklch(0.92 0.05 30);
+  --card-foreground: oklch(0.18 0.08 340);
+  --popover: oklch(0.92 0.05 30);
+  --popover-foreground: oklch(0.18 0.08 340);
+  --primary: oklch(0.35 0.15 350);
+  --primary-foreground: oklch(0.88 0.06 25);
+  --secondary: oklch(0.45 0.12 15);
+  --secondary-foreground: oklch(0.88 0.06 25);
+  --muted: oklch(0.85 0.07 27);
+  --muted-foreground: oklch(0.32 0.06 342);
+  --accent: oklch(0.28 0.18 5);
+  --accent-foreground: oklch(0.88 0.06 25);
+  --destructive: oklch(0.42 0.20 355);
+  --destructive-foreground: oklch(0.88 0.06 25);
+  --border: oklch(0.35 0.15 350);
+  --input: oklch(0.90 0.055 28);
+  --ring: oklch(0.35 0.15 350);
+  --chart-1: oklch(0.35 0.15 350);
+  --chart-2: oklch(0.28 0.18 5);
+  --chart-3: oklch(0.45 0.12 15);
+  --chart-4: oklch(0.38 0.16 10);
+  --chart-5: oklch(0.42 0.20 355);
+  --sidebar: oklch(0.90 0.055 28);
+  --sidebar-foreground: oklch(0.18 0.08 340);
+  --sidebar-primary: oklch(0.35 0.15 350);
+  --sidebar-primary-foreground: oklch(0.88 0.06 25);
+  --sidebar-accent: oklch(0.45 0.12 15);
+  --sidebar-accent-foreground: oklch(0.88 0.06 25);
+  --sidebar-border: oklch(0.35 0.15 350);
+  --sidebar-ring: oklch(0.35 0.15 350);
+  --font-sans: 'Cabin', sans-serif;
+  --font-serif: 'Merriweather', serif;
+  --font-mono: 'Source Code Pro', monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0 2px 6px oklch(0.35 0.15 350 / 0.25), 0 4px 12px oklch(0.28 0.18 5 / 0.2), 0 6px 18px oklch(0.45 0.12 15 / 0.15);
+  --shadow-xs: 0 3px 9px oklch(0.35 0.15 350 / 0.3), 0 6px 18px oklch(0.28 0.18 5 / 0.25), 0 9px 27px oklch(0.45 0.12 15 / 0.2);
+  --shadow-sm: 0 4px 12px oklch(0.35 0.15 350 / 0.35), 0 8px 24px oklch(0.28 0.18 5 / 0.3), 0 12px 36px oklch(0.45 0.12 15 / 0.25);
+  --shadow: 0 6px 18px oklch(0.35 0.15 350 / 0.4), 0 12px 36px oklch(0.28 0.18 5 / 0.35), 0 18px 54px oklch(0.45 0.12 15 / 0.3);
+  --shadow-md: 0 8px 24px oklch(0.35 0.15 350 / 0.45), 0 16px 48px oklch(0.28 0.18 5 / 0.4), 0 24px 72px oklch(0.45 0.12 15 / 0.35);
+  --shadow-lg: 0 12px 36px oklch(0.35 0.15 350 / 0.5), 0 24px 72px oklch(0.28 0.18 5 / 0.45), 0 36px 108px oklch(0.45 0.12 15 / 0.4);
+  --shadow-xl: 0 16px 48px oklch(0.35 0.15 350 / 0.55), 0 32px 96px oklch(0.28 0.18 5 / 0.5), 0 48px 144px oklch(0.45 0.12 15 / 0.45);
+  --shadow-2xl: 0 24px 72px oklch(0.35 0.15 350 / 0.6), 0 48px 144px oklch(0.28 0.18 5 / 0.55), 0 72px 216px oklch(0.45 0.12 15 / 0.5);
+  --tracking-normal: 0.01em;
+  --spacing: 1.25rem;
+  
+  --gradient-plaid: linear-gradient(90deg, oklch(0.35 0.15 350), oklch(0.28 0.18 5), oklch(0.45 0.12 15));
+  --texture-flannel: repeating-linear-gradient(0deg, oklch(0.35 0.15 350), oklch(0.35 0.15 350) 8px, oklch(0.28 0.18 5) 8px, oklch(0.28 0.18 5) 16px, oklch(0.45 0.12 15) 16px, oklch(0.45 0.12 15) 24px), repeating-linear-gradient(90deg, oklch(0.35 0.15 350 / 0.7), oklch(0.35 0.15 350 / 0.7) 12px, transparent 12px, transparent 24px);
+  
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}

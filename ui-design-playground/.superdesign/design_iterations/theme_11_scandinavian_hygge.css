@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 11: Scandinavian Hygge */
+:root {
+  --background: oklch(0.97 0.003 200);
+  --foreground: oklch(0.28 0.02 210);
+  --card: oklch(1.0 0 0);
+  --card-foreground: oklch(0.28 0.02 210);
+  --popover: oklch(1.0 0 0);
+  --popover-foreground: oklch(0.28 0.02 210);
+  --primary: oklch(0.58 0.06 200);
+  --primary-foreground: oklch(0.97 0.003 200);
+  --secondary: oklch(0.85 0.02 180);
+  --secondary-foreground: oklch(0.28 0.02 210);
+  --muted: oklch(0.94 0.002 205);
+  --muted-foreground: oklch(0.52 0.02 208);
+  --accent: oklch(0.68 0.08 160);
+  --accent-foreground: oklch(0.97 0.003 200);
+  --destructive: oklch(0.62 0.10 20);
+  --destructive-foreground: oklch(0.97 0.003 200);
+  --border: oklch(0.88 0.01 205);
+  --input: oklch(0.98 0.001 202);
+  --ring: oklch(0.58 0.06 200);
+  --chart-1: oklch(0.58 0.06 200);
+  --chart-2: oklch(0.68 0.08 160);
+  --chart-3: oklch(0.62 0.05 220);
+  --chart-4: oklch(0.55 0.04 180);
+  --chart-5: oklch(0.65 0.06 140);
+  --sidebar: oklch(0.99 0.001 202);
+  --sidebar-foreground: oklch(0.28 0.02 210);
+  --sidebar-primary: oklch(0.58 0.06 200);
+  --sidebar-primary-foreground: oklch(0.97 0.003 200);
+  --sidebar-accent: oklch(0.85 0.02 180);
+  --sidebar-accent-foreground: oklch(0.28 0.02 210);
+  --sidebar-border: oklch(0.88 0.01 205);
+  --sidebar-ring: oklch(0.58 0.06 200);
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Lora', serif;
+  --font-mono: 'Roboto Mono', monospace;
+  --radius: 0.5rem;
+  --shadow-2xs: 0 1px 3px oklch(0.28 0.02 210 / 0.04);
+  --shadow-xs: 0 1px 3px oklch(0.28 0.02 210 / 0.06);
+  --shadow-sm: 0 2px 6px oklch(0.28 0.02 210 / 0.08);
+  --shadow: 0 4px 12px oklch(0.28 0.02 210 / 0.10);
+  --shadow-md: 0 6px 16px oklch(0.28 0.02 210 / 0.12);
+  --shadow-lg: 0 8px 20px oklch(0.28 0.02 210 / 0.15);
+  --shadow-xl: 0 12px 28px oklch(0.28 0.02 210 / 0.18);
+  --shadow-2xl: 0 16px 36px oklch(0.28 0.02 210 / 0.20);
+  --tracking-normal: -0.015em;
+  --spacing: 1.25rem;
+  
+  --gradient-hygge: linear-gradient(135deg, oklch(1.0 0 0), oklch(0.97 0.003 200));
+  --texture-wood: linear-gradient(90deg, oklch(0.99 0.001 202), oklch(0.97 0.003 200));
+  
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}

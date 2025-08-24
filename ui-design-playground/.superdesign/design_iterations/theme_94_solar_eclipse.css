@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 94: Solar Eclipse */
+:root {
+  --background: oklch(0.05 0.01 280);
+  --foreground: oklch(0.90 0.10 70);
+  --card: oklch(0.08 0.015 275);
+  --card-foreground: oklch(0.90 0.10 70);
+  --popover: oklch(0.08 0.015 275);
+  --popover-foreground: oklch(0.90 0.10 70);
+  --primary: oklch(0.85 0.12 80);
+  --primary-foreground: oklch(0.05 0.01 280);
+  --secondary: oklch(0.15 0.03 270);
+  --secondary-foreground: oklch(0.90 0.10 70);
+  --muted: oklch(0.12 0.012 278);
+  --muted-foreground: oklch(0.70 0.08 72);
+  --accent: oklch(0.92 0.15 65);
+  --accent-foreground: oklch(0.05 0.01 280);
+  --destructive: oklch(0.55 0.20 15);
+  --destructive-foreground: oklch(0.05 0.01 280);
+  --border: oklch(0.85 0.12 80);
+  --input: oklch(0.07 0.013 277);
+  --ring: oklch(0.85 0.12 80);
+  --chart-1: oklch(0.85 0.12 80);
+  --chart-2: oklch(0.92 0.15 65);
+  --chart-3: oklch(0.15 0.03 270);
+  --chart-4: oklch(0.78 0.10 75);
+  --chart-5: oklch(0.55 0.20 15);
+  --sidebar: oklch(0.07 0.013 277);
+  --sidebar-foreground: oklch(0.90 0.10 70);
+  --sidebar-primary: oklch(0.85 0.12 80);
+  --sidebar-primary-foreground: oklch(0.05 0.01 280);
+  --sidebar-accent: oklch(0.15 0.03 270);
+  --sidebar-accent-foreground: oklch(0.90 0.10 70);
+  --sidebar-border: oklch(0.85 0.12 80);
+  --sidebar-ring: oklch(0.85 0.12 80);
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Source Serif Pro', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 50%;
+  --shadow-2xs: 0 0 20px oklch(0.85 0.12 80), 0 0 40px oklch(0.92 0.15 65 / 0.6), inset 0 0 10px oklch(0.15 0.03 270 / 0.8);
+  --shadow-xs: 0 0 30px oklch(0.85 0.12 80), 0 0 60px oklch(0.92 0.15 65 / 0.7), inset 0 0 15px oklch(0.15 0.03 270 / 0.85);
+  --shadow-sm: 0 0 40px oklch(0.85 0.12 80), 0 0 80px oklch(0.92 0.15 65 / 0.8), inset 0 0 20px oklch(0.15 0.03 270 / 0.9);
+  --shadow: 0 0 60px oklch(0.85 0.12 80), 0 0 120px oklch(0.92 0.15 65 / 0.9), inset 0 0 30px oklch(0.15 0.03 270 / 0.95);
+  --shadow-md: 0 0 80px oklch(0.85 0.12 80), 0 0 160px oklch(0.92 0.15 65 / 1.0), inset 0 0 40px oklch(0.15 0.03 270 / 1.0);
+  --shadow-lg: 0 0 120px oklch(0.85 0.12 80), 0 0 240px oklch(0.92 0.15 65 / 1.0), inset 0 0 60px oklch(0.15 0.03 270 / 1.0);
+  --shadow-xl: 0 0 160px oklch(0.85 0.12 80), 0 0 320px oklch(0.92 0.15 65 / 1.0), inset 0 0 80px oklch(0.15 0.03 270 / 1.0);
+  --shadow-2xl: 0 0 240px oklch(0.85 0.12 80), 0 0 480px oklch(0.92 0.15 65 / 1.0), inset 0 0 120px oklch(0.15 0.03 270 / 1.0);
+  --tracking-normal: 0.05em;
+  --spacing: 2rem;
+  
+  --gradient-eclipse: radial-gradient(circle, oklch(0.15 0.03 270), oklch(0.85 0.12 80), oklch(0.92 0.15 65), oklch(0.05 0.01 280));
+  --texture-corona: repeating-radial-gradient(circle at center, oklch(0.85 0.12 80 / 0.1) 0%, oklch(0.92 0.15 65 / 0.08) 10%, transparent 20%);
+  
+  --radius-sm: 45%;
+  --radius-md: 50%;
+  --radius-lg: 60%;
+  --radius-xl: 75%;
+}

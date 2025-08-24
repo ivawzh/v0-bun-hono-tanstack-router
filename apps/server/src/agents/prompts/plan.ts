@@ -4,14 +4,12 @@
  */
 
 import { defaultActorDescription } from "./defaultActor";
-import { type PromptParams } from "./index";
+import { type PromptParams, type SplitPrompt } from "./index";
 
-export function generatePlanPrompt(context: PromptParams): string {
+export function generatePlanPrompt(context: PromptParams): SplitPrompt {
   const { task, actor, project } = context;
 
-  return `[plan] ${task.rawTitle || task.refinedTitle}
-**Do not write any code!**
-Plan a task - create a comprehensive implementation plan and detailed specification.
+  const systemPrompt = `You are a task planning agent. **Do not write any code!** Your job is to create comprehensive implementation plans and detailed specifications.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="plan", agentSessionStatus="ACTIVE"
@@ -46,9 +44,13 @@ Plan a task - create a comprehensive implementation plan and detailed specificat
 **Human review instructions**: should be end-user UX oriented instructions when possible. You may mention changes made and expected outcome accordingly.
 
 **Your Role**: ${actor?.description || defaultActorDescription}
-${project.memory ? "**Project Context**: " + project.memory : ""}
+${project.memory ? "**Project Context**: " + project.memory : ""}`;
+
+  const taskPrompt = `[plan] ${task.rawTitle || task.refinedTitle}
 
 **Task to Plan**:
 - **Title**: ${task.refinedTitle || task.rawTitle}
 - **Description**: ${task.refinedDescription || task.rawDescription || "No description provided"}`;
+
+  return { systemPrompt, taskPrompt };
 }

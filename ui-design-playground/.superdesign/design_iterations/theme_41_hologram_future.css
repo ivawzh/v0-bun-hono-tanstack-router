@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 41: Hologram Future */
+:root {
+  --background: oklch(0.05 0.02 280);
+  --foreground: oklch(0.88 0.12 180);
+  --card: oklch(0.08 0.03 275 / 0.8);
+  --card-foreground: oklch(0.88 0.12 180);
+  --popover: oklch(0.08 0.03 275 / 0.8);
+  --popover-foreground: oklch(0.88 0.12 180);
+  --primary: oklch(0.75 0.18 160);
+  --primary-foreground: oklch(0.05 0.02 280);
+  --secondary: oklch(0.65 0.15 200);
+  --secondary-foreground: oklch(0.05 0.02 280);
+  --muted: oklch(0.12 0.03 278 / 0.6);
+  --muted-foreground: oklch(0.68 0.08 190);
+  --accent: oklch(0.82 0.20 140);
+  --accent-foreground: oklch(0.05 0.02 280);
+  --destructive: oklch(0.68 0.22 15);
+  --destructive-foreground: oklch(0.05 0.02 280);
+  --border: oklch(0.75 0.18 160 / 0.4);
+  --input: oklch(0.10 0.03 277 / 0.7);
+  --ring: oklch(0.75 0.18 160);
+  --chart-1: oklch(0.75 0.18 160);
+  --chart-2: oklch(0.82 0.20 140);
+  --chart-3: oklch(0.65 0.15 200);
+  --chart-4: oklch(0.78 0.19 170);
+  --chart-5: oklch(0.72 0.16 220);
+  --sidebar: oklch(0.10 0.03 277 / 0.7);
+  --sidebar-foreground: oklch(0.88 0.12 180);
+  --sidebar-primary: oklch(0.75 0.18 160);
+  --sidebar-primary-foreground: oklch(0.05 0.02 280);
+  --sidebar-accent: oklch(0.65 0.15 200);
+  --sidebar-accent-foreground: oklch(0.05 0.02 280);
+  --sidebar-border: oklch(0.75 0.18 160 / 0.4);
+  --sidebar-ring: oklch(0.75 0.18 160);
+  --font-sans: 'Rajdhani', sans-serif;
+  --font-serif: 'Orbitron', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  --radius: 1rem;
+  --shadow-2xs: 0 0 8px oklch(0.75 0.18 160), 0 0 16px oklch(0.82 0.20 140 / 0.5), inset 0 0 4px oklch(0.88 0.12 180 / 0.1);
+  --shadow-xs: 0 0 12px oklch(0.75 0.18 160), 0 0 24px oklch(0.82 0.20 140 / 0.6), inset 0 0 6px oklch(0.88 0.12 180 / 0.15);
+  --shadow-sm: 0 0 16px oklch(0.75 0.18 160), 0 0 32px oklch(0.82 0.20 140 / 0.7), inset 0 0 8px oklch(0.88 0.12 180 / 0.2);
+  --shadow: 0 0 24px oklch(0.75 0.18 160), 0 0 48px oklch(0.82 0.20 140 / 0.8), inset 0 0 12px oklch(0.88 0.12 180 / 0.25);
+  --shadow-md: 0 0 32px oklch(0.75 0.18 160), 0 0 64px oklch(0.82 0.20 140 / 0.9), inset 0 0 16px oklch(0.88 0.12 180 / 0.3);
+  --shadow-lg: 0 0 48px oklch(0.75 0.18 160), 0 0 96px oklch(0.82 0.20 140 / 1.0), inset 0 0 24px oklch(0.88 0.12 180 / 0.35);
+  --shadow-xl: 0 0 64px oklch(0.75 0.18 160), 0 0 128px oklch(0.82 0.20 140 / 1.0), inset 0 0 32px oklch(0.88 0.12 180 / 0.4);
+  --shadow-2xl: 0 0 96px oklch(0.75 0.18 160), 0 0 192px oklch(0.82 0.20 140 / 1.0), inset 0 0 48px oklch(0.88 0.12 180 / 0.45);
+  --tracking-normal: 0.1em;
+  --spacing: 1.5rem;
+  
+  --gradient-hologram: conic-gradient(from 0deg, oklch(0.75 0.18 160), oklch(0.82 0.20 140), oklch(0.65 0.15 200), oklch(0.78 0.19 170));
+  --texture-scan: repeating-linear-gradient(0deg, transparent, transparent 2px, oklch(0.75 0.18 160 / 0.05) 3px);
+  
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+}

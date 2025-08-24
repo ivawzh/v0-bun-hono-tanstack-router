@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo Unicorn! - AI Task Management</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    
+    <!-- Flowbite -->
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+    
+    <!-- Custom Theme -->
+    <link rel="stylesheet" href="theme_2_neon_unicorn.css">
+    
+    <style>
+        /* Custom neon animations and effects */
+        .neon-gradient {
+            background: linear-gradient(135deg, oklch(0.65 0.28 320), oklch(0.72 0.25 285), oklch(0.78 0.22 340));
+        }
+        
+        .glow-effect {
+            box-shadow: 0 0 20px hsl(320 70% 60% / 0.6), 0 0 40px hsl(320 70% 60% / 0.4), 0 0 80px hsl(320 70% 60% / 0.2);
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px) scale(1.02);
+            transition: all 150ms ease-out;
+            box-shadow: 0 0 24px hsl(320 70% 60% / 0.35), 0 0 12px hsl(285 60% 70% / 0.40);
+        }
+        
+        .priority-pulse {
+            animation: neon-pulse 1000ms ease-in-out infinite;
+        }
+        
+        .priority-breathe {
+            animation: neon-breathe 2000ms ease-in-out infinite;
+        }
+        
+        .ai-spinner {
+            animation: spin 2000ms linear infinite;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        .neon-glow:hover {
+            text-shadow: 0 0 10px currentColor;
+            transition: text-shadow 200ms ease-out;
+        }
+        
+        .electric-pulse {
+            animation: electric-pulse 1500ms ease-in-out infinite;
+        }
+        
+        @keyframes neon-pulse {
+            0%, 100% { 
+                transform: scale(1); 
+                filter: drop-shadow(0 0 5px currentColor); 
+            }
+            50% { 
+                transform: scale(1.1); 
+                filter: drop-shadow(0 0 15px currentColor); 
+            }
+        }
+        
+        @keyframes neon-breathe {
+            0%, 100% { opacity: 0.8; filter: drop-shadow(0 0 5px currentColor); }
+            50% { opacity: 1; filter: drop-shadow(0 0 10px currentColor); }
+        }
+        
+        @keyframes electric-pulse {
+            0%, 100% { box-shadow: 0 0 5px currentColor; }
+            50% { box-shadow: 0 0 20px currentColor, 0 0 30px currentColor; }
+        }
+        
+        /* Dark theme styles */
+        body {
+            font-family: 'Geist', sans-serif !important;
+            background: oklch(0.08 0.01 260) !important;
+            color: oklch(0.95 0.02 300) !important;
+        }
+        
+        .kanban-card {
+            background: oklch(0.12 0.02 270) !important;
+            border: 1px solid oklch(0.22 0.04 275) !important;
+            border-radius: 0.5rem !important;
+            box-shadow: 0 0 16px 0px hsl(320 70% 60% / 0.25), 0 0 4px 0px hsl(285 60% 70% / 0.30) !important;
+        }
+        
+        .priority-5 { color: oklch(0.68 0.30 15) !important; }
+        .priority-4 { color: oklch(0.78 0.22 340) !important; }
+        .priority-3 { color: oklch(0.72 0.25 285) !important; }
+        .priority-2 { color: oklch(0.65 0.28 320) !important; }
+        .priority-1 { color: oklch(0.68 0.04 280) !important; }
+        
+        .mode-dropdown {
+            background: oklch(0.18 0.03 270) !important;
+            color: oklch(0.95 0.02 300) !important;
+            border: 1px solid oklch(0.22 0.04 275) !important;
+            border-radius: 0.5rem !important;
+        }
+        
+        .status-badge {
+            background: oklch(0.65 0.28 320) !important;
+            color: oklch(0.08 0.01 260) !important;
+            border-radius: 1rem !important;
+            box-shadow: 0 0 10px currentColor !important;
+        }
+        
+        .ready-toggle.ready {
+            background: oklch(0.65 0.15 140) !important;
+            color: oklch(0.08 0.01 260) !important;
+            box-shadow: 0 0 10px oklch(0.65 0.15 140) !important;
+        }
+        
+        .ready-toggle.not-ready {
+            background: oklch(0.68 0.30 15) !important;
+            color: oklch(0.08 0.01 260) !important;
+            box-shadow: 0 0 10px oklch(0.68 0.30 15) !important;
+        }
+        
+        .header-border {
+            border-color: oklch(0.22 0.04 275) !important;
+            background: oklch(0.10 0.02 270) !important;
+        }
+        
+        .neon-logo {
+            background: oklch(0.65 0.28 320) !important;
+            box-shadow: 0 0 20px oklch(0.65 0.28 320) !important;
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="min-h-screen">
+        
+        <!-- Top Header -->
+        <header class="border-b header-border">
+            <div class="px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <!-- Logo -->
+                    <div class="flex items-center space-x-2">
+                        <div class="w-8 h-8 neon-logo rounded-lg flex items-center justify-center text-black font-bold">
+                            🦄
+                        </div>
+                        <span class="font-semibold text-lg neon-glow">Solo Unicorn!</span>
+                    </div>
+                    
+                    <!-- Project Selector -->
+                    <div class="relative">
+                        <button class="flex items-center space-x-2 px-3 py-2 rounded-md border border-[oklch(0.22_0.04_275)] hover:bg-[oklch(0.15_0.02_270)] transition-colors">
+                            <span>AI Agent Tasks</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Dark/Light Mode Toggle -->
+                    <button class="p-2 rounded-md border border-[oklch(0.22_0.04_275)] hover:bg-[oklch(0.15_0.02_270)] transition-all duration-400">
+                        <i data-lucide="sun" class="w-5 h-5 text-yellow-400"></i>
+                    </button>
+                    
+                    <!-- User Menu -->
+                    <div class="relative">
+                        <button class="flex items-center space-x-2 px-3 py-2 rounded-md border border-[oklch(0.22_0.04_275)] hover:bg-[oklch(0.15_0.02_270)] transition-colors">
+                            <div class="w-8 h-8 neon-logo rounded-full flex items-center justify-center text-black text-sm font-medium">
+                                U
+                            </div>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Sub Header -->
+        <div class="px-6 py-3 border-b header-border flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-semibold neon-glow">AI Agent Workflow</h1>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Pause/Resume Button -->
+                <button class="flex items-center space-x-2 px-4 py-2 rounded-md bg-green-500 hover:bg-green-600 text-black transition-all duration-300 electric-pulse">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>Resume</span>
+                </button>
+                
+                <!-- Settings Button -->
+                <button class="p-2 rounded-md border border-[oklch(0.22_0.04_275)] hover:bg-[oklch(0.15_0.02_270)] transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Kanban Board -->
+        <main class="flex-1 p-6">
+            <div class="flex space-x-6 h-full overflow-x-auto">
+                
+                <!-- TODO Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="kanban-card p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4 neon-glow">TODO</h2>
+                        
+                        <!-- Normal Tasks Section -->
+                        <div class="mb-4">
+                            <button class="flex items-center justify-between w-full text-left text-sm font-medium mb-3 neon-glow">
+                                <span>Normal Tasks</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="space-y-3">
+                                <!-- Task Card 1 -->
+                                <div class="kanban-card p-4 card-hover">
+                                    <h3 class="font-medium mb-2">Implement user authentication system</h3>
+                                    
+                                    <div class="flex items-center space-x-2 mb-3">
+                                        <span class="priority-4 priority-breathe">🔥4</span>
+                                        <select class="mode-dropdown px-2 py-1 text-xs font-medium">
+                                            <option>Execute</option>
+                                            <option>Plan</option>
+                                            <option>Clarify</option>
+                                        </select>
+                                        <span class="status-badge px-2 py-1 text-xs font-medium">🔄 Queueing</span>
+                                    </div>
+                                    
+                                    <div class="text-sm text-[oklch(0.68_0.04_280)] mb-3">
+                                        Set up OAuth 2.0 integration with Google and GitHub providers. Include session management and user profile...
+                                        <span class="text-xs">⋮</span>
+                                    </div>
+                                    
+                                    <div class="flex justify-end">
+                                        <button class="ready-toggle ready px-3 py-1 rounded-md text-xs font-medium transition-all duration-300">
+                                            Ready
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Task Card 2 -->
+                                <div class="kanban-card p-4 card-hover">
+                                    <h3 class="font-medium mb-2">Design database schema</h3>
+                                    
+                                    <div class="flex items-center space-x-2 mb-3">
+                                        <span class="priority-3">⚠️3</span>
+                                        <select class="mode-dropdown px-2 py-1 text-xs font-medium">
+                                            <option>Plan</option>
+                                            <option>Execute</option>
+                                            <option>Clarify</option>
+                                        </select>
+                                        <span class="status-badge px-2 py-1 text-xs font-medium">🔄 Queueing</span>
+                                    </div>
+                                    
+                                    <div class="text-sm text-[oklch(0.68_0.04_280)] mb-3">
+                                        Create entity relationship diagram for user management, task tracking, and project organization...
+                                        <span class="text-xs">⋮</span>
+                                    </div>
+                                    
+                                    <div class="flex justify-end">
+                                        <button class="ready-toggle not-ready px-3 py-1 rounded-md text-xs font-medium transition-all duration-300">
+                                            Not Ready
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Loop Tasks Section -->
+                        <div>
+                            <button class="flex items-center justify-between w-full text-left text-sm font-medium mb-3 neon-glow">
+                                <span>Loop Tasks</span>
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DOING Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="kanban-card p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4 neon-glow">DOING</h2>
+                        
+                        <div class="space-y-3">
+                            <!-- Task Card in Progress -->
+                            <div class="kanban-card p-4 card-hover">
+                                <h3 class="font-medium mb-2">Set up CI/CD pipeline</h3>
+                                
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <span class="priority-5 priority-pulse">🚨5</span>
+                                    <span class="mode-dropdown px-2 py-1 text-xs font-medium">Execute</span>
+                                    <span class="status-badge px-2 py-1 text-xs font-medium ai-spinner">🤖 AI at work</span>
+                                </div>
+                                
+                                <div class="text-sm text-[oklch(0.68_0.04_280)] mb-3">
+                                    Configure GitHub Actions for automated testing, building, and deployment to staging environment...
+                                    <span class="text-xs">⋮</span>
+                                </div>
+                                
+                                <div class="flex justify-end">
+                                    <button class="ready-toggle ready px-3 py-1 rounded-md text-xs font-medium">
+                                        Ready
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CHECK Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="kanban-card p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4 neon-glow">CHECK</h2>
+                        
+                        <div class="space-y-3">
+                            <!-- Task Card for Review -->
+                            <div class="kanban-card p-4 card-hover">
+                                <h3 class="font-medium mb-2">API documentation update</h3>
+                                
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <span class="priority-2">🔵2</span>
+                                    <span class="mode-dropdown px-2 py-1 text-xs font-medium">Execute</span>
+                                </div>
+                                
+                                <div class="text-sm text-[oklch(0.68_0.04_280)] mb-3">
+                                    Updated OpenAPI specifications with new endpoints for user management and task operations...
+                                    <span class="text-xs">⋮</span>
+                                </div>
+                                
+                                <div class="flex justify-end">
+                                    <button class="bg-[oklch(0.78_0.22_340)] hover:bg-[oklch(0.75_0.20_340)] text-black px-3 py-1 rounded-md text-xs font-medium transition-all duration-200 glow-effect">
+                                        Review
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DONE Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="kanban-card p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4 neon-glow">DONE</h2>
+                        
+                        <div class="space-y-3">
+                            <!-- Completed Task Card -->
+                            <div class="kanban-card p-4 opacity-75">
+                                <h3 class="font-medium mb-2">Project initialization</h3>
+                                
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <span class="priority-1">⚪1</span>
+                                    <span class="mode-dropdown px-2 py-1 text-xs font-medium">Execute</span>
+                                </div>
+                                
+                                <div class="text-sm text-[oklch(0.68_0.04_280)]">
+                                    Created project structure, configured development environment, and set up initial dependencies...
+                                    <span class="text-xs">⋮</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+        
+        // Add interactive behaviors
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ready toggle functionality
+            document.querySelectorAll('.ready-toggle').forEach(button => {
+                button.addEventListener('click', function() {
+                    this.classList.toggle('ready');
+                    this.classList.toggle('not-ready');
+                    this.textContent = this.classList.contains('ready') ? 'Ready' : 'Not Ready';
+                });
+            });
+            
+            // Pause/Resume toggle
+            const pauseResumeBtn = document.querySelector('button:has([data-lucide="play"])');
+            if (pauseResumeBtn) {
+                pauseResumeBtn.addEventListener('click', function() {
+                    const icon = this.querySelector('i');
+                    const text = this.querySelector('span');
+                    
+                    if (icon.dataset.lucide === 'play') {
+                        icon.dataset.lucide = 'pause';
+                        text.textContent = 'Pause';
+                        this.classList.replace('bg-green-500', 'bg-yellow-500');
+                        this.classList.replace('hover:bg-green-600', 'hover:bg-yellow-600');
+                    } else {
+                        icon.dataset.lucide = 'play';
+                        text.textContent = 'Resume';
+                        this.classList.replace('bg-yellow-500', 'bg-green-500');
+                        this.classList.replace('hover:bg-yellow-600', 'hover:bg-green-600');
+                    }
+                    
+                    lucide.createIcons();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

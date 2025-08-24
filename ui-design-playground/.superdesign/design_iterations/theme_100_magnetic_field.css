@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 100: Magnetic Field */
+:root {
+  --background: oklch(0.06 0.01 270);
+  --foreground: oklch(0.88 0.15 170);
+  --card: oklch(0.09 0.02 265);
+  --card-foreground: oklch(0.88 0.15 170);
+  --popover: oklch(0.09 0.02 265);
+  --popover-foreground: oklch(0.88 0.15 170);
+  --primary: oklch(0.72 0.22 180);
+  --primary-foreground: oklch(0.06 0.01 270);
+  --secondary: oklch(0.65 0.18 200);
+  --secondary-foreground: oklch(0.06 0.01 270);
+  --muted: oklch(0.12 0.015 268);
+  --muted-foreground: oklch(0.68 0.12 175);
+  --accent: oklch(0.82 0.25 160);
+  --accent-foreground: oklch(0.06 0.01 270);
+  --destructive: oklch(0.62 0.28 15);
+  --destructive-foreground: oklch(0.06 0.01 270);
+  --border: oklch(0.72 0.22 180);
+  --input: oklch(0.08 0.018 267);
+  --ring: oklch(0.72 0.22 180);
+  --chart-1: oklch(0.72 0.22 180);
+  --chart-2: oklch(0.82 0.25 160);
+  --chart-3: oklch(0.65 0.18 200);
+  --chart-4: oklch(0.75 0.23 170);
+  --chart-5: oklch(0.62 0.28 15);
+  --sidebar: oklch(0.08 0.018 267);
+  --sidebar-foreground: oklch(0.88 0.15 170);
+  --sidebar-primary: oklch(0.72 0.22 180);
+  --sidebar-primary-foreground: oklch(0.06 0.01 270);
+  --sidebar-accent: oklch(0.65 0.18 200);
+  --sidebar-accent-foreground: oklch(0.06 0.01 270);
+  --sidebar-border: oklch(0.72 0.22 180);
+  --sidebar-ring: oklch(0.72 0.22 180);
+  --font-sans: 'Roboto', sans-serif;
+  --font-serif: 'IBM Plex Serif', serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --radius: 1rem;
+  --shadow-2xs: 0 0 10px oklch(0.72 0.22 180), 0 0 20px oklch(0.82 0.25 160 / 0.6), 0 0 30px oklch(0.65 0.18 200 / 0.4);
+  --shadow-xs: 0 0 15px oklch(0.72 0.22 180), 0 0 30px oklch(0.82 0.25 160 / 0.7), 0 0 45px oklch(0.65 0.18 200 / 0.5);
+  --shadow-sm: 0 0 20px oklch(0.72 0.22 180), 0 0 40px oklch(0.82 0.25 160 / 0.8), 0 0 60px oklch(0.65 0.18 200 / 0.6);
+  --shadow: 0 0 30px oklch(0.72 0.22 180), 0 0 60px oklch(0.82 0.25 160 / 0.9), 0 0 90px oklch(0.65 0.18 200 / 0.7);
+  --shadow-md: 0 0 40px oklch(0.72 0.22 180), 0 0 80px oklch(0.82 0.25 160 / 1.0), 0 0 120px oklch(0.65 0.18 200 / 0.8);
+  --shadow-lg: 0 0 60px oklch(0.72 0.22 180), 0 0 120px oklch(0.82 0.25 160 / 1.0), 0 0 180px oklch(0.65 0.18 200 / 0.9);
+  --shadow-xl: 0 0 80px oklch(0.72 0.22 180), 0 0 160px oklch(0.82 0.25 160 / 1.0), 0 0 240px oklch(0.65 0.18 200 / 1.0);
+  --shadow-2xl: 0 0 120px oklch(0.72 0.22 180), 0 0 240px oklch(0.82 0.25 160 / 1.0), 0 0 360px oklch(0.65 0.18 200 / 1.0);
+  --tracking-normal: 0.03em;
+  --spacing: 2rem;
+  
+  --gradient-magnetic: conic-gradient(from 45deg, oklch(0.72 0.22 180), oklch(0.82 0.25 160), oklch(0.65 0.18 200), oklch(0.75 0.23 170));
+  --texture-field: repeating-conic-gradient(from 0deg at 30% 70%, oklch(0.72 0.22 180 / 0.1) 0deg 30deg, oklch(0.82 0.25 160 / 0.08) 30deg 60deg, oklch(0.65 0.18 200 / 0.06) 60deg 90deg, transparent 90deg 120deg);
+  
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+}

@@ -3,15 +3,14 @@
  * Used when agents need to clarify raw task titles and descriptions
  */
 
-import type { PromptParams } from './index';
+import type { PromptParams, SplitPrompt } from './index';
 
 const defaultActorDescription = 'Startup founder and fullstack software engineer focused on speed to market. Think small. Ignore performance, cost, and scalability. Basic auth and access control is still essential. Obsessed with UX - less frictions; max magics.';
 
-export function generateRefinePrompt(context: PromptParams): string {
+export function generateRefinePrompt(context: PromptParams): SplitPrompt {
   const { task, actor, project } = context;
 
-  return `[clarify] ${task.rawTitle || task.refinedTitle}
-**Do not write any code!**
+  const systemPrompt = `**Do not write any code!**
 clarify this raw task.
 
 **Steps**:
@@ -26,9 +25,13 @@ clarify this raw task.
 5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", mode="plan", agentSessionStatus="INACTIVE", refinedTitle=[from above], refinedDescription=[from above]
 
 **Your Role**: ${actor?.description || defaultActorDescription}
-${project.memory ? '**Project Context**: ' + project.memory : ''}
+${project.memory ? '**Project Context**: ' + project.memory : ''}`;
+
+  const taskPrompt = `[clarify] ${task.rawTitle || task.refinedTitle}
 
 **Task to clarify**:
 - **Raw Title**: ${task.rawTitle}
 - **Raw Description**: ${task.rawDescription || 'No description provided'}`;
+
+  return { systemPrompt, taskPrompt };
 }

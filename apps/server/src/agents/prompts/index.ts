@@ -22,6 +22,11 @@ export type PromptParams = {
   taskIterations?: Array<TaskIteration>;
 }
 
+export type SplitPrompt = {
+  systemPrompt: string;
+  taskPrompt: string;
+}
+
 /**
  * Convert agent type enum to user-friendly display name
  */
@@ -41,7 +46,7 @@ export function getAgentTypeDisplayName(agentType: string): string {
 /**
  * Generate prompt for any mode of task execution
  */
-export function generatePrompt(mode: TaskMode, context: PromptParams): string {
+export function generatePrompt(mode: TaskMode, context: PromptParams): SplitPrompt {
   switch (mode) {
     case 'clarify':
       return generateRefinePrompt(context);

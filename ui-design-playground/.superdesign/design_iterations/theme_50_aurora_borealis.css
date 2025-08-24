@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 50: Aurora Borealis */
+:root {
+  --background: oklch(0.08 0.03 260);
+  --foreground: oklch(0.90 0.08 160);
+  --card: oklch(0.10 0.04 255);
+  --card-foreground: oklch(0.90 0.08 160);
+  --popover: oklch(0.10 0.04 255);
+  --popover-foreground: oklch(0.90 0.08 160);
+  --primary: oklch(0.75 0.20 140);
+  --primary-foreground: oklch(0.08 0.03 260);
+  --secondary: oklch(0.68 0.18 180);
+  --secondary-foreground: oklch(0.08 0.03 260);
+  --muted: oklch(0.12 0.035 258);
+  --muted-foreground: oklch(0.70 0.06 165);
+  --accent: oklch(0.82 0.22 120);
+  --accent-foreground: oklch(0.08 0.03 260);
+  --destructive: oklch(0.72 0.25 340);
+  --destructive-foreground: oklch(0.08 0.03 260);
+  --border: oklch(0.75 0.20 140);
+  --input: oklch(0.09 0.038 257);
+  --ring: oklch(0.75 0.20 140);
+  --chart-1: oklch(0.75 0.20 140);
+  --chart-2: oklch(0.82 0.22 120);
+  --chart-3: oklch(0.68 0.18 180);
+  --chart-4: oklch(0.78 0.21 160);
+  --chart-5: oklch(0.72 0.25 340);
+  --sidebar: oklch(0.09 0.038 257);
+  --sidebar-foreground: oklch(0.90 0.08 160);
+  --sidebar-primary: oklch(0.75 0.20 140);
+  --sidebar-primary-foreground: oklch(0.08 0.03 260);
+  --sidebar-accent: oklch(0.68 0.18 180);
+  --sidebar-accent-foreground: oklch(0.08 0.03 260);
+  --sidebar-border: oklch(0.75 0.20 140);
+  --sidebar-ring: oklch(0.75 0.20 140);
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Source Serif Pro', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 1.5rem;
+  --shadow-2xs: 0 0 10px oklch(0.75 0.20 140), 0 0 20px oklch(0.82 0.22 120 / 0.3), 0 0 30px oklch(0.68 0.18 180 / 0.2);
+  --shadow-xs: 0 0 15px oklch(0.75 0.20 140), 0 0 30px oklch(0.82 0.22 120 / 0.4), 0 0 45px oklch(0.68 0.18 180 / 0.3);
+  --shadow-sm: 0 0 20px oklch(0.75 0.20 140), 0 0 40px oklch(0.82 0.22 120 / 0.5), 0 0 60px oklch(0.68 0.18 180 / 0.4);
+  --shadow: 0 0 30px oklch(0.75 0.20 140), 0 0 60px oklch(0.82 0.22 120 / 0.6), 0 0 90px oklch(0.68 0.18 180 / 0.5);
+  --shadow-md: 0 0 40px oklch(0.75 0.20 140), 0 0 80px oklch(0.82 0.22 120 / 0.7), 0 0 120px oklch(0.68 0.18 180 / 0.6);
+  --shadow-lg: 0 0 60px oklch(0.75 0.20 140), 0 0 120px oklch(0.82 0.22 120 / 0.8), 0 0 180px oklch(0.68 0.18 180 / 0.7);
+  --shadow-xl: 0 0 80px oklch(0.75 0.20 140), 0 0 160px oklch(0.82 0.22 120 / 0.9), 0 0 240px oklch(0.68 0.18 180 / 0.8);
+  --shadow-2xl: 0 0 120px oklch(0.75 0.20 140), 0 0 240px oklch(0.82 0.22 120 / 1.0), 0 0 360px oklch(0.68 0.18 180 / 0.9);
+  --tracking-normal: 0.02em;
+  --spacing: 2rem;
+  
+  --gradient-aurora: linear-gradient(135deg, oklch(0.75 0.20 140), oklch(0.82 0.22 120), oklch(0.68 0.18 180), oklch(0.72 0.25 340));
+  --texture-shimmer: repeating-linear-gradient(45deg, transparent, transparent 2px, oklch(0.75 0.20 140 / 0.1) 3px, oklch(0.82 0.22 120 / 0.1) 6px, transparent 7px);
+  
+  --radius-sm: 1rem;
+  --radius-md: 1.5rem;
+  --radius-lg: 2rem;
+  --radius-xl: 3rem;
+}

@@ -3,7 +3,7 @@
  * For brainstorming, research, planning, and discussion tasks that require NO code writing
  */
 
-import { type PromptParams } from ".";
+import { type PromptParams, type SplitPrompt } from ".";
 import { defaultActorDescription } from "./defaultActor";
 import { defaultCommitAuthorName } from "./defaultCommitAuthorName";
 
@@ -17,7 +17,7 @@ export function generateTalkPrompt({
   project,
   agent,
   webUrl,
-}: PromptParams): string {
+}: PromptParams): SplitPrompt {
   const actorContext = `**Your Role**: ${actor?.description || defaultActorDescription}`;
   const projectMemory =
     project.memory &&
@@ -27,9 +27,7 @@ export function generateTalkPrompt({
       : "";
   const commitAuthorName = defaultCommitAuthorName(agent.agentType);
 
-  return `[talk] ${task.rawTitle || task.refinedTitle}
-
-Most importantly, **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode task focused on thinking, research, and discussion only. No actions except writing response to the file. Do not write any implementation code.
+  const systemPrompt = `Most importantly, **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode task focused on thinking, research, and discussion only. No actions except writing response to the file. Do not write any implementation code.
 
 **What You Can Do**:
 - Research and analyze the topic
@@ -55,10 +53,13 @@ Most importantly, **NO IMPLEMENTATION or EXECUTION** - This is a "talk" mode tas
 6. **FINISH**: use the MCP tool \`task_update\` with taskId="${task.id}", list="done", mode="talk", agentSessionStatus="INACTIVE".
 
 ${actorContext}
-${projectMemory}
+${projectMemory}`;
+
+  const taskPrompt = `[talk] ${task.rawTitle || task.refinedTitle}
 
 **Task to Work On**:
 - **Title**: ${task.refinedTitle || task.rawTitle}
-- **Description**: ${task.refinedDescription || task.rawDescription || "No description provided"}
-`;
+- **Description**: ${task.refinedDescription || task.rawDescription || "No description provided"}`;
+
+  return { systemPrompt, taskPrompt };
 }

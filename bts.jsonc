@@ -21,7 +21,7 @@
   ],
   "auth": true,
   "packageManager": "bun",
-  "dbSetup": "supabase",
+  "dbSetup": "none",
   "api": "orpc",
   "webDeploy": "none"
 }

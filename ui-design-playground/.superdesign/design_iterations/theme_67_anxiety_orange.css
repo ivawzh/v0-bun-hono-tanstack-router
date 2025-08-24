@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 67: Anxiety Orange */
+:root {
+  --background: oklch(0.94 0.08 55);
+  --foreground: oklch(0.15 0.12 35);
+  --card: oklch(0.96 0.06 60);
+  --card-foreground: oklch(0.15 0.12 35);
+  --popover: oklch(0.96 0.06 60);
+  --popover-foreground: oklch(0.15 0.12 35);
+  --primary: oklch(0.62 0.28 45);
+  --primary-foreground: oklch(0.94 0.08 55);
+  --secondary: oklch(0.48 0.18 25);
+  --secondary-foreground: oklch(0.94 0.08 55);
+  --muted: oklch(0.90 0.09 57);
+  --muted-foreground: oklch(0.35 0.10 37);
+  --accent: oklch(0.75 0.35 40);
+  --accent-foreground: oklch(0.94 0.08 55);
+  --destructive: oklch(0.55 0.32 15);
+  --destructive-foreground: oklch(0.94 0.08 55);
+  --border: oklch(0.62 0.28 45);
+  --input: oklch(0.95 0.07 58);
+  --ring: oklch(0.62 0.28 45);
+  --chart-1: oklch(0.62 0.28 45);
+  --chart-2: oklch(0.75 0.35 40);
+  --chart-3: oklch(0.48 0.18 25);
+  --chart-4: oklch(0.68 0.31 42);
+  --chart-5: oklch(0.55 0.32 15);
+  --sidebar: oklch(0.95 0.07 58);
+  --sidebar-foreground: oklch(0.15 0.12 35);
+  --sidebar-primary: oklch(0.62 0.28 45);
+  --sidebar-primary-foreground: oklch(0.94 0.08 55);
+  --sidebar-accent: oklch(0.48 0.18 25);
+  --sidebar-accent-foreground: oklch(0.94 0.08 55);
+  --sidebar-border: oklch(0.62 0.28 45);
+  --sidebar-ring: oklch(0.62 0.28 45);
+  --font-sans: 'Roboto', sans-serif;
+  --font-serif: 'Merriweather', serif;
+  --font-mono: 'Roboto Mono', monospace;
+  --radius: 0.25rem;
+  --shadow-2xs: 0 1px 4px oklch(0.62 0.28 45 / 0.4), 0 2px 8px oklch(0.75 0.35 40 / 0.3), 0 4px 16px oklch(0.48 0.18 25 / 0.2);
+  --shadow-xs: 0 2px 6px oklch(0.62 0.28 45 / 0.45), 0 4px 12px oklch(0.75 0.35 40 / 0.35), 0 8px 24px oklch(0.48 0.18 25 / 0.25);
+  --shadow-sm: 0 3px 9px oklch(0.62 0.28 45 / 0.5), 0 6px 18px oklch(0.75 0.35 40 / 0.4), 0 12px 36px oklch(0.48 0.18 25 / 0.3);
+  --shadow: 0 4px 12px oklch(0.62 0.28 45 / 0.55), 0 8px 24px oklch(0.75 0.35 40 / 0.45), 0 16px 48px oklch(0.48 0.18 25 / 0.35);
+  --shadow-md: 0 6px 18px oklch(0.62 0.28 45 / 0.6), 0 12px 36px oklch(0.75 0.35 40 / 0.5), 0 24px 72px oklch(0.48 0.18 25 / 0.4);
+  --shadow-lg: 0 8px 24px oklch(0.62 0.28 45 / 0.65), 0 16px 48px oklch(0.75 0.35 40 / 0.55), 0 32px 96px oklch(0.48 0.18 25 / 0.45);
+  --shadow-xl: 0 12px 36px oklch(0.62 0.28 45 / 0.7), 0 24px 72px oklch(0.75 0.35 40 / 0.6), 0 48px 144px oklch(0.48 0.18 25 / 0.5);
+  --shadow-2xl: 0 16px 48px oklch(0.62 0.28 45 / 0.75), 0 32px 96px oklch(0.75 0.35 40 / 0.65), 0 64px 192px oklch(0.48 0.18 25 / 0.55);
+  --tracking-normal: 0.02em;
+  --spacing: 0.75rem;
+  
+  --gradient-anxiety: radial-gradient(ellipse at center, oklch(0.75 0.35 40), oklch(0.62 0.28 45), oklch(0.48 0.18 25));
+  --texture-nervous: repeating-linear-gradient(37deg, oklch(0.62 0.28 45 / 0.1), oklch(0.62 0.28 45 / 0.1) 2px, oklch(0.75 0.35 40 / 0.08) 2px, oklch(0.75 0.35 40 / 0.08) 4px);
+  
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}

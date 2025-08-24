@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solo Unicorn! - AI Task Management</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+    
+    <!-- Flowbite -->
+    <script src="https://cdn.jsdelivr.net/npm/flowbite@2.0.0/dist/flowbite.min.js"></script>
+    
+    <!-- Custom Theme -->
+    <link rel="stylesheet" href="theme_1_magical_professional.css">
+    
+    <style>
+        /* Custom animations and magical effects */
+        .magical-gradient {
+            background: linear-gradient(135deg, oklch(0.45 0.15 285), oklch(0.65 0.18 320), oklch(0.55 0.12 260));
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-2px) scale(1.02);
+            transition: all 200ms ease-out;
+        }
+        
+        .priority-pulse {
+            animation: priority-pulse 1000ms ease-in-out infinite;
+        }
+        
+        .priority-breathe {
+            animation: priority-breathe 2000ms ease-in-out infinite;
+        }
+        
+        .ai-spinner {
+            animation: spin 2000ms linear infinite;
+        }
+        
+        .section-expand {
+            animation: section-expand 400ms ease-out;
+        }
+        
+        .sparkle-effect {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .sparkle-effect::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,0.1) 50%, transparent 70%);
+            transform: rotate(45deg) translate(-100%, -100%);
+            transition: transform 600ms ease;
+        }
+        
+        .sparkle-effect:hover::before {
+            transform: rotate(45deg) translate(100%, 100%);
+        }
+        
+        @keyframes priority-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+        }
+        
+        @keyframes priority-breathe {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+        
+        @keyframes section-expand {
+            from { height: 0; opacity: 0; transform: translateY(-20px); }
+            to { height: auto; opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Theme-specific styles */
+        body {
+            font-family: 'Inter', sans-serif !important;
+            background: oklch(0.98 0.005 280) !important;
+            color: oklch(0.15 0.02 260) !important;
+        }
+        
+        .kanban-card {
+            background: oklch(1.0 0 0) !important;
+            border: 1px solid oklch(0.88 0.04 285) !important;
+            border-radius: 0.75rem !important;
+            box-shadow: 0 4px 12px 0px hsl(285 40% 30% / 0.15), 0 2px 4px -1px hsl(285 40% 30% / 0.10) !important;
+        }
+        
+        .priority-5 { color: oklch(0.58 0.24 15) !important; }
+        .priority-4 { color: oklch(0.65 0.18 320) !important; }
+        .priority-3 { color: oklch(0.72 0.14 60) !important; }
+        .priority-2 { color: oklch(0.55 0.12 240) !important; }
+        .priority-1 { color: oklch(0.45 0.02 270) !important; }
+        
+        .mode-dropdown {
+            background: oklch(0.85 0.08 300) !important;
+            color: oklch(0.25 0.04 280) !important;
+            border-radius: 0.5rem !important;
+        }
+        
+        .status-badge {
+            background: oklch(0.65 0.18 320) !important;
+            color: oklch(0.98 0.005 280) !important;
+            border-radius: 1rem !important;
+        }
+        
+        .ready-toggle.ready {
+            background: oklch(0.65 0.15 140) !important;
+            color: white !important;
+        }
+        
+        .ready-toggle.not-ready {
+            background: oklch(0.58 0.24 15) !important;
+            color: white !important;
+        }
+        
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Main Container -->
+    <div class="min-h-screen bg-background text-foreground">
+        
+        <!-- Top Header -->
+        <header class="border-b border-border bg-card">
+            <div class="px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <!-- Logo -->
+                    <div class="flex items-center space-x-2 sparkle-effect">
+                        <div class="w-8 h-8 magical-gradient rounded-lg flex items-center justify-center text-white font-bold">
+                            🦄
+                        </div>
+                        <span class="font-semibold text-lg">Solo Unicorn!</span>
+                    </div>
+                    
+                    <!-- Project Selector -->
+                    <div class="relative">
+                        <button class="flex items-center space-x-2 px-3 py-2 rounded-md border border-border hover:bg-muted transition-colors">
+                            <span>AI Agent Tasks</span>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <!-- Dark/Light Mode Toggle -->
+                    <button class="p-2 rounded-md border border-border hover:bg-muted transition-all duration-400">
+                        <i data-lucide="moon" class="w-5 h-5"></i>
+                    </button>
+                    
+                    <!-- User Menu -->
+                    <div class="relative">
+                        <button class="flex items-center space-x-2 px-3 py-2 rounded-md border border-border hover:bg-muted transition-colors">
+                            <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center text-primary-foreground text-sm font-medium">
+                                U
+                            </div>
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Sub Header -->
+        <div class="px-6 py-3 border-b border-border bg-card flex items-center justify-between">
+            <div class="flex items-center space-x-4">
+                <h1 class="text-xl font-semibold">AI Agent Workflow</h1>
+            </div>
+            
+            <div class="flex items-center space-x-3">
+                <!-- Pause/Resume Button -->
+                <button class="flex items-center space-x-2 px-4 py-2 rounded-md bg-green-500 hover:bg-green-600 text-white transition-all duration-300">
+                    <i data-lucide="play" class="w-4 h-4"></i>
+                    <span>Resume</span>
+                </button>
+                
+                <!-- Settings Button -->
+                <button class="p-2 rounded-md border border-border hover:bg-muted transition-colors">
+                    <i data-lucide="settings" class="w-5 h-5"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Kanban Board -->
+        <main class="flex-1 p-6">
+            <div class="flex space-x-6 h-full overflow-x-auto">
+                
+                <!-- TODO Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="bg-card rounded-lg border border-border p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4">TODO</h2>
+                        
+                        <!-- Normal Tasks Section -->
+                        <div class="mb-4">
+                            <button class="flex items-center justify-between w-full text-left text-sm font-medium mb-3">
+                                <span>Normal Tasks</span>
+                                <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                            </button>
+                            
+                            <div class="space-y-3">
+                                <!-- Task Card 1 -->
+                                <div class="kanban-card p-4 card-hover">
+                                    <h3 class="font-medium mb-2">Implement user authentication system</h3>
+                                    
+                                    <div class="flex items-center space-x-2 mb-3">
+                                        <span class="priority-4 priority-breathe">🔥4</span>
+                                        <select class="mode-dropdown px-2 py-1 text-xs font-medium">
+                                            <option>Execute</option>
+                                            <option>Plan</option>
+                                            <option>Clarify</option>
+                                        </select>
+                                        <span class="status-badge px-2 py-1 text-xs font-medium">🔄 Queueing</span>
+                                    </div>
+                                    
+                                    <div class="text-sm text-muted-foreground mb-3">
+                                        Set up OAuth 2.0 integration with Google and GitHub providers. Include session management and user profile...
+                                        <span class="text-xs">⋮</span>
+                                    </div>
+                                    
+                                    <div class="flex justify-end">
+                                        <button class="ready-toggle ready px-3 py-1 rounded-md text-xs font-medium transition-all duration-300">
+                                            Ready
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- Task Card 2 -->
+                                <div class="kanban-card p-4 card-hover">
+                                    <h3 class="font-medium mb-2">Design database schema</h3>
+                                    
+                                    <div class="flex items-center space-x-2 mb-3">
+                                        <span class="priority-3">⚠️3</span>
+                                        <select class="mode-dropdown px-2 py-1 text-xs font-medium">
+                                            <option>Plan</option>
+                                            <option>Execute</option>
+                                            <option>Clarify</option>
+                                        </select>
+                                        <span class="status-badge px-2 py-1 text-xs font-medium">🔄 Queueing</span>
+                                    </div>
+                                    
+                                    <div class="text-sm text-muted-foreground mb-3">
+                                        Create entity relationship diagram for user management, task tracking, and project organization...
+                                        <span class="text-xs">⋮</span>
+                                    </div>
+                                    
+                                    <div class="flex justify-end">
+                                        <button class="ready-toggle not-ready px-3 py-1 rounded-md text-xs font-medium transition-all duration-300">
+                                            Not Ready
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Loop Tasks Section -->
+                        <div>
+                            <button class="flex items-center justify-between w-full text-left text-sm font-medium mb-3">
+                                <span>Loop Tasks</span>
+                                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+                            </button>
+                            <!-- Collapsed by default -->
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DOING Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="bg-card rounded-lg border border-border p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4">DOING</h2>
+                        
+                        <div class="space-y-3">
+                            <!-- Task Card in Progress -->
+                            <div class="kanban-card p-4 card-hover">
+                                <h3 class="font-medium mb-2">Set up CI/CD pipeline</h3>
+                                
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <span class="priority-5 priority-pulse">🚨5</span>
+                                    <span class="mode-dropdown px-2 py-1 text-xs font-medium bg-muted">Execute</span>
+                                    <span class="status-badge px-2 py-1 text-xs font-medium">🤖 AI at work</span>
+                                </div>
+                                
+                                <div class="text-sm text-muted-foreground mb-3">
+                                    Configure GitHub Actions for automated testing, building, and deployment to staging environment...
+                                    <span class="text-xs">⋮</span>
+                                </div>
+                                
+                                <div class="flex justify-end">
+                                    <button class="ready-toggle ready px-3 py-1 rounded-md text-xs font-medium">
+                                        Ready
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CHECK Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="bg-card rounded-lg border border-border p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4">CHECK</h2>
+                        
+                        <div class="space-y-3">
+                            <!-- Task Card for Review -->
+                            <div class="kanban-card p-4 card-hover">
+                                <h3 class="font-medium mb-2">API documentation update</h3>
+                                
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <span class="priority-2">🔵2</span>
+                                    <span class="mode-dropdown px-2 py-1 text-xs font-medium bg-muted">Execute</span>
+                                </div>
+                                
+                                <div class="text-sm text-muted-foreground mb-3">
+                                    Updated OpenAPI specifications with new endpoints for user management and task operations...
+                                    <span class="text-xs">⋮</span>
+                                </div>
+                                
+                                <div class="flex justify-end">
+                                    <button class="bg-accent hover:bg-accent/90 text-accent-foreground px-3 py-1 rounded-md text-xs font-medium transition-all duration-200">
+                                        Review
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- DONE Column -->
+                <div class="flex-shrink-0 w-80">
+                    <div class="bg-card rounded-lg border border-border p-4 h-full">
+                        <h2 class="font-semibold text-lg mb-4">DONE</h2>
+                        
+                        <div class="space-y-3">
+                            <!-- Completed Task Card -->
+                            <div class="kanban-card p-4 opacity-75">
+                                <h3 class="font-medium mb-2">Project initialization</h3>
+                                
+                                <div class="flex items-center space-x-2 mb-3">
+                                    <span class="priority-1">⚪1</span>
+                                    <span class="mode-dropdown px-2 py-1 text-xs font-medium bg-muted">Execute</span>
+                                </div>
+                                
+                                <div class="text-sm text-muted-foreground">
+                                    Created project structure, configured development environment, and set up initial dependencies...
+                                    <span class="text-xs">⋮</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+            </div>
+        </main>
+    </div>
+    
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+        
+        // Add interactive behaviors
+        document.addEventListener('DOMContentLoaded', function() {
+            // Ready toggle functionality
+            document.querySelectorAll('.ready-toggle').forEach(button => {
+                button.addEventListener('click', function() {
+                    this.classList.toggle('ready');
+                    this.classList.toggle('not-ready');
+                    this.textContent = this.classList.contains('ready') ? 'Ready' : 'Not Ready';
+                });
+            });
+            
+            // Collapsible sections
+            document.querySelectorAll('button[data-lucide="chevron-down"], button[data-lucide="chevron-right"]').forEach(button => {
+                button.addEventListener('click', function() {
+                    const icon = this.querySelector('i');
+                    icon.classList.toggle('rotate-90');
+                });
+            });
+            
+            // Pause/Resume toggle
+            const pauseResumeBtn = document.querySelector('button:has([data-lucide="play"])');
+            if (pauseResumeBtn) {
+                pauseResumeBtn.addEventListener('click', function() {
+                    const icon = this.querySelector('i');
+                    const text = this.querySelector('span');
+                    
+                    if (icon.dataset.lucide === 'play') {
+                        icon.dataset.lucide = 'pause';
+                        text.textContent = 'Pause';
+                        this.classList.replace('bg-green-500', 'bg-yellow-500');
+                        this.classList.replace('hover:bg-green-600', 'hover:bg-yellow-600');
+                    } else {
+                        icon.dataset.lucide = 'play';
+                        text.textContent = 'Resume';
+                        this.classList.replace('bg-yellow-500', 'bg-green-500');
+                        this.classList.replace('hover:bg-yellow-600', 'hover:bg-green-600');
+                    }
+                    
+                    lucide.createIcons();
+                });
+            }
+        });
+    </script>
+</body>
+</html>

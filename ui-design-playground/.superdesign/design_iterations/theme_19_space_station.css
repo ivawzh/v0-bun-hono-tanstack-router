@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 19: Space Station */
+:root {
+  --background: oklch(0.12 0.02 260);
+  --foreground: oklch(0.90 0.05 180);
+  --card: oklch(0.18 0.03 270);
+  --card-foreground: oklch(0.90 0.05 180);
+  --popover: oklch(0.18 0.03 270);
+  --popover-foreground: oklch(0.90 0.05 180);
+  --primary: oklch(0.65 0.12 200);
+  --primary-foreground: oklch(0.12 0.02 260);
+  --secondary: oklch(0.75 0.08 340);
+  --secondary-foreground: oklch(0.12 0.02 260);
+  --muted: oklch(0.15 0.02 265);
+  --muted-foreground: oklch(0.70 0.04 190);
+  --accent: oklch(0.80 0.15 60);
+  --accent-foreground: oklch(0.12 0.02 260);
+  --destructive: oklch(0.58 0.18 15);
+  --destructive-foreground: oklch(0.90 0.05 180);
+  --border: oklch(0.65 0.12 200);
+  --input: oklch(0.16 0.02 267);
+  --ring: oklch(0.65 0.12 200);
+  --chart-1: oklch(0.65 0.12 200);
+  --chart-2: oklch(0.80 0.15 60);
+  --chart-3: oklch(0.75 0.08 340);
+  --chart-4: oklch(0.70 0.10 280);
+  --chart-5: oklch(0.72 0.14 120);
+  --sidebar: oklch(0.16 0.02 267);
+  --sidebar-foreground: oklch(0.90 0.05 180);
+  --sidebar-primary: oklch(0.65 0.12 200);
+  --sidebar-primary-foreground: oklch(0.12 0.02 260);
+  --sidebar-accent: oklch(0.75 0.08 340);
+  --sidebar-accent-foreground: oklch(0.12 0.02 260);
+  --sidebar-border: oklch(0.65 0.12 200);
+  --sidebar-ring: oklch(0.65 0.12 200);
+  --font-sans: 'Exo 2', sans-serif;
+  --font-serif: 'Orbitron', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 1rem;
+  --shadow-2xs: 0 0 4px oklch(0.65 0.12 200 / 0.4), inset 0 0 2px oklch(0.80 0.15 60 / 0.2);
+  --shadow-xs: 0 0 8px oklch(0.65 0.12 200 / 0.5), inset 0 0 4px oklch(0.80 0.15 60 / 0.3);
+  --shadow-sm: 0 0 12px oklch(0.65 0.12 200 / 0.6), inset 0 0 6px oklch(0.80 0.15 60 / 0.4);
+  --shadow: 0 0 16px oklch(0.65 0.12 200 / 0.7), inset 0 0 8px oklch(0.80 0.15 60 / 0.5);
+  --shadow-md: 0 0 24px oklch(0.65 0.12 200 / 0.8), inset 0 0 12px oklch(0.80 0.15 60 / 0.6);
+  --shadow-lg: 0 0 32px oklch(0.65 0.12 200 / 0.9), inset 0 0 16px oklch(0.80 0.15 60 / 0.7);
+  --shadow-xl: 0 0 48px oklch(0.65 0.12 200 / 1.0), inset 0 0 24px oklch(0.80 0.15 60 / 0.8);
+  --shadow-2xl: 0 0 64px oklch(0.65 0.12 200 / 1.0), inset 0 0 32px oklch(0.80 0.15 60 / 0.9);
+  --tracking-normal: 0.05em;
+  --spacing: 1rem;
+  
+  --gradient-space: radial-gradient(ellipse at center, oklch(0.18 0.03 270), oklch(0.12 0.02 260));
+  --texture-hull: linear-gradient(45deg, oklch(0.65 0.12 200 / 0.1) 25%, transparent 25%, transparent 75%, oklch(0.65 0.12 200 / 0.1) 75%);
+  
+  --radius-sm: 0.75rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.25rem;
+  --radius-xl: 1.5rem;
+}

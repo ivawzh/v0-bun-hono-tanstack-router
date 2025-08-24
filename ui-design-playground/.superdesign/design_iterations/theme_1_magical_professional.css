@@ -1,0 +1,58 @@
+/* Solo Unicorn Theme 1: Magical Professional */
+:root {
+  --background: oklch(0.98 0.005 280);
+  --foreground: oklch(0.15 0.02 260);
+  --card: oklch(1.0 0 0);
+  --card-foreground: oklch(0.15 0.02 260);
+  --popover: oklch(1.0 0 0);
+  --popover-foreground: oklch(0.15 0.02 260);
+  --primary: oklch(0.45 0.15 285);
+  --primary-foreground: oklch(0.98 0.005 280);
+  --secondary: oklch(0.85 0.08 300);
+  --secondary-foreground: oklch(0.25 0.04 280);
+  --muted: oklch(0.94 0.02 285);
+  --muted-foreground: oklch(0.45 0.02 270);
+  --accent: oklch(0.65 0.18 320);
+  --accent-foreground: oklch(0.98 0.005 280);
+  --destructive: oklch(0.58 0.24 15);
+  --destructive-foreground: oklch(0.98 0.005 280);
+  --border: oklch(0.88 0.04 285);
+  --input: oklch(0.94 0.02 285);
+  --ring: oklch(0.45 0.15 285);
+  --chart-1: oklch(0.45 0.15 285);
+  --chart-2: oklch(0.65 0.18 320);
+  --chart-3: oklch(0.55 0.12 260);
+  --chart-4: oklch(0.72 0.14 300);
+  --chart-5: oklch(0.62 0.16 340);
+  --sidebar: oklch(0.96 0.02 285);
+  --sidebar-foreground: oklch(0.15 0.02 260);
+  --sidebar-primary: oklch(0.45 0.15 285);
+  --sidebar-primary-foreground: oklch(0.98 0.005 280);
+  --sidebar-accent: oklch(0.85 0.08 300);
+  --sidebar-accent-foreground: oklch(0.25 0.04 280);
+  --sidebar-border: oklch(0.88 0.04 285);
+  --sidebar-ring: oklch(0.45 0.15 285);
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0 1px 3px 0px hsl(285 40% 30% / 0.08);
+  --shadow-xs: 0 1px 3px 0px hsl(285 40% 30% / 0.10);
+  --shadow-sm: 0 2px 6px 0px hsl(285 40% 30% / 0.12), 0 1px 2px -1px hsl(285 40% 30% / 0.08);
+  --shadow: 0 4px 12px 0px hsl(285 40% 30% / 0.15), 0 2px 4px -1px hsl(285 40% 30% / 0.10);
+  --shadow-md: 0 6px 16px 0px hsl(285 40% 30% / 0.15), 0 2px 6px -1px hsl(285 40% 30% / 0.10);
+  --shadow-lg: 0 8px 24px 0px hsl(285 40% 30% / 0.18), 0 4px 8px -1px hsl(285 40% 30% / 0.12);
+  --shadow-xl: 0 12px 32px 0px hsl(285 40% 30% / 0.20), 0 6px 12px -1px hsl(285 40% 30% / 0.15);
+  --shadow-2xl: 0 20px 48px 0px hsl(285 40% 30% / 0.25);
+  --tracking-normal: 0em;
+  --spacing: 0.25rem;
+  
+  /* Magical gradient overlays */
+  --gradient-magical: linear-gradient(135deg, oklch(0.45 0.15 285), oklch(0.65 0.18 320), oklch(0.55 0.12 260));
+  --gradient-subtle: linear-gradient(135deg, oklch(0.96 0.02 285), oklch(0.98 0.005 280));
+  
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}

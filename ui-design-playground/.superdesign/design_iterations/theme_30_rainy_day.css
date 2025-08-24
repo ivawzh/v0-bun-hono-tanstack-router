@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 30: Rainy Day */
+:root {
+  --background: oklch(0.78 0.02 220);
+  --foreground: oklch(0.30 0.04 240);
+  --card: oklch(0.85 0.015 225);
+  --card-foreground: oklch(0.30 0.04 240);
+  --popover: oklch(0.85 0.015 225);
+  --popover-foreground: oklch(0.30 0.04 240);
+  --primary: oklch(0.52 0.06 230);
+  --primary-foreground: oklch(0.85 0.015 225);
+  --secondary: oklch(0.68 0.04 210);
+  --secondary-foreground: oklch(0.30 0.04 240);
+  --muted: oklch(0.82 0.02 222);
+  --muted-foreground: oklch(0.48 0.03 235);
+  --accent: oklch(0.65 0.05 250);
+  --accent-foreground: oklch(0.85 0.015 225);
+  --destructive: oklch(0.55 0.08 20);
+  --destructive-foreground: oklch(0.85 0.015 225);
+  --border: oklch(0.52 0.06 230);
+  --input: oklch(0.83 0.02 223);
+  --ring: oklch(0.52 0.06 230);
+  --chart-1: oklch(0.52 0.06 230);
+  --chart-2: oklch(0.65 0.05 250);
+  --chart-3: oklch(0.68 0.04 210);
+  --chart-4: oklch(0.58 0.05 240);
+  --chart-5: oklch(0.62 0.04 200);
+  --sidebar: oklch(0.83 0.02 223);
+  --sidebar-foreground: oklch(0.30 0.04 240);
+  --sidebar-primary: oklch(0.52 0.06 230);
+  --sidebar-primary-foreground: oklch(0.85 0.015 225);
+  --sidebar-accent: oklch(0.68 0.04 210);
+  --sidebar-accent-foreground: oklch(0.30 0.04 240);
+  --sidebar-border: oklch(0.52 0.06 230);
+  --sidebar-ring: oklch(0.52 0.06 230);
+  --font-sans: 'Source Sans Pro', sans-serif;
+  --font-serif: 'Source Serif Pro', serif;
+  --font-mono: 'Source Code Pro', monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0 1px 3px oklch(0.30 0.04 240 / 0.15), 0 2px 6px oklch(0.52 0.06 230 / 0.1);
+  --shadow-xs: 0 2px 6px oklch(0.30 0.04 240 / 0.2), 0 4px 8px oklch(0.52 0.06 230 / 0.15);
+  --shadow-sm: 0 4px 8px oklch(0.30 0.04 240 / 0.25), 0 6px 12px oklch(0.52 0.06 230 / 0.2);
+  --shadow: 0 6px 12px oklch(0.30 0.04 240 / 0.3), 0 8px 16px oklch(0.52 0.06 230 / 0.25);
+  --shadow-md: 0 8px 16px oklch(0.30 0.04 240 / 0.35), 0 12px 20px oklch(0.52 0.06 230 / 0.3);
+  --shadow-lg: 0 12px 24px oklch(0.30 0.04 240 / 0.4), 0 16px 28px oklch(0.52 0.06 230 / 0.35);
+  --shadow-xl: 0 16px 32px oklch(0.30 0.04 240 / 0.45), 0 24px 40px oklch(0.52 0.06 230 / 0.4);
+  --shadow-2xl: 0 24px 48px oklch(0.30 0.04 240 / 0.5), 0 32px 56px oklch(0.52 0.06 230 / 0.45);
+  --tracking-normal: -0.005em;
+  --spacing: 1.25rem;
+  
+  --gradient-storm: radial-gradient(ellipse at center, oklch(0.85 0.015 225), oklch(0.78 0.02 220));
+  --texture-rain: repeating-linear-gradient(105deg, transparent, transparent 2px, oklch(0.52 0.06 230 / 0.1) 3px);
+  
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}

@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 51: Medieval Tapestry */
+:root {
+  --background: oklch(0.85 0.05 45);
+  --foreground: oklch(0.20 0.08 15);
+  --card: oklch(0.88 0.04 50);
+  --card-foreground: oklch(0.20 0.08 15);
+  --popover: oklch(0.88 0.04 50);
+  --popover-foreground: oklch(0.20 0.08 15);
+  --primary: oklch(0.45 0.15 340);
+  --primary-foreground: oklch(0.85 0.05 45);
+  --secondary: oklch(0.38 0.12 25);
+  --secondary-foreground: oklch(0.85 0.05 45);
+  --muted: oklch(0.82 0.06 47);
+  --muted-foreground: oklch(0.35 0.06 18);
+  --accent: oklch(0.52 0.18 60);
+  --accent-foreground: oklch(0.85 0.05 45);
+  --destructive: oklch(0.42 0.20 10);
+  --destructive-foreground: oklch(0.85 0.05 45);
+  --border: oklch(0.45 0.15 340);
+  --input: oklch(0.86 0.045 48);
+  --ring: oklch(0.45 0.15 340);
+  --chart-1: oklch(0.45 0.15 340);
+  --chart-2: oklch(0.52 0.18 60);
+  --chart-3: oklch(0.38 0.12 25);
+  --chart-4: oklch(0.48 0.16 30);
+  --chart-5: oklch(0.42 0.20 10);
+  --sidebar: oklch(0.86 0.045 48);
+  --sidebar-foreground: oklch(0.20 0.08 15);
+  --sidebar-primary: oklch(0.45 0.15 340);
+  --sidebar-primary-foreground: oklch(0.85 0.05 45);
+  --sidebar-accent: oklch(0.38 0.12 25);
+  --sidebar-accent-foreground: oklch(0.85 0.05 45);
+  --sidebar-border: oklch(0.45 0.15 340);
+  --sidebar-ring: oklch(0.45 0.15 340);
+  --font-sans: 'Cinzel', serif;
+  --font-serif: 'Cinzel Decorative', cursive;
+  --font-mono: 'Courier New', monospace;
+  --radius: 0.25rem;
+  --shadow-2xs: 0 2px 4px oklch(0.45 0.15 340 / 0.3), 0 1px 2px oklch(0.38 0.12 25 / 0.2), inset 0 1px 0 oklch(0.52 0.18 60 / 0.4);
+  --shadow-xs: 0 3px 6px oklch(0.45 0.15 340 / 0.35), 0 2px 4px oklch(0.38 0.12 25 / 0.25), inset 0 2px 0 oklch(0.52 0.18 60 / 0.45);
+  --shadow-sm: 0 4px 8px oklch(0.45 0.15 340 / 0.4), 0 3px 6px oklch(0.38 0.12 25 / 0.3), inset 0 3px 0 oklch(0.52 0.18 60 / 0.5);
+  --shadow: 0 6px 12px oklch(0.45 0.15 340 / 0.45), 0 4px 8px oklch(0.38 0.12 25 / 0.35), inset 0 4px 0 oklch(0.52 0.18 60 / 0.55);
+  --shadow-md: 0 8px 16px oklch(0.45 0.15 340 / 0.5), 0 6px 12px oklch(0.38 0.12 25 / 0.4), inset 0 6px 0 oklch(0.52 0.18 60 / 0.6);
+  --shadow-lg: 0 12px 24px oklch(0.45 0.15 340 / 0.55), 0 8px 16px oklch(0.38 0.12 25 / 0.45), inset 0 8px 0 oklch(0.52 0.18 60 / 0.65);
+  --shadow-xl: 0 16px 32px oklch(0.45 0.15 340 / 0.6), 0 12px 24px oklch(0.38 0.12 25 / 0.5), inset 0 12px 0 oklch(0.52 0.18 60 / 0.7);
+  --shadow-2xl: 0 24px 48px oklch(0.45 0.15 340 / 0.65), 0 16px 32px oklch(0.38 0.12 25 / 0.55), inset 0 16px 0 oklch(0.52 0.18 60 / 0.75);
+  --tracking-normal: 0.05em;
+  --spacing: 1.5rem;
+  
+  --gradient-tapestry: linear-gradient(135deg, oklch(0.45 0.15 340), oklch(0.52 0.18 60), oklch(0.38 0.12 25));
+  --texture-woven: repeating-linear-gradient(45deg, oklch(0.45 0.15 340 / 0.1), oklch(0.45 0.15 340 / 0.1) 2px, oklch(0.52 0.18 60 / 0.1) 2px, oklch(0.52 0.18 60 / 0.1) 4px);
+  
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+}

@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 6: 90s Grunge Paper */
+:root {
+  --background: oklch(0.92 0.01 45);
+  --foreground: oklch(0.15 0.03 25);
+  --card: oklch(0.88 0.02 35);
+  --card-foreground: oklch(0.15 0.03 25);
+  --popover: oklch(0.88 0.02 35);
+  --popover-foreground: oklch(0.15 0.03 25);
+  --primary: oklch(0.25 0.08 15);
+  --primary-foreground: oklch(0.92 0.01 45);
+  --secondary: oklch(0.45 0.06 80);
+  --secondary-foreground: oklch(0.92 0.01 45);
+  --muted: oklch(0.85 0.01 40);
+  --muted-foreground: oklch(0.45 0.02 30);
+  --accent: oklch(0.35 0.12 120);
+  --accent-foreground: oklch(0.92 0.01 45);
+  --destructive: oklch(0.40 0.18 25);
+  --destructive-foreground: oklch(0.92 0.01 45);
+  --border: oklch(0.25 0.08 15);
+  --input: oklch(0.90 0.01 40);
+  --ring: oklch(0.25 0.08 15);
+  --chart-1: oklch(0.25 0.08 15);
+  --chart-2: oklch(0.45 0.06 80);
+  --chart-3: oklch(0.35 0.12 120);
+  --chart-4: oklch(0.40 0.10 200);
+  --chart-5: oklch(0.38 0.08 350);
+  --sidebar: oklch(0.90 0.01 40);
+  --sidebar-foreground: oklch(0.15 0.03 25);
+  --sidebar-primary: oklch(0.25 0.08 15);
+  --sidebar-primary-foreground: oklch(0.92 0.01 45);
+  --sidebar-accent: oklch(0.45 0.06 80);
+  --sidebar-accent-foreground: oklch(0.92 0.01 45);
+  --sidebar-border: oklch(0.25 0.08 15);
+  --sidebar-ring: oklch(0.25 0.08 15);
+  --font-sans: 'Courier New', monospace;
+  --font-serif: 'Times New Roman', serif;
+  --font-mono: 'Courier New', monospace;
+  --radius: 0px;
+  --shadow-2xs: 2px 2px 0px oklch(0.25 0.08 15), 1px 1px 0px oklch(0.45 0.06 80);
+  --shadow-xs: 3px 3px 0px oklch(0.25 0.08 15), 2px 2px 0px oklch(0.45 0.06 80);
+  --shadow-sm: 4px 4px 0px oklch(0.25 0.08 15), 3px 3px 0px oklch(0.45 0.06 80);
+  --shadow: 5px 5px 0px oklch(0.25 0.08 15), 4px 4px 0px oklch(0.45 0.06 80);
+  --shadow-md: 6px 6px 0px oklch(0.25 0.08 15), 5px 5px 0px oklch(0.45 0.06 80);
+  --shadow-lg: 8px 8px 0px oklch(0.25 0.08 15), 7px 7px 0px oklch(0.45 0.06 80);
+  --shadow-xl: 10px 10px 0px oklch(0.25 0.08 15), 9px 9px 0px oklch(0.45 0.06 80);
+  --shadow-2xl: 12px 12px 0px oklch(0.25 0.08 15), 11px 11px 0px oklch(0.45 0.06 80);
+  --tracking-normal: 0em;
+  --spacing: 0.5rem;
+  
+  --texture-paper: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Cpath d='M0 0h100v100H0z' fill='%23f5f5f0'/%3E%3Cpath d='M12 23l8-5-3 12 7-2-4 8 9-3-5 10' fill='none' stroke='%23333' stroke-width='0.5' opacity='0.1'/%3E%3C/svg%3E");
+  --gradient-grunge: linear-gradient(45deg, oklch(0.88 0.02 35), oklch(0.92 0.01 45), oklch(0.85 0.01 40));
+  
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}

@@ -4,18 +4,15 @@
  */
 
 import { defaultActorDescription } from './defaultActor';
-import { type PromptParams } from './index';
+import { type PromptParams, type SplitPrompt } from './index';
 
-export function generateLoopPrompt(context: PromptParams): string {
+export function generateLoopPrompt(context: PromptParams): SplitPrompt {
   const { task, actor, project } = context;
 
   const titleSection = task.refinedTitle || task.rawTitle;
   const descriptionSection = task.refinedDescription || task.rawDescription || '';
 
-  return `[loop] ${titleSection}
-${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
-
-Execute this repeatable task. This is a loop task that will return to the loop list after completion.
+  const systemPrompt = `You are a loop task execution agent for repeatable tasks that cycle infinitely. This task will return to the loop list after completion.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="loop", agentSessionStatus="ACTIVE"
@@ -26,4 +23,11 @@ Execute this repeatable task. This is a loop task that will return to the loop l
 
 **Your Role**: ${actor?.description || defaultActorDescription}
 ${project.memory ? `**Project Context**: ${JSON.stringify(project.memory)}` : ''}${task.plan ? `\n\n**Implementation Plan**:\n${JSON.stringify(task.plan, null, 2)}` : ''}`;
+
+  const taskPrompt = `[loop] ${titleSection}
+${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
+
+Execute this repeatable task.`;
+
+  return { systemPrompt, taskPrompt };
 }

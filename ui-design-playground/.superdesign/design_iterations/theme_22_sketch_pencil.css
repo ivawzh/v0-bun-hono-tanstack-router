@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 22: Sketch Pencil */
+:root {
+  --background: oklch(0.96 0.005 80);
+  --foreground: oklch(0.25 0.01 60);
+  --card: oklch(0.98 0.003 85);
+  --card-foreground: oklch(0.25 0.01 60);
+  --popover: oklch(0.98 0.003 85);
+  --popover-foreground: oklch(0.25 0.01 60);
+  --primary: oklch(0.35 0.02 70);
+  --primary-foreground: oklch(0.96 0.005 80);
+  --secondary: oklch(0.78 0.01 75);
+  --secondary-foreground: oklch(0.25 0.01 60);
+  --muted: oklch(0.92 0.003 82);
+  --muted-foreground: oklch(0.50 0.01 65);
+  --accent: oklch(0.45 0.03 90);
+  --accent-foreground: oklch(0.96 0.005 80);
+  --destructive: oklch(0.40 0.04 20);
+  --destructive-foreground: oklch(0.96 0.005 80);
+  --border: oklch(0.35 0.02 70);
+  --input: oklch(0.97 0.003 83);
+  --ring: oklch(0.35 0.02 70);
+  --chart-1: oklch(0.35 0.02 70);
+  --chart-2: oklch(0.45 0.03 90);
+  --chart-3: oklch(0.78 0.01 75);
+  --chart-4: oklch(0.40 0.02 55);
+  --chart-5: oklch(0.42 0.025 100);
+  --sidebar: oklch(0.97 0.003 83);
+  --sidebar-foreground: oklch(0.25 0.01 60);
+  --sidebar-primary: oklch(0.35 0.02 70);
+  --sidebar-primary-foreground: oklch(0.96 0.005 80);
+  --sidebar-accent: oklch(0.78 0.01 75);
+  --sidebar-accent-foreground: oklch(0.25 0.01 60);
+  --sidebar-border: oklch(0.35 0.02 70);
+  --sidebar-ring: oklch(0.35 0.02 70);
+  --font-sans: 'Architects Daughter', cursive;
+  --font-serif: 'Kalam', cursive;
+  --font-mono: 'Inconsolata', monospace;
+  --radius: 0px;
+  --shadow-2xs: 1px 1px 0px oklch(0.35 0.02 70), 2px 2px 0px oklch(0.78 0.01 75);
+  --shadow-xs: 2px 2px 0px oklch(0.35 0.02 70), 3px 3px 0px oklch(0.78 0.01 75);
+  --shadow-sm: 3px 3px 0px oklch(0.35 0.02 70), 4px 4px 0px oklch(0.78 0.01 75);
+  --shadow: 4px 4px 0px oklch(0.35 0.02 70), 5px 5px 0px oklch(0.78 0.01 75);
+  --shadow-md: 5px 5px 0px oklch(0.35 0.02 70), 6px 6px 0px oklch(0.78 0.01 75);
+  --shadow-lg: 7px 7px 0px oklch(0.35 0.02 70), 8px 8px 0px oklch(0.78 0.01 75);
+  --shadow-xl: 9px 9px 0px oklch(0.35 0.02 70), 10px 10px 0px oklch(0.78 0.01 75);
+  --shadow-2xl: 12px 12px 0px oklch(0.35 0.02 70), 13px 13px 0px oklch(0.78 0.01 75);
+  --tracking-normal: 0.02em;
+  --spacing: 1rem;
+  
+  --gradient-paper: linear-gradient(135deg, oklch(0.98 0.003 85), oklch(0.96 0.005 80));
+  --texture-sketch: repeating-linear-gradient(135deg, transparent, transparent 1px, oklch(0.35 0.02 70 / 0.1) 2px);
+  
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+}

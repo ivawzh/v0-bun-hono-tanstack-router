@@ -58,9 +58,6 @@
     "ws": "^8.18.3",
     "zod": "^3.23.8"
   },
-  "trustedDependencies": [
-    "supabase"
-  ],
   "devDependencies": {
     "@drepkovsky/drizzle-migrations": "^0.6.0",
     "@types/bun": "^1.2.6",

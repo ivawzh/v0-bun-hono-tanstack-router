@@ -78,13 +78,13 @@ export async function spawnClaudeSession(
         .orderBy(schema.taskIterations.iterationNumber);
     }
 
-    const modePrompt = generatePrompt(mode, {
+    const { systemPrompt, taskPrompt } = generatePrompt(mode, {
       ...taskData,
       webUrl: process.env.WEB_APP_URL || 'http://localhost:8302',
       taskIterations
     });
 
-    if (!modePrompt || !modePrompt.trim()) {
+    if (!taskPrompt || !taskPrompt.trim()) {
       return {
         success: false,
         error: `No prompt generated. Mode: ${mode}, Task ID: ${taskId}. Task title: ${taskData.task.rawTitle || taskData.task.refinedTitle}.`,
@@ -96,7 +96,7 @@ export async function spawnClaudeSession(
       attachments,
       repositoryPath
     );
-    const prompt = modePrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
+    const prompt = taskPrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
 
     // Prepare environment variables
     const env = {
@@ -153,6 +153,7 @@ export async function spawnClaudeSession(
       // Use SDK in child process for hot reload safety
       await spawnClaudeSdkChildProcess({
         prompt,
+        systemPrompt,
         sessionId: sessionId || undefined,
         env,
         repositoryPath,
@@ -176,6 +177,7 @@ export async function spawnClaudeSession(
 
       await executeClaudeQuery({
         prompt,
+        systemPrompt,
         sessionId: sessionId || undefined,
         allowedTools: defaultToolsSettings.allowedTools,
         disallowedTools: defaultToolsSettings.disallowedTools,
@@ -475,6 +477,7 @@ async function processTaskImagesPrompt(
 
 type SpawnClaudeSdkChildProcessArgs = {
   prompt: string;
+  systemPrompt: string;
   sessionId?: string;
   env: Record<string, string>;
   repositoryPath: string;
@@ -586,13 +589,13 @@ export async function spawnOpencodeSession(
         .orderBy(schema.taskIterations.iterationNumber);
     }
 
-    const modePrompt = generatePrompt(mode, {
+    const { systemPrompt, taskPrompt } = generatePrompt(mode, {
       ...taskData,
       webUrl: process.env.WEB_APP_URL || 'http://localhost:8302',
       taskIterations
     });
 
-    if (!modePrompt || !modePrompt.trim()) {
+    if (!taskPrompt || !taskPrompt.trim()) {
       return {
         success: false,
         error: `No prompt generated. Mode: ${mode}, Task ID: ${taskId}. Task title: ${taskData.task.rawTitle || taskData.task.refinedTitle}.`,
@@ -604,7 +607,7 @@ export async function spawnOpencodeSession(
       attachments,
       repositoryPath
     );
-    const prompt = modePrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
+    const prompt = taskPrompt + (imagesPrompt ? `\n\n${imagesPrompt}` : "");
 
     // Prepare environment variables
     const env = {

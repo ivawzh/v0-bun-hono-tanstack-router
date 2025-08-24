@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 14: Ocean Depths */
+:root {
+  --background: oklch(0.08 0.03 240);
+  --foreground: oklch(0.85 0.08 180);
+  --card: oklch(0.12 0.04 250);
+  --card-foreground: oklch(0.85 0.08 180);
+  --popover: oklch(0.12 0.04 250);
+  --popover-foreground: oklch(0.85 0.08 180);
+  --primary: oklch(0.55 0.15 200);
+  --primary-foreground: oklch(0.08 0.03 240);
+  --secondary: oklch(0.45 0.12 220);
+  --secondary-foreground: oklch(0.85 0.08 180);
+  --muted: oklch(0.15 0.03 245);
+  --muted-foreground: oklch(0.65 0.06 190);
+  --accent: oklch(0.65 0.18 160);
+  --accent-foreground: oklch(0.08 0.03 240);
+  --destructive: oklch(0.48 0.20 15);
+  --destructive-foreground: oklch(0.85 0.08 180);
+  --border: oklch(0.25 0.05 230);
+  --input: oklch(0.10 0.03 242);
+  --ring: oklch(0.55 0.15 200);
+  --chart-1: oklch(0.55 0.15 200);
+  --chart-2: oklch(0.65 0.18 160);
+  --chart-3: oklch(0.45 0.12 220);
+  --chart-4: oklch(0.58 0.14 180);
+  --chart-5: oklch(0.52 0.16 260);
+  --sidebar: oklch(0.10 0.03 242);
+  --sidebar-foreground: oklch(0.85 0.08 180);
+  --sidebar-primary: oklch(0.55 0.15 200);
+  --sidebar-primary-foreground: oklch(0.08 0.03 240);
+  --sidebar-accent: oklch(0.45 0.12 220);
+  --sidebar-accent-foreground: oklch(0.85 0.08 180);
+  --sidebar-border: oklch(0.25 0.05 230);
+  --sidebar-ring: oklch(0.55 0.15 200);
+  --font-sans: 'Open Sans', sans-serif;
+  --font-serif: 'Merriweather', serif;
+  --font-mono: 'Source Code Pro', monospace;
+  --radius: 1.5rem;
+  --shadow-2xs: 0 2px 8px oklch(0.55 0.15 200 / 0.3), 0 0 12px oklch(0.65 0.18 160 / 0.2);
+  --shadow-xs: 0 4px 12px oklch(0.55 0.15 200 / 0.4), 0 0 16px oklch(0.65 0.18 160 / 0.3);
+  --shadow-sm: 0 6px 16px oklch(0.55 0.15 200 / 0.5), 0 0 20px oklch(0.65 0.18 160 / 0.4);
+  --shadow: 0 8px 24px oklch(0.55 0.15 200 / 0.6), 0 0 28px oklch(0.65 0.18 160 / 0.5);
+  --shadow-md: 0 12px 32px oklch(0.55 0.15 200 / 0.7), 0 0 36px oklch(0.65 0.18 160 / 0.6);
+  --shadow-lg: 0 16px 40px oklch(0.55 0.15 200 / 0.8), 0 0 48px oklch(0.65 0.18 160 / 0.7);
+  --shadow-xl: 0 24px 56px oklch(0.55 0.15 200 / 0.9), 0 0 64px oklch(0.65 0.18 160 / 0.8);
+  --shadow-2xl: 0 32px 72px oklch(0.55 0.15 200 / 1.0), 0 0 80px oklch(0.65 0.18 160 / 0.9);
+  --tracking-normal: 0em;
+  --spacing: 1.5rem;
+  
+  --gradient-ocean: radial-gradient(ellipse at center, oklch(0.12 0.04 250), oklch(0.08 0.03 240));
+  --texture-water: radial-gradient(circle at 30% 70%, oklch(0.55 0.15 200 / 0.1) 0%, transparent 50%);
+  
+  --radius-sm: 1.25rem;
+  --radius-md: 1.5rem;
+  --radius-lg: 2rem;
+  --radius-xl: 2.5rem;
+}

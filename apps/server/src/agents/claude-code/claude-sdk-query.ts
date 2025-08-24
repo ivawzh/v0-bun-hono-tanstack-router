@@ -14,6 +14,7 @@ import * as os from "os";
 
 export interface ClaudeQueryOptions {
   prompt: string;
+  systemPrompt?: string;
   sessionId?: string;
   allowedTools: string[];
   disallowedTools: string[];
@@ -61,6 +62,7 @@ export async function executeClaudeQuery(options: ClaudeQueryOptions): Promise<v
         mcpServers: mergeExistingMcpServers(options.mcpServers, options.repositoryPath),
         cwd: options.repositoryPath,
         env: options.env,
+        ...(options.systemPrompt && { appendSystemPrompt: options.systemPrompt }),
         hooks: {
           SessionStart: [{
             matcher: '*',
@@ -241,7 +243,6 @@ export function mergeExistingMcpServers(mcpServers: Options["mcpServers"], repos
         Object.keys(claudeConfig.mcpServers).length > 0
       ) {
         const globalMcpServers = claudeConfig.mcpServers;
-        console.log(`🚀 -> mergeExistingMcpServers -> globalMcpServers:`, globalMcpServers);
         Object.assign(totalMcpServers, globalMcpServers);
       }
 
@@ -254,7 +255,6 @@ export function mergeExistingMcpServers(mcpServers: Options["mcpServers"], repos
           Object.keys(projectConfig.mcpServers).length > 0
         ) {
           const projectMcpServers = projectConfig.mcpServers;
-          console.log(`🚀 -> mergeExistingMcpServers -> projectMcpServers:`, projectMcpServers);
           Object.assign(totalMcpServers, projectMcpServers);
         }
       }

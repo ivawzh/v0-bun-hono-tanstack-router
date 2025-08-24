@@ -1,0 +1,57 @@
+/* Solo Unicorn! Theme 58: Amethyst Crystal */
+:root {
+  --background: oklch(0.92 0.08 320);
+  --foreground: oklch(0.25 0.15 280);
+  --card: oklch(0.94 0.06 315);
+  --card-foreground: oklch(0.25 0.15 280);
+  --popover: oklch(0.94 0.06 315);
+  --popover-foreground: oklch(0.25 0.15 280);
+  --primary: oklch(0.58 0.22 285);
+  --primary-foreground: oklch(0.92 0.08 320);
+  --secondary: oklch(0.48 0.18 310);
+  --secondary-foreground: oklch(0.92 0.08 320);
+  --muted: oklch(0.88 0.09 318);
+  --muted-foreground: oklch(0.42 0.12 282);
+  --accent: oklch(0.68 0.25 275);
+  --accent-foreground: oklch(0.92 0.08 320);
+  --destructive: oklch(0.52 0.28 345);
+  --destructive-foreground: oklch(0.92 0.08 320);
+  --border: oklch(0.58 0.22 285);
+  --input: oklch(0.93 0.07 317);
+  --ring: oklch(0.58 0.22 285);
+  --chart-1: oklch(0.58 0.22 285);
+  --chart-2: oklch(0.68 0.25 275);
+  --chart-3: oklch(0.48 0.18 310);
+  --chart-4: oklch(0.62 0.23 290);
+  --chart-5: oklch(0.52 0.28 345);
+  --sidebar: oklch(0.93 0.07 317);
+  --sidebar-foreground: oklch(0.25 0.15 280);
+  --sidebar-primary: oklch(0.58 0.22 285);
+  --sidebar-primary-foreground: oklch(0.92 0.08 320);
+  --sidebar-accent: oklch(0.48 0.18 310);
+  --sidebar-accent-foreground: oklch(0.92 0.08 320);
+  --sidebar-border: oklch(0.58 0.22 285);
+  --sidebar-ring: oklch(0.58 0.22 285);
+  --font-sans: 'Poppins', sans-serif;
+  --font-serif: 'Playfair Display', serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --radius: 0.75rem;
+  --shadow-2xs: 0 3px 9px oklch(0.58 0.22 285 / 0.25), 0 6px 18px oklch(0.68 0.25 275 / 0.15), 0 0 24px oklch(0.48 0.18 310 / 0.1);
+  --shadow-xs: 0 6px 15px oklch(0.58 0.22 285 / 0.3), 0 12px 30px oklch(0.68 0.25 275 / 0.2), 0 0 36px oklch(0.48 0.18 310 / 0.15);
+  --shadow-sm: 0 9px 21px oklch(0.58 0.22 285 / 0.35), 0 18px 42px oklch(0.68 0.25 275 / 0.25), 0 0 48px oklch(0.48 0.18 310 / 0.2);
+  --shadow: 0 12px 28px oklch(0.58 0.22 285 / 0.4), 0 24px 56px oklch(0.68 0.25 275 / 0.3), 0 0 72px oklch(0.48 0.18 310 / 0.25);
+  --shadow-md: 0 18px 42px oklch(0.58 0.22 285 / 0.45), 0 36px 84px oklch(0.68 0.25 275 / 0.35), 0 0 108px oklch(0.48 0.18 310 / 0.3);
+  --shadow-lg: 0 24px 56px oklch(0.58 0.22 285 / 0.5), 0 48px 112px oklch(0.68 0.25 275 / 0.4), 0 0 144px oklch(0.48 0.18 310 / 0.35);
+  --shadow-xl: 0 36px 84px oklch(0.58 0.22 285 / 0.55), 0 72px 168px oklch(0.68 0.25 275 / 0.45), 0 0 216px oklch(0.48 0.18 310 / 0.4);
+  --shadow-2xl: 0 48px 112px oklch(0.58 0.22 285 / 0.6), 0 96px 224px oklch(0.68 0.25 275 / 0.5), 0 0 288px oklch(0.48 0.18 310 / 0.45);
+  --tracking-normal: 0.02em;
+  --spacing: 1.5rem;
+  
+  --gradient-amethyst: linear-gradient(135deg, oklch(0.58 0.22 285), oklch(0.68 0.25 275), oklch(0.48 0.18 310));
+  --texture-crystal: repeating-linear-gradient(60deg, oklch(0.58 0.22 285 / 0.1), oklch(0.58 0.22 285 / 0.1) 1px, oklch(0.68 0.25 275 / 0.08) 1px, oklch(0.68 0.25 275 / 0.08) 8px, oklch(0.48 0.18 310 / 0.06) 8px, oklch(0.48 0.18 310 / 0.06) 16px);
+  
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+}

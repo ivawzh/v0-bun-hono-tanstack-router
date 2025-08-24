@@ -5,9 +5,9 @@
 
 import { defaultActorDescription } from './defaultActor';
 import { defaultCommitAuthorName } from './defaultCommitAuthorName';
-import type { PromptParams } from './index';
+import type { PromptParams, SplitPrompt } from './index';
 
-export function generateIteratePrompt(context: PromptParams): string {
+export function generateIteratePrompt(context: PromptParams): SplitPrompt {
   const { task, actor, project, agent, webUrl, taskIterations } = context;
 
   const planSummary = task.plan ? JSON.stringify(task.plan) : 'No plan available';
@@ -20,8 +20,7 @@ export function generateIteratePrompt(context: PromptParams): string {
   const prevIterations = taskIterations.slice(0, -1);
   const currentIteration = taskIterations[taskIterations.length - 1];
 
-  return `[iterate] ${task.rawTitle || task.refinedTitle}
-This is a task that has been sent back for revision. Iterate based on the user feedback below.
+  const systemPrompt = `This is a task that has been sent back for revision. Iterate based on the user feedback below.
 
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="iterate", agentSessionStatus="ACTIVE"
@@ -30,7 +29,9 @@ This is a task that has been sent back for revision. Iterate based on the user f
 4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="check", mode="check", agentSessionStatus="INACTIVE"${task.checkInstruction ? `, checkInstruction="${task.checkInstruction}"` : ""}
 
 **Your Role**: ${actor?.description || defaultActorDescription}
-${project.memory ? '**Project Context**: ' + project.memory : ''}
+${project.memory ? '**Project Context**: ' + project.memory : ''}`;
+
+  const taskPrompt = `[iterate] ${task.rawTitle || task.refinedTitle}
 
 **Current iteration number**:#${currentIteration.iterationNumber}
 **MOST IMPORTANT - current iteration feedback**:
@@ -48,5 +49,7 @@ ${currentIteration.feedback}
 ${planSummary}
 
 **Old feedback from the previous iteration(s)**:
-${prevIterations.map(iteration => `- **Iteration ${iteration.iterationNumber}**: ${iteration.feedback.length > 500 ? iteration.feedback.slice(0, 500) + '(truncated...)' : iteration.feedback}`).join('\n')}
-`}
+${prevIterations.map(iteration => `- **Iteration ${iteration.iterationNumber}**: ${iteration.feedback.length > 500 ? iteration.feedback.slice(0, 500) + '(truncated...)' : iteration.feedback}`).join('\n')}`;
+
+  return { systemPrompt, taskPrompt };
+}
