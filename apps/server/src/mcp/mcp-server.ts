@@ -200,10 +200,15 @@ function registerMcpTools(server: McpServer) {
         list: z.enum(["todo", "doing", "done", "loop", "check"]).optional(),
         mode: z.enum(["clarify", "plan", "execute", "loop", "talk", "check"]).optional().nullable(),
         agentSessionStatus: z.enum(["INACTIVE", "PUSHING", "ACTIVE"]).optional(),
+        newCommit: z.object({
+          id: z.string(),
+          message: z.string(),
+          iterationNumber: z.number()
+        }).optional(),
       },
     },
     async (input, { requestInfo }) => {
-      const { taskId, refinedTitle, refinedDescription, plan, checkInstruction, list, mode, agentSessionStatus } = input;
+      const { taskId, refinedTitle, refinedDescription, plan, checkInstruction, list, mode, agentSessionStatus, newCommit } = input;
       logger.tool("task_update", "init", { input });
 
       // Prepare initial updates
@@ -251,6 +256,19 @@ function registerMcpTools(server: McpServer) {
           };
         }
 
+        // Handle git commit tracking
+        if (newCommit) {
+          const currentGit = task.git as { commits?: Array<{ id: string, message: string, iterationNumber: number }> } || {};
+          const existingCommits = currentGit.commits || [];
+          
+          // Add the new commit to the existing commits array
+          const updatedGit = {
+            ...currentGit,
+            commits: [...existingCommits, newCommit]
+          };
+          
+          filteredUpdates.git = updatedGit;
+        }
 
         await db
           .update(tasks)

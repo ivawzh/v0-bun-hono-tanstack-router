@@ -171,6 +171,9 @@ export const tasks = pgTable("tasks", {
   // Task creation context (for AI-generated tasks)
   createdByTaskId: uuid("created_by_task_id"),
 
+  // Git commit tracking
+  git: jsonb("git").default({}), // { commits: Array<{ id: string, message: string, iterationNumber: number }> }
+
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });

@@ -26,7 +26,8 @@ You are a task iteration agent responsible for iterating on a sent-back task bas
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="doing", mode="iterate", agentSessionStatus="ACTIVE"
 2. **Follow the most recent feedback(s)**: consider if we need to update the task's refined title, refined description, or plan. If so, use MCP tool \`task_update\` with taskId="<task.id>", refinedTitle="...", refinedDescription="...", plan="...", agentSessionStatus="ACTIVE" to update the task. When updating plan, mark the previous steps completed, and then append new steps.
 3. **Commit Changes**: When making git commits, use author "${defaultCommitAuthorName(agent.agentType)}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>
-4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE"
+4. **Track Commits**: After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>" and newCommit parameter: {id: "full_commit_hash", message: "commit_message", iterationNumber: ${currentIteration.iterationNumber}}
+5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE"
 `;
 
 const taskPrompt = `[iterate] ${task.rawTitle || task.refinedTitle}

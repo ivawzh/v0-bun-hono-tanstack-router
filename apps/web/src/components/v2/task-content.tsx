@@ -127,6 +127,16 @@ export function TaskContent({
             )}
           </TabsTrigger>
           <TabsTrigger value="plan" className="text-xs sm:text-sm px-2 sm:px-3">Plan</TabsTrigger>
+          <TabsTrigger value="commits" className="text-xs sm:text-sm px-2 sm:px-3">
+            <GitBranch className="h-3 w-3 mr-1" />
+            <span className="hidden sm:inline">Commits</span>
+            <span className="sm:hidden">Git</span>
+            {task.git?.commits && task.git.commits.length > 0 && (
+              <Badge variant="secondary" className="ml-1 sm:ml-2 text-xs">
+                {task.git.commits.length}
+              </Badge>
+            )}
+          </TabsTrigger>
           {task.list === 'check' && (
             <TabsTrigger value="check" className="text-xs sm:text-sm px-2 sm:px-3">
               <CheckCircle className="h-3 w-3 mr-1" />
@@ -472,6 +482,51 @@ export function TaskContent({
                 compact={false}
                 onDelete={onDeleteAttachment}
               />
+            </div>
+          </TabsContent>
+          
+          {/* Git Commits Tab */}
+          <TabsContent value="commits" className="mt-0">
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium">Git Commit History</Label>
+                <div className="text-xs text-muted-foreground mt-1">
+                  Commits made during task execution
+                </div>
+              </div>
+              
+              {task.git?.commits && task.git.commits.length > 0 ? (
+                <div className="space-y-3">
+                  {task.git.commits
+                    .sort((a, b) => b.iterationNumber - a.iterationNumber)
+                    .map((commit, index) => (
+                      <Card key={`${commit.id}-${index}`} className="p-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <Badge variant="outline" className="text-xs">
+                              #{commit.iterationNumber}
+                            </Badge>
+                            <code className="text-xs bg-muted px-2 py-1 rounded">
+                              {commit.id.substring(0, 8)}
+                            </code>
+                          </div>
+                          <div className="text-sm">
+                            {commit.message}
+                          </div>
+                        </div>
+                      </Card>
+                    ))
+                  }
+                </div>
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <GitBranch className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <div className="text-sm">No commits tracked yet</div>
+                  <div className="text-xs">
+                    Commits will appear here when agents make changes during task execution
+                  </div>
+                </div>
+              )}
             </div>
           </TabsContent>
 

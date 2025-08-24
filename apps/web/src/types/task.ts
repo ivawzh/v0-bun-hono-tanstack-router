@@ -78,6 +78,15 @@ export interface TaskV2 {
   assignedAgentIds?: string[];
   actorId: string | null;
 
+  // Git commit tracking
+  git?: {
+    commits: Array<{
+      id: string;
+      message: string;
+      iterationNumber: number;
+    }>;
+  };
+
   // Populated relationships
   mainRepository?: Repository | null;
   additionalRepositories?: Repository[];
