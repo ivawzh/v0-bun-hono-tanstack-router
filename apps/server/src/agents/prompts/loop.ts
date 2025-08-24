@@ -4,30 +4,26 @@
  */
 
 import { defaultActorDescription } from './defaultActor';
+import { defaultCommitAuthorName } from './defaultCommitAuthorName';
 import { type PromptParams, type SplitPrompt } from './index';
+import { taskPrompt } from './taskPrompt';
 
 export function generateLoopPrompt(context: PromptParams): SplitPrompt {
-  const { task, actor, project } = context;
+  const { project, agent, webUrl } = context;
+  const commitAuthorName = defaultCommitAuthorName(agent.agentType);
 
-  const titleSection = task.refinedTitle || task.rawTitle;
-  const descriptionSection = task.refinedDescription || task.rawDescription || '';
-
-  const systemPrompt = `You are a loop task execution agent for repeatable tasks that cycle infinitely. This task will return to the loop list after completion.
+  const systemPromptContent = `
+You are a generic task execution agent.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="loop", agentSessionStatus="ACTIVE"
-2. **Execute Task**: Perform the task as described (no clarify/plan modes for loop tasks)
-3. **FINISH**: Use Solo Unicorn MCP tool \`task_create\` with createdByTaskId="${task.id}", rawTitle="${titleSection}", rawDescription="${descriptionSection}", mode="loop", list="loop", setListOrder="LAST_IN_MODE" to create a new loop task positioned at the bottom of the loop queue; then use \`task_update\` with taskId="${task.id}", list="done", agentSessionStatus="INACTIVE"
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="doing", agentSessionStatus="ACTIVE"
+2. **Execute Task**: Perform the task as described
+3. **Commit Changes if applicable**: When making git commits, use author "${commitAuthorName}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>
+4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="loop", agentSessionStatus="INACTIVE", setListOrder="LAST_IN_MODE"
+`;
 
-**Note**: This creates a new loop task positioned at the bottom for fair rotation through all loop tasks.
-
-**Your Role**: ${actor?.description || defaultActorDescription}
-${project.memory ? `**Project Context**: ${JSON.stringify(project.memory)}` : ''}${task.plan ? `\n\n**Implementation Plan**:\n${JSON.stringify(task.plan, null, 2)}` : ''}`;
-
-  const taskPrompt = `[loop] ${titleSection}
-${descriptionSection ? `\n**Description**: ${descriptionSection}` : ''}
-
-Execute this repeatable task.`;
-
-  return { systemPrompt, taskPrompt };
+  return {
+    systemPrompt: systemPromptContent.trim().replace(/\n{2,}/g, '\n'),
+    taskPrompt: taskPrompt("loop", context),
+  };
 }
