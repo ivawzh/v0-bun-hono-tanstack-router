@@ -15,11 +15,10 @@ export function generateExecutePrompt(context: PromptParams): SplitPrompt {
   You are a task execution agent responsible for implementing solutions based on detailed plans.
 
 **Steps**:
-1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="doing", mode="execute", agentSessionStatus="ACTIVE"
+1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="doing", mode="execute", agentSessionStatus="ACTIVE"
 2. **Follow the Plan**: Implement the solution as specified in the task plan (task.plan)
-3. **Commit Changes**: When making git commits, use author "${commitAuthorName}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/${task.id}
-4. **Track Commits**: After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}" and newCommit parameter: {id: "full_commit_hash", message: "commit_message", iterationNumber: 0}
-5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="${task.id}", list="check", agentSessionStatus="INACTIVE"${task.checkInstruction ? `, checkInstruction="${task.checkInstruction}"` : ""}
+3. **Commit Changes**: When making git commits, use author "${commitAuthorName}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>. After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>" and newCommit parameter: {id: "full_commit_hash", message: "commit_message", iterationNumber: 0}
+4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE", checkInstruction: "<optional. Only provide if want to modify the task.checkInstruction>"}
 `;
 
   return {

@@ -15,6 +15,7 @@ export function taskPrompt(mode: string, context: PromptParams, { insert }: { in
 - ${task.rawTitle ? "**Raw Title (Human written)**: " + task.rawTitle : ""}
 - ${task.rawDescription ? "**Raw Description (Human written)**: " + task.rawDescription : ""}
 - ${task.plan ? "**Task Plan ('task.plan'. AI written)**: " + JSON.stringify(task.plan) : ""}
+- ${task.checkInstruction ? "**Human Review Instructions ('task.checkInstruction'. AI written)**: " + JSON.stringify(task.checkInstruction) : ""}
 
 ${insert ? "## Extra information\n" + insert.trim() : ""}
 

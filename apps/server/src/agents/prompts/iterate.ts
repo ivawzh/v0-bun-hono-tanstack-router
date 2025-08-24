@@ -25,16 +25,15 @@ You are a task iteration agent responsible for iterating on a sent-back task bas
 **Steps**:
 1. **START**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="doing", mode="iterate", agentSessionStatus="ACTIVE"
 2. **Follow the most recent feedback(s)**: consider if we need to update the task's refined title, refined description, or plan. If so, use MCP tool \`task_update\` with taskId="<task.id>", refinedTitle="...", refinedDescription="...", plan="...", agentSessionStatus="ACTIVE" to update the task. When updating plan, mark the previous steps completed, and then append new steps.
-3. **Commit Changes**: When making git commits, use author "${defaultCommitAuthorName(agent.agentType)}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>
-4. **Track Commits**: After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>" and newCommit parameter: {id: "full_commit_hash", message: "commit_message", iterationNumber: ${currentIteration.iterationNumber}}
-5. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE"
+3. **Commit Changes**: When making git commits, use author "${defaultCommitAuthorName(agent.agentType)}}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>. After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>" and newCommit parameter: {id: "full_commit_hash", message: "commit_message", iterationNumber: <currentIteration.iterationNumber>}
+4. **FINISH**: Use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", list="check", agentSessionStatus="INACTIVE", checkInstruction: "<optional. Only provide if want to modify the task.checkInstruction>"
 `;
 
 const taskPrompt = `[iterate] ${task.rawTitle || task.refinedTitle}
 
 **Task ID (task.id)**: ${task.id}
 
-**Current iteration number**:#${currentIteration.iterationNumber}
+**Current iteration number (currentIteration.iterationNumber)**: #${currentIteration.iterationNumber}
 **MOST IMPORTANT - Current iteration feedback**: ${currentIteration.feedback}
 
 **Your acting character description**: ${actor?.description || defaultActorDescription}
@@ -52,6 +51,8 @@ ${project.memory ? "**Project Context**: " + project.memory : ""}
 
 **Old Task Plan ('task.plan'. AI written) we Implemented from the previous iteration(s)**:
 ${planSummary}
+
+${task.checkInstruction ? "**Human Review Instructions ('task.checkInstruction'. AI written)**: " + JSON.stringify(task.checkInstruction) : ""}
 
 **Old feedback from the previous iteration(s)**:
 ${prevIterations.map(iteration => `- **Iteration ${iteration.iterationNumber}**: ${iteration.feedback.length > 500 ? iteration.feedback.slice(0, 500) + '(truncated...)' : iteration.feedback}`).join('\n')}`;
