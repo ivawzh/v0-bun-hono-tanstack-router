@@ -1339,6 +1339,15 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                 spellCheck="true"
               />
             </div>
+            <div className="space-y-2 max-sm:space-y-3">
+              <Label htmlFor="task-mode">Mode (Optional)</Label>
+              <TaskModeSelector
+                mode={newTask.mode}
+                list="todo" // Use "todo" instead of "doing" to make it interactive
+                onModeChange={(mode) => updateDraft({ mode })}
+                size="md"
+              />
+            </div>
             <div className="grid grid-cols-1 gap-3 sm:gap-4 sm:grid-cols-2">
               <div className="space-y-2 max-sm:space-y-3">
                 <Label htmlFor="task-priority">Priority</Label>
@@ -1431,20 +1440,6 @@ export function KanbanBoard({ projectId }: KanbanBoardProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-            <div className="space-y-2 max-sm:space-y-3">
-              <Label htmlFor="task-mode">Mode (Optional)</Label>
-              <div className="flex items-center gap-2">
-                <TaskModeSelector
-                  mode={newTask.mode}
-                  list="doing" // Force showing mode selector in creation mode
-                  onModeChange={(mode) => updateDraft({ mode })}
-                  size="md"
-                />
-                <span className="text-xs text-muted-foreground">
-                  Default: {newTaskList === 'loop' ? 'Loop' : 'clarify'}
-                </span>
-              </div>
             </div>
 
             {/* File Attachments */}
