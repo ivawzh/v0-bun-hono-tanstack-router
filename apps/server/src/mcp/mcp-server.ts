@@ -205,10 +205,11 @@ function registerMcpTools(server: McpServer) {
           message: z.string(),
           iterationNumber: z.number()
         }).optional(),
+        setListOrder: z.enum(["FIRST", "LAST", "FIRST_IN_MODE", "LAST_IN_MODE"]).optional(),
       },
     },
     async (input, { requestInfo }) => {
-      const { taskId, refinedTitle, refinedDescription, plan, checkInstruction, list, mode, agentSessionStatus, newCommit } = input;
+      const { taskId, refinedTitle, refinedDescription, plan, checkInstruction, list, mode, agentSessionStatus, newCommit, setListOrder } = input;
       logger.tool("task_update", "init", { input });
 
       // Prepare initial updates
@@ -254,6 +255,19 @@ function registerMcpTools(server: McpServer) {
               },
             ],
           };
+        }
+
+        // Calculate new listOrder if setListOrder is provided
+        if (setListOrder !== undefined) {
+          const targetList = list || task.list; // Use new list or current list
+          const targetMode = mode !== undefined ? mode : task.mode;
+          const newListOrder = await calculateNewListOrder(
+            setListOrder,
+            targetList,
+            targetMode,
+            task.projectId
+          );
+          filteredUpdates.listOrder = newListOrder;
         }
 
         // Handle git commit tracking
