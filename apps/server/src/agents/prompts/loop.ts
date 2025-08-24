@@ -3,7 +3,6 @@
  * Used for repeatable tasks that cycle infinitely
  */
 
-import { defaultActorDescription } from './defaultActor';
 import { defaultCommitAuthorName } from './defaultCommitAuthorName';
 import { type PromptParams, type SplitPrompt } from './index';
 import { taskPrompt } from './taskPrompt';

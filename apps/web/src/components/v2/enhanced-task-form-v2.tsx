@@ -95,7 +95,7 @@ export function EnhancedTaskFormV2({
     ready: false,
     attachments: [],
     dependencyIds: [],
-    mode: null
+    mode: "clarify"
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -173,7 +173,7 @@ export function EnhancedTaskFormV2({
         ready: false,
         attachments: [],
         dependencyIds: [],
-        mode: null
+        mode: "clarify"
       });
 
       onOpenChange(false);

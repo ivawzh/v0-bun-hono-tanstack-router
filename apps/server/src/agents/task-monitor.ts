@@ -56,6 +56,7 @@ export function startTaskMonitoring(): void {
     config.taskPushingJobCron,
     async () => {
       try {
+        console.log(`🚀 -> startTaskMonitoring -> tryPushTasks:`);
         const result = await tryPushTasks();
         if (result.pushed > 0) {
           console.log(`🚀 Pushed ${result.pushed} tasks`);

@@ -82,7 +82,7 @@ export function startHotReloadSafeInterval(
         // Check if this interval has been superseded by a newer module version
         const current = intervals.get(name);
         if (current?.shouldStop || current?.moduleVersion !== MODULE_VERSION) {
-          // console.log(`🛑 Interval ${name} stopped (superseded by newer module)`);
+          console.log(`🛑 Interval ${name} stopped (superseded by newer module)`);
           return;
         }
 
@@ -129,9 +129,11 @@ export function startHotReloadSafeCron(
   fn: () => Promise<void> | void
 ): any {
   const intervals = globalThis.__soloUnicornIntervals!;
+  console.log(`🚀 -> startHotReloadSafeCron -> intervals:`, intervals);
 
   // Stop any existing cron job with the same name from previous module versions
   const existing = intervals.get(name);
+  console.log(`🚀 -> startHotReloadSafeCron -> MODULE_VERSION:`, MODULE_VERSION);
   if (existing && existing.moduleVersion !== MODULE_VERSION) {
     existing.shouldStop = true;
     // console.log(`🛑 Stopping stale cron job: ${name} (module ${existing.moduleVersion})`);
