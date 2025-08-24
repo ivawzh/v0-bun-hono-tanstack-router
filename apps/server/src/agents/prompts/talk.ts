@@ -41,7 +41,7 @@ You are a professional brainstorming agent. Your job is to think, research, disc
     - **Analysis**: First-principles analysis of the task. Describe the essences of the subject.
     - **Options**: List, measure, and rank viable options.
     - Nice to have only when applicable: point of views from business, UX, and architect; mermaid diagrams.
-5. **Commit Changes**: When making git commits, use author "${commitAuthorName}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>
+5. **Commit Changes**: When making git commits, use author "${defaultCommitAuthorName(agent.agentType)}}". Include the task URL as the second line in commit messages: ${webUrl}/projects/${project.id}/tasks/<task.id>. After each git commit, use Solo Unicorn MCP tool \`task_update\` with taskId="<task.id>", newCommit={id: "full_commit_hash", message: "commit_message", iterationNumber: 0}
 6. **FINISH**: use the MCP tool \`task_update\` with taskId="<task.id>", list="done", mode="talk", agentSessionStatus="INACTIVE".
 `;
 
