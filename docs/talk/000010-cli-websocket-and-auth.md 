@@ -1,0 +1,107 @@
+# CLI, Websocket and Auth
+
+## First prompt
+
+Please help me brainstorm a new plan. Return your response in either update or
+append of this document. Feel super welcome to challenge my idea, give me suggestions,
+think-out-of-the-box thoughts.
+
+### CLI
+
+On top of existing Solo Unicorn. I am going to introduce new app "Solo Unicorn CLI".
+It will be a Bun compiled single file cli app, that gets installed on user machine side.
+It's main job so far:
+
+1. `login`:
+  a. register user's machine as their workstation, where ai code agent will run at. It
+can be all sorts of machines - pc, mac, linux, docker container, etc.
+  b. auth. default to --web that open web and auth via monster auth personal access
+token and refresh token. Storing the token locally somewhere. Optionally can use
+--api-key API key (not yet existing, need your help to design how to generate and works
+with monster auth or other solutions).
+  c. connect websocket for receiving push notifications. e.g. WS message of task
+assignment.
+2. `init` register a repo from pwd. init step is optional. user may also provide `solo
+config set WORKSPACE_PATH ~/solo-unicorn-workspace/` (may also default a value without
+forcing user to set at setup), github access and github repo link, then cli can handle
+git clone and setup the repo at workspace.
+3. `start`: signal server this workstation is ready to receive new tasks.
+4. `stop`: signal server to stop assigning new tasks.
+
+Concerns:
+
+1. How will database entities be like? Should we remove agent entities?
+1. Repo entity also may not make sense anymore. Maybe we should have workstation entity link to project. And then, repo path will be saved at workstation's file ~/.solo-unicorn/config.json similar to Claude Code's settings. Repo entity maybe need to replace both repo_path and repo.name with a new field 'github_repo_link' as both a gihub url and repo uuid.
+
+New database entities brainstorming:
+            users
+              |
+  ------------|
+  |
+ Org -> WorkStations(project to workstations = 1:n )
+  |
+  |
+  |-------------------> Repos
+  |
+  |
+  |-------------------> Projects (broad)
+  |
+  |
+  |
+  AgentAccounts(optional. Only useful when user want to use multiple Claude Code accounts to rotate between rate limit period)
+
+In workstation ~/.solo-unicorn/config.json, we will store:
+{
+  repos: Array<{
+    "githubRepoLink": "https://github.com/monstermake/solo-unicorn",
+    "repoId": "123",
+    "localPath": "/Users/user/solo-unicorn" // optional. If not provided, we will use github_repo_link to clone the repo at WORKSPACE_PATH
+  }>
+}
+
+### WebSocket server
+
+Is it possible to add a long running websocket service that use Elixir. However, I want
+this ws server to be shared across the company powering multiple apps, meanwhile it is a
+generic websocket gateway infrastructure that have at least business logic as possible.
+
+My idea of this Elixir shared service
+
+1. Stateful with Elixir clustering. <https://hexdocs.pm/phoenix/releases.html#clustering>
+1. Deploy to OCI via SST V3.
+1. no database.
+1. shared by multiple apps at different endpoints.
+1. configable. store whitelist of allowed apps (i.e. client_id), message enpoint, message-schema endpoint, auth endpoint, API keys (i am not familiar how Elixir deal with secrets, pleaes help me) and their allowed domain names in config (??? I don't know if this is possible to support hot deploy in the future while we are running the service in production and want to add new client apps? Please help me).
+1. no business logic (except maybe needs heartbeat check for "presence" state? I am not familiar with this. Please help me).
+1. business logic and auth is handled by client apps via ws-message to http-endpoint routing. E.g. Elixir server received ws message at endpoint /solo-unicorn, channel "workstation:<id>", type "task-started", payload { taskId: "123", sessionId: '456', workstationId: '789' } Bun server; then the corresponding ws-message will be forwarded to Bun server at endpoint POST `api.solounicorn.lol/messages` with body `{ channel: "workstation:<id>", type: "task-started", payload: { taskId: "123", sessionId: '456', workstationId: '789' } }` and also forward its auth header.
+1. on start, Elixir server fetch message schema from client apps' configurable schema endpoint with auth. This will determine the ws routing.
+1. Elixir server also has endpoint to allow trigger to refetch the message schema in case of client app updated.
+1. on user creating connection, Elixir server will also forward request to client app's configurable auth endpoint to determine if the connection is allowed.
+
+Use case examples:
+
+1. Workstation CLI received task assignment push notification from server.
+2. Workstation CLI informs server if workstation is online.
+3. Solo Unicorn web app receives push notification for task updates.
+
+Concerns in my mind:
+
+1. How does it fit into Monster Auth? Ideally CLI will have either service account or API key to support auth.
+1. Will CORS work? Assuming Elixir server is at `realtime.monstermake.limited`.
+1. Which elixir library or framework to use for websocket?
+1. How to work with React Query?
+
+### Background context
+
+Solo Unicorn's server runs Bun on AWS lambda.
+Solo Unicorn is a product under my company Monster Make.
+Monster Make has a centralised auth system Monster Auth.
+Monster Auth is basically a consumer of SST's libary OpenAuth
+I don't know if Openauth has solution for supporting service account instead of personal
+account. I will need something like service account or API key to support CLI i assume
+(other ideas are very welcome).
+Solo Unicorn web production domain is solounicorn.lol.
+Solo Unicorn server is at api.solounicorn.lol.
+Monster Auth is at auth.monstermake.limited
+
+Currently the CORS are working fine.

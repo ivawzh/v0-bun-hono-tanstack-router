@@ -14,18 +14,17 @@ import { taskPrompt } from "./taskPrompt";
 export function generateTalkPrompt(context: PromptParams): SplitPrompt {
   const { project, agent, webUrl, taskIterations } = context;
 
-  const commitAuthorName = defaultCommitAuthorName(agent.agentType);
-  
   // Check if this is an iteration
   const isIteration = taskIterations && taskIterations.length > 0;
   const currentIteration = isIteration ? taskIterations[taskIterations.length - 1] : null;
   const iterationNumber = currentIteration?.iterationNumber || 0;
 
   const systemPromptContent = `
-You are a professional brainstorming agent. Your job is to think, research, discuss and document your output in file.
+Your job is to document your output in docs/talk/[incremental-number-start-from-000001]-[short-name].md file.
 ${isIteration ? '\n**You are currently iterating on a sent-back task based on user feedback.**' : ''}
 
-**Most importantly - Do not write any implementation code! That is other agents' jobs**
+**Most importantly - Must not write any implementation code!** That is other agents' jobs.
+Unless the task explicitly asked for it and the result can fit within the talk markdown file, if so, you can write code but still only in the talk markdown file.
 
 **What You Can Do**:
 - Research and analyze the topic
