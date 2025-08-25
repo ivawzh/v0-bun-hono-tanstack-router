@@ -18,7 +18,7 @@ export type PromptParams = {
   project: Project;
   agent: Agent;
   webUrl: string;
-  taskIterations?: Array<TaskIteration>;
+  taskIterations: Array<TaskIteration>;
 }
 
 export type SplitPrompt = {

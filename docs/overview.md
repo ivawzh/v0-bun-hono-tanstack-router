@@ -4,7 +4,8 @@
 
 **We provide**:
 
-- Task management system for dispatching tasks to AI agents. We are like
+- Hub of AI agents.
+- Task management system for dispatching tasks to AI agents. We are like Trello for AI tasks.
 - Efficient AI agent orchestration.
 - Flexible AI workflow framework.
 - Easy switch to different agent types. We are like OpenRouter for coding agent CLIs.
@@ -12,7 +13,7 @@
 - Context preservation across repos, agents, tasks and sessions.
 - Multi-repo coordination.
 
-**Our differentiator to other AI tools**: We're the only solution focused purely on AI task orchestration while leaving coding execution to proven tools.
+**Our differentiator to other AI tools**: We're focusing on AI task orchestration while leaving coding execution to proven tools.
 
 **Typical user groups**:
 
@@ -38,23 +39,18 @@
 - WebSocket: Bun std `Bun.serve({ websocket })`
 - Auth: Monster Auth
 
-## Database Implementation
-
-- PostgreSQL
-- Prefer jsonb for flexible fields (`state`, `plan`, `config`)
-- Minimal normalization - evolve as needed
-
 ## Facts
 
-1. **Current Usage Pattern**: Primarily using Claude Code agent client type, which remains the most powerful option
-2. **Claude Code Max Subscription**: Monthly access with unknown rate limits (hourly, daily, or monthly) that change without notice
-3. **Claude Code Capabilities**:
+1. **Current Usage Pattern**: Primarily using Claude Code agent client type, which is the most powerful agent in the market.
+1. **Claude Code Max Subscription price**: $100-$200/month. Very expensive. Implied their user group is rich.
+1. **Claude Code Max Subscription rate limit**: Monthly access with unknown rate limits (hourly, daily, or monthly) that change without notice
+1. **Claude Code Capabilities**:
    - Supports additional working directories for multi-repo access and all-in-one manipulation
    - Rate limit refresh times are provided when limits are hit
    - Can switch accounts via `CLAUDE_CONFIG_DIR` environment variable
    - Session resuming: Reusing session IDs preserves conversation context and memory across task modes
-4. **Conflict Management Philosophy**: Easier to maintain one active session per repo to avoid git conflicts, but should be configurable
-5. **Rate Limit Handling**: Need to re-feed ongoing tasks when rate limits refresh
+1. **Conflict Management Philosophy**: Easier to maintain one active session per repo to avoid git conflicts, but should be configurable
+1. **Rate Limit Handling**: Need to re-feed ongoing tasks when rate limits refresh.
 
 ## Core Entities
 

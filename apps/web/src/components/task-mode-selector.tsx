@@ -99,7 +99,7 @@ export function TaskModeSelector({
   return (
     <Select
       value={mode || ""}
-      onValueChange={(value) => onModeChange(value === "" ? null : value)}
+      onValueChange={(value) => onModeChange(value === "" || value === "__default__" ? null : value)}
       disabled={disabled}
     >
       <SelectTrigger
@@ -126,7 +126,7 @@ export function TaskModeSelector({
       <SelectContent>
         {size === "md" && (
           <>
-            <SelectItem value="">
+            <SelectItem value="__default__">
               <div className="flex flex-col gap-1 py-1">
                 <span className="px-2 py-1 rounded text-xs text-muted-foreground">
                   ✨ Default: Clarify

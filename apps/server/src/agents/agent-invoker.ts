@@ -21,6 +21,7 @@ import {
 } from "@anthropic-ai/claude-code";
 import { executeClaudeQuery, type ClaudeQueryOptions } from "./claude-code/claude-sdk-query";
 import { createOpencodeClient, createOpencodeServer } from "@opencode-ai/sdk";
+import { match } from "ts-pattern";
 
 export interface SpawnOptions {
   sessionId?: string | null;
@@ -69,8 +70,7 @@ export async function spawnClaudeSession(
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
     // Fetch task iterations for all modes to provide feedback context when iterating
-    let taskIterations: schema.TaskIteration[] = [];
-    taskIterations = await db
+    const taskIterations = await db
       .select()
       .from(schema.taskIterations)
       .where(eq(schema.taskIterations.taskId, task.id))
@@ -578,8 +578,7 @@ export async function spawnOpencodeSession(
     const attachments = (task.attachments as AttachmentMetadata[]) || [];
 
     // Fetch task iterations for all modes to provide feedback context when iterating
-    let taskIterations: schema.TaskIteration[] = [];
-    taskIterations = await db
+    const taskIterations = await db
       .select()
       .from(schema.taskIterations)
       .where(eq(schema.taskIterations.taskId, task.id))
