@@ -70,7 +70,7 @@ solo-unicorn config set KEY VALUE
 solo-unicorn config list
 solo-unicorn config reset
 
-# Development Server (Channel Tunneling)
+# Development Server (Public Tunneling)
 solo-unicorn serve [--port PORT] [--public]
 solo-unicorn tunnel status
 
@@ -158,8 +158,8 @@ channel.push("message", {
   channel: `workstation:${workstationId}`,
   type: "presence.update",
   memberKey: { workstationId, userId },
-  meta: { 
-    status: "online", 
+  meta: {
+    status: "online",
     availableAgents: ["claude-code", "cursor"],
     activeProjects: ["proj_123"],
     devServerPort: 3000 // if running local dev server
@@ -174,7 +174,7 @@ channel.on("message", (envelope) => {
 });
 ```
 
-**Channel Structure**:
+**WebSocket Channel Structure**:
 - `workstation:{workstation_id}` - Direct workstation communication
 - `project:{project_id}:workstations` - Project-wide workstation updates
 - `task:{task_id}` - Task-specific coordination
@@ -213,14 +213,14 @@ Repositories (Git Worktrees):
    Worktrees:
    - /Users/john/workspace/solo-unicorn-feature-auth (feature/auth)
    - /Users/john/workspace/solo-unicorn-hotfix (hotfix/critical-bug)
-   
-📁 my-app (repo_456)  
+
+📁 my-app (repo_456)
    Main: /Users/john/workspace/my-app (develop)
    Status: Cloning...
 
 Agents:
 🤖 Claude Code v2.1.4 - Available (1/2 slots used)
-🤖 Cursor v0.42.0 - Available  
+🤖 Cursor v0.42.0 - Available
 🤖 OpenCode v1.3.2 - Not installed
 
 Development Server:
@@ -274,7 +274,7 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
           "createdAt": "2024-01-15T10:30:00Z"
         },
         {
-          "branch": "hotfix/critical-bug", 
+          "branch": "hotfix/critical-bug",
           "path": "/Users/john/workspace/solo-unicorn-hotfix",
           "createdAt": "2024-01-16T14:20:00Z"
         }
@@ -286,12 +286,12 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
 
 **Benefits of Git Worktrees**:
 - Multiple branches checked out simultaneously
-- No need to stash/commit when switching contexts  
+- No need to stash/commit when switching contexts
 - Isolated working directories for different tasks
 - Shared .git directory (efficient disk usage)
 - Perfect for parallel AI task execution
 
-### 4. Local Development Server with Channel Tunneling
+### 4. Local Development Server with Public Tunneling
 
 #### `solo-unicorn serve`
 
@@ -308,14 +308,14 @@ solo-unicorn serve --port 3000 --public
 solo-unicorn serve --project proj_123 --port 3000 --public
 ```
 
-**Channel Tunneling Architecture**:
+**Public Tunneling Architecture**:
 ```
 User Browser
      ↓
 https://channel.solounicorn.lol/workstation/{workstation_id}/project/{project_id}
      ↓
-Solo Unicorn Server (Channel Proxy)
-     ↓  
+Solo Unicorn Server (Tunnel Proxy)
+     ↓
 Monster Realtime WebSocket
      ↓
 Workstation CLI (Local Proxy)
@@ -325,8 +325,8 @@ http://localhost:3000 (Local Dev App)
 
 **Implementation**:
 1. **Local Proxy Server**: CLI starts HTTP proxy on specified port
-2. **Monster Realtime Channel**: Register dev server in workstation presence
-3. **Channel Proxy**: Solo Unicorn server proxies requests through WebSocket
+2. **Secure Tunnel**: Establish encrypted tunnel to Solo Unicorn server
+3. **Tunnel Proxy**: Solo Unicorn server proxies requests through secure connection
 4. **Public Access**: Users access via `channel.solounicorn.lol` subdomain
 
 **WebSocket Protocol for Tunneling**:
@@ -341,7 +341,7 @@ interface TunnelRequest {
 }
 
 interface TunnelResponse {
-  type: "http:response";  
+  type: "http:response";
   requestId: string;
   status: number;
   headers: Record<string, string>;
@@ -357,16 +357,75 @@ interface TunnelResponse {
 
 ### 5. Configuration System
 
-#### Configuration Storage
+Solo Unicorn CLI uses multiple configuration files to manage workstation settings, agent configurations, and project information.
 
-**Location**: `~/.solo-unicorn/config.json`
+#### Main Configuration: `~/.solo-unicorn/config.json`
 
+```typescript
+interface SoloUnicornConfig {
+  version: string;
+  workstation: {
+    id: string;                     // ws_abc123def456
+    name: string;                   // MacBook-Pro-2023
+    hostname: string;               // johns-macbook.local
+    os: string;                     // darwin, linux, win32
+    arch: string;                   // arm64, x64
+  };
+  auth: {
+    organizationId: string;         // org_123
+    organizationName: string;       // acme-corp
+    userId: string;                 // user_456
+    email: string;                  // john@acme.com
+    personalAccessToken: string;    // encrypted_pat_here
+    expiresAt: string;              // ISO timestamp
+  };
+  realtime: {
+    gatewayUrl: string;             // wss://realtime.monstermake.limited/ws/v1/solo-unicorn-cli
+    timeout: number;                // 30000ms
+    reconnectAttempts: number;      // 5
+  };
+  server: {
+    apiUrl: string;                 // https://api.solounicorn.lol
+    tunnelUrl: string;              // https://tunnel.solounicorn.lol
+  };
+  workspace: {
+    rootPath: string;               // /Users/john/solo-unicorn-workspace
+    autoClone: boolean;             // true
+    defaultBranch: string;          // main
+    worktreeNaming: string;         // "repo-branch"
+  };
+  devServer: {
+    enabled: boolean;
+    defaultPort: number;
+    autoStart: boolean;
+    publicTunneling: boolean;
+    tunnelDomain: string;           // tunnel.solounicorn.lol
+    tunnelSecurity: {
+      requireAuth: boolean;
+      maxRequestsPerMinute: number;
+    };
+  };
+  repositories: Array<{
+    id: string;                     // repo_123
+    githubUrl: string;              // https://github.com/user/solo-unicorn
+    mainPath: string;               // /Users/john/workspace/solo-unicorn
+    mainBranch: string;             // main
+    worktrees: Array<{
+      branch: string;               // feature/auth
+      path: string;                 // /Users/john/workspace/solo-unicorn-feature-auth
+      createdAt: string;            // ISO timestamp
+    }>;
+  }>;
+}
+```
+
+**Example Configuration:**
 ```json
 {
   "version": "1.0.0",
   "workstation": {
     "id": "ws_abc123def456",
-    "name": "MacBook-Pro-2023", 
+    "name": "MacBook-Pro-2023",
     "hostname": "johns-macbook.local",
     "os": "darwin",
     "arch": "arm64"
@@ -386,7 +445,7 @@ interface TunnelResponse {
   },
   "server": {
     "apiUrl": "https://api.solounicorn.lol",
-    "channelUrl": "https://channel.solounicorn.lol"
+    "tunnelUrl": "https://tunnel.solounicorn.lol"
   },
   "workspace": {
     "rootPath": "/Users/john/solo-unicorn-workspace",
@@ -394,23 +453,16 @@ interface TunnelResponse {
     "defaultBranch": "main",
     "worktreeNaming": "repo-branch"
   },
-  "agents": {
-    "claudeCode": {
-      "enabled": true,
-      "configDir": "~/.claude",
-      "maxConcurrency": 2
-    },
-    "cursor": {
-      "enabled": true,
-      "path": "/usr/local/bin/cursor",
-      "maxConcurrency": 1
-    }
-  },
   "devServer": {
     "enabled": false,
     "defaultPort": 3000,
     "autoStart": false,
-    "publicTunneling": false
+    "publicTunneling": false,
+    "tunnelDomain": "tunnel.solounicorn.lol",
+    "tunnelSecurity": {
+      "requireAuth": false,
+      "maxRequestsPerMinute": 100
+    }
   },
   "repositories": [
     {
@@ -430,6 +482,125 @@ interface TunnelResponse {
 }
 ```
 
+#### Agent Configuration: `~/.solo-unicorn/agents.json`
+
+**Purpose**: Store agent-specific configuration locally on workstation. Server only needs basic agent info for task assignment, while detailed configuration stays on the client.
+
+```typescript
+interface WorkstationAgentConfig {
+  version: string;
+  workstationId: string;
+  agents: {
+    [agentId: string]: {
+      // Agent Identity
+      id: string;
+      type: 'claude-code' | 'cursor' | 'opencode' | 'custom';
+      name: string;
+      
+      // Local Configuration (not stored in database)
+      configPath: string;              // ~/.claude, /Applications/Cursor.app
+      executablePath?: string;         // /usr/local/bin/cursor
+      environmentVars: Record<string, string>; // PATH, CLAUDE_CONFIG_DIR, etc.
+      
+      // Agent-Specific Settings
+      customSettings: {
+        claudeCode?: {
+          configDir: string;           // CLAUDE_CONFIG_DIR
+          defaultModel?: string;       // claude-3.5-sonnet
+        };
+        cursor?: {
+          apiKey?: string;             // encrypted API key
+          model?: string;              // gpt-4
+          workspaceSettings?: Record<string, any>;
+        };
+        opencode?: {
+          providerId?: string;         // anthropic, openai
+          modelId?: string;            // claude-3.5-sonnet
+          configDir?: string;
+        };
+      };
+      
+      // Status
+      enabled: boolean;
+      lastHealthCheck?: string;        // ISO timestamp
+      healthStatus: 'healthy' | 'warning' | 'error' | 'unknown';
+      
+      // Statistics
+      tasksCompleted: number;
+      lastUsed?: string;               // ISO timestamp
+      averageTaskDuration?: number;    // seconds
+    };
+  };
+  
+  // Global Settings
+  settings: {
+    autoUpdateAgentStatus: boolean;
+    healthCheckInterval: number;       // seconds
+    logLevel: 'debug' | 'info' | 'warn' | 'error';
+    backupConfig: boolean;
+  };
+}
+```
+
+**Example Agent Configuration:**
+```json
+{
+  "version": "1.0.0",
+  "workstationId": "ws_abc123def456",
+  "agents": {
+    "agent_claude_001": {
+      "id": "agent_claude_001",
+      "type": "claude-code",
+      "name": "Claude Code Primary",
+      "configPath": "~/.claude",
+      "environmentVars": {
+        "CLAUDE_CONFIG_DIR": "~/.claude",
+        "PATH": "/usr/local/bin:/usr/bin:/bin"
+      },
+      "customSettings": {
+        "claudeCode": {
+          "configDir": "~/.claude",
+          "defaultModel": "claude-3.5-sonnet"
+        }
+      },
+      "enabled": true,
+      "healthStatus": "healthy",
+      "tasksCompleted": 42,
+      "lastUsed": "2024-01-15T14:30:00Z",
+      "averageTaskDuration": 1200
+    },
+    "agent_cursor_001": {
+      "id": "agent_cursor_001",
+      "type": "cursor",
+      "name": "Cursor IDE",
+      "configPath": "/Applications/Cursor.app",
+      "executablePath": "/usr/local/bin/cursor",
+      "environmentVars": {},
+      "customSettings": {
+        "cursor": {
+          "model": "gpt-4",
+          "workspaceSettings": {
+            "theme": "dark",
+            "fontSize": 14
+          }
+        }
+      },
+      "enabled": true,
+      "healthStatus": "healthy",
+      "tasksCompleted": 18,
+      "lastUsed": "2024-01-14T16:45:00Z",
+      "averageTaskDuration": 900
+    }
+  },
+  "settings": {
+    "autoUpdateAgentStatus": true,
+    "healthCheckInterval": 300,
+    "logLevel": "info",
+    "backupConfig": true
+  }
+}
+```
+
 ### 6. Advanced Features
 
 #### Agent Detection and Management
@@ -438,7 +609,7 @@ interface TunnelResponse {
 # Scan system for available agents
 solo-unicorn agent scan
 
-# Install missing agents  
+# Install missing agents
 solo-unicorn agent install claude-code
 solo-unicorn agent install cursor --version latest
 
@@ -455,7 +626,7 @@ solo-unicorn doctor
 
 # Test specific components
 solo-unicorn doctor --auth           # Test Monster Auth integration
-solo-unicorn doctor --realtime       # Test Monster Realtime connection  
+solo-unicorn doctor --realtime       # Test Monster Realtime connection
 solo-unicorn doctor --repos          # Test repository access
 solo-unicorn doctor --agents         # Test agent availability
 solo-unicorn doctor --tunneling      # Test dev server tunneling
@@ -489,7 +660,7 @@ Agents:
 
 Development Server:
 ✓ Local proxy server working
-✓ Channel tunneling functional
+✓ Public tunneling functional
 ✓ Public access available
 
 Network:
@@ -501,7 +672,7 @@ Network:
 ### 7. Security and Best Practices
 
 #### Token Management
-- **Secure Storage**: OS keychain/credential store integration
+- **Secure Storage**: OS keychain/credential store integration. Bun support navtive secret managers of some OS. See https://bun.com/blog/bun-v1.2.21#bun-secrets-native-secrets-manager-for-cli-tools
 - **Automatic Refresh**: Monitor token expiration and refresh
 - **Scope Validation**: Ensure minimum required permissions
 - **Revocation**: Clean token cleanup on logout
@@ -547,7 +718,7 @@ Could not establish WebSocket connection to realtime.monstermake.limited
 
 Possible solutions:
 • Check internet connectivity: solo-unicorn doctor --realtime
-• Verify authentication status: solo-unicorn whoami  
+• Verify authentication status: solo-unicorn whoami
 • Check for corporate firewall blocking WebSocket connections
 • Try reconnecting: solo-unicorn restart
 ```
@@ -571,12 +742,12 @@ Ready for task assignments!
 
 $ solo-unicorn start --background
 🔌 Connecting to Monster Realtime...
-✓ WebSocket connection established  
+✓ WebSocket connection established
 🏠 Joining workstation channel...
 ✓ Presence registered
 🤖 Scanning for available agents...
    - Claude Code v2.1.4 ✓
-   - Cursor v0.42.0 ✓  
+   - Cursor v0.42.0 ✓
    - OpenCode (not installed)
 🚀 Workstation ready for tasks
 
@@ -594,13 +765,13 @@ Use 'solo-unicorn stop' to shutdown
 npm install -g @solo-unicorn/cli
 bun install -g @solo-unicorn/cli
 
-# Direct binary download  
+# Direct binary download
 curl -fsSL https://install.solounicorn.lol | bash
 wget -qO- https://install.solounicorn.lol | bash
 
 # Package managers
 brew install solo-unicorn/tap/cli      # macOS
-scoop install solo-unicorn-cli         # Windows  
+scoop install solo-unicorn-cli         # Windows
 snap install solo-unicorn-cli          # Linux
 ```
 
@@ -608,7 +779,7 @@ snap install solo-unicorn-cli          # Linux
 
 **Windows**:
 - Windows Terminal integration
-- PowerShell compatibility  
+- PowerShell compatibility
 - Windows Service option for background mode
 - Windows Defender exclusions guidance
 
@@ -619,7 +790,7 @@ snap install solo-unicorn-cli          # Linux
 - macOS notarization
 
 **Linux**:
-- systemd service integration  
+- systemd service integration
 - Various distribution packages (.deb, .rpm, .tar.gz)
 - AppImage support
 - Container/Docker support
