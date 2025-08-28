@@ -12,11 +12,60 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 - **Monster Integration**: Compatible with Monster Auth and Monster Realtime
 - **Multi-tenancy**: Organization-based isolation with project-level access control
 - **Audit Trail**: Complete history tracking for all operations
+- **PR Support**: Optional pull request workflow for controlled development
+
+## V3 Design Decisions & Rationale
+
+### Authentication Strategy
+
+**Decision**: Separate authentication table (n:1 relationship)
+
+**Rationale**: 
+- Users can have multiple authentication methods (Google OAuth, password, future providers)
+- Stable user identity even if email address changes
+- Ready for Monster Auth service accounts when available
+- Industry standard approach for OAuth integrations
+- Better audit trail for authentication events
+
+### Agent Storage Strategy
+
+**Decision**: Simplified agent table + client-side configuration JSON
+
+**Rationale**:
+- Existing task assignment code requires complex agent queries (impossible with JSONB)
+- Server needs agent status, concurrency limits, and type for task assignment
+- Client-specific config (paths, environment vars) should stay on workstation
+- Cleaner separation of concerns: server for orchestration, client for execution
+
+### GitHub Repository Storage
+
+**Decision**: Multi-field approach for maximum stability
+
+**Rationale**:
+- GitHub URLs can change with repository renames
+- GitHub numeric repo ID never changes (most stable identifier)
+- Store multiple identifiers for different use cases
+- Support git clone while maintaining stable references
+
+### Pull Request Support
+
+**Decision**: Optional per-project and per-task PR workflow
+
+**Rationale**:
+- Early stage projects need fast iteration (direct push to main)
+- Production projects need code review and controlled changes
+- Seamless GitHub integration with PR creation and comment parsing
+- AI agents can respond to GitHub PR feedback
 
 ## Entity Relationship Overview
 
 ```
-Organizations 1---* Workstations 1---* Agents
+Organizations 1---* Users *---* UserAuthentications
+     |               |
+     1               |
+     |               |
+     *               |
+ Workstations 1---* Agents
      |                    |
      1                    |
      |                    |
@@ -27,11 +76,12 @@ Organizations 1---* Workstations 1---* Agents
      |                    |
      *                    1
   Tasks *---* TaskAgents *---1 Agents
-     |
-     1
-     |
-     *
-WorkflowTemplates
+     |               |
+     |               |
+     1               *
+     |               |
+     *               1
+WorkflowTemplates   GitHubPRs
 ```
 
 ## Core Entities
@@ -67,21 +117,23 @@ CREATE TABLE organizations (
 
 ### Users
 
-Users belong to organizations through memberships and can access projects.
+Users have stable identity within Solo Unicorn, supporting multiple authentication methods.
 
 ```sql
 CREATE TABLE users (
   id VARCHAR(26) PRIMARY KEY, -- ulid: user_01H123...
   
-  -- Identity (from Monster Auth)
-  monster_auth_user_id VARCHAR(100) UNIQUE NOT NULL,
-  email VARCHAR(255) NOT NULL,
+  -- Primary Identity
+  email VARCHAR(255) UNIQUE NOT NULL, -- primary identifier
   name VARCHAR(255),
-  avatar_url TEXT,
+  avatar TEXT, -- avatar URL
   
   -- Profile
-  display_name VARCHAR(255),
   timezone VARCHAR(50) DEFAULT 'UTC',
+  email_verified BOOLEAN DEFAULT false,
+  
+  -- Status
+  status ENUM('active', 'suspended', 'deleted') DEFAULT 'active',
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
@@ -89,9 +141,43 @@ CREATE TABLE users (
   last_active_at TIMESTAMP DEFAULT NOW(),
   
   -- Indexes
-  INDEX idx_users_monster_auth_user_id (monster_auth_user_id),
   INDEX idx_users_email (email),
-  INDEX idx_users_last_active_at (last_active_at)
+  INDEX idx_users_last_active_at (last_active_at),
+  INDEX idx_users_status (status)
+);
+```
+
+### User Authentications
+
+Separate table for authentication methods, supporting multiple providers per user.
+
+```sql
+CREATE TABLE user_authentications (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: userauth_01H123...
+  user_id VARCHAR(26) NOT NULL,
+  
+  -- Provider Information
+  provider ENUM('google', 'password', 'github') NOT NULL,
+  provider_user_id VARCHAR(255) NOT NULL, -- googleUserId, email for password
+  
+  -- Provider-Specific Data (JSON for flexibility)
+  provider_data JSON, -- GoogleUser or PasswordUser data from Monster Auth
+  
+  -- Status
+  is_primary BOOLEAN DEFAULT false, -- primary authentication method
+  verified BOOLEAN DEFAULT false,
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  last_used_at TIMESTAMP,
+  
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  
+  UNIQUE KEY unique_provider_user (provider, provider_user_id),
+  INDEX idx_user_auth_user_id (user_id),
+  INDEX idx_user_auth_provider (provider),
+  INDEX idx_user_auth_primary (user_id, is_primary)
 );
 ```
 
@@ -184,7 +270,7 @@ CREATE TABLE workstations (
 
 ### Agents
 
-Agents are AI coding tools available on workstations (Claude Code, Cursor, etc.).
+Simplified agents table for server-side task assignment. Client-side configuration stored in local JSON.
 
 ```sql
 CREATE TABLE agents (
@@ -196,15 +282,8 @@ CREATE TABLE agents (
   name VARCHAR(255) NOT NULL, -- display name
   version VARCHAR(50), -- agent version
   
-  -- Configuration
-  config_path TEXT, -- path to config directory/file
-  executable_path TEXT, -- path to agent executable
-  environment_vars JSON, -- additional environment variables
-  agent_settings JSON, -- agent-specific settings (CLAUDE_CONFIG_DIR, etc.)
-  
-  -- Capabilities
+  -- Server-Side Configuration (needed for task assignment)
   max_concurrency_limit INTEGER DEFAULT 1, -- 0 = unlimited
-  supported_languages JSON, -- ["javascript", "python", "rust"]
   
   -- Status & Rate Limiting
   status ENUM('available', 'busy', 'rate_limited', 'error', 'disabled') DEFAULT 'available',
@@ -234,6 +313,127 @@ CREATE TABLE agents (
 );
 ```
 
+### Agent Type Definitions (Server-Side Static Configuration)
+
+Server maintains static configuration for agent capabilities:
+
+```typescript
+// Server-side agent type definitions
+interface AgentTypeDefinition {
+  type: 'claude-code' | 'cursor' | 'opencode' | 'custom';
+  displayName: string;
+  supportedModels: string[]; // ['claude-3.5-sonnet', 'gpt-4', etc.]
+  supportedLanguages: string[]; // ['typescript', 'python', 'rust', etc.]
+  capabilities: {
+    canCreatePRs: boolean;
+    canReadPRComments: boolean;
+    canHandleMultiFile: boolean;
+    supportsGitWorktrees: boolean;
+  };
+  defaultConcurrencyLimit: number;
+  rateLimitInfo?: {
+    requestsPerHour: number;
+    tokensPerMinute: number;
+  };
+}
+
+// Static configuration
+const AGENT_TYPE_DEFINITIONS: Record<string, AgentTypeDefinition> = {
+  'claude-code': {
+    type: 'claude-code',
+    displayName: 'Claude Code',
+    supportedModels: ['claude-3.5-sonnet', 'claude-3-haiku'],
+    supportedLanguages: ['typescript', 'javascript', 'python', 'rust', 'go', 'java'],
+    capabilities: {
+      canCreatePRs: true,
+      canReadPRComments: true,
+      canHandleMultiFile: true,
+      supportsGitWorktrees: true,
+    },
+    defaultConcurrencyLimit: 2,
+    rateLimitInfo: {
+      requestsPerHour: 500,
+      tokensPerMinute: 50000,
+    },
+  },
+  'cursor': {
+    type: 'cursor',
+    displayName: 'Cursor',
+    supportedModels: ['gpt-4', 'claude-3.5-sonnet'],
+    supportedLanguages: ['typescript', 'javascript', 'python', 'rust', 'go'],
+    capabilities: {
+      canCreatePRs: false,
+      canReadPRComments: false,
+      canHandleMultiFile: true,
+      supportsGitWorktrees: false,
+    },
+    defaultConcurrencyLimit: 1,
+  },
+};
+```
+
+### Client-Side Agent Configuration
+
+Workstation stores agent-specific configuration in local JSON file:
+
+```typescript
+// ~/.solo-unicorn/agents.json
+interface WorkstationAgentConfig {
+  version: string;
+  workstationId: string;
+  agents: {
+    [agentId: string]: {
+      // Agent Identity
+      id: string;
+      type: 'claude-code' | 'cursor' | 'opencode' | 'custom';
+      name: string;
+      
+      // Local Configuration (not stored in database)
+      configPath: string;              // ~/.claude, /Applications/Cursor.app
+      executablePath?: string;         // /usr/local/bin/cursor
+      environmentVars: Record<string, string>; // PATH, CLAUDE_CONFIG_DIR, etc.
+      
+      // Agent-Specific Settings
+      customSettings: {
+        claudeCode?: {
+          configDir: string;           // CLAUDE_CONFIG_DIR
+          defaultModel?: string;       // claude-3.5-sonnet
+        };
+        cursor?: {
+          apiKey?: string;             // encrypted API key
+          model?: string;              // gpt-4
+          workspaceSettings?: Record<string, any>;
+        };
+        opencode?: {
+          providerId?: string;         // anthropic, openai
+          modelId?: string;            // claude-3.5-sonnet
+          configDir?: string;
+        };
+      };
+      
+      // Status
+      enabled: boolean;
+      lastHealthCheck?: string;        // ISO timestamp
+      healthStatus: 'healthy' | 'warning' | 'error' | 'unknown';
+      
+      // Statistics
+      tasksCompleted: number;
+      lastUsed?: string;               // ISO timestamp
+      averageTaskDuration?: number;    // seconds
+    };
+  };
+  
+  // Global Settings
+  settings: {
+    autoUpdateAgentStatus: boolean;
+    healthCheckInterval: number;       // seconds
+    logLevel: 'debug' | 'info' | 'warn' | 'error';
+    backupConfig: boolean;
+  };
+}
+```
+```
+
 ### Projects
 
 Projects contain tasks and define which workstations can work on them.
@@ -255,6 +455,13 @@ CREATE TABLE projects (
   -- Project Memory (shared context for all tasks)
   memory TEXT, -- markdown content
   
+  -- Pull Request Configuration
+  pr_mode_default ENUM('disabled', 'enabled') DEFAULT 'disabled', -- default PR mode for new tasks
+  pr_require_review BOOLEAN DEFAULT true, -- require human review before merging
+  pr_auto_merge BOOLEAN DEFAULT false, -- auto-merge approved PRs
+  pr_delete_branch_after_merge BOOLEAN DEFAULT true, -- cleanup branches
+  pr_template TEXT, -- default PR description template
+  
   -- Status
   status ENUM('active', 'archived', 'suspended') DEFAULT 'active',
   
@@ -273,21 +480,29 @@ CREATE TABLE projects (
 
 ### Project Repositories
 
-Links GitHub repositories to projects with worktree support.
+Links GitHub repositories to projects with stable identification and PR support.
 
 ```sql
 CREATE TABLE project_repositories (
   id VARCHAR(26) PRIMARY KEY, -- ulid: repo_01H123...
   project_id VARCHAR(26) NOT NULL,
   
-  -- Repository Identity
+  -- Repository Identity (multiple identifiers for stability)
   name VARCHAR(255) NOT NULL, -- display name
-  github_url TEXT NOT NULL, -- https://github.com/user/repo
-  github_owner VARCHAR(100), -- extracted from URL
-  github_repo VARCHAR(100), -- extracted from URL
+  github_repo_id BIGINT, -- GitHub numeric ID (most stable, never changes)
+  github_owner VARCHAR(100) NOT NULL, -- current owner name
+  github_name VARCHAR(100) NOT NULL, -- current repo name  
+  github_full_name VARCHAR(255) NOT NULL, -- owner/repo format
+  github_url TEXT NOT NULL, -- current clone URL (https://github.com/owner/repo)
   
   -- Git Configuration
   default_branch VARCHAR(100) DEFAULT 'main',
+  
+  -- PR Support Configuration
+  pr_mode_enabled BOOLEAN DEFAULT false, -- enable PR workflow for this repo
+  pr_branch_prefix VARCHAR(50) DEFAULT 'solo-unicorn/', -- branch naming prefix
+  pr_target_branch VARCHAR(100), -- target branch for PRs (defaults to default_branch)
+  auto_delete_pr_branches BOOLEAN DEFAULT true, -- cleanup merged branches
   
   -- Concurrency Control
   max_concurrent_tasks INTEGER DEFAULT 1, -- 0 = unlimited
@@ -296,6 +511,11 @@ CREATE TABLE project_repositories (
   status ENUM('active', 'inactive', 'error') DEFAULT 'active',
   last_accessed_at TIMESTAMP,
   last_task_pushed_at TIMESTAMP, -- critical for task assignment logic
+  last_pr_sync_at TIMESTAMP, -- last GitHub PR sync
+  
+  -- GitHub API Integration
+  github_webhook_id VARCHAR(100), -- GitHub webhook for PR events
+  github_permissions JSON, -- cached repository permissions
   
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
@@ -303,9 +523,13 @@ CREATE TABLE project_repositories (
   
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   
+  -- Ensure unique repository per project (using stable repo ID when available)
+  UNIQUE KEY unique_project_github_repo (project_id, github_repo_id),
   UNIQUE KEY unique_project_github_url (project_id, github_url),
   INDEX idx_repositories_project_id (project_id),
-  INDEX idx_repositories_github_url (github_url)
+  INDEX idx_repositories_github_repo_id (github_repo_id),
+  INDEX idx_repositories_github_full_name (github_full_name),
+  INDEX idx_repositories_pr_mode (pr_mode_enabled)
 );
 ```
 
@@ -495,8 +719,16 @@ CREATE TABLE tasks (
   -- Assignment (maintain compatibility with current system)
   project_repository_id VARCHAR(26), -- target repository
   main_repository_id VARCHAR(26), -- alias for compatibility with current system
-  target_branch VARCHAR(100), -- target git branch
+  target_branch VARCHAR(100) DEFAULT 'main', -- target git branch
   actor_id VARCHAR(26), -- assigned AI persona
+  
+  -- PR Support
+  pr_mode ENUM('disabled', 'enabled', 'auto') DEFAULT 'auto', -- per-task PR override
+  pr_created BOOLEAN DEFAULT false, -- has PR been created for this task
+  github_pr_number INTEGER, -- GitHub PR number
+  github_pr_url TEXT, -- full GitHub PR URL
+  pr_branch_name VARCHAR(255), -- task-specific branch name
+  pr_merge_strategy ENUM('merge', 'squash', 'rebase') DEFAULT 'squash',
   
   -- Status & Execution
   ready BOOLEAN DEFAULT false,
@@ -538,7 +770,9 @@ CREATE TABLE tasks (
   INDEX idx_tasks_ready (ready),
   INDEX idx_tasks_agent_session_status (agent_session_status),
   INDEX idx_tasks_priority_list_order (priority DESC, list, list_order),
-  INDEX idx_tasks_created_at (created_at)
+  INDEX idx_tasks_created_at (created_at),
+  INDEX idx_tasks_pr_number (github_pr_number),
+  INDEX idx_tasks_pr_created (pr_created)
 );
 ```
 
@@ -690,6 +924,130 @@ CREATE TABLE agent_sessions (
   INDEX idx_sessions_agent_id (agent_id),
   INDEX idx_sessions_status (status),
   INDEX idx_sessions_started_at (started_at)
+);
+```
+
+### GitHub Pull Requests
+
+Tracks GitHub PRs created by AI agents for tasks in PR mode.
+
+```sql
+CREATE TABLE github_pull_requests (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: ghpr_01H123...
+  task_id VARCHAR(26) NOT NULL,
+  project_repository_id VARCHAR(26) NOT NULL,
+  
+  -- GitHub PR Information
+  github_pr_number INTEGER NOT NULL,
+  github_pr_id BIGINT, -- GitHub PR ID (more stable)
+  github_pr_url TEXT NOT NULL,
+  
+  -- Branch Information
+  source_branch VARCHAR(255) NOT NULL, -- solo-unicorn/task-123-feature
+  target_branch VARCHAR(255) NOT NULL, -- main, develop, etc.
+  
+  -- PR Content
+  title VARCHAR(500) NOT NULL,
+  description TEXT,
+  
+  -- PR Status
+  status ENUM('open', 'closed', 'merged', 'draft') NOT NULL,
+  mergeable BOOLEAN,
+  mergeable_state VARCHAR(50), -- clean, dirty, unstable, etc.
+  
+  -- Review Status
+  review_status ENUM('pending', 'approved', 'changes_requested', 'dismissed') DEFAULT 'pending',
+  required_reviews_count INTEGER DEFAULT 0,
+  approved_reviews_count INTEGER DEFAULT 0,
+  
+  -- AI Agent Information
+  created_by_agent_id VARCHAR(26), -- which agent created this PR
+  last_updated_by_agent_id VARCHAR(26), -- which agent last updated this PR
+  
+  -- GitHub Metadata
+  github_created_at TIMESTAMP,
+  github_updated_at TIMESTAMP,
+  github_merged_at TIMESTAMP,
+  github_closed_at TIMESTAMP,
+  
+  -- Sync Information
+  last_synced_at TIMESTAMP DEFAULT NOW(),
+  sync_status ENUM('synced', 'pending', 'error') DEFAULT 'pending',
+  sync_error TEXT,
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (project_repository_id) REFERENCES project_repositories(id) ON DELETE CASCADE,
+  FOREIGN KEY (created_by_agent_id) REFERENCES agents(id) ON DELETE SET NULL,
+  FOREIGN KEY (last_updated_by_agent_id) REFERENCES agents(id) ON DELETE SET NULL,
+  
+  UNIQUE KEY unique_repo_pr_number (project_repository_id, github_pr_number),
+  INDEX idx_github_prs_task_id (task_id),
+  INDEX idx_github_prs_repo_id (project_repository_id),
+  INDEX idx_github_prs_status (status),
+  INDEX idx_github_prs_review_status (review_status),
+  INDEX idx_github_prs_sync_status (sync_status)
+);
+```
+
+### GitHub PR Comments
+
+Tracks GitHub PR comments for AI agent feedback integration.
+
+```sql
+CREATE TABLE github_pr_comments (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: ghcomment_01H123...
+  github_pr_id VARCHAR(26) NOT NULL, -- references github_pull_requests.id
+  
+  -- GitHub Comment Information
+  github_comment_id BIGINT NOT NULL, -- GitHub comment ID
+  comment_type ENUM('issue', 'review', 'review_comment') NOT NULL,
+  
+  -- Comment Content
+  body TEXT NOT NULL,
+  html_url TEXT, -- GitHub comment URL
+  
+  -- Author Information
+  author_github_login VARCHAR(100),
+  author_github_id BIGINT,
+  author_type ENUM('user', 'bot') DEFAULT 'user',
+  
+  -- Position Information (for review comments)
+  file_path TEXT, -- file path for line comments
+  line_number INTEGER, -- line number for line comments
+  diff_hunk TEXT, -- diff context
+  
+  -- Review Information
+  review_id BIGINT, -- GitHub review ID (if part of review)
+  review_state ENUM('pending', 'approved', 'changes_requested', 'commented'),
+  
+  -- AI Processing
+  processed_by_ai BOOLEAN DEFAULT false,
+  ai_response TEXT, -- AI agent's response to this comment
+  ai_response_at TIMESTAMP,
+  
+  -- GitHub Metadata
+  github_created_at TIMESTAMP,
+  github_updated_at TIMESTAMP,
+  
+  -- Sync Information
+  last_synced_at TIMESTAMP DEFAULT NOW(),
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  FOREIGN KEY (github_pr_id) REFERENCES github_pull_requests(id) ON DELETE CASCADE,
+  
+  UNIQUE KEY unique_github_comment (github_comment_id),
+  INDEX idx_pr_comments_pr_id (github_pr_id),
+  INDEX idx_pr_comments_type (comment_type),
+  INDEX idx_pr_comments_author (author_github_login),
+  INDEX idx_pr_comments_processed (processed_by_ai),
+  INDEX idx_pr_comments_review_state (review_state)
 );
 ```
 

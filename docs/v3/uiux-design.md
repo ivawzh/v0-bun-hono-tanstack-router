@@ -1,5 +1,15 @@
 # Solo Unicorn — UI/UX Design
 
+## Overview
+
+Solo Unicorn v3 introduces **Pull Request Support** for controlled development workflows while maintaining fast iteration for early-stage projects.
+
+### Key Features
+- **Dual Workflow Modes**: Direct push (early stage) vs PR workflow (production)
+- **Seamless GitHub Integration**: Auto-create PRs, sync comments, handle reviews
+- **AI Feedback Loop**: Agents read and respond to GitHub PR comments
+- **Flexible Configuration**: Per-project defaults with per-task overrides
+
 ## Core UI Components
 
 Whenever in doubt, follow Trello UI/UX design.
@@ -45,6 +55,7 @@ Whenever in doubt, follow Trello UI/UX design.
 **Sub Header Bar (layout)**
 
 - Project name (Left side)
+- **PR Mode Indicator**: 🔄 PR Mode | ⚡ Direct Push (visual indicator of current mode)
 - Online users (stacked avatars like Figma): Shows project members currently active
 - 🟢 Online workstations with count: Shows workstations currently connected
 - Pause|Resume button for AI agent (Left of settings)
@@ -78,15 +89,17 @@ Whenever in doubt, follow Trello UI/UX design.
 **Review Column:**
 
 1. Title line
-2. Badge row (Priority emoji+number, Mode badge)
+2. Badge row (Priority emoji+number, Mode badge, **PR status badge**)
 3. Description (collapsible, 3.5 lines visible)
-4. Review button
+4. **GitHub PR link** (if PR mode)
+5. Review actions (Approve/Request Changes)
 
 **Done Column:**
 
 1. Title line
-2. Badge row (Priority emoji+number, Mode badge)
+2. Badge row (Priority emoji+number, Mode badge, **PR status badge**)
 3. Description (collapsible, 3.5 lines visible)
+4. **GitHub PR/Merge info** (if applicable)
 
 ### TaskPreview component (Column-Specific)
 
@@ -96,7 +109,9 @@ Whenever in doubt, follow Trello UI/UX design.
 ┌─────────────────────────────────────┐
 │ Task Title Here                  [⋮]│
 ├─────────────────────────────────────┤
-│ P High [Execute ▼] [🔄 Queueing]      │
+│ P High [Execute ▼] [📝 PR Mode]      │
+├─────────────────────────────────────┤
+│ Branch: solo-unicorn/task-auth-123  │
 ├─────────────────────────────────────┤
 │ Description text here that can be   │
 │ multiple lines long and will show   │
@@ -840,3 +855,308 @@ This layout provides a comprehensive task management system specifically designe
 5. **OrganizationPage**: Team management, project overview, usage tracking
 
 All components follow the established design patterns with consistent spacing, responsive layouts, and mobile-first approach.
+
+## Pull Request Support UI/UX
+
+### Overview
+
+Solo Unicorn v3 introduces comprehensive Pull Request support enabling two distinct development workflows:
+
+- **🚀 Direct Push Mode**: Fast iteration for early-stage projects
+- **🔄 PR Mode**: Controlled development with GitHub integration
+
+### Key Features
+
+1. **Dual Workflow Support**: Seamlessly switch between direct push and PR modes
+2. **GitHub Integration**: Auto-create PRs, sync comments, handle reviews
+3. **AI Feedback Loop**: Agents read and respond to GitHub PR comments
+4. **Flexible Configuration**: Per-project defaults with per-task overrides
+5. **Team Collaboration**: Multiple reviewers and real-time PR status
+
+### Enhanced Task Cards (PR Mode)
+
+#### Review Column Card with PR Integration
+
+```
+┌─────────────────────────────────────┐
+│ Implement OAuth integration      [⋮]│
+├─────────────────────────────────────┤
+│ P High [Review] [📝 PR #42] [🕐 2h]  │
+├─────────────────────────────────────┤
+│ 🔗 [View GitHub PR] [💬 PR Comments] │
+│ Branch: solo-unicorn/task-oauth-456 │
+├─────────────────────────────────────┤
+│ ✅ OAuth integration complete       │
+│ - Added Google OAuth flow           │
+│ - Monster Auth integration          │
+│ - User session management...        │
+│ [Show more ▼]                       │
+├─────────────────────────────────────┤
+│ GitHub Status: [✓ Checks passed]    │
+│ [👍 Approve] [👎 Request Changes]    │
+└─────────────────────────────────────┘
+```
+
+#### Todo Column Card (PR Mode)
+
+```
+┌─────────────────────────────────────┐
+│ Implement OAuth integration      [⋮]│
+├─────────────────────────────────────┤
+│ P High [Execute ▼] [📝 PR Mode]      │
+├─────────────────────────────────────┤
+│ Branch: solo-unicorn/task-oauth-456 │
+├─────────────────────────────────────┤
+│ Add Google OAuth integration using  │
+│ Monster Auth. Create login flow...  │
+│ [Show more ▼]                       │
+├─────────────────────────────────────┤
+│                  [✓ Ready for AI]   │
+└─────────────────────────────────────┘
+```
+
+#### Done Column Card (PR Mode)
+
+```
+┌─────────────────────────────────────┐
+│ Implement OAuth integration      [⋮]│
+├─────────────────────────────────────┤
+│ P High [Done] [✅ Merged] [📅 1d]     │
+├─────────────────────────────────────┤
+│ 🔗 [View PR #42] [📊 PR Stats]       │
+│ Merged to: main                     │
+├─────────────────────────────────────┤
+│ ✅ OAuth integration complete       │
+│ Successfully merged after review    │
+│ 8 files changed, 245 additions     │
+│ [Show details ▼]                    │
+└─────────────────────────────────────┘
+```
+
+### Project Configuration - PR Settings
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Project Settings - Pull Request Configuration                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 🔄 Pull Request Mode                                                        │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ ○ Direct Push Mode (Fast iteration)                                    │ │
+│ │   • Tasks work directly on main branch                                 │ │
+│ │   • No PR creation, immediate commits                                  │ │
+│ │   • Best for: Early stage development, solo work                      │ │
+│ │                                                                         │ │
+│ │ ● PR Mode (Controlled development)                                     │ │
+│ │   • Tasks create individual branches                                   │ │
+│ │   • Auto-create GitHub PRs when moving to Review                      │ │
+│ │   • AI agents respond to GitHub PR comments                           │ │
+│ │   • Best for: Production projects, team collaboration                 │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ PR Configuration (when PR Mode enabled)                                    │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ Branch Prefix: [solo-unicorn/] (e.g., solo-unicorn/task-123-auth)      │ │
+│ │ Target Branch: [main      ▼] (base branch for PRs)                     │ │
+│ │ Require Review: [✓] (human approval before merge)                      │ │
+│ │ Auto-merge: [✓] (merge approved PRs automatically)                     │ │
+│ │ Delete Branch: [✓] (cleanup after merge)                               │ │
+│ │ PR Template: [Edit Template...] (default PR description)               │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│                                        [Cancel]  [Save Configuration]     │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Task Creation with PR Override
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Create New Task                                                             │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Title: [Implement OAuth integration                               ]         │
+│                                                                             │
+│ Description:                                                                │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ Add Google OAuth integration using Monster Auth...                     │ │
+│ │                                                                         │ │
+│ │                                                                         │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ Repository: [main-repo           ▼] Actor: [Full-Stack Dev ▼]              │
+│ Priority: [High ▼]                   Workflow: [Default      ▼]              │
+│                                                                             │
+│ 🔄 Pull Request Mode                                                        │
+│ ○ Use project default (PR Mode)                                            │
+│ ○ Force Direct Push (override)                                             │
+│ ● Force PR Mode (override)                                                 │
+│   └─ Target Branch: [main ▼] Custom Branch: [ ]                           │
+│                                                                             │
+│                                            [Cancel]  [Create Task]         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### GitHub PR Comments Integration
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ GitHub PR Comments - Implement OAuth integration (#42)                 [×] │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🔗 https://github.com/user/repo/pull/42                   [Open in GitHub] │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ 💬 3 comments • ✅ 2 approvals • 🔄 1 change request                        │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 👤 john@example.com • 2 hours ago                                      │ │
+│ │ ✅ Approved                                                             │ │
+│ │                                                                         │ │
+│ │ Great implementation! The OAuth flow looks solid. Just one minor       │ │
+│ │ suggestion - could you add error handling for the token refresh?       │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 🤖 Claude Code (AI Agent) • 1 hour ago                                 │ │
+│ │ 💬 Response to review                                                   │ │
+│ │                                                                         │ │
+│ │ Thanks for the feedback! I've added comprehensive error handling       │ │
+│ │ for token refresh in the latest commit. The implementation now         │ │
+│ │ includes retry logic and user-friendly error messages.                 │ │
+│ │                                                                         │ │
+│ │ Changes made:                                                           │ │
+│ │ - Added TokenRefreshError class                                        │ │
+│ │ - Implemented exponential backoff retry                                │ │
+│ │ - Added user notification for auth failures                            │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ 👤 sarah@example.com • 30 minutes ago                                  │ │
+│ │ ✅ Approved                                                             │ │
+│ │                                                                         │ │
+│ │ Perfect! The error handling looks great now. Ready to merge! 🚀        │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│                                                    [Close]  [Refresh]      │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### PR Status Indicators & Workflow
+
+#### PR Mode Badges
+- `📝 PR Mode` - Task configured for PR workflow
+- `⚡ Direct` - Task using direct push mode  
+- `🔄 PR #42` - PR created and linked
+- `✅ Merged` - PR successfully merged
+- `❌ Closed` - PR closed without merging
+- `🕐 2h` - Time since PR creation
+
+#### Review Status Badges
+- `👀 Pending` - Awaiting review
+- `✅ Approved` - Review approved
+- `👎 Changes` - Changes requested
+- `🔄 Updated` - PR updated after feedback
+
+### Workflow State Transitions
+
+#### Direct Push Mode Flow
+```
+Todo (Direct) → Doing (Working) → Review (Manual) → Done (Complete)
+              ↳ commits directly to main branch
+```
+
+#### PR Mode Flow  
+```
+Todo (PR Mode) → Doing (Working) → Review (PR Created) → Done (Merged)
+                ↳ creates branch  ↳ creates GitHub PR  ↳ merges PR
+```
+
+### AI Agent PR Integration
+
+#### Intelligent Feedback Processing
+
+1. **PR Comment Detection**: Real-time GitHub webhook integration
+2. **Context Understanding**: AI analyzes code context and review comments
+3. **Smart Task Reopening**: Tasks automatically move back to Doing for changes
+4. **Targeted Code Updates**: AI implements specific requested changes
+5. **Conversational Responses**: AI responds to reviewers with implementation details
+6. **Iterative Improvement**: Multiple review cycles supported
+
+#### AI Response Examples
+
+**Code Review Response:**
+```markdown
+Human Reviewer: "Please add input validation for the email field"
+
+AI Agent Response:
+"I've added comprehensive email validation with the following improvements:
+- Regex validation for email format  
+- Length limits (max 254 chars per RFC 5321)
+- Sanitization to prevent XSS
+- User-friendly error messages
+
+Changes implemented in commit abc123f. Please review the updated validation logic in `src/auth/validators.ts`."
+```
+
+### Mobile-Optimized PR Features
+
+#### Mobile Task Card (PR Mode)
+
+```
+┌─────────────────────────────────────┐
+│ OAuth integration            [⋮]    │
+├─────────────────────────────────────┤
+│ P High • PR #42 • 2h ago            │
+├─────────────────────────────────────┤
+│ [🔗 GitHub] [💬 Comments]           │
+├─────────────────────────────────────┤
+│ ✅ Ready for review                 │
+│ 5 files, 124+ lines                │
+├─────────────────────────────────────┤
+│ [👍 Approve] [👎 Changes]           │
+└─────────────────────────────────────┘
+```
+
+#### Mobile Interactions
+
+- **Swipe Actions**: Swipe right to approve, swipe left for changes
+- **Quick Access**: Tap badges for instant GitHub navigation
+- **Compact Comments**: Condensed view with expand-on-tap
+- **Touch-Optimized**: Large buttons for review actions
+
+### Implementation Benefits
+
+#### For Early-Stage Projects
+- **Fast Iteration**: Direct commits to main branch
+- **Zero Overhead**: No PR creation or review delays  
+- **Solo Development**: Perfect for single developer workflows
+- **Quick Prototyping**: Immediate code deployment
+
+#### For Production Projects
+- **Code Quality**: Mandatory review process
+- **Team Collaboration**: Multiple reviewers and stakeholders
+- **Audit Trail**: Complete PR history and discussions
+- **AI Enhancement**: Agents respond to feedback and improve code
+- **Branch Management**: Automatic branch creation and cleanup
+- **GitHub Integration**: Native GitHub workflow experience
+
+### Advanced PR Features
+
+#### Smart Branch Management
+- **Auto-naming**: `solo-unicorn/task-{id}-{slug}` format
+- **Conflict Resolution**: AI handles merge conflicts when possible
+- **Branch Cleanup**: Automatic deletion after successful merge
+- **Stale Branch Detection**: Notify about inactive branches
+
+#### Review Workflow Automation
+- **Required Reviewers**: Configure mandatory approvers
+- **Auto-assignment**: Assign reviewers based on file changes
+- **Status Checks**: Integration with CI/CD pipelines
+- **Merge Strategies**: Support for merge, squash, and rebase
+
+#### Integration & Extensibility
+- **GitHub Actions**: Trigger workflows on PR events
+- **Slack/Teams**: Notify team members of PR updates
+- **Jira/Linear**: Link PRs to issues automatically
+- **Code Quality**: SonarQube, CodeClimate integration
+
+This comprehensive PR support system bridges the gap between fast iteration and controlled development, providing the perfect solution for projects at any stage of maturity while maintaining Solo Unicorn's focus on AI-powered task orchestration.
