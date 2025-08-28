@@ -28,6 +28,7 @@ Solo Unicorn CLI is a Bun-compiled single-file application that runs on user mac
 ```
 
 **Key Integration Points:**
+
 - **Monster Realtime**: WebSocket gateway for real-time communication
 - **Monster Auth**: Personal access token authentication (no service accounts yet)
 - **Git Worktrees**: Support for multiple working directories from same repo
@@ -98,6 +99,7 @@ solo-unicorn login --config-dir ~/.solo-unicorn-dev
 ```
 
 **Monster Auth Integration Flow**:
+
 1. **Web Auth (default)**:
    - Start local HTTP server on random port
    - Open browser to `https://auth.monstermake.limited/authorize?client_id=solo-unicorn-cli&redirect_uri=http://localhost:{port}&response_type=code`
@@ -118,6 +120,7 @@ solo-unicorn login --config-dir ~/.solo-unicorn-dev
    - Configure Monster Realtime connection
 
 **Error Handling**:
+
 - Invalid token → Clear error message with token format help
 - Network issues → Retry logic with exponential backoff
 - Browser not available → Fallback to manual URL copy/paste
@@ -137,6 +140,7 @@ solo-unicorn start --agents claude,cursor  # Limit available agents
 ```
 
 **Monster Realtime Integration**:
+
 ```typescript
 // WebSocket connection to Monster Realtime
 const socket = new Socket("/ws/v1/solo-unicorn-cli", {
@@ -169,6 +173,7 @@ channel.on("message", (envelope) => {
 ```
 
 **WebSocket Channel Structure**:
+
 - `workstation:{workstation_id}` - Direct workstation communication
 - `project:{project_id}:workstations` - Project-wide workstation updates
 - `task:{task_id}` - Task-specific coordination
@@ -183,6 +188,7 @@ solo-unicorn status --json    # Machine-readable output
 ```
 
 **Output**:
+
 ```
 Solo Unicorn Workstation Status
 ===============================
@@ -247,12 +253,14 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
 ```
 
 **Worktree Management Flow**:
+
 1. **Main Repository**: Clone to `WORKSPACE_PATH/repo-name`
 2. **Feature Worktrees**: Create in `WORKSPACE_PATH/repo-name-branch-name`
 3. **Automatic Cleanup**: Remove worktrees when branches are deleted
 4. **Task Assignment**: Route tasks to appropriate worktree based on target branch
 
 **Configuration Storage**:
+
 ```json
 {
   "repositories": [
@@ -279,6 +287,7 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
 ```
 
 **Benefits of Git Worktrees**:
+
 - Multiple branches checked out simultaneously
 - No need to stash/commit when switching contexts
 - Isolated working directories for different tasks
@@ -303,6 +312,7 @@ solo-unicorn serve --project proj_123 --port 3000 --public
 ```
 
 **Public Tunneling Architecture**:
+
 ```
 User Browser
      ↓
@@ -318,12 +328,14 @@ http://localhost:3000 (Local Dev App)
 ```
 
 **Implementation**:
+
 1. **Local Proxy Server**: CLI starts HTTP proxy on specified port
 2. **Secure Tunnel**: Establish encrypted tunnel to Solo Unicorn server
 3. **Tunnel Proxy**: Solo Unicorn server proxies requests through secure connection
 4. **Public Access**: Users access via `channel.solounicorn.lol` subdomain
 
 **WebSocket Protocol for Tunneling**:
+
 ```typescript
 interface TunnelRequest {
   type: "http:request";
@@ -344,6 +356,7 @@ interface TunnelResponse {
 ```
 
 **Use Cases**:
+
 - Live preview of web applications during development
 - Share work-in-progress with team members
 - Remote debugging and testing
@@ -414,6 +427,7 @@ interface SoloUnicornConfig {
 ```
 
 **Example Configuration:**
+
 ```json
 {
   "version": "1.0.0",
@@ -537,6 +551,7 @@ interface WorkstationAgentConfig {
 ```
 
 **Example Agent Configuration:**
+
 ```json
 {
   "version": "1.0.0",
@@ -627,6 +642,7 @@ solo-unicorn doctor --tunneling      # Test dev server tunneling
 ```
 
 **Example Doctor Output**:
+
 ```
 Solo Unicorn Health Check
 ========================
@@ -666,18 +682,23 @@ Network:
 ### 7. Security and Best Practices
 
 #### Token Management
-- **Secure Storage**: OS keychain/credential store integration. Bun support navtive secret managers of some OS. See https://bun.com/blog/bun-v1.2.21#bun-secrets-native-secrets-manager-for-cli-tools
-- **Automatic Refresh**: Monitor token expiration and refresh
+
+- **Secure Storage**: Both access and refresh tokens stored in OS keychain/credential store integration. Bun supports native secret managers of some OS. See <https://bun.com/blog/bun-v1.2.21#bun-secrets-native-secrets-manager-for-cli-tools>
+- **Automatic Refresh**: Monitor access token expiration and automatically refresh using refresh token
+- **Server-Initiated Refresh**: Handle Monster Realtime signals for immediate token refresh
+- **Refresh Token Rotation**: Update refresh token when provided by Monster Auth
 - **Scope Validation**: Ensure minimum required permissions
-- **Revocation**: Clean token cleanup on logout
+- **Revocation**: Clean both access and refresh token cleanup on logout
 
 #### Network Security
+
 - **TLS Only**: All communications over HTTPS/WSS
 - **Certificate Pinning**: Validate Monster Realtime certificates
 - **Proxy Support**: Corporate proxy detection and configuration
 - **Rate Limiting**: Respect API rate limits with backoff
 
 #### Repository Security
+
 - **SSH Key Management**: Secure Git credential handling
 - **File Permissions**: Proper local file access controls
 - **Sandboxing**: Isolated agent execution environments
@@ -772,18 +793,21 @@ snap install solo-unicorn-cli          # Linux
 ### Cross-Platform Support
 
 **Windows**:
+
 - Windows Terminal integration
 - PowerShell compatibility
 - Windows Service option for background mode
 - Windows Defender exclusions guidance
 
 **macOS**:
+
 - Keychain integration for secure storage
 - launchd service integration
 - Homebrew distribution
 - macOS notarization
 
 **Linux**:
+
 - systemd service integration
 - Various distribution packages (.deb, .rpm, .tar.gz)
 - AppImage support
@@ -803,3 +827,43 @@ snap install solo-unicorn-cli          # Linux
 8. **Plugin System**: Extensible agent and tool integration
 
 This comprehensive CLI design integrates seamlessly with Monster Auth and Monster Realtime while providing robust git worktree support and innovative development server tunneling. The system is designed for production use with excellent error handling, security practices, and cross-platform compatibility.
+
+## PR support
+
+Service will provide information if user has chosen to use PRs or not (YOLO, push straight to default branch).
+
+### Why optional PRs?
+
+#### YOLO For Early-Stage Projects
+
+- **Fast Iteration**: Direct commits to main branch
+- **Zero Overhead**: No PR creation or review delays
+- **Solo Development**: Perfect for single developer workflows
+- **Quick Prototyping**: Immediate code deployment
+
+#### PRs for Production Projects
+
+- **Code Quality**: Mandatory review process
+- **Team Collaboration**: Multiple reviewers and stakeholders
+- **Audit Trail**: Complete PR history and discussions
+- **AI Enhancement**: Agents respond to feedback and improve code
+- **Branch Management**: Automatic branch creation and cleanup
+- **GitHub Integration**: Native GitHub workflow experience
+
+### PR Features
+
+#### Smart Branch Management
+
+- **Auto-naming**: `solo-unicorn/task-{id}-{slug}` format
+- **Conflict Resolution**: AI handles merge conflicts when possible
+- **Branch Cleanup**: Automatic deletion after successful merge
+
+#### Review Workflow Automation
+
+- **Merge Strategies**: Support for merge, squash, and rebase
+
+#### Integration & Extensibility
+
+- Read PR comments and change requests via MCP
+
+This comprehensive PR support system bridges the gap between fast iteration and controlled development, providing the perfect solution for projects at any stage of maturity while maintaining Solo Unicorn's focus on AI-powered task orchestration.
