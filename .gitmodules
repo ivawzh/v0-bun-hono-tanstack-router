@@ -4,3 +4,6 @@
 [submodule "apps/claudecode-ui"]
 	path = apps/claudecode-ui
 	url = git@github.com:ivawzh/claudecodeui.git
+[submodule "monster-wiki"]
+	path = monster-wiki
+	url = git@github.com:ivawzh/monster-wiki.git
