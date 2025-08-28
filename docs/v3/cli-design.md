@@ -13,7 +13,8 @@ Solo Unicorn CLI is a Bun-compiled single-file application that runs on user mac
 │                     │                  │                     │
 │ - Task Queue        │    Monster       │ - Agent Spawner     │
 │ - Project Mgmt      │    Realtime      │ - Repo Manager      │
-│ - Auth Server       │    WebSocket     │ - Config Store      │
+│ - Prompt generation │    WebSocket     │ - Config Store      │
+│ - Public URL        │    Tunnel        │ - Dev server @ Port │
 └─────────────────────┘                  └─────────────────────┘
            |                                        |
            |              ┌─────────────────────┐   |
@@ -23,13 +24,6 @@ Solo Unicorn CLI is a Bun-compiled single-file application that runs on user mac
                           │ - Channel routing   │
                           │ - Presence system   │
                           │ - Auth validation   │
-                          └─────────────────────┘
-                                     |
-                          ┌─────────────────────┐
-                          │   Local Workspace   │
-                          │ ~/.solo-unicorn/    │
-                          │ ~/workspace/ (git   │
-                          │   worktrees)        │
                           └─────────────────────┘
 ```
 
@@ -209,7 +203,7 @@ Monster Realtime:
 
 Repositories (Git Worktrees):
 📁 solo-unicorn (repo_123)
-   Main: /Users/john/workspace/solo-unicorn (main)
+   Main: /Users/john/repos/solo-unicorn (main)
    Worktrees:
    - /Users/john/workspace/solo-unicorn-feature-auth (feature/auth)
    - /Users/john/workspace/solo-unicorn-hotfix (hotfix/critical-bug)
@@ -265,7 +259,7 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
     {
       "id": "repo_123",
       "githubUrl": "https://github.com/user/solo-unicorn",
-      "mainPath": "/Users/john/workspace/solo-unicorn",
+      "mainPath": "/Users/john/repos/solo-unicorn",
       "mainBranch": "main",
       "worktrees": [
         {
@@ -496,12 +490,12 @@ interface WorkstationAgentConfig {
       id: string;
       type: 'claude-code' | 'cursor' | 'opencode' | 'custom';
       name: string;
-      
+
       // Local Configuration (not stored in database)
       configPath: string;              // ~/.claude, /Applications/Cursor.app
       executablePath?: string;         // /usr/local/bin/cursor
       environmentVars: Record<string, string>; // PATH, CLAUDE_CONFIG_DIR, etc.
-      
+
       // Agent-Specific Settings
       customSettings: {
         claudeCode?: {
@@ -519,19 +513,19 @@ interface WorkstationAgentConfig {
           configDir?: string;
         };
       };
-      
+
       // Status
       enabled: boolean;
       lastHealthCheck?: string;        // ISO timestamp
       healthStatus: 'healthy' | 'warning' | 'error' | 'unknown';
-      
+
       // Statistics
       tasksCompleted: number;
       lastUsed?: string;               // ISO timestamp
       averageTaskDuration?: number;    // seconds
     };
   };
-  
+
   // Global Settings
   settings: {
     autoUpdateAgentStatus: boolean;
