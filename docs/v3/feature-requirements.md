@@ -5,6 +5,7 @@
 This document captures high-level feature requirements that cover all public interfaces including CLI, Web UI, and future public APIs. The role of this document is to serve as the central registry for feature requirements and dependencies.
 
 **Usage Pattern**: When adding new features, AI agents should:
+
 1. **First**: Add requirements to this document
 2. **Then**: Choose appropriate design documents (cli-design.md, web-design.md, db-design.md) to implement the feature
 3. **Finally**: Update implementation documents with detailed specifications
@@ -13,9 +14,12 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 ## Core Feature Requirements
 
+This project use oRPC `/rpc` for all internal HTTP communications. Only use `/api` for public third-party HTTP communications.
+
 ### 1. Authentication & Authorization
 
 **Requirements**:
+
 - Monster Auth integration with OAuth (Google) and email/password
 - Personal access token support for CLI authentication
 - Refresh token handling with automatic renewal
@@ -24,6 +28,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Role-based access control (owner, admin, member)
 
 **Interfaces**:
+
 - **CLI**: `login`, `logout`, `whoami` commands with secure token storage
 - **Web**: Login/logout UI with Monster Auth redirect flow
 - **API**: JWT token validation and refresh endpoints
@@ -31,90 +36,89 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 ### 2. Workstation Management
 
 **Requirements**:
+
+- Workstation is user's machine that hosts code agents and repository worktrees. That is, coding happens on client side.
 - Workstation registration and status tracking
+- Workstation receive task push from server via Monster Realtime WebSocket. Code agents update tasks via MCP server.
 - Real-time presence via Monster Realtime WebSocket
 - Cross-platform support (Windows, macOS, Linux)
 - Background daemon mode with system service integration
+
 - Health monitoring and diagnostics
 
 **Interfaces**:
+
 - **CLI**: `start`, `stop`, `status`, `doctor` commands
 - **Web**: Workstation status dashboard and management
-- **API**: Workstation registration and presence endpoints
 
 ### 3. Agent Orchestration
 
 **Requirements**:
-- Multiple AI agent types (Claude Code, Cursor, OpenCode, custom)
-- Agent concurrency limits and rate limiting
-- Agent status tracking (available, busy, rate_limited, error)
-- Local agent configuration with server-side coordination
+
+- Multiple AI agent types (only Claude Code for now)
+- Agent rate limit detection and handling
 - Agent installation and health checks
 
 **Interfaces**:
-- **CLI**: `agent scan`, `agent install`, `agent config` commands
+
+- **CLI**: `agent scan`, `agent config` commands
 - **Web**: Agent status display and configuration UI
-- **API**: Agent registration and status management
 
 ### 4. Repository & Git Worktree Management
 
 **Requirements**:
-- GitHub repository integration with stable identification
+
+- GitHub repository integration (optional) with stable identification
 - Git worktree support for parallel development
 - Automatic repository cloning and worktree creation by AI agents
 - Branch management and cleanup
 - Repository access control per project
 
 **Interfaces**:
-- **CLI**: `init`, `repo add/remove/list` commands with AI-managed worktrees
+
+- **CLI**: automatically clone/worktree repo when task is assigned with Github URL.
 - **Web**: Repository configuration and worktree visualization
-- **API**: Repository metadata and worktree coordination
 
 ### 5. Task Management & Workflow
 
 **Requirements**:
+
 - Kanban-style task organization (Todo, Doing, Done, Loop)
-- Flexible workflow modes (clarify, plan, execute, review, iterate)
+- Default task modes (clarify, plan, execute, review). Task mode mainly determines prompt template.
+- Default workflows - clarify → plan → execute → review
 - Task dependencies and priority management
-- Loop tasks for continuous project maintenance
-- Task assignment based on workstation/agent availability
+- Loop tasks for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
+- Careful task assignment. Task is ready based on depedencies, repo concurrency, and workstation/agent availability. Ordered by priority, list, and list order.
 
 **Interfaces**:
-- **CLI**: Task status updates via MCP integration
+
+- **CLI**: Task updates via MCP integration
 - **Web**: Kanban board with drag-and-drop, task creation/editing
-- **API**: Task CRUD operations and workflow state management
 
 ### 6. Change Management System
 
 **Requirements**:
-- Dual workflow support: YOLO mode (direct commits) and Change Management (PRs)
+
+- Dual change management support: YOLO mode (direct to default branch) and PRs
 - Automatic GitHub PR creation with task context
-- PR status tracking and review workflow
-- AI agent response to PR feedback
-- Branch naming conventions and cleanup
+- AI agent view PR comments and implement changes.
 
 **Interfaces**:
+
 - **CLI**: PR status reporting and branch management
 - **Web**: Change Management status badges and GitHub integration
-- **API**: GitHub webhook integration and PR synchronization
 
 ### 7. Development Server & Public Tunneling
 
 **Requirements**:
-- Local development server hosting
-- Secure public tunneling with unique UUIDs
-- TLS encryption and access controls
-- Rate limiting and security features
-- Integration with project development workflows
 
-**Interfaces**:
-- **CLI**: `serve` command with tunneling options
-- **Web**: Tunnel status and configuration
-- **API**: Tunnel management and proxy services
+- Local development server hosting
+- Local development tunneling to public URL (dev.solounicorn.lol) via Cloudflared CLI
 
 ### 8. Project & Organization Management
 
 **Requirements**:
+
 - Multi-project organization structure
 - Project memory for shared context across tasks
 - Project-specific configuration and defaults
@@ -122,13 +126,14 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Project archiving and lifecycle management
 
 **Interfaces**:
-- **CLI**: Project context awareness and configuration
+
+- **CLI**: Register workspace to project
 - **Web**: Project creation, settings, and member management
-- **API**: Project CRUD and organization management
 
 ### 9. Real-time Communication
 
 **Requirements**:
+
 - Monster Realtime WebSocket integration
 - Workstation presence and status updates
 - Task assignment notifications
@@ -136,67 +141,20 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Channel-based communication architecture
 
 **Interfaces**:
+
 - **CLI**: WebSocket client for presence and task assignment
 - **Web**: Real-time status updates via WebSocket
-- **API**: WebSocket server and channel management
+- **API**: system schema endpoint with API key based authentication
 
 ### 10. Configuration Management
 
 **Requirements**:
-- Local configuration files with TypeScript typing
+
+- CLI config should be stored in `~/.solo-unicorn/config.json`.
+- Local configuration files with TypeScript typing.
 - Secure credential storage in OS keychain
-- Configuration validation and migration
-- Environment-specific settings
-- Backup and restore capabilities
 
 **Interfaces**:
+
 - **CLI**: `config get/set/list/reset` commands
 - **Web**: Configuration UI for project and user settings
-- **API**: Configuration validation and synchronization
-
-### 11. Error Handling & Diagnostics
-
-**Requirements**:
-- Comprehensive error reporting with actionable solutions
-- Health diagnostics for all system components
-- Progress indicators for long-running operations
-- Audit logging and monitoring
-- Graceful degradation and recovery
-
-**Interfaces**:
-- **CLI**: Detailed error messages and `doctor` command diagnostics
-- **Web**: Error state UI and health status displays
-- **API**: Structured error responses and health check endpoints
-
-### 12. Security & Best Practices
-
-**Requirements**:
-- TLS-only communications across all interfaces
-- Certificate pinning for Monster services
-- Corporate proxy support
-- File permission controls and sandboxing
-- Audit trail for all operations
-
-**Interfaces**:
-- **CLI**: Secure token storage and proxy configuration
-- **Web**: Secure cookie handling and CSRF protection
-- **API**: JWT validation and secure endpoint protection
-
-## Future Feature Considerations
-
-### Planned Enhancements
-- API key authentication (replace personal access tokens)
-- Multi-agent task coordination
-- Task templates and workflow customization
-- Remote development integration
-- Team workspace sharing
-- CI/CD platform integration
-- Metrics and analytics dashboard
-- Plugin system for extensibility
-
-### Interface Evolution
-- **CLI**: Enhanced agent management and workflow control
-- **Web**: Advanced project analytics and team collaboration
-- **API**: Public API for third-party integrations and automation
-
-This feature requirements document serves as the authoritative source for Solo Unicorn v3 capabilities, ensuring consistent implementation across all user interfaces while maintaining the flexibility to evolve and expand the platform's functionality.
