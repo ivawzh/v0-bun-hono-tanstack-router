@@ -133,7 +133,7 @@ Whenever in doubt, follow Trello UI/UX design.
 ┌─────────────────────────────────────┐
 │ Task Title Here                     │
 ├─────────────────────────────────────┤
-│ P Low [Execute]                        │
+│ P Low [Execute]                     │
 ├─────────────────────────────────────┤
 │ Description text here that can be   │
 │ multiple lines long and will show   │
@@ -279,7 +279,7 @@ This layout provides a comprehensive task management system specifically designe
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Plan Tab** (when mode=plan):
+**Plan Tab**:
 ```
 ┌─ PLAN TAB ────────────────────────────────────────────────────────────────┐
 │ Choose Solution:                                                         │
@@ -299,7 +299,7 @@ This layout provides a comprehensive task management system specifically designe
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Review Tab** (when list=review):
+**Review Tab**:
 ```
 ┌─ REVIEW TAB ──────────────────────────────────────────────────────────────┐
 │ Review Instructions:                                                      │
@@ -881,16 +881,15 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 ┌─────────────────────────────────────┐
 │ Implement OAuth integration      [⋮]│
 ├─────────────────────────────────────┤
-│ P High [Review] [📝 PR #42] [🕐 2h]  │
+│ P High [Review] 👀 PR #42 (pending) │
 ├─────────────────────────────────────┤
 │ 🔗 [View GitHub PR] [💬 PR Comments] │
 │ Branch: solo-unicorn/task-oauth-456 │
 ├─────────────────────────────────────┤
-│ ✅ OAuth integration complete       │
-│ - Added Google OAuth flow           │
-│ - Monster Auth integration          │
-│ - User session management...        │
-│ [Show more ▼]                       │
+│ Description text here that can be   │
+│ multiple lines long and will show   │
+│ only first 3.5 lines by default... │
+│ ⋮                                   │
 ├─────────────────────────────────────┤
 │ GitHub Status: [✓ Checks passed]    │
 │ [👍 Approve] [👎 Request Changes]    │
@@ -903,7 +902,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 ┌─────────────────────────────────────┐
 │ Implement OAuth integration      [⋮]│
 ├─────────────────────────────────────┤
-│ P High [Execute ▼] [📝 PR Mode]      │
+│ P High [Review] 👎 PR #42 (rework) │
 ├─────────────────────────────────────┤
 │ Branch: solo-unicorn/task-oauth-456 │
 ├─────────────────────────────────────┤
@@ -926,10 +925,10 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 │ 🔗 [View PR #42] [📊 PR Stats]       │
 │ Merged to: main                     │
 ├─────────────────────────────────────┤
-│ ✅ OAuth integration complete       │
-│ Successfully merged after review    │
-│ 8 files changed, 245 additions     │
-│ [Show details ▼]                    │
+│ Description text here that can be   │
+│ multiple lines long and will show   │
+│ only first 3.5 lines by default... │
+│ ⋮                                   │
 └─────────────────────────────────────┘
 ```
 
@@ -1044,7 +1043,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 
 #### PR Mode Badges
 - `📝 PR Mode` - Task configured for PR workflow
-- `⚡ Direct` - Task using direct push mode  
+- `⚡ Direct` - Task using direct push mode
 - `🔄 PR #42` - PR created and linked
 - `✅ Merged` - PR successfully merged
 - `❌ Closed` - PR closed without merging
@@ -1064,7 +1063,7 @@ Todo (Direct) → Doing (Working) → Review (Manual) → Done (Complete)
               ↳ commits directly to main branch
 ```
 
-#### PR Mode Flow  
+#### PR Mode Flow
 ```
 Todo (PR Mode) → Doing (Working) → Review (PR Created) → Done (Merged)
                 ↳ creates branch  ↳ creates GitHub PR  ↳ merges PR
@@ -1089,74 +1088,10 @@ Human Reviewer: "Please add input validation for the email field"
 
 AI Agent Response:
 "I've added comprehensive email validation with the following improvements:
-- Regex validation for email format  
+- Regex validation for email format
 - Length limits (max 254 chars per RFC 5321)
 - Sanitization to prevent XSS
 - User-friendly error messages
 
 Changes implemented in commit abc123f. Please review the updated validation logic in `src/auth/validators.ts`."
 ```
-
-### Mobile-Optimized PR Features
-
-#### Mobile Task Card (PR Mode)
-
-```
-┌─────────────────────────────────────┐
-│ OAuth integration            [⋮]    │
-├─────────────────────────────────────┤
-│ P High • PR #42 • 2h ago            │
-├─────────────────────────────────────┤
-│ [🔗 GitHub] [💬 Comments]           │
-├─────────────────────────────────────┤
-│ ✅ Ready for review                 │
-│ 5 files, 124+ lines                │
-├─────────────────────────────────────┤
-│ [👍 Approve] [👎 Changes]           │
-└─────────────────────────────────────┘
-```
-
-#### Mobile Interactions
-
-- **Swipe Actions**: Swipe right to approve, swipe left for changes
-- **Quick Access**: Tap badges for instant GitHub navigation
-- **Compact Comments**: Condensed view with expand-on-tap
-- **Touch-Optimized**: Large buttons for review actions
-
-### Implementation Benefits
-
-#### For Early-Stage Projects
-- **Fast Iteration**: Direct commits to main branch
-- **Zero Overhead**: No PR creation or review delays  
-- **Solo Development**: Perfect for single developer workflows
-- **Quick Prototyping**: Immediate code deployment
-
-#### For Production Projects
-- **Code Quality**: Mandatory review process
-- **Team Collaboration**: Multiple reviewers and stakeholders
-- **Audit Trail**: Complete PR history and discussions
-- **AI Enhancement**: Agents respond to feedback and improve code
-- **Branch Management**: Automatic branch creation and cleanup
-- **GitHub Integration**: Native GitHub workflow experience
-
-### Advanced PR Features
-
-#### Smart Branch Management
-- **Auto-naming**: `solo-unicorn/task-{id}-{slug}` format
-- **Conflict Resolution**: AI handles merge conflicts when possible
-- **Branch Cleanup**: Automatic deletion after successful merge
-- **Stale Branch Detection**: Notify about inactive branches
-
-#### Review Workflow Automation
-- **Required Reviewers**: Configure mandatory approvers
-- **Auto-assignment**: Assign reviewers based on file changes
-- **Status Checks**: Integration with CI/CD pipelines
-- **Merge Strategies**: Support for merge, squash, and rebase
-
-#### Integration & Extensibility
-- **GitHub Actions**: Trigger workflows on PR events
-- **Slack/Teams**: Notify team members of PR updates
-- **Jira/Linear**: Link PRs to issues automatically
-- **Code Quality**: SonarQube, CodeClimate integration
-
-This comprehensive PR support system bridges the gap between fast iteration and controlled development, providing the perfect solution for projects at any stage of maturity while maintaining Solo Unicorn's focus on AI-powered task orchestration.

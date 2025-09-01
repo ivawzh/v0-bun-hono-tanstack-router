@@ -11,9 +11,7 @@ import { isEmailAuthorized } from '../utils/email-authorization';
 const app = new Hono();
 
 app.get('/callback', async (c) => {
-  console.log("🚀 -> '/callback':", '/callback');
   const url = new URL(c.req.url);
-  console.log(`🚀 -> url:`, url);
   const code = url.searchParams.get('code');
 
   if (!code) {
@@ -93,9 +91,7 @@ app.get('/callback', async (c) => {
 });
 
 async function upsertUserIfNewAuthInfo(accessToken: string) {
-  console.log(`🚀 -> upsertUserIfNewAuthInfo -> accessToken:`, accessToken);
   const result = jwtDecode<AccessTokenPayload>(accessToken);
-  console.log(`🚀 -> upsertUserIfNewAuthInfo -> result:`, JSON.stringify(result, null, 2));
 
   if (!result.ok) return;
 
