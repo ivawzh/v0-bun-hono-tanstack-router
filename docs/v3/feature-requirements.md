@@ -27,7 +27,7 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 - Organization-based multi-tenancy
 - Role-based access control (owner, admin, member)
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: `login`, `logout`, `whoami` commands with secure token storage
 - **Web**: Login/logout UI with Monster Auth redirect flow
@@ -46,23 +46,23 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 
 - Health monitoring and diagnostics
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: `start`, `stop`, `status`, `doctor` commands
 - **Web**: Workstation status dashboard and management
 
-### 3. Agent Orchestration
+### 3. Code Agent Orchestration
 
 **Requirements**:
 
-- Multiple AI agent types (only Claude Code for now)
-- Agent rate limit detection and handling
-- Agent installation and health checks
+- Multiple AI code agent types (only Claude Code for now)
+- Code agent rate limit detection and handling
+- Code agent installation and health checks
 
-**Interfaces**:
+**Public Interfaces**:
 
-- **CLI**: `agent scan`, `agent config` commands
-- **Web**: Agent status display and configuration UI
+- **CLI**: `code-agent scan`, `code-agent config` commands
+- **Web**: Code agent status display and configuration UI
 
 ### 4. Repository & Git Worktree Management
 
@@ -70,11 +70,11 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 
 - GitHub repository integration (optional) with stable identification
 - Git worktree support for parallel development
-- Automatic repository cloning and worktree creation by AI agents
+- Automatic repository cloning and worktree creation by AI code agents
 - Branch management and cleanup
 - Repository access control per project
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: automatically clone/worktree repo when task is assigned with Github URL.
 - **Web**: Repository configuration and worktree visualization
@@ -83,17 +83,21 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 
 **Requirements**:
 
-- Kanban-style task organization (Todo, Doing, Done, Loop)
-- Default task modes (clarify, plan, execute, review). Task mode mainly determines prompt template.
-- Default workflows - clarify → plan → execute → review
+- Kanban-style task organization (Todo, Doing, Review, Done, Loop)
+- Default task modes (clarify, plan, code, review). Task mode mainly determines prompt template.
+- Default workflow - clarify → plan → code → review
+- User may add their own modes and workflows.
+- Review system - any mode can optionally require human review
 - Task dependencies and priority management
 - Loop tasks for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
-- Careful task assignment. Task is ready based on depedencies, repo concurrency, and workstation/agent availability. Ordered by priority, list, and list order.
+- Careful task assignment. Task is ready based on dependencies, repo concurrency, and workstation/code agent availability. Ordered by priority, list, and list order.
+- Plan document management in filesystem (./solo-unicorn-docs/tasks/{task-id}/)
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: Task updates via MCP integration
-- **Web**: Kanban board with drag-and-drop, task creation/editing
+- **Web**: Kanban board with drag-and-drop, task creation/editing, review UI
+- **MCP**: Tools for task updates - plan, mode, list, etc.
 
 ### 6. Change Management System
 
@@ -101,9 +105,9 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 
 - Dual change management support: YOLO mode (direct to default branch) and PRs
 - Automatic GitHub PR creation with task context
-- AI agent view PR comments and implement changes.
+- AI code agent view PR comments and implement changes.
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: PR status reporting and branch management
 - **Web**: Change Management status badges and GitHub integration
@@ -125,7 +129,7 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 - User invitation and role management
 - Project archiving and lifecycle management
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: Register workspace to project
 - **Web**: Project creation, settings, and member management
@@ -140,7 +144,7 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 - Real-time UI updates for task status changes
 - Channel-based communication architecture
 
-**Interfaces**:
+**Public Interfaces**:
 
 - **CLI**: WebSocket client for presence and task assignment
 - **Web**: Real-time status updates via WebSocket
@@ -154,7 +158,46 @@ This project use oRPC `/rpc` for all internal HTTP communications. Only use `/ap
 - Local configuration files with TypeScript typing.
 - Secure credential storage in OS keychain
 
-**Interfaces**:
+**Public Interfaces**:
 
-- **CLI**: `config get/set/list/reset` commands
-- **Web**: Configuration UI for project and user settings
+- **CLI**: `config get/set/list/reset` commands, workflow management commands
+- **Web**: Configuration UI for project and user settings, workflow template editor
+
+### 11. Workflow Review System
+
+**Requirements**:
+
+- **Review Points**: Any workflow mode can require human review
+- **Review List**: Special kanban column for tasks awaiting review
+- **Approval Flow**: Human reviews and approves/rejects with feedback
+- **Workflow Continuation**: Approved tasks proceed to next mode automatically
+- **Rejection Handling**: Rejected tasks return to doing list and current mode to iterate with feedback. PR comments are also used to guide the iteration.
+- **Review History**: Track who reviewed, when, and with what feedback
+
+**Public Interfaces**:
+
+- **Web**: Review UI in kanban board, approval/rejection buttons
+- **MCP**: `request_review` tool for code agents to trigger review
+
+### 12. Plan Document Management
+
+**Requirements**:
+
+- **Hybrid Storage**: Plan content in filesystem, progress tracking in database
+- **Filesystem Storage**: Plans stored in `./solo-unicorn-docs/tasks/{task-id}/`
+- **Plan Structure**:
+  - `plan.md`: Main plan with solution, spec, steps list
+  - `steps/{n}.md`: Detailed step-by-step implementation plans
+- **Database Progress Tracking**: Store plan steps summary and current progress in database:
+  - `plan_steps_summary`: Array of one-liner step descriptions for UI display
+  - `plan_current_step`: Current step number being worked on (total steps = array length)
+- **Context Preservation**: Each step includes previous/next context
+- **Version Control**: Plans tracked in git for history
+- **Cross-Session Context**: Plans persist between code agent sessions
+- **Server Prompting**: Server uses database plan progress to determine next prompts
+
+**Public Interfaces**:
+
+- **CLI**: Plan viewing commands, progress status
+- **Web**: Plan viewer with step navigation
+- **MCP**: `task_update` tool

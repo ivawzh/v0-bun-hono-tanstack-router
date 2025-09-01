@@ -4,14 +4,22 @@
 
 Solo Unicorn CLI is a Bun-compiled single-file application that runs on user machines (workstations) to orchestrate AI coding tasks. It bridges the gap between the Solo Unicorn web platform and local development environments.
 
+Majority of prompt command is provided by Solo Unicorn server. However, CLI might apend extra information sourced from `~/.solo-unicorn/config.json`, e.g. workspace directory path.
+
 ## Architecture
 
-```
+```ascii
+                          ┌──────────────────────┐
+           ┌───────────── │  Solo Unicorn MCP    │───┐
+           |              │                      │   |
+           |              │ - Code agent create tasks │   |
+           |              │ - Code agent update tasks │   |
+           |              └──────────────────────┘   |
 ┌─────────────────────┐                  ┌─────────────────────┐
 │   Solo Unicorn      │                  │   Workstation       │
 │   Server            │                  │   (CLI)             │
 │                     │                  │                     │
-│ - Task Queue        │    Monster       │ - Agent Spawner     │
+│ - Task Queue        │    Monster       │ - Run Code Agents   │
 │ - Project Mgmt      │    Realtime      │ - Repo Manager      │
 │ - Prompt generation │    WebSocket     │ - Config Store      │
 │ - Public URL        │    Tunnel        │ - Dev server @ Port │
@@ -21,6 +29,7 @@ Solo Unicorn CLI is a Bun-compiled single-file application that runs on user mac
            └──────────────│  Monster Realtime   │───┘
                           │  Gateway            │
                           │                     │
+                          │ - Server pushes tasks to CLI│
                           │ - Channel routing   │
                           │ - Presence system   │
                           │ - Auth validation   │
@@ -136,7 +145,7 @@ solo-unicorn login --config-dir ~/.solo-unicorn-dev
 solo-unicorn start
 solo-unicorn start --background         # Run in background
 solo-unicorn start --port 8500          # Custom local port
-solo-unicorn start --agents claude,cursor  # Limit available agents
+solo-unicorn start --code-agents claude,cursor  # Limit available code agents
 ```
 
 **Monster Realtime Integration**:
@@ -158,7 +167,7 @@ channel.push("message", {
   memberKey: { workstationId, userId },
   meta: {
     status: "online",
-    availableAgents: ["claude-code", "cursor"],
+    availableCodeAgents: ["claude-code", "cursor"],
     activeProjects: ["proj_123"],
     devServerPort: 3000 // if running local dev server
   }
@@ -218,7 +227,7 @@ Repositories (Git Worktrees):
    Main: /Users/john/workspace/my-app (develop)
    Status: Cloning...
 
-Agents:
+Code Agents:
 🤖 Claude Code v2.1.4 - Available (1/2 slots used)
 🤖 Cursor v0.42.0 - Available
 🤖 OpenCode v1.3.2 - Not installed
@@ -490,19 +499,19 @@ interface SoloUnicornConfig {
 }
 ```
 
-#### Agent Configuration: `~/.solo-unicorn/agents.json`
+#### Code Agent Configuration: `~/.solo-unicorn/code-agents.json`
 
-**Purpose**: Store agent-specific configuration locally on workstation. Server only needs basic agent info for task assignment, while detailed configuration stays on the client.
+**Purpose**: Store code agent-specific configuration locally on workstation. Server only needs basic code agent info for task assignment, while detailed configuration stays on the client.
 
 ```typescript
-interface WorkstationAgentConfig {
+interface WorkstationCodeAgentConfig {
   version: string;
   workstationId: string;
-  agents: {
-    [agentId: string]: {
-      // Agent Identity
+  codeAgents: {
+    [codeAgentId: string]: {
+      // Code Agent Identity
       id: string;
-      type: 'claude-code' | 'cursor' | 'opencode' | 'custom';
+      type: 'claude-code'; // only support claude code for now
       name: string;
 
       // Local Configuration (not stored in database)
@@ -510,21 +519,11 @@ interface WorkstationAgentConfig {
       executablePath?: string;         // /usr/local/bin/cursor
       environmentVars: Record<string, string>; // PATH, CLAUDE_CONFIG_DIR, etc.
 
-      // Agent-Specific Settings
+      // Code Agent-Specific Settings
       customSettings: {
         claudeCode?: {
           configDir: string;           // CLAUDE_CONFIG_DIR
-          defaultModel?: string;       // claude-3.5-sonnet
-        };
-        cursor?: {
-          apiKey?: string;             // encrypted API key
-          model?: string;              // gpt-4
-          workspaceSettings?: Record<string, any>;
-        };
-        opencode?: {
-          providerId?: string;         // anthropic, openai
-          modelId?: string;            // claude-3.5-sonnet
-          configDir?: string;
+          defaultModel?: string;       // claude-4-sonnet
         };
       };
 
@@ -542,7 +541,7 @@ interface WorkstationAgentConfig {
 
   // Global Settings
   settings: {
-    autoUpdateAgentStatus: boolean;
+    autoUpdateCodeAgentStatus: boolean;
     healthCheckInterval: number;       // seconds
     logLevel: 'debug' | 'info' | 'warn' | 'error';
     backupConfig: boolean;
@@ -550,15 +549,15 @@ interface WorkstationAgentConfig {
 }
 ```
 
-**Example Agent Configuration:**
+**Example Code Agent Configuration:**
 
 ```json
 {
   "version": "1.0.0",
   "workstationId": "ws_abc123def456",
-  "agents": {
-    "agent_claude_001": {
-      "id": "agent_claude_001",
+  "codeAgents": {
+    "codeagent_claude_001": {
+      "id": "codeagent_claude_001",
       "type": "claude-code",
       "name": "Claude Code Primary",
       "configPath": "~/.claude",
@@ -578,8 +577,8 @@ interface WorkstationAgentConfig {
       "lastUsed": "2024-01-15T14:30:00Z",
       "averageTaskDuration": 1200
     },
-    "agent_cursor_001": {
-      "id": "agent_cursor_001",
+    "codeagent_cursor_001": {
+      "id": "codeagent_cursor_001",
       "type": "cursor",
       "name": "Cursor IDE",
       "configPath": "/Applications/Cursor.app",
@@ -602,7 +601,7 @@ interface WorkstationAgentConfig {
     }
   },
   "settings": {
-    "autoUpdateAgentStatus": true,
+    "autoUpdateCodeAgentStatus": true,
     "healthCheckInterval": 300,
     "logLevel": "info",
     "backupConfig": true
@@ -612,19 +611,19 @@ interface WorkstationAgentConfig {
 
 ### 6. Advanced Features
 
-#### Agent Detection and Management
+#### Code Agent Detection and Management
 
 ```bash
-# Scan system for available agents
-solo-unicorn agent scan
+# Scan system for available code agents
+solo-unicorn code-agent scan
 
-# Install missing agents
-solo-unicorn agent install claude-code
-solo-unicorn agent install cursor --version latest
+# Install missing code agents
+solo-unicorn code-agent install claude-code
+solo-unicorn code-agent install cursor --version latest
 
-# Configure agent settings
-solo-unicorn agent config claude-code --config-dir ~/.claude-dev
-solo-unicorn agent config cursor --max-concurrency 1
+# Configure code agent settings
+solo-unicorn code-agent config claude-code --config-dir ~/.claude-dev
+solo-unicorn code-agent config cursor --max-concurrency 1
 ```
 
 #### Health Diagnostics
@@ -637,7 +636,7 @@ solo-unicorn doctor
 solo-unicorn doctor --auth           # Test Monster Auth integration
 solo-unicorn doctor --realtime       # Test Monster Realtime connection
 solo-unicorn doctor --repos          # Test repository access
-solo-unicorn doctor --agents         # Test agent availability
+solo-unicorn doctor --code-agents    # Test code agent availability
 solo-unicorn doctor --tunneling      # Test dev server tunneling
 ```
 
@@ -663,7 +662,7 @@ Repositories:
 ✓ Git worktrees functional
 ⚠ repo_456 has uncommitted changes
 
-Agents:
+Code Agents:
 ✓ Claude Code v2.1.4 available
 ✗ Cursor not found in PATH
 ✓ OpenCode installed but disabled
@@ -701,7 +700,7 @@ Network:
 
 - **SSH Key Management**: Secure Git credential handling
 - **File Permissions**: Proper local file access controls
-- **Sandboxing**: Isolated agent execution environments
+- **Sandboxing**: Isolated code agent execution environments
 - **Audit Logging**: Track all file system operations
 
 ## Error Handling and User Experience
@@ -760,7 +759,7 @@ $ solo-unicorn start --background
 ✓ WebSocket connection established
 🏠 Joining workstation channel...
 ✓ Presence registered
-🤖 Scanning for available agents...
+🤖 Scanning for available code agents...
    - Claude Code v2.1.4 ✓
    - Cursor v0.42.0 ✓
    - OpenCode (not installed)
@@ -818,13 +817,13 @@ snap install solo-unicorn-cli          # Linux
 ### Planned Features
 
 1. **API Key Authentication**: Replace personal access tokens with proper service accounts
-2. **Multi-Agent Orchestration**: Coordinate multiple agents on single tasks
+2. **Multi-Code Agent Orchestration**: Coordinate multiple code agents on single tasks
 3. **Task Templates**: Pre-configured task types with workflow templates
 4. **Remote Development**: Full VS Code server integration with tunneling
 5. **Team Workspaces**: Shared workstation pools for organizations
 6. **CI/CD Integration**: GitHub Actions and other CI/CD platform support
 7. **Metrics and Analytics**: Workstation performance and usage tracking
-8. **Plugin System**: Extensible agent and tool integration
+8. **Plugin System**: Extensible code agent and tool integration
 
 This comprehensive CLI design integrates seamlessly with Monster Auth and Monster Realtime while providing robust git worktree support and innovative development server tunneling. The system is designed for production use with excellent error handling, security practices, and cross-platform compatibility.
 
@@ -846,7 +845,7 @@ Service will provide information if user has chosen to use PRs or not (YOLO, pus
 - **Code Quality**: Mandatory review process
 - **Team Collaboration**: Multiple reviewers and stakeholders
 - **Audit Trail**: Complete PR history and discussions
-- **AI Enhancement**: Agents respond to feedback and improve code
+- **AI Enhancement**: Code agents respond to feedback and improve code
 - **Branch Management**: Automatic branch creation and cleanup
 - **GitHub Integration**: Native GitHub workflow experience
 
@@ -864,6 +863,6 @@ Service will provide information if user has chosen to use PRs or not (YOLO, pus
 
 #### Integration & Extensibility
 
-- Read PR comments and change requests via MCP
+- Read PR comments and change requests via Github CLI/MCP
 
 This comprehensive PR support system bridges the gap between fast iteration and controlled development, providing the perfect solution for projects at any stage of maturity while maintaining Solo Unicorn's focus on AI-powered task orchestration.
