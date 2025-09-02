@@ -1,32 +1,10 @@
-import { o, protectedProcedure, publicProcedure } from "../lib/orpc";
-import { projectsRouter } from "./projects";
-import { tasksRouter } from "./tasks";
-import { taskIterationsRouter } from "./task-iterations";
-import { agentsRouter } from "./agents";
-import { actorsRouter } from "./actors";
-import { repositoriesRouter } from "./repositories";
-import { authRouter } from "./auth";
-import { invitationsRouter } from "./invitations";
+import { publicProcedure } from "../lib/orpc";
+import type { RouterClient } from "@orpc/server";
 
-export const appRouter = o.router({
-  healthCheck: publicProcedure.handler(() => {
-    return "OK";
-  }),
-  privateData: protectedProcedure.handler(({ context }) => {
-    return {
-      message: "This is private",
-      user: context.session?.user,
-    };
-  }),
-  // Protected endpoint example
-  ownerPing: protectedProcedure.handler(() => ({ ok: true })),
-  auth: authRouter,
-  projects: projectsRouter,
-  agents: agentsRouter,
-  actors: actorsRouter,
-  repositories: repositoriesRouter,
-  tasks: tasksRouter,
-  taskIterations: taskIterationsRouter,
-  invitations: invitationsRouter,
-});
+export const appRouter = {
+	healthCheck: publicProcedure.handler(() => {
+		return "OK";
+	}),
+};
 export type AppRouter = typeof appRouter;
+export type AppRouterClient = RouterClient<typeof appRouter>;

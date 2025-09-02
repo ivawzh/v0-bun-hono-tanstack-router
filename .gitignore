@@ -1,7 +1,8 @@
 node_modules
 .turbo
-pgdata
-.tmp
-dist
-.solo-unicorn
-ui-design-playground/.superdesign/design_iterations
+.alchemy
+.env
+.env.*.local
+
+# sst
+.sst

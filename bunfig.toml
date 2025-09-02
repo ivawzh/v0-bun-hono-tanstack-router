@@ -1,6 +1,2 @@
 [install]
 linker = "isolated"
-
-[console]
-depth = 10
-auto = "auto"

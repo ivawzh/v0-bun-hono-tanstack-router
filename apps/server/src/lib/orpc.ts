@@ -4,30 +4,3 @@ import type { Context } from "./context";
 export const o = os.$context<Context>();
 
 export const publicProcedure = o;
-
-const requireAuth = o.middleware(async ({ context, next }) => {
-  if (!context.session?.user) {
-    throw new ORPCError("UNAUTHORIZED");
-  }
-  const appUser = (context as any).appUser;
-  if (!appUser) {
-    // Fail closed to avoid accidental use of external auth user (string id)
-    throw new ORPCError("UNAUTHORIZED");
-  }
-  return next({
-    context: {
-      session: context.session,
-      user: appUser,
-    },
-  });
-});
-
-export const protectedProcedure = publicProcedure.use(requireAuth);
-
-// Minimal owner-only guard for day-1 authorization model (deprecated)
-export const requireOwnerAuth = o.middleware(async ({ context, next }) => {
-  const user = context.session?.user;
-  if (!user) throw new ORPCError('UNAUTHORIZED');
-  // For day-0, treat any authenticated user as owner; later: check if user is part of the project.
-  return next({ context: { ...context, user } });
-});

@@ -16,6 +16,7 @@ dist/
 .idea/usage.statistics.xml
 .idea/shelf
 .wrangler
+.alchemy
 /.next/
 .vercel
 
@@ -28,7 +29,6 @@ node_modules/
 # env
 .env*
 .env.production
-.env
 !.env.example
 .dev.vars
 
@@ -47,7 +47,6 @@ lerna-debug.log*
 
 # local db
 *.db*
-pgdata/
 
 # typescript
 *.tsbuildinfo

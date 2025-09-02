@@ -4,454 +4,132 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", "Geist", ui-sans-serif, system-ui, sans-serif,
-    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+	--font-sans:
+		"Inter", "Geist", ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",
+		"Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
 }
 
 html,
 body {
-  @apply bg-white dark:bg-gray-950;
+	@apply bg-white dark:bg-gray-950;
 
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
+	@media (prefers-color-scheme: dark) {
+		color-scheme: dark;
+	}
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+	--radius: 0.625rem;
+	--background: oklch(1 0 0);
+	--foreground: oklch(0.145 0 0);
+	--card: oklch(1 0 0);
+	--card-foreground: oklch(0.145 0 0);
+	--popover: oklch(1 0 0);
+	--popover-foreground: oklch(0.145 0 0);
+	--primary: oklch(0.205 0 0);
+	--primary-foreground: oklch(0.985 0 0);
+	--secondary: oklch(0.97 0 0);
+	--secondary-foreground: oklch(0.205 0 0);
+	--muted: oklch(0.97 0 0);
+	--muted-foreground: oklch(0.556 0 0);
+	--accent: oklch(0.97 0 0);
+	--accent-foreground: oklch(0.205 0 0);
+	--destructive: oklch(0.577 0.245 27.325);
+	--border: oklch(0.922 0 0);
+	--input: oklch(0.922 0 0);
+	--ring: oklch(0.708 0 0);
+	--chart-1: oklch(0.646 0.222 41.116);
+	--chart-2: oklch(0.6 0.118 184.704);
+	--chart-3: oklch(0.398 0.07 227.392);
+	--chart-4: oklch(0.828 0.189 84.429);
+	--chart-5: oklch(0.769 0.188 70.08);
+	--sidebar: oklch(0.985 0 0);
+	--sidebar-foreground: oklch(0.145 0 0);
+	--sidebar-primary: oklch(0.205 0 0);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.97 0 0);
+	--sidebar-accent-foreground: oklch(0.205 0 0);
+	--sidebar-border: oklch(0.922 0 0);
+	--sidebar-ring: oklch(0.708 0 0);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+	--background: oklch(0.145 0 0);
+	--foreground: oklch(0.985 0 0);
+	--card: oklch(0.205 0 0);
+	--card-foreground: oklch(0.985 0 0);
+	--popover: oklch(0.205 0 0);
+	--popover-foreground: oklch(0.985 0 0);
+	--primary: oklch(0.922 0 0);
+	--primary-foreground: oklch(0.205 0 0);
+	--secondary: oklch(0.269 0 0);
+	--secondary-foreground: oklch(0.985 0 0);
+	--muted: oklch(0.269 0 0);
+	--muted-foreground: oklch(0.708 0 0);
+	--accent: oklch(0.269 0 0);
+	--accent-foreground: oklch(0.985 0 0);
+	--destructive: oklch(0.704 0.191 22.216);
+	--border: oklch(1 0 0 / 10%);
+	--input: oklch(1 0 0 / 15%);
+	--ring: oklch(0.556 0 0);
+	--chart-1: oklch(0.488 0.243 264.376);
+	--chart-2: oklch(0.696 0.17 162.48);
+	--chart-3: oklch(0.769 0.188 70.08);
+	--chart-4: oklch(0.627 0.265 303.9);
+	--chart-5: oklch(0.645 0.246 16.439);
+	--sidebar: oklch(0.205 0 0);
+	--sidebar-foreground: oklch(0.985 0 0);
+	--sidebar-primary: oklch(0.488 0.243 264.376);
+	--sidebar-primary-foreground: oklch(0.985 0 0);
+	--sidebar-accent: oklch(0.269 0 0);
+	--sidebar-accent-foreground: oklch(0.985 0 0);
+	--sidebar-border: oklch(1 0 0 / 10%);
+	--sidebar-ring: oklch(0.556 0 0);
 }
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --color-chart-1: var(--chart-1);
-  --color-chart-2: var(--chart-2);
-  --color-chart-3: var(--chart-3);
-  --color-chart-4: var(--chart-4);
-  --color-chart-5: var(--chart-5);
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
+	--radius-sm: calc(var(--radius) - 4px);
+	--radius-md: calc(var(--radius) - 2px);
+	--radius-lg: var(--radius);
+	--radius-xl: calc(var(--radius) + 4px);
+	--color-background: var(--background);
+	--color-foreground: var(--foreground);
+	--color-card: var(--card);
+	--color-card-foreground: var(--card-foreground);
+	--color-popover: var(--popover);
+	--color-popover-foreground: var(--popover-foreground);
+	--color-primary: var(--primary);
+	--color-primary-foreground: var(--primary-foreground);
+	--color-secondary: var(--secondary);
+	--color-secondary-foreground: var(--secondary-foreground);
+	--color-muted: var(--muted);
+	--color-muted-foreground: var(--muted-foreground);
+	--color-accent: var(--accent);
+	--color-accent-foreground: var(--accent-foreground);
+	--color-destructive: var(--destructive);
+	--color-border: var(--border);
+	--color-input: var(--input);
+	--color-ring: var(--ring);
+	--color-chart-1: var(--chart-1);
+	--color-chart-2: var(--chart-2);
+	--color-chart-3: var(--chart-3);
+	--color-chart-4: var(--chart-4);
+	--color-chart-5: var(--chart-5);
+	--color-sidebar: var(--sidebar);
+	--color-sidebar-foreground: var(--sidebar-foreground);
+	--color-sidebar-primary: var(--sidebar-primary);
+	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+	--color-sidebar-accent: var(--sidebar-accent);
+	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+	--color-sidebar-border: var(--sidebar-border);
+	--color-sidebar-ring: var(--sidebar-ring);
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-}
-
-/* Kanban board specific styles - Clean rebuild with touch optimizations */
-@layer components {
-  /* List layout - Responsive for mobile */
-  .kanban-list {
-    /* Mobile-first: narrower lists for better touch interaction */
-    width: 280px;
-    min-width: 280px;
-    max-width: 280px;
-    flex-shrink: 0;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Tablet and larger: wider lists */
-  @media (min-width: 768px) {
-    .kanban-list {
-      width: 320px;
-      min-width: 320px;
-      max-width: 320px;
-    }
-  }
-
-  /* Desktop: even wider for more content */
-  @media (min-width: 1200px) {
-    .kanban-list {
-      width: 350px;
-      min-width: 350px;
-      max-width: 350px;
-    }
-  }
-
-  .kanban-list-content {
-    width: 100%;
-    /* Mobile: reduced padding for smaller screens */
-    padding: 0.75rem;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Tablet and larger: standard padding */
-  @media (min-width: 768px) {
-    .kanban-list-content {
-      padding: 1rem;
-    }
-  }
-
-  /* Fix ScrollArea layout issues */
-  .kanban-list [data-radix-scroll-area-viewport] {
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .kanban-list [data-radix-scroll-area-viewport] > div {
-    display: flex !important;
-    flex-direction: column !important;
-    min-width: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  /* Card container */
-  .kanban-tasks-container {
-    display: flex;
-    flex-direction: column;
-    /* Mobile: smaller gaps for more content */
-    gap: 0.75rem;
-    width: 100%;
-    min-width: 0;
-    transition: all 0.3s ease-in-out;
-  }
-
-  /* Tablet and larger: standard gaps */
-  @media (min-width: 768px) {
-    .kanban-tasks-container {
-      gap: 1rem;
-    }
-  }
-
-  /* Card styling */
-  .kanban-card {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    box-sizing: border-box;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  /* Override all shadcn card internal layout */
-  .kanban-card [data-slot="card-header"] {
-    /* Mobile: tighter padding */
-    padding: 0.75rem !important;
-    padding-bottom: 0.375rem !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    display: flex !important;
-    flex-direction: column !important;
-    min-width: 0 !important;
-  }
-
-  .kanban-card [data-slot="card-content"] {
-    /* Mobile: tighter padding */
-    padding: 0 0.75rem 0.75rem 0.75rem !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    box-sizing: border-box !important;
-    display: flex !important;
-    flex-direction: column !important;
-    min-width: 0 !important;
-  }
-
-  /* Tablet and larger: standard padding */
-  @media (min-width: 768px) {
-    .kanban-card [data-slot="card-header"] {
-      padding: 1rem !important;
-      padding-bottom: 0.5rem !important;
-    }
-
-    .kanban-card [data-slot="card-content"] {
-      padding: 0 1rem 1rem 1rem !important;
-    }
-  }
-
-  /* Card title and text content */
-  .kanban-card-title {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    line-height: 1.4;
-    max-width: 100%;
-    min-width: 0;
-    white-space: normal;
-  }
-
-  .kanban-card-text {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    max-width: 100%;
-    min-width: 0;
-    white-space: normal;
-  }
-
-  /* Fix header layout */
-  .kanban-card-header-content {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 0.5rem;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .kanban-card-title-wrapper {
-    flex: 1;
-    min-width: 0;
-    max-width: calc(100% - 2rem);
-  }
-
-  .kanban-card-actions {
-    flex-shrink: 0;
-    width: 1.5rem;
-    display: flex;
-    justify-content: flex-end;
-  }
-
-  /* Badge container */
-  .kanban-card-badges {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem;
-    margin-bottom: 0.5rem;
-    width: 100%;
-    min-width: 0;
-  }
-
-  /* List controls */
-  .kanban-card-list {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .kanban-card-ready-toggle {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-  }
-
-  /* Mobile-specific touch optimizations */
-  @media (max-width: 767px) {
-    /* Enhanced horizontal scrolling */
-    .kanban-board-container {
-      -webkit-overflow-scrolling: touch;
-      scroll-behavior: smooth;
-    }
-
-    /* Increase touch targets for mobile */
-    .kanban-card {
-      /* Minimum touch target size */
-      min-height: 44px;
-      /* Enhanced touch feedback */
-      transform-origin: center;
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
-
-    /* Active state for touch feedback */
-    .kanban-card:active {
-      transform: scale(0.98);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    }
-
-    /* Hover state for larger screens */
-    @media (hover: hover) {
-      .kanban-card:hover {
-        transform: scale(1.02);
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-      }
-    }
-
-    /* Optimize scroll area for mobile touch */
-    [data-radix-scroll-area-scrollbar="horizontal"] {
-      height: 12px;
-    }
-
-    [data-radix-scroll-area-thumb] {
-      background-color: rgba(0, 0, 0, 0.3);
-      border-radius: 6px;
-    }
-
-    /* Mobile badge spacing */
-    .kanban-card-badges {
-      gap: 0.125rem;
-      margin-bottom: 0.375rem;
-    }
-
-    /* Mobile text sizing */
-    .kanban-card-title {
-      font-size: 0.875rem;
-      line-height: 1.3;
-    }
-
-    .kanban-card-text {
-      font-size: 0.8125rem;
-      line-height: 1.3;
-    }
-
-    /* Essential mobile optimizations (keep these for iOS zoom prevention and touch targets) */
-
-    /* Enhanced touch feedback for all interactive elements */
-    button, [role="button"], [role="switch"] {
-      min-height: 44px;
-      min-width: 44px;
-      touch-action: manipulation;
-      user-select: none;
-      transition: transform 0.15s ease, background-color 0.15s ease;
-    }
-
-    button:active, [role="button"]:active {
-      transform: scale(0.95);
-    }
-
-    /* Enhanced feedback for switches */
-    [role="switch"]:active {
-      transform: scale(0.9);
-    }
-
-    /* Input field touch optimizations */
-    input, textarea, select {
-      font-size: 16px !important; /* Prevents zoom on iOS */
-      touch-action: manipulation;
-    }
-
-    /* Dropdown and popover improvements */
-    [data-radix-popper-content-wrapper] {
-      z-index: 9999;
-    }
-
-    /* Improved focus visibility for touch navigation */
-    *:focus-visible {
-      outline: 2px solid #3b82f6;
-      outline-offset: 2px;
-    }
-  }
-
-  /* Universal touch improvements for all screen sizes */
-  .touch-enhanced {
-    -webkit-tap-highlight-color: transparent;
-    touch-action: manipulation;
-    user-select: none;
-  }
-
-  /* Improved drag feedback */
-  [data-dnd-kit-overlay] {
-    transform: rotate(3deg) scale(1.05);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.2);
-    z-index: 9999;
-  }
-
-  /* Better button hover states */
-  @media (hover: hover) {
-    button:hover {
-      background-color: rgba(0, 0, 0, 0.05);
-    }
-
-    .dark button:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-    }
-  }
-
-  /* Accessible focus indicators */
-  button:focus-visible, [role="button"]:focus-visible {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-  }
+	* {
+		@apply border-border outline-ring/50;
+	}
+	body {
+		@apply bg-background text-foreground;
+	}
 }

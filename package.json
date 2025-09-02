@@ -6,32 +6,28 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "concurrently --prefix '[{name}]' --names 'server,web,ccu' --prefix-colors 'cyan,magenta' 'cd apps/server && bun dev' 'cd apps/web && bun dev' 'cd apps/claudecode-ui && bun dev'",
-    "start:prod": "bun run scripts/start-prod.js",
-    "build": "concurrently 'cd apps/server && bun build' 'cd apps/web && bun build'",
-    "typecheck": "concurrently 'cd apps/server && bun typecheck' 'cd apps/web && bun typecheck'",
-    "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui",
-    "test:e2e:debug": "playwright test --debug",
-    "test:e2e:headed": "playwright test --headed",
-    "test:install": "playwright install",
-    "dev:native": "bun run --elide-lines 0 --filter native dev",
-    "dev:web": "bun run --elide-lines 0 --filter web dev",
-    "dev:server": "bun run --elide-lines 0 --filter server dev",
+    "build": "bun run --filter '*' build",
+    "db:generate": "bun run --elide-lines 0 --filter server db:generate",
+    "db:migrate": "bun run --elide-lines 0 --filter server db:migrate",
     "db:push": "bun run --elide-lines 0 --filter server db:push",
     "db:studio": "bun run --elide-lines 0 --filter server db:studio",
-    "db:generate": "bun run --elide-lines 0 --filter server db:generate",
-    "db:migrate": "bun run --elide-lines 0 --filter server db:migrate"
+    "dev": "concurrently --prefix '[{name}]' --names 'server,web' --prefix-colors 'cyan,magenta' 'cd apps/server && bun dev' 'cd apps/web && bun dev'",
+    "dev:native": "bun run --filter native dev",
+    "dev:server": "bun run --filter server dev",
+    "dev:web": "bun run --filter web dev",
+    "typecheck": "concurrently 'cd apps/server && bun typecheck' 'cd apps/web && bun typecheck'",
+    "setup-awscli": "bin/merge-awscli-config.sh",
+    "aws-sso": "aws sso login --sso-session=monster-make",
+    "sst:prod": "bun sst --stage production",
+    "sst:alpha": "bun sst --stage alpha",
+    "postinstall": "bun sst install"
   },
-  "packageManager": "bun@1.2.11",
   "dependencies": {
-    "@paralleldrive/cuid2": "^2.2.2",
-    "valibot": "^1.1.0"
+		"ts-pattern": "^5.8.0"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.2",
-    "concurrently": "^9.2.0",
-    "pg-god": "^1.0.12",
-    "playwright": "^1.54.2"
+    "@types/aws-lambda": "8.10.152",
+    "concurrently": "^9.2.1",
+    "sst": "3.17.12"
   }
 }
