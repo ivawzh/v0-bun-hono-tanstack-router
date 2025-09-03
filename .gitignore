@@ -6,3 +6,22 @@ node_modules
 
 # sst
 .sst
+
+.DS_Store
+.cache
+.env
+
+.data
+.vercel
+.output
+.wrangler
+.netlify
+dist
+/build/
+/api/
+/server/build
+/public/build
+
+.sst
+debug*.ts
+.tanstack/

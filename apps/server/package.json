@@ -32,7 +32,10 @@
 		"@orpc/client": "^1.8.4",
 		"hono": "^4.8.2",
 		"drizzle-orm": "^0.44.5",
+    "jsonwebtoken": "^9.0.2",
+    "@modelcontextprotocol/sdk": "^1.17.5",
 		"@neondatabase/serverless": "^1.0.1",
+    "@openauthjs/openauth": "^0.4.3",
 		"ws": "^8.18.3",
 		"sst": "*"
 	},
@@ -42,6 +45,7 @@
 		"typescript": "^5.8.2",
 		"@types/bun": "^1.2.6",
 		"drizzle-kit": "^0.31.4",
+    "@types/jsonwebtoken": "^9.0.10",
 		"@types/ws": "^8.18.1",
 		"postgres": "^3.4.7"
 	}

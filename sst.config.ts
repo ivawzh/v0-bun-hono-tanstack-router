@@ -10,16 +10,16 @@ export default $config({
     const isProduction = stage === 'production'
 
     return {
-      name: "solo-unicorn",
-      removal: isProduction ? "retain" : "remove",
+      name: 'solo-unicorn',
+      removal: isProduction ? 'retain' : 'remove',
       protect: isProduction,
-      home: "aws",
+      home: 'aws',
       providers: {
         aws: {
           profile: getAwsProfile(stage),
         },
       },
-    };
+    }
   },
   async run() {
     const { getSstVars } = await import('./sst.vars')
@@ -29,15 +29,15 @@ export default $config({
     const stage = parseStage($app.stage)
     const vars = getSstVars(stage)
 
-    const dbUrlSecret = new sst.Secret("SoloUnicornDatabaseUrl");
+    const dbUrlSecret = new sst.Secret('SoloUnicornDatabaseUrl')
 
-    new sst.aws.Function("SoloUnicornServer", {
+    new sst.aws.Function('SoloUnicornServer', {
       url: true,
-      handler: "apps/server/src/index.handler",
+      handler: 'apps/server/src/index.handler',
       link: [dbUrlSecret],
-    });
+    })
 
     // Outputs
     return {}
   },
-});
+})
