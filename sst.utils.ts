@@ -25,14 +25,6 @@ const secretEnvToEnvMappings = {
  */
 const execAsync = promisify(exec)
 
-export function parseStage(stage: string): Stage {
-  if (!stage) {
-    return 'development'
-  }
-
-  return stage as Stage
-}
-
 export type SstSecrets = Omit<{
   [K in keyof Resource]: string
 }, 'App'>

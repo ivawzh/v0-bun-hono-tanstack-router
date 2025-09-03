@@ -1,9 +1,10 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
+import { Stage } from './sst.vars'
+
 export default $config({
   async app(input) {
     const { getAwsProfile } = await import('./sst.vars')
-    const { parseStage } = await import('./sst.utils')
 
     const stage = parseStage(input?.stage)
 
@@ -23,7 +24,6 @@ export default $config({
   },
   async run() {
     const { getSstVars } = await import('./sst.vars')
-    const { parseStage } = await import('./sst.utils')
     const { match } = await import('ts-pattern')
 
     const stage = parseStage($app.stage)
@@ -41,3 +41,11 @@ export default $config({
     return {}
   },
 })
+
+function parseStage(stage: string): Stage {
+  if (!stage) {
+    return 'development'
+  }
+
+  return stage as Stage
+}

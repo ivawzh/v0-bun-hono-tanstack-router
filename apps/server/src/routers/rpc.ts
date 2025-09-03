@@ -1,10 +1,10 @@
 import { publicProcedure } from '../lib/orpc'
 import type { RouterClient } from '@orpc/server'
 
-export const appRouter = {
+export const rpcRouter = {
   healthCheck: publicProcedure.handler(() => {
     return 'OK'
   }),
 }
-export type AppRouter = typeof appRouter
-export type AppRouterClient = RouterClient<typeof appRouter>
+export type RpcRouter = typeof rpcRouter
+export type RpcRouterClient = RouterClient<typeof rpcRouter>

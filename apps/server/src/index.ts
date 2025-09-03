@@ -1,6 +1,8 @@
 import { RPCHandler } from '@orpc/server/fetch'
+import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { createContext } from './lib/context'
-import { appRouter } from './routers/index'
+import { rpcRouter } from './routers/rpc'
+import { apiRouter } from './routers/api'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
@@ -29,11 +31,26 @@ app.use(
   }),
 )
 
-const handler = new RPCHandler(appRouter)
+const rpchandler = new RPCHandler(rpcRouter)
+const apihandler = new OpenAPIHandler(apiRouter)
+
 app.use('/rpc/*', async (c, next) => {
   const context = await createContext({ context: c })
-  const { matched, response } = await handler.handle(c.req.raw, {
+  const { matched, response } = await rpchandler.handle(c.req.raw, {
     prefix: '/rpc',
+    context,
+  })
+
+  if (matched) {
+    return c.newResponse(response.body, response)
+  }
+  await next()
+})
+
+app.use('/api/*', async (c, next) => {
+  const context = await createContext({ context: c })
+  const { matched, response } = await apihandler.handle(c.req.raw, {
+    prefix: '/api',
     context,
   })
 

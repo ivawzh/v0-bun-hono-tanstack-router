@@ -8,10 +8,6 @@
 		"compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
 		"dev": "HOT_RELOAD=true bun run --hot src/index.ts",
 		"start": "bun run dist/index.js",
-    "db:create:dev": "bun pg-god db-create --databaseName=solo_unicorn_dev --userName=$USER",
-    "db:create:test": "bun pg-god db-create --databaseName=solo_unicorn_test --userName=$USER",
-    "db:drop:dev": "bun pg-god db-drop --databaseName=solo_unicorn_dev --userName=$USER",
-    "db:drop:test": "bun pg-god db-drop --databaseName=solo_unicorn_test --userName=$USER",
     "db:create": "bun pg-god db-create --url $(bun --print 'process.env.DATABASE_URL')",
     "db:drop": "bun pg-god db-drop --url $(bun --print 'process.env.DATABASE_URL')",
 		"db:push": "drizzle-kit push",
@@ -28,8 +24,9 @@
 	},
 	"dependencies": {
 		"zod": "^3.23.8",
-		"@orpc/server": "^1.8.4",
-		"@orpc/client": "^1.8.4",
+		"@orpc/server": "^1.8.6",
+		"@orpc/client": "^1.8.6",
+		"@orpc/openapi": "^1.8.6",
 		"hono": "^4.8.2",
 		"drizzle-orm": "^0.44.5",
     "jsonwebtoken": "^9.0.2",
@@ -40,6 +37,8 @@
 		"sst": "*"
 	},
 	"devDependencies": {
+		"pg-god": "^1.0.12",
+		"@electric-sql/pglite": "^0.3.7",
     "@drepkovsky/drizzle-migrations": "^0.6.0",
 		"tsdown": "^0.14.1",
 		"@types/bun": "^1.2.6",

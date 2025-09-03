@@ -1,25 +1,10 @@
 import { match } from 'ts-pattern'
-
-const alphaWebDomain = 'alpha.solounicorn.lol'
-const prodWebDomain = 'solounicorn.lol'
-const alphaServerDomain = 'server.alpha.solounicorn.lol'
-const prodServerDomain = 'server.solounicorn.lol'
+import { getEnv as getWebEnv } from './apps/web/env'
+import { getEnv as getServerEnv } from './apps/server/env'
 
 export const availableStages = ['alpha', 'production', 'development'] as const
 export type Stage = (typeof availableStages)[number]
 export type SstVars = ReturnType<typeof getSstVars>
-
-export function parseStage(stage?: string): Stage {
-  if (!stage) {
-    return 'development'
-  }
-
-  if (!availableStages.includes(stage as Stage)) {
-    throw new Error(`Invalid stage: ${stage}`)
-  }
-
-  return stage as Stage
-}
 
 export function getAwsProfile(stage: Stage): `monster-make-${Stage}` | undefined {
   return match(stage)
@@ -38,18 +23,24 @@ export function getSstVars(stageInput?: string) {
     throw new Error(`Invalid stage: ${stage}`)
   }
 
-  return match(stage)
-    .with('production', () => ({
-      webDomain: prodWebDomain,
-      serverDomain: prodServerDomain,
-    }))
-    .with('alpha', () => ({
-      webDomain: alphaWebDomain,
-      serverDomain: alphaServerDomain,
-    }))
-    .with('development', () => ({
-      webDomain: `localhost:${process.env.ENV_WEB_PORT}`,
-      serverDomain: `localhost:${process.env.ENV_SERVER_PORT}`,
-    }))
-    .exhaustive()
+  return {
+    webVars: {
+      ...getWebEnv(stage),
+    },
+    serverVars: {
+      ...getServerEnv(stage),
+    },
+  }
+}
+
+function parseStage(stage?: string): Stage {
+  if (!stage) {
+    return 'development'
+  }
+
+  if (!availableStages.includes(stage as Stage)) {
+    throw new Error(`Invalid stage: ${stage}`)
+  }
+
+  return stage as Stage
 }
