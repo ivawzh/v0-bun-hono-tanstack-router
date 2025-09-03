@@ -3,6 +3,7 @@ import { OpenAPIHandler } from '@orpc/openapi/fetch'
 import { createContext } from './lib/context'
 import { rpcRouter } from './routers/rpc'
 import { apiRouter } from './routers/api'
+import { oauthCallbackRoutes } from './routers/others/oauth-callback'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
@@ -12,9 +13,17 @@ const env = getEnv()
 const { port } = parseUrl(env.serverUrl)
 const app = new Hono()
 
-app.use(logger((str, ...rest) => {
+const logThemAll = logger((str, ...rest) => {
   console.log(`${new Date().toISOString()} ${str}`, ...rest)
-}))
+})
+
+app.use(async (c, next) => {
+  if (c.req.method === 'OPTIONS') {
+    await next()
+    return
+  }
+  return logThemAll(c, next)
+})
 
 app.use(
   '/*',
@@ -59,6 +68,8 @@ app.use('/api/*', async (c, next) => {
   }
   await next()
 })
+
+app.route('/api', oauthCallbackRoutes)
 
 app.get('/', (c) => {
   return c.text('OK')

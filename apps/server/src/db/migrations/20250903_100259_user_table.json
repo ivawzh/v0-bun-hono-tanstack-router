@@ -1,5 +1,5 @@
 {
-  "id": "b8d2b01c-f909-4008-a1ec-5e16db64cc0a",
+  "id": "1d39d3c8-391d-46cc-8d26-a3e5d1b85d52",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -26,6 +26,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "avatar": {
+          "name": "avatar",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "created_at": {
           "name": "created_at",

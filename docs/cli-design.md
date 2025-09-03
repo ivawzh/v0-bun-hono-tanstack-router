@@ -76,6 +76,14 @@ solo-unicorn worktree create REPO_ID BRANCH [--path PATH]
 solo-unicorn worktree list [REPO_ID]
 solo-unicorn worktree remove WORKTREE_PATH
 
+# Public Project Management
+solo-unicorn projects browse [--category CATEGORY] [--featured] [--starred]
+solo-unicorn projects search QUERY [--category CATEGORY] [--sort popularity|recent|stars]
+solo-unicorn projects view PROJECT_SLUG [--tasks] [--contributors]
+solo-unicorn projects star PROJECT_SLUG
+solo-unicorn projects contribute PROJECT_SLUG [--role contributor|collaborator]
+solo-unicorn projects create-from-template PROJECT_SLUG [--name NAME] [--private]
+
 # Configuration
 solo-unicorn config get [KEY]
 solo-unicorn config set KEY VALUE
@@ -354,6 +362,293 @@ interface WorktreePool {
 - Shared .git directory (efficient disk usage)
 - Perfect for parallel AI task execution
 - Smart reuse reduces disk space and setup time
+
+### 8. Public Project Discovery & Management
+
+#### `solo-unicorn projects browse`
+
+**Purpose**: Browse and discover public projects
+
+```bash
+# Browse all public projects
+solo-unicorn projects browse
+
+# Browse by category
+solo-unicorn projects browse --category web-development
+solo-unicorn projects browse --category ai-ml
+
+# Browse featured projects
+solo-unicorn projects browse --featured
+
+# Browse starred projects (requires auth)
+solo-unicorn projects browse --starred
+
+# JSON output
+solo-unicorn projects browse --json
+```
+
+**Output Example**:
+
+```
+Public Projects
+===============
+
+Featured Projects (4):
+📱 Mobile E-commerce      ⭐ 142  ✅ 23/25  by @shopdev     
+   React Native + Stripe payment integration
+   [solounicorn.lol/projects/mobile-ecommerce]
+
+🤖 AI Code Review Bot     ⭐ 89   ✅ 15/18  by @aitools     
+   Automated PR reviews with OpenAI integration  
+   [solounicorn.lol/projects/ai-code-review]
+
+🎨 Design System         ⭐ 76   ✅ 31/35  by @designsys   
+   Complete React component library with Storybook
+   [solounicorn.lol/projects/design-system]
+
+📊 Analytics Dashboard   ⭐ 64   ✅ 19/22  by @datatech    
+   Real-time dashboard with D3.js and WebSockets
+   [solounicorn.lol/projects/analytics-dashboard]
+
+Web Development (12 projects):
+• Todo App with AI              ⭐ 45   by @productivity
+• Blog CMS                      ⭐ 32   by @webmaster  
+• Portfolio Generator           ⭐ 28   by @designer
+...
+
+Use 'solo-unicorn projects view <slug>' for details
+```
+
+#### `solo-unicorn projects search`
+
+**Purpose**: Search public projects with filters and sorting
+
+```bash
+# Basic search
+solo-unicorn projects search "react typescript"
+
+# Search with category filter
+solo-unicorn projects search "payment" --category web-development
+
+# Sort by popularity (default), recent, or stars  
+solo-unicorn projects search "dashboard" --sort stars
+solo-unicorn projects search "api" --sort recent
+
+# Limit results
+solo-unicorn projects search "mobile" --limit 5
+```
+
+**Output Example**:
+
+```
+Search Results for "react typescript" (8 found)
+=================================================
+
+⭐ E-commerce Starter     ⭐ 142  ✅ 23/25  Updated 2h ago
+   Complete React + TypeScript e-commerce solution
+   Tags: react, typescript, stripe, ecommerce, api
+   [View: solo-unicorn projects view ecommerce-starter]
+
+📱 Task Manager          ⭐ 67   ✅ 12/15  Updated 1d ago  
+   React + TypeScript productivity app with AI features
+   Tags: react, typescript, productivity, openai
+   [View: solo-unicorn projects view task-manager]
+```
+
+#### `solo-unicorn projects view`
+
+**Purpose**: View detailed information about a public project
+
+```bash
+# Basic project view
+solo-unicorn projects view ecommerce-starter
+
+# Include task details
+solo-unicorn projects view ecommerce-starter --tasks
+
+# Include contributor information  
+solo-unicorn projects view ecommerce-starter --contributors
+
+# Full details
+solo-unicorn projects view ecommerce-starter --tasks --contributors
+```
+
+**Output Example**:
+
+```
+E-commerce Starter Kit
+======================
+
+by @ecommerce_expert • React, TypeScript, Stripe
+⭐ 142 stars • ✅ 23/25 tasks completed • 📈 High activity
+
+Description:
+Complete e-commerce solution with React frontend, Node.js backend,
+Stripe payments, and PostgreSQL database. Includes user authentication,
+product catalog, shopping cart, and admin dashboard.
+
+Progress: ██████████████████████▒▒▒ 92% (23/25 tasks)
+Status: 🟢 Active • Last updated: 2 hours ago
+Workstations: 2 active (can contribute)
+Contributors: 8 members
+
+Repository: https://github.com/ecommerce-expert/starter-kit
+Public URL: https://solounicorn.lol/projects/ecommerce-starter
+Category: Web Development
+Tags: react, typescript, stripe, ecommerce, nodejs, postgresql
+
+Latest Activity:
+• Task completed: "Payment Gateway Integration" (2h ago)
+• New contributor: mike_dev joined as Contributor (5h ago)  
+• Task created: "Mobile Responsive Design" (1d ago)
+
+Actions:
+[⭐ Star]    [🍴 Use as Template]    [💻 Contribute]    [📋 View Kanban]
+```
+
+#### `solo-unicorn projects star`
+
+**Purpose**: Star/unstar a public project
+
+```bash
+# Star a project
+solo-unicorn projects star ecommerce-starter
+
+# Unstar a project  
+solo-unicorn projects star ecommerce-starter --unstar
+
+# List starred projects
+solo-unicorn projects star --list
+```
+
+#### `solo-unicorn projects contribute`
+
+**Purpose**: Request access to contribute to a public project
+
+```bash
+# Request contributor access
+solo-unicorn projects contribute ecommerce-starter
+
+# Request specific role
+solo-unicorn projects contribute ecommerce-starter --role collaborator
+
+# Include message
+solo-unicorn projects contribute ecommerce-starter --message "I have 5 years React experience"
+```
+
+**Flow Example**:
+
+```
+Requesting access to: E-commerce Starter Kit
+============================================
+
+Current access: Public (read-only)
+Requesting role: Contributor
+
+Contributor permissions include:
+✅ Create and edit tasks  
+✅ Comment on tasks and PRs
+✅ Submit task dependencies
+❌ View workstation details
+❌ Execute tasks
+
+Why do you want to contribute? (optional)
+> I have experience with React and Stripe integration. I'd like to help 
+  improve the payment flow and add new features.
+
+GitHub profile (optional): github.com/myusername
+
+✅ Access request sent!
+
+This project has automatic approval for Contributors.
+You now have contributor access to ecommerce-starter.
+
+Next steps:
+• View tasks: solo-unicorn projects view ecommerce-starter --tasks  
+• Browse kanban: https://solounicorn.lol/projects/ecommerce-starter
+• Join discussions: Check project channels for collaboration
+```
+
+#### `solo-unicorn projects create-from-template`
+
+**Purpose**: Create a new project using a public project as template
+
+```bash
+# Create from template  
+solo-unicorn projects create-from-template ecommerce-starter
+
+# Specify name and make private
+solo-unicorn projects create-from-template ecommerce-starter \
+  --name "my-shop" --private
+
+# Create in specific organization
+solo-unicorn projects create-from-template ecommerce-starter \
+  --name "company-store" --org my-company
+```
+
+**Flow Example**:
+
+```
+Creating project from template: E-commerce Starter Kit
+======================================================
+
+Template includes:
+✅ 25 pre-configured tasks
+✅ Workflow templates (Development, Testing, Deployment)  
+✅ Project memory with tech stack documentation
+✅ Actor profiles (Frontend Dev, Backend Dev, Full-stack)
+✅ Repository recommendations
+
+Your new project details:
+Name: My E-commerce Store
+Organization: personal
+Visibility: Private
+Description: Custom e-commerce solution for handmade crafts
+
+Customization options:
+[1] Keep original tasks as-is
+[2] Update task descriptions for your use case  
+[3] Modify tech stack recommendations
+[4] Custom setup (advanced)
+
+Choice [2]: 2
+
+✅ Project created successfully!
+
+Created: proj_789xyz (my-ecommerce-store)  
+URL: https://app.solounicorn.lol/projects/my-ecommerce-store
+Tasks: 25 imported (ready for customization)
+
+Next steps:
+• Customize tasks for your specific needs
+• Set up your repository: solo-unicorn repo add <YOUR_REPO_URL>
+• Start your workstation: solo-unicorn start
+• Begin development: Tasks are ready for AI processing!
+```
+
+### 9. Project Permission Management
+
+#### Permission-aware command behavior
+
+**Commands respect user permissions automatically**:
+
+```bash
+# View command shows different content based on permissions
+solo-unicorn projects view ecommerce-starter
+# Public user: sees overview, completed tasks, public documentation
+# Contributor: sees active tasks, can comment
+# Maintainer: sees workstation status, can execute tasks
+# Owner: sees all details, can manage permissions
+
+# Commands are enabled/disabled based on permissions
+solo-unicorn tasks create --project ecommerce-starter
+# ✅ Works if user has write_tasks permission  
+# ❌ Error: "Permission denied. Need Contributor access or higher"
+
+# Context-aware help
+solo-unicorn projects view ecommerce-starter --help
+# Shows available options based on user's current permissions
+```
 
 ### 4. Local Development Server with Public Tunneling
 

@@ -5,10 +5,13 @@ import { db } from '@/db/db'
 import { users } from '@/db/schema'
 import { eq } from 'drizzle-orm'
 import { jwtDecode } from '@/services/authCookies'
+import { getEnv } from 'env'
 
 const app = new Hono()
+const env = getEnv()
+const loginSuccessRedirectUrl = env.webUrl
 
-app.get('/callback', async (c) => {
+app.get('/oauth/callback', async (c) => {
   const url = new URL(c.req.url)
   const code = url.searchParams.get('code')
 
@@ -16,11 +19,11 @@ app.get('/callback', async (c) => {
     return c.text('Query param `code` is missing from oauth provider callback', 400)
   }
 
-  // Ensure we use the correct protocol - https for production
+  // Ensure we use the correct protocol and host - https for production
   const protocol = process.env.NODE_ENV === 'production'
     ? 'https'
     : url.protocol.slice(0, -1)
-  const redirectUrl = `${protocol}://${url.hostname}/api/oauth/callback`
+  const redirectUrl = `${protocol}://${url.host}/api/oauth/callback`
   const exchanged = await openauth.exchange(code, redirectUrl)
 
   if (exchanged.err) {
@@ -48,7 +51,7 @@ app.get('/callback', async (c) => {
 
   const payload = tokenResult.good
   console.log(`🚀 -> payload:`, payload)
-  const userEmail = payload?.subject?.properties?.email
+  const userEmail = payload?.properties?.email
 
   if (!userEmail) {
     console.error('No email found in access token payload')
@@ -65,12 +68,7 @@ app.get('/callback', async (c) => {
 
   await upsertUserIfNewAuthInfo(exchanged.tokens.access)
 
-  const frontendOrigin
-    = process.env.FRONTEND_ORIGIN
-      || process.env.WEB_APP_URL
-      || 'http://localhost:8302'
-  console.log('🔁 Redirecting back to frontend:', frontendOrigin)
-  return c.redirect(frontendOrigin)
+  return c.redirect(loginSuccessRedirectUrl)
 })
 
 async function upsertUserIfNewAuthInfo(accessToken: string) {
@@ -79,11 +77,15 @@ async function upsertUserIfNewAuthInfo(accessToken: string) {
   if (!result.ok) return
 
   const payload = result.good
-  const properties = payload.subject?.properties
+  const properties = payload.properties
   const email = properties?.email
   const displayNameFromToken
     = properties?.provider === 'google'
       ? properties.name
+      : undefined
+  const avatarFromToken
+    = properties?.provider === 'google'
+      ? properties.avatar
       : undefined
 
   if (!email) {
@@ -95,10 +97,18 @@ async function upsertUserIfNewAuthInfo(accessToken: string) {
 
   if (userFound) {
     // Update user info if there's new information
+    const updates: { displayName?: string, avatar?: string } = {}
     if (displayNameFromToken && displayNameFromToken !== userFound.displayName) {
+      updates.displayName = displayNameFromToken
+    }
+    if (avatarFromToken && avatarFromToken !== userFound.avatar) {
+      updates.avatar = avatarFromToken
+    }
+
+    if (Object.keys(updates).length > 0) {
       await db()
         .update(users)
-        .set({ displayName: displayNameFromToken })
+        .set(updates)
         .where(eq(users.email, email))
     }
     return
@@ -108,6 +118,7 @@ async function upsertUserIfNewAuthInfo(accessToken: string) {
   await db().insert(users).values({
     email,
     displayName: displayNameFromToken ?? email.split('@')[0],
+    avatar: avatarFromToken,
   })
 }
 

@@ -7,11 +7,10 @@ import { defineConfig } from 'vite'
 import { getEnv, parseUrl } from './env'
 
 const env = getEnv()
-const { host, port } = parseUrl(env.webUrl)
+const { port } = parseUrl(env.webUrl)
 
 export default defineConfig({
   server: {
-    host,
     port,
   },
   plugins: [

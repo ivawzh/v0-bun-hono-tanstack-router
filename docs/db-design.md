@@ -419,7 +419,7 @@ interface WorkstationCodeAgentConfig {
 
 ### Projects
 
-Projects contain tasks and define which workstations can work on them.
+Projects contain tasks and define which workstations can work on them. Projects can be private (organization-only) or public with granular access control.
 
 ```sql
 CREATE TABLE projects (
@@ -430,6 +430,23 @@ CREATE TABLE projects (
   name VARCHAR(255) NOT NULL,
   description TEXT,
   slug VARCHAR(100), -- URL-safe identifier within org
+  
+  -- Public Project Support
+  visibility ENUM('private', 'public') DEFAULT 'private',
+  public_slug VARCHAR(100) UNIQUE, -- Global unique slug for public projects
+  
+  -- Public Project Metadata
+  category VARCHAR(50), -- 'web-development', 'mobile-app', 'ai-ml', etc.
+  tags JSON, -- ["react", "typescript", "api"]
+  featured BOOLEAN DEFAULT false, -- Featured in project gallery
+  star_count INTEGER DEFAULT 0, -- Community engagement metric
+  
+  -- Public Access Configuration
+  public_task_read BOOLEAN DEFAULT true, -- Allow public users to read tasks
+  public_memory_read BOOLEAN DEFAULT true, -- Allow public users to read project memory
+  contributor_task_write BOOLEAN DEFAULT true, -- Allow contributors to create/edit tasks
+  collaborator_workstation_read BOOLEAN DEFAULT false, -- Allow collaborators to see workstation status
+  maintainer_task_execute BOOLEAN DEFAULT false, -- Allow maintainers to execute tasks
 
   -- Configuration
   default_workflow_template_id VARCHAR(26),
@@ -456,8 +473,14 @@ CREATE TABLE projects (
   FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE,
 
   UNIQUE KEY unique_org_project_slug (organization_id, slug),
+  UNIQUE KEY unique_public_slug (public_slug), -- Global uniqueness for public projects
   INDEX idx_projects_organization_id (organization_id),
-  INDEX idx_projects_status (status)
+  INDEX idx_projects_status (status),
+  INDEX idx_projects_visibility (visibility),
+  INDEX idx_projects_public_slug (public_slug),
+  INDEX idx_projects_category (category),
+  INDEX idx_projects_featured (featured),
+  INDEX idx_projects_star_count (star_count DESC)
 );
 ```
 
@@ -578,6 +601,109 @@ CREATE TABLE git_worktrees (
   UNIQUE KEY unique_ws_repo_branch (workstation_repository_id, branch),
   INDEX idx_worktrees_ws_repo_id (workstation_repository_id),
   INDEX idx_worktrees_status (status)
+);
+```
+
+### Project Permissions
+
+Manages granular permissions for users on projects, supporting both private and public access control.
+
+```sql
+CREATE TABLE project_permissions (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: projperm_01H123...
+  project_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26), -- NULL for anonymous/public permissions
+  
+  -- Permission Role
+  role ENUM('public', 'contributor', 'collaborator', 'maintainer', 'owner') NOT NULL,
+  
+  -- Granular Permission Overrides (NULL = inherit from role default)
+  can_read_tasks BOOLEAN DEFAULT NULL,
+  can_write_tasks BOOLEAN DEFAULT NULL,
+  can_read_workstations BOOLEAN DEFAULT NULL,
+  can_execute_tasks BOOLEAN DEFAULT NULL,
+  can_admin_project BOOLEAN DEFAULT NULL,
+  
+  -- Additional Permissions
+  can_invite_users BOOLEAN DEFAULT NULL,
+  can_manage_repositories BOOLEAN DEFAULT NULL,
+  can_view_analytics BOOLEAN DEFAULT NULL,
+  
+  -- Status
+  status ENUM('active', 'invited', 'revoked') DEFAULT 'active',
+  invited_by VARCHAR(26), -- user_id of inviter
+  invited_at TIMESTAMP,
+  accepted_at TIMESTAMP,
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW(),
+  
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE SET NULL,
+  
+  UNIQUE KEY unique_project_user (project_id, user_id),
+  INDEX idx_project_permissions_project_id (project_id),
+  INDEX idx_project_permissions_user_id (user_id),
+  INDEX idx_project_permissions_role (role),
+  INDEX idx_project_permissions_status (status)
+);
+```
+
+### Project Stars
+
+Tracks user engagement with public projects.
+
+```sql
+CREATE TABLE project_stars (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: star_01H123...
+  project_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26) NOT NULL,
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  
+  UNIQUE KEY unique_project_user_star (project_id, user_id),
+  INDEX idx_project_stars_project_id (project_id),
+  INDEX idx_project_stars_user_id (user_id),
+  INDEX idx_project_stars_created_at (created_at DESC)
+);
+```
+
+### Project Activity
+
+Tracks activity for public project analytics and discovery.
+
+```sql
+CREATE TABLE project_activity (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: activity_01H123...
+  project_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26), -- NULL for anonymous activity
+  
+  -- Activity Details
+  activity_type ENUM('task_created', 'task_completed', 'user_joined', 'star_added', 'repository_updated') NOT NULL,
+  activity_data JSON, -- Flexible activity metadata
+  
+  -- Context
+  task_id VARCHAR(26), -- Associated task if applicable
+  workstation_id VARCHAR(26), -- Associated workstation if applicable
+  
+  -- Timestamps
+  created_at TIMESTAMP DEFAULT NOW(),
+  
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+  FOREIGN KEY (workstation_id) REFERENCES workstations(id) ON DELETE SET NULL,
+  
+  INDEX idx_project_activity_project_id (project_id),
+  INDEX idx_project_activity_user_id (user_id),
+  INDEX idx_project_activity_type (activity_type),
+  INDEX idx_project_activity_created_at (created_at DESC)
 );
 ```
 
@@ -1249,6 +1375,164 @@ AS $$
 $$;
 ```
 
+### Permission System Functions
+
+```sql
+-- Check if user has specific permission on project
+CREATE FUNCTION user_has_project_permission(
+  p_user_id VARCHAR(26),
+  p_project_id VARCHAR(26),
+  p_permission VARCHAR(50)
+)
+RETURNS BOOLEAN
+LANGUAGE SQL
+READS SQL DATA
+AS $$
+  SELECT CASE
+    -- Check if project is public and permission is public-allowed
+    WHEN EXISTS (
+      SELECT 1 FROM projects 
+      WHERE id = p_project_id 
+        AND visibility = 'public'
+        AND (
+          (p_permission = 'read_tasks' AND public_task_read = true) OR
+          (p_permission = 'read_memory' AND public_memory_read = true)
+        )
+    ) THEN true
+    
+    -- Check organization membership first
+    WHEN EXISTS (
+      SELECT 1 FROM projects p
+      JOIN organization_memberships om ON om.organization_id = p.organization_id
+      WHERE p.id = p_project_id 
+        AND om.user_id = p_user_id 
+        AND om.status = 'active'
+        AND om.role IN ('owner', 'admin')
+    ) THEN true
+    
+    -- Check specific project permissions
+    WHEN EXISTS (
+      SELECT 1 FROM project_permissions pp
+      WHERE pp.project_id = p_project_id
+        AND pp.user_id = p_user_id
+        AND pp.status = 'active'
+        AND (
+          CASE p_permission
+            WHEN 'read_tasks' THEN COALESCE(pp.can_read_tasks, 
+              CASE pp.role 
+                WHEN 'public' THEN false
+                WHEN 'contributor' THEN true
+                WHEN 'collaborator' THEN true
+                WHEN 'maintainer' THEN true
+                WHEN 'owner' THEN true
+                ELSE false
+              END)
+            WHEN 'write_tasks' THEN COALESCE(pp.can_write_tasks,
+              CASE pp.role
+                WHEN 'public' THEN false
+                WHEN 'contributor' THEN true
+                WHEN 'collaborator' THEN true
+                WHEN 'maintainer' THEN true
+                WHEN 'owner' THEN true
+                ELSE false
+              END)
+            WHEN 'read_workstations' THEN COALESCE(pp.can_read_workstations,
+              CASE pp.role
+                WHEN 'public' THEN false
+                WHEN 'contributor' THEN false
+                WHEN 'collaborator' THEN true
+                WHEN 'maintainer' THEN true
+                WHEN 'owner' THEN true
+                ELSE false
+              END)
+            WHEN 'execute_tasks' THEN COALESCE(pp.can_execute_tasks,
+              CASE pp.role
+                WHEN 'public' THEN false
+                WHEN 'contributor' THEN false
+                WHEN 'collaborator' THEN false
+                WHEN 'maintainer' THEN true
+                WHEN 'owner' THEN true
+                ELSE false
+              END)
+            WHEN 'admin_project' THEN COALESCE(pp.can_admin_project,
+              CASE pp.role
+                WHEN 'owner' THEN true
+                ELSE false
+              END)
+            ELSE false
+          END
+        )
+    ) THEN true
+    
+    ELSE false
+  END;
+$$;
+
+-- Get user's effective role on project
+CREATE FUNCTION get_user_project_role(
+  p_user_id VARCHAR(26),
+  p_project_id VARCHAR(26)
+)
+RETURNS VARCHAR(20)
+LANGUAGE SQL
+READS SQL DATA
+AS $$
+  SELECT COALESCE(
+    -- Check organization membership first (highest priority)
+    (SELECT CASE 
+      WHEN om.role IN ('owner', 'admin') THEN 'owner'
+      ELSE NULL
+    END
+    FROM projects p
+    JOIN organization_memberships om ON om.organization_id = p.organization_id
+    WHERE p.id = p_project_id 
+      AND om.user_id = p_user_id 
+      AND om.status = 'active'
+    LIMIT 1),
+    
+    -- Check project-specific permissions
+    (SELECT pp.role::VARCHAR(20)
+    FROM project_permissions pp
+    WHERE pp.project_id = p_project_id
+      AND pp.user_id = p_user_id
+      AND pp.status = 'active'
+    LIMIT 1),
+    
+    -- Check if project is public
+    (SELECT CASE 
+      WHEN p.visibility = 'public' THEN 'public'
+      ELSE 'none'
+    END
+    FROM projects p
+    WHERE p.id = p_project_id
+    LIMIT 1),
+    
+    'none'
+  );
+$$;
+
+-- Update project star count trigger helper
+CREATE FUNCTION update_project_star_count()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' THEN
+    UPDATE projects 
+    SET star_count = star_count + 1
+    WHERE id = NEW.project_id;
+    RETURN NEW;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE projects 
+    SET star_count = GREATEST(star_count - 1, 0)
+    WHERE id = OLD.project_id;
+    RETURN OLD;
+  END IF;
+  RETURN NULL;
+END;
+$$;
+```
+
 ### Database Triggers
 
 ```sql
@@ -1321,6 +1605,61 @@ BEFORE UPDATE ON tasks
 FOR EACH ROW
 BEGIN
   SET NEW.main_repository_id = NEW.project_repository_id;
+END//
+DELIMITER ;
+
+-- Project star count triggers
+CREATE TRIGGER project_star_count_insert
+AFTER INSERT ON project_stars
+FOR EACH ROW
+EXECUTE FUNCTION update_project_star_count();
+
+CREATE TRIGGER project_star_count_delete
+AFTER DELETE ON project_stars
+FOR EACH ROW
+EXECUTE FUNCTION update_project_star_count();
+
+-- Project activity logging triggers
+DELIMITER //
+CREATE TRIGGER log_task_activity
+AFTER UPDATE ON tasks
+FOR EACH ROW
+BEGIN
+  -- Log task completion
+  IF OLD.list != 'done' AND NEW.list = 'done' THEN
+    INSERT INTO project_activity (id, project_id, user_id, activity_type, activity_data, task_id)
+    VALUES (
+      CONCAT('activity_', SUBSTRING(MD5(RAND()) FROM 1 FOR 22)),
+      NEW.project_id,
+      NULL, -- Will need to be updated based on session user
+      'task_completed',
+      JSON_OBJECT(
+        'task_title', NEW.title,
+        'mode', NEW.mode,
+        'priority', NEW.priority
+      ),
+      NEW.id
+    );
+  END IF;
+END//
+
+CREATE TRIGGER log_project_permission_changes
+AFTER INSERT ON project_permissions
+FOR EACH ROW
+BEGIN
+  IF NEW.status = 'active' AND NEW.role != 'public' THEN
+    INSERT INTO project_activity (id, project_id, user_id, activity_type, activity_data)
+    VALUES (
+      CONCAT('activity_', SUBSTRING(MD5(RAND()) FROM 1 FOR 22)),
+      NEW.project_id,
+      NEW.user_id,
+      'user_joined',
+      JSON_OBJECT(
+        'role', NEW.role,
+        'invited_by', NEW.invited_by
+      )
+    );
+  END IF;
 END//
 DELIMITER ;
 ```

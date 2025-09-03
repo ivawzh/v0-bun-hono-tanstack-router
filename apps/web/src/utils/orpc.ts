@@ -8,6 +8,10 @@ import type { RpcRouterClient } from '../../../server/src/routers/rpc'
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
+      // Skip toast for AbortError - these are normal request cancellations
+      if (error.name === 'AbortError' || error.message.includes('aborted')) {
+        return
+      }
       toast.error(`Error: ${error.message}`, {
         action: {
           label: 'retry',
@@ -22,6 +26,12 @@ export const queryClient = new QueryClient({
 
 export const link = new RPCLink({
   url: `${import.meta.env.VITE_SERVER_URL}/rpc`,
+  fetch: (request, init) => {
+    return globalThis.fetch(request, {
+      ...init,
+      credentials: 'include', // Include cookies for cross-origin requests
+    })
+  },
 })
 
 export const client: RpcRouterClient = createORPCClient(link)

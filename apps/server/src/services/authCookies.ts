@@ -1,6 +1,7 @@
 import type { Context as HonoContext } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import jwt from 'jsonwebtoken'
+import { getEnv, parseUrl } from 'env'
 import { openauth, type AccessTokenPayload, type AuthTokens } from '../lib/openauth'
 
 export type Result<T, E = Error>
@@ -10,9 +11,12 @@ export type Result<T, E = Error>
 const ACCESS_TOKEN_COOKIE = 'monster-auth-access-token'
 const REFRESH_TOKEN_COOKIE = 'monster-auth-refresh-token'
 
+const env = getEnv()
+const isSecureCookie = env.stage !== 'development' && env.stage !== 'test'
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: isSecureCookie,
   sameSite: 'lax' as const,
   path: '/',
 }
@@ -35,6 +39,7 @@ export async function getAuthCookies(
   const accessToken = getCookie(context, ACCESS_TOKEN_COOKIE)
   const refreshToken = getCookie(context, REFRESH_TOKEN_COOKIE)
 
+
   return { accessToken, refreshToken }
 }
 
@@ -44,8 +49,11 @@ export function deleteAuthCookies(context: HonoContext) {
 }
 
 export async function getHeaders() {
+  const { serverUrl } = env
+  const { host, port } = parseUrl(serverUrl)
+  const hostWithPort = host ? `${host}${port ? `:${port}` : ''}` : undefined
   return {
-    host: process.env.HOST || 'localhost:8500',
+    host: hostWithPort || 'localhost:8500',
   }
 }
 

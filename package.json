@@ -11,8 +11,6 @@
     "db:migrate:generate": "server:run db:migrate:generate --name ",
     "db:migrate:up": "server:run db:migrate:up",
     "db:migrate:down": "server:run db:migrate:down",
-    "db:push": "server:run db:push",
-    "db:studio": "server:run db:studio",
     "dev": "concurrently --prefix '[{name}]' --names 'server,web' --prefix-colors 'cyan,magenta' 'cd apps/server && bun dev' 'cd apps/web && bun dev'",
     "dev:native": "bun run --filter native dev",
     "dev:server": "bun run --filter solo-unicorn-server dev",

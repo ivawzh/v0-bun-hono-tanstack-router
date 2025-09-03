@@ -9,17 +9,20 @@ export const openauth = createClient({
 })
 
 export interface AccessTokenPayload {
-  // Primary shape from Monster Auth (subject.properties.*)
-  subject?: {
-    properties?: GoogleUser | PasswordUser
-  }
+  mode: 'access'
+  type: 'user'
+  properties: AuthUserProperties
+  aud: string
+  iss: string
+  sub: string
+  exp: number
 }
 export interface AuthTokens {
   accessToken: string
   refreshToken: string
 }
 
-type GoogleUser = {
+export type GoogleUser = {
   provider: 'google'
   email: string
   googleUserId: string
@@ -30,7 +33,9 @@ type GoogleUser = {
   familyName?: string
 }
 
-type PasswordUser = {
+export type PasswordUser = {
   provider: 'password'
   email: string
 }
+
+export type AuthUserProperties = GoogleUser | PasswordUser

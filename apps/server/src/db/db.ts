@@ -28,7 +28,7 @@ export const db = () => match(stage)
      *  - You batch many queries or maintain session state for performance.
      */
     // neonConfig.webSocketConstructor = ws
-    return drizzleNeon<Schema>(neon(databaseUrl))
+    return drizzleNeon<Schema>(neon(databaseUrl), { schema })
   })
   .with('test', () => {
     /**
@@ -36,9 +36,9 @@ export const db = () => match(stage)
      * If persist to local file, use `new PGlite('path/to/file.db')`
      */
     const client = new PGlite()
-    return drizzlePglite<Schema>({ client })
+    return drizzlePglite<Schema>({ client, schema })
   })
   .otherwise(() => {
     const client = new SQL(databaseUrl)
-    return drizzleBun<Schema>({ client })
+    return drizzleBun<Schema>({ client, schema })
   })
