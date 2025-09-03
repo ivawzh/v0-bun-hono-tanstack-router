@@ -4,8 +4,16 @@ import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
 import path from 'node:path'
 import { defineConfig } from 'vite'
+import { getEnv, parseUrl } from './env'
+
+const env = getEnv()
+const { host, port } = parseUrl(env.webUrl)
 
 export default defineConfig({
+  server: {
+    host,
+    port,
+  },
   plugins: [
     tailwindcss(),
     tanstackRouter({}),

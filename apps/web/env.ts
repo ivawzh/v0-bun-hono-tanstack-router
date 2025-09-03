@@ -1,5 +1,5 @@
 import { match, P } from 'ts-pattern'
-import { Resource } from 'sst'
+import { loadEnv } from 'vite'
 
 const alphaWebDomain = 'alpha.solounicorn.lol'
 const prodWebDomain = 'solounicorn.lol'
@@ -10,6 +10,13 @@ const availableStages = ['alpha', 'production', 'development', 'test'] as const
 type Stage = (typeof availableStages)[number]
 
 export function getEnv(stageInput?: string) {
+  const viteEnv
+    = import.meta.env
+    // Vite auto load env after vite.config.ts defineConfig.
+    // Before invoking vite.config.ts defineConfig, import.meta.env is undefined.
+    // If we want to use env.ts in vite.config.ts, we need to trigger loadEnv manually as below.
+      || loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+
   const stage = parseStage(stageInput)
 
   if (!availableStages.includes(stage)) {
@@ -19,34 +26,26 @@ export function getEnv(stageInput?: string) {
   return match(stage)
     .with('production', () => ({
       stage,
-      databaseUrl: Resource.SoloUnicornDatabaseUrl.value,
       webUrl: 'https://' + prodWebDomain,
       serverUrl: 'https://' + prodServerDomain,
-      monsterAuthUrl: 'https://auth.monstermake.limited',
     }))
     .with('alpha', () => ({
       stage,
-      databaseUrl: Resource.SoloUnicornDatabaseUrl.value,
       webUrl: 'https://' + alphaWebDomain,
       serverUrl: 'https://' + alphaServerDomain,
-      monsterAuthUrl: 'https://auth.alpha.monstermake.limited',
     }))
     .with(P.union('development', 'test'), () => {
       if (
-        [
-          process.env.DATABASE_URL,
-          process.env.WEB_URL,
-          process.env.SERVER_URL,
-        ].some((url) => !url)
+        [viteEnv.VITE_SERVER_URL, viteEnv.VITE_WEB_URL].some(
+          (envVar) => !envVar,
+        )
       ) {
-        throw new Error('DATABASE_URL, WEB_URL, and SERVER_URL must be set')
+        throw new Error('VITE_SERVER_URL, VITE_WEB_URL must be set')
       }
       return {
         stage,
-        databaseUrl: process.env.DATABASE_URL!,
-        webUrl: process.env.WEB_URL!,
-        serverUrl: process.env.SERVER_URL!,
-        monsterAuthUrl: 'https://auth.alpha.monstermake.limited',
+        webUrl: viteEnv.VITE_WEB_URL!,
+        serverUrl: viteEnv.VITE_SERVER_URL!,
       }
     })
     .exhaustive()

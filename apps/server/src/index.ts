@@ -4,15 +4,28 @@ import { appRouter } from './routers/index'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
+import { getEnv, parseUrl } from 'env'
 
+const env = getEnv()
+const { port } = parseUrl(env.serverUrl)
 const app = new Hono()
 
-app.use(logger())
+app.use(logger((str, ...rest) => {
+  console.log(`${new Date().toISOString()} ${str}`, ...rest)
+}))
+
 app.use(
   '/*',
   cors({
-    origin: process.env.CORS_ORIGIN || '',
-    allowMethods: ['GET', 'POST', 'OPTIONS'],
+    origin: [env.webUrl],
+    allowHeaders: [
+      'Content-Type',
+      'Authorization',
+      'x-forwarded-for',
+      'x-forwarded-proto',
+    ],
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    credentials: true,
   }),
 )
 
@@ -34,4 +47,9 @@ app.get('/', (c) => {
   return c.text('OK')
 })
 
-export default app
+const server = Bun.serve({
+  port,
+  fetch: app.fetch,
+})
+
+console.log(`Solo Unicorn Server is running on ${server.url}`)

@@ -28,6 +28,7 @@
 		"ts-pattern": "^5.8.0"
   },
   "devDependencies": {
+		"typescript": "5.9.2",
     "@types/aws-lambda": "8.10.152",
     "@tanstack/eslint-plugin-query": "^5.83.1",
     "@tanstack/eslint-plugin-router": "1.131.2",

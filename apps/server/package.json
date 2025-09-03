@@ -4,7 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsdown",
-    "typecheck": "tsc -b",
+    "typecheck": "tsc --noEmit",
 		"compile": "bun build --compile --minify --sourcemap --bytecode ./src/index.ts --outfile server",
 		"dev": "HOT_RELOAD=true bun run --hot src/index.ts",
 		"start": "bun run dist/index.js",
@@ -42,7 +42,6 @@
 	"devDependencies": {
     "@drepkovsky/drizzle-migrations": "^0.6.0",
 		"tsdown": "^0.14.1",
-		"typescript": "^5.8.2",
 		"@types/bun": "^1.2.6",
 		"drizzle-kit": "^0.31.4",
     "@types/jsonwebtoken": "^9.0.10",
