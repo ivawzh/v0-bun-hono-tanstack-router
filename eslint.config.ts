@@ -19,32 +19,36 @@ import wrap from '@seahax/eslint-plugin-wrap'
 const ignores = [
   'lib-docs/**',
   'wiki/**',
-  'drizzle/**',
-  '.drizzle/**',
-  '.sst/**',
-  '.tanstack-start/**',
-  'node_modules/**',
-  'public/**',
-  '.vscode/**',
-  'dist',
-  '.wrangler',
-  '.vercel',
-  '.netlify',
-  '.output',
-  'build/',
+  '**/drizzle/**',
+  '**/.drizzle/**',
+  '**/.sst/**',
+  '**/.tanstack-start/**',
+  '**/node_modules/**',
+  '**/migrations/**',
+  '**/public/**',
+  '**/.vscode/**',
+  '**/dist/**',
+  '**/dev-dist/**',
+  '**/.wrangler/**',
+  '**/.vercel/**',
+  '**/.netlify/**',
+  '**/.output/**',
+  '**/build/**',
 ]
 
 export default defineConfig(
+  // Global ignores (applies before file-type specific configs)
+  {
+    ignores,
+  },
   {
     language: 'markdown/gfm',
-    ignores,
     files: ['**/*.{md}'],
     extends: [
       markdown.configs.recommended,
     ],
   },
   {
-    ignores,
     files: ['**/*.{ts,tsx}'],
     languageOptions: {
       parser: tsParser,

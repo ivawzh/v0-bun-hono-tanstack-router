@@ -39,7 +39,6 @@ export async function getAuthCookies(
   const accessToken = getCookie(context, ACCESS_TOKEN_COOKIE)
   const refreshToken = getCookie(context, REFRESH_TOKEN_COOKIE)
 
-
   return { accessToken, refreshToken }
 }
 
