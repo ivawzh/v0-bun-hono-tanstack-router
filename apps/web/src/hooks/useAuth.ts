@@ -9,7 +9,6 @@ export function useRefreshAll() {
 
 export function useLogin() {
   const refreshAll = useRefreshAll()
-  const navigate = useNavigate()
 
   const mutation = useMutation(
     rpc.auth.login.mutationOptions({

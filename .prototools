@@ -1,4 +1,0 @@
-bun = "1.2.21"
-
-[settings]
-auto-install = true
