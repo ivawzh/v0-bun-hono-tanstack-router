@@ -1,6 +1,25 @@
-# solo-unicorn
+# v0-bun-hono-tanstack-router
 
-This project was created with [Better-T-Stack](https://github.com/AmanVarshney01/create-better-t-stack), a modern TypeScript stack that combines React, TanStack Router, Hono, ORPC, and more.
+A modern TypeScript template featuring Bun, Hono, TanStack Router, oRPC, and more for full-stack development.
+
+## 🚀 Quick Start
+
+### Using GitHub Template (Recommended)
+
+1. **Via GitHub UI**: Click "Use this template" button above, or
+2. **Via GitHub CLI**:
+```bash
+gh repo create my-new-project --template ivawzh/v0-bun-hono-tanstack-router --clone
+cd my-new-project
+```
+
+### Manual Setup
+```bash
+git clone https://github.com/ivawzh/v0-bun-hono-tanstack-router.git my-project
+cd my-project
+rm -rf .git
+git init
+```
 
 ## Features
 
@@ -17,26 +36,19 @@ This project was created with [Better-T-Stack](https://github.com/AmanVarshney01
 
 ## Getting Started
 
-First, install the dependencies:
+After creating your project from this template:
 
+1. **Install dependencies**:
 ```bash
 bun install
 ```
-## Database Setup
 
-This project uses PostgreSQL with Drizzle ORM.
+2. **Database Setup**:
+   - Set up PostgreSQL database
+   - Update `apps/server/.env` with your database connection details
+   - Apply schema: `bun db:push`
 
-1. Make sure you have a PostgreSQL database set up.
-2. Update your `apps/server/.env` file with your PostgreSQL connection details.
-
-3. Apply the schema to your database:
-```bash
-bun db:push
-```
-
-
-Then, run the development server:
-
+3. **Run development server**:
 ```bash
 bun dev
 ```
@@ -51,7 +63,7 @@ The API is running at [http://localhost:3000](http://localhost:3000).
 ## Project Structure
 
 ```
-solo-unicorn/
+project-name/
 ├── apps/
 │   ├── web/         # Frontend application (React + TanStack Router)
 │   └── server/      # Backend API (Hono, ORPC)
