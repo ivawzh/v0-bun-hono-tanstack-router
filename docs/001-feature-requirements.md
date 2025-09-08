@@ -228,7 +228,7 @@ MVP performance: Caching/optimizations are deferred to post-MVP.
 - **Filesystem Storage**: Stored in `./solo-unicorn-docs/missions/{mission-id}/`
 - **Structure**:
   - `solution.md`: Main solution write-up (supersedes plan.md)
-  - `tasks/{n}.md`: Detailed task-by-task implementation notes (supersedes steps)
+  - `tasks/{n}.md`: Detailed task-by-task implementation notes (supersedes steps). Main purpose is to fit each task implementation into one AI code agent session context window thus avoid context compact and performance degradation.
 - **Database Tracking**:
   - `solution` (TEXT)
   - `tasks` (JSON array of task descriptors)

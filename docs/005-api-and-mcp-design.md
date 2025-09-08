@@ -35,7 +35,7 @@ Principles:
 - (Not in MVP) mission.v1.reject({ missionId, feedback: string }). Through POST /api/v1/missions/{id}/reject.
 
 Types:
-- Task: { order?: number; title: string; }
+- Task: { title: string; }
 - Mission minimal: { id, projectId, title, description, spec?, solution?, tasks?: Task[], currentTask?: number, repositoryId, additionalRepositoryIds?: number[], prMode, list, stage, priority }
 
 ## Repository Tools as API wrappers
