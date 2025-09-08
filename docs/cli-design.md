@@ -53,43 +53,63 @@ Majority of prompt command is provided by Solo Unicorn server. However, CLI migh
 
 ## CLI Command Structure
 
-### Core Commands
+### Core Commands (MVP)
 
 ```bash
-# Authentication & Setup
-solo-unicorn login [--web|--api-key KEY] [--org ORG_NAME]
-solo-unicorn logout
-solo-unicorn whoami
+# Authentication
+solo-unicorn auth login [--web|--api-key KEY] [--org ORG_NAME]
+solo-unicorn auth logout
+solo-unicorn auth whoami
 
-# Workstation Management
-solo-unicorn start [--background] [--port PORT]
-solo-unicorn stop [--force]
-solo-unicorn status
-solo-unicorn restart
+# Workstation lifecycle
+solo-unicorn workstation register [--name NAME] [--force]
+solo-unicorn workstation start [--background]
+solo-unicorn workstation stop [--force]
+solo-unicorn workstation status [--json]
+solo-unicorn workstation restart
 
-# Repository Management (Git Worktree Support)
-solo-unicorn init [REPO_URL] [--path PATH] [--worktree BRANCH]
-solo-unicorn repo add REPO_URL [--path PATH] [--worktree BRANCH]
-solo-unicorn repo remove REPO_ID
+# Aliases (ergonomic)
+solo-unicorn start        # alias of workstation start
+solo-unicorn stop         # alias of workstation stop
+solo-unicorn status       # alias of workstation status
+solo-unicorn restart      # alias of workstation restart
+
+# Repositories (GitHub linking)
+solo-unicorn repo add GITHUB_URL [--path PATH]
 solo-unicorn repo list
-solo-unicorn worktree create REPO_ID BRANCH [--path PATH]
+solo-unicorn repo remove REPO_ID
+
+# Worktrees (auto-provisioned)
+# Worktrees are created automatically on first mission for a repo/branch
 solo-unicorn worktree list [REPO_ID]
-solo-unicorn worktree remove WORKTREE_PATH
+solo-unicorn worktree remove WORKTREE_ID | --repo REPO_ID --branch BRANCH | --path PATH
 
 # Configuration
 solo-unicorn config get [KEY]
 solo-unicorn config set KEY VALUE
 solo-unicorn config list
-solo-unicorn config reset
+solo-unicorn config reset [KEY]
 
-# Development Server (Public Tunneling)
-solo-unicorn serve [--port PORT] [--public]
-solo-unicorn tunnel status
+# (Not in MVP) Development server
+solo-unicorn dev-server start [--port PORT] [--project PROJECT_ID]
+solo-unicorn dev-server stop
+solo-unicorn dev-server status [--json]
 
-# Utilities
-solo-unicorn logs [--follow] [--lines N]
-solo-unicorn update
-solo-unicorn doctor
+# (Not in MVP) Public tunneling
+solo-unicorn tunnel open [--target-port PORT] [--project PROJECT_ID]
+solo-unicorn tunnel close
+solo-unicorn tunnel status [--json]
+
+# Agents (MVP)
+solo-unicorn agent scan
+solo-unicorn agent list
+solo-unicorn agent add TYPE [--version VERSION]
+
+# CLI self-management
+solo-unicorn self update
+solo-unicorn self version
+
+# Help
 solo-unicorn help [COMMAND]
 ```
 
@@ -97,31 +117,31 @@ solo-unicorn help [COMMAND]
 
 ### 1. Authentication Commands
 
-#### `solo-unicorn login`
+#### `solo-unicorn auth login`
 
 **Purpose**: Authenticate user and register workstation using Monster Auth
 
 ```bash
 # Interactive web authentication (default)
-solo-unicorn login
-solo-unicorn login --org my-company
+solo-unicorn auth login
+solo-unicorn auth login --org my-company
 
 # Personal access token
-solo-unicorn login --api-key pat_123abc...
-solo-unicorn login --api-key pat_123abc... --org my-company
+solo-unicorn auth login --api-key pat_123abc...
+solo-unicorn auth login --api-key pat_123abc... --org my-company
 
 # Organization API key (for service accounts)
-solo-unicorn login --org-key org_key_123abc... --org my-company
+solo-unicorn auth login --org-key org_key_123abc... --org my-company
 
 # Advanced options
-solo-unicorn login --web --port 3000 --timeout 300
-solo-unicorn login --config-dir ~/.solo-unicorn-dev
+solo-unicorn auth login --web --timeout 300
+solo-unicorn auth login --config-dir ~/.solo-unicorn-dev
 ```
 
 **Monster Auth Integration Flow**:
 
 1. **Web Auth (default)**:
-   - Start local HTTP server on random port
+   - Start local HTTP server on a random ephemeral port (auto-selected; no user configuration in MVP)
    - Open browser to `https://auth.monstermake.limited/authorize?client_id=solo-unicorn-cli&redirect_uri=http://localhost:{port}&response_type=code`
    - User completes Monster Auth OAuth flow
    - Receive authorization code via callback
@@ -143,6 +163,7 @@ solo-unicorn login --config-dir ~/.solo-unicorn-dev
    - Generate unique workstation ID
    - Register with Solo Unicorn API
    - Configure Monster Realtime connection
+   - Also available as a dedicated command: `solo-unicorn workstation register`
 
 **Error Handling**:
 
@@ -153,15 +174,30 @@ solo-unicorn login --config-dir ~/.solo-unicorn-dev
 
 ### 2. Workstation Management with Monster Realtime
 
-#### `solo-unicorn start`
+#### `solo-unicorn workstation register`
+
+Purpose: Register or re-register the current workstation with the Solo Unicorn API. This is performed automatically during auth login, but is also available as a dedicated command for headless setups, regenerating metadata, or recovering from corrupted local state.
+
+```bash
+solo-unicorn workstation register
+# Optional: set a friendly name or force re-registration
+solo-unicorn workstation register --name "John's MacBook" --force
+```
+
+Notes:
+- Collects system info (OS, arch, hostname), generates or refreshes workstation ID.
+- Associates the workstation with the authenticated user/org.
+- Safe to run multiple times; idempotent unless --force is provided.
+
+#### `solo-unicorn workstation start`
 
 **Purpose**: Connect to Monster Realtime and signal readiness for mission assignments
 
 ```bash
+solo-unicorn workstation start
+solo-unicorn workstation start --background         # Run in background
+# Alias for ergonomics
 solo-unicorn start
-solo-unicorn start --background         # Run in background
-solo-unicorn start --port 8500          # Custom local port
-solo-unicorn start --code-agents claude,cursor  # Limit available code agents
 ```
 
 **Monster Realtime Integration**:
@@ -203,13 +239,15 @@ channel.on("message", (envelope) => {
 - `project:{project_id}:workstations` - Project-wide workstation updates
 - `mission:{mission_id}` - Mission-specific coordination
 
-#### `solo-unicorn status`
+#### `solo-unicorn workstation status`
 
 **Purpose**: Show current workstation and connection status
 
 ```bash
+solo-unicorn workstation status
+solo-unicorn workstation status --json    # Machine-readable output
+# Alias for ergonomics
 solo-unicorn status
-solo-unicorn status --json    # Machine-readable output
 ```
 
 **Output**:
@@ -267,27 +305,31 @@ Active Missions:
 
 #### Repository Management with Worktrees
 
-**Purpose**: Support multiple working directories from same repository
+**Purpose**: Support multiple working directories from the same repository. For MVP, worktrees are created automatically by the CLI on first mission targeting a repo/branch; there is no manual worktree create command.
 
 ```bash
-# Initialize with main branch
-solo-unicorn init https://github.com/user/repo
+# Add repository by GitHub URL (optionally specify local path)
+solo-unicorn repo add https://github.com/user/repo --path ~/workspace/repo
 
-# Create worktree for feature branch
-solo-unicorn worktree create repo_123 feature/auth --path ~/workspace/repo-feature-auth
-
-# List all worktrees for a repo
+# On first mission targeting this repo/branch, the CLI auto-creates a worktree
+# at the default workspace path following your naming scheme.
+# You can view it with:
 solo-unicorn worktree list repo_123
 
-# Remove worktree (preserves branch)
-solo-unicorn worktree remove ~/workspace/repo-feature-auth
+# Remove worktree (if needed)
+# Preferably by ID or by repo+branch; path is still accepted
+solo-unicorn worktree remove --repo repo_123 --branch feature/auth
+# or
+solo-unicorn worktree remove WORKTREE_ID
+# or
+solo-unicorn worktree remove --path ~/workspace/repo-feature-auth
 ```
 
 **Worktree Management Flow**:
 
 1. **Main Repository**: Clone to `WORKSPACE_PATH/repo-name`
-2. **Feature Worktrees**: Create in `WORKSPACE_PATH/repo-name-branch-name`
-3. **Automatic Cleanup**: Remove worktrees when branches are deleted
+2. **Feature Worktrees**: Auto-created by the CLI on first mission for a repo/branch (e.g., `WORKSPACE_PATH/repo-name-branch-name`)
+3. **Automatic Cleanup**: Remove worktrees when branches are deleted (manual `worktree remove` is available if needed)
 4. **Mission Assignment**: Route missions to appropriate worktree based on target branch
 
 **Configuration Storage**:
@@ -358,19 +400,24 @@ interface WorktreePool {
 
 ### 4. Local Development Server with Public Tunneling
 
-#### `solo-unicorn serve`
+#### `solo-unicorn dev-server` and `solo-unicorn tunnel`
 
 **Purpose**: Host local development applications with public channel access
 
 ```bash
 # Start local dev server
-solo-unicorn serve --port 3000
+solo-unicorn dev-server start --port 3000
 
 # Make it publicly accessible via channel
-solo-unicorn serve --port 3000 --public
+solo-unicorn tunnel open --target-port 3000
 
 # Serve specific project
-solo-unicorn serve --project proj_123 --port 3000 --public
+solo-unicorn dev-server start --project proj_123 --port 3000
+solo-unicorn tunnel open --project proj_123 --target-port 3000
+
+# Check status
+solo-unicorn dev-server status
+solo-unicorn tunnel status
 ```
 
 **Public Tunneling Architecture**:
@@ -667,19 +714,18 @@ interface WorkstationCodeAgentConfig {
 #### Code Agent Detection and Management
 
 ```bash
-# Scan system for available code agents
-solo-unicorn code-agent scan
+# Scan system for available agents
+solo-unicorn agent scan
 
-# Install missing code agents
-solo-unicorn code-agent install claude-code
-solo-unicorn code-agent install cursor --version latest
+# List detected/registered agents
+solo-unicorn agent list
 
-# Configure code agent settings
-solo-unicorn code-agent config claude-code --config-dir ~/.claude-dev
-solo-unicorn code-agent config cursor --max-concurrency 1
+# Add/register an agent
+solo-unicorn agent add claude-code
+solo-unicorn agent add cursor --version latest
 ```
 
-#### Health Diagnostics
+#### Planned: Health Diagnostics (post-MVP)
 
 ```bash
 # Comprehensive system check
@@ -761,10 +807,10 @@ Network:
 ### Error Messages
 
 ```bash
-$ solo-unicorn start
+$ solo-unicorn workstation start
 ❌ Error: Not logged in
 
-Please run 'solo-unicorn login' first to authenticate with Monster Auth.
+Please run 'solo-unicorn auth login' first to authenticate with Monster Auth.
 
 Need help? Visit https://docs.solounicorn.lol/cli/authentication
 
@@ -775,52 +821,53 @@ The branch 'feature/new-ui' was not found in the remote repository.
 
 To fix this:
 • Create the branch first: git checkout -b feature/new-ui && git push -u origin feature/new-ui
-• Use an existing branch: solo-unicorn worktree list-branches repo_123
+• Use an existing branch: check remote branches with: git branch -r
 • Specify a different branch name
 
-$ solo-unicorn serve --public
+$ solo-unicorn dev-server start --port 3000 && solo-unicorn tunnel open --target-port 3000
 ❌ Error: Monster Realtime connection failed
 
 Could not establish WebSocket connection to realtime.monstermake.limited
 
 Possible solutions:
-• Check internet connectivity: solo-unicorn doctor --realtime
-• Verify authentication status: solo-unicorn whoami
+• Verify authentication status: solo-unicorn auth whoami
+• Check workstation connection: solo-unicorn workstation status
+• Check tunnel status: solo-unicorn tunnel status
 • Check for corporate firewall blocking WebSocket connections
-• Try reconnecting: solo-unicorn restart
+• Try reconnecting: solo-unicorn workstation restart
 ```
 
 ### Progress Indicators
 
 ```bash
-$ solo-unicorn init https://github.com/user/large-repo
+$ solo-unicorn repo add https://github.com/user/large-repo --path ~/workspace/large-repo
 🔍 Validating repository access...
 ✓ Repository accessible
 📁 Cloning repository to workspace...
    ████████████████████▓▓▓▓ 70% (350MB/500MB)
 🌲 Setting up git worktree structure...
 🔗 Registering with Solo Unicorn API...
-✓ Repository initialized successfully
+✓ Repository added successfully
 
 Repository: user/large-repo (repo_123)
 Main path: /Users/john/workspace/large-repo
 Branch: main
 Ready for mission assignments!
 
-$ solo-unicorn start --background
+$ solo-unicorn workstation start --background
 🔌 Connecting to Monster Realtime...
 ✓ WebSocket connection established
 🏠 Joining workstation channel...
 ✓ Presence registered
-🤖 Scanning for available code agents...
+🤖 Scanning for available agents...
    - Claude Code v2.1.4 ✓
    - Cursor v0.42.0 ✓
    - OpenCode (not installed)
 🚀 Workstation ready for missions
 
 Background process started (PID: 12345)
-Use 'solo-unicorn status' to monitor
-Use 'solo-unicorn stop' to shutdown
+Use 'solo-unicorn workstation status' to monitor
+Use 'solo-unicorn workstation stop' to shutdown
 ```
 
 ## Installation and Distribution

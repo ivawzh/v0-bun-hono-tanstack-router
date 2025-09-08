@@ -12,31 +12,6 @@ This document captures high-level feature requirements that cover all public int
 
 This ensures comprehensive feature coverage across all interfaces and maintains consistency between CLI, Web, and API implementations.
 
-## Terminology Migration Guide
-
-**Updated Design Pattern**: Solo Unicorn v3 introduces a **flow-first mission creation** approach for improved user experience.
-
-**Terminology Changes**:
-- "Mission workflow" → "Flow"
-- "Mission workflow template" → "Flow"
-- "Workflow template" → "Flow"
-
-**Design Changes**:
-1. **Flow Selection First**: Users now select a flow as the primary step when creating missions
-2. **Optional Stage Selection**: Stage selection becomes a secondary, optional step to skip earlier flow stages
-3. **Improved UX**: This change makes the mission creation process more intuitive and flow-oriented
-
-**Migration Mapping**:
-| Old Term | New Term | Context |
-|----------|----------|----------|
-| Workflow Template | Flow | Database entities, UI components |
-| Mission Workflow | Flow | General references to mission sequences |
-| Workflow Configuration | Flow Configuration | Settings and customization |
-| workflow_templates | flows | Database table names |
-| workflow_template_id | flow_id | Foreign key references |
-
-**Note**: This is primarily a documentation and UI terminology update. API endpoints may maintain backward compatibility where needed.
-
 ## Core Feature Requirements
 
 ### Communication Protocol Hierarchy
@@ -125,12 +100,12 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 **Requirements**:
 
 - Kanban-style mission organization (Todo, Doing, Review, Done)
-- Default mission modes (clarify, plan, code, review). Mission mode mainly determines prompt template.
-- Default flow - clarify → plan → code → review
-- User may add their own modes and flows.
+- Default mission stages (clarify, plan, code). Mission stage mainly determines prompt template.
+- Default flow - clarify → plan → code
+- User may add their own stages and flows.
 - **Flow-First Mission Creation**: When creating a new mission, users first select a flow (e.g., "Standard Development", "Quick Fix", "Research & Analysis")
 - **Optional Stage Selection**: After selecting a flow, users can optionally select a specific stage to start from, allowing them to skip earlier stages in the flow sequence
-- Review system - any mode can optionally require human review
+- Review system - any stage can optionally require human review
 - Mission dependencies and priority management
 - Loop missions with `is_loop` boolean flag for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
 - Future loop scheduling (once per day max, twice per hour max, etc.)
@@ -141,7 +116,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 - **CLI**: Mission updates via MCP integration
 - **Web**: Kanban board with drag-and-drop, mission creation/editing, review UI
-- **MCP**: Tools for mission updates - plan, mode, list, etc.
+- **MCP**: Tools for mission updates - plan, stage, list, etc.
 
 ### 6. Change Management System
 
@@ -211,11 +186,11 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Requirements**:
 
-- **Review Points**: Any flow mode can require human review
+- **Review Points**: Any flow stage can require human review
 - **Review List**: Special kanban column for missions awaiting review
 - **Approval Flow**: Human reviews and approves/rejects with feedback
-- **Flow Continuation**: Approved missions proceed to next mode automatically
-- **Rejection Handling**: Rejected missions return to doing list and current mode to iterate with feedback. PR comments are also used to guide the iteration.
+- **Flow Continuation**: Approved missions proceed to next stage automatically
+- **Rejection Handling**: Rejected missions return to doing list and current stage to iterate with feedback. PR comments are also used to guide the iteration.
 - **Review History**: Track who reviewed, when, and with what feedback
 
 **Public Interfaces**:
@@ -254,38 +229,38 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
   - **Default**: All projects are private by default
   - **Opt-in Public**: Project owners must explicitly enable public visibility
   - **Granular Controls**: Even public projects can restrict specific features
-  
+
 - **Granular Permissions**: Fine-grained access control for different project resources
   - **Mission Access**: Separate read/write permissions for missions
   - **Workstation Visibility**: Three levels - hidden, status only, full details
   - **Repository Access**: Control visibility of repository information
   - **Execution Permissions**: Control who can execute missions on workstations
   - **Memory Access**: Control access to project memory/documentation
-  
+
 - **Permission Levels**: Hierarchical role system with inheritance
   - **Public (Anonymous)**: Basic read-only access to public projects
   - **Contributor**: Community members who can create/edit missions
   - **Collaborator**: Trusted members with enhanced visibility
   - **Maintainer**: Project maintainers who can execute missions
   - **Owner**: Full project control including permission management
-  
+
 - **Workstation Privacy Controls**:
   - **Hidden**: Workstations completely invisible to non-owners (default)
   - **Status Only**: Show only online/offline status
   - **Full Details**: Show detailed workstation information and capabilities
-  
+
 - **Security Boundaries**: Public access must not expose sensitive data
   - **Workstation Security**: Local paths, environment variables, and sensitive config never exposed
   - **Organization Privacy**: Organization details remain private unless explicitly shared
   - **Rate Limiting**: Prevent abuse of public project features
   - **Audit Logging**: Track all access attempts and permission changes
-  
+
 - **Access Request System**: Allow users to request elevated permissions
   - **Self-Service Requests**: Users can request contributor/collaborator access
   - **Approval Workflow**: Project owners can approve/deny access requests
   - **Request History**: Track all permission requests and decisions
   - **Auto-Approval**: Optional automatic approval for contributor-level access
-  
+
 - **Permission Inheritance**: Smart permission resolution
   - **Default Permissions**: Role-based defaults with per-user overrides
   - **Organization Override**: Organization owners have full access to all projects
@@ -322,37 +297,37 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
   - **Sorting Options**: Popularity, recent activity, stars, creation date
   - **Pagination**: Handle large numbers of public projects efficiently
   - **Preview Mode**: Quick project overview without full access
-  
+
 - **Project Templates**: Reusable project structures
   - **Template Creation**: Convert existing projects into reusable templates
   - **Template Library**: Curated collection of project templates
   - **One-Click Creation**: Create new projects from templates instantly
   - **Template Customization**: Modify templates during project creation
-  
+
 - **Featured Projects**: Curated showcase
   - **Editorial Control**: Admin-controlled featured project selection
   - **Quality Criteria**: High completion rates, good documentation, active maintenance
   - **Rotation System**: Regularly update featured projects
   - **Spotlight Stories**: Featured project case studies and success stories
-  
+
 - **Category & Tag System**: Organized project discovery
   - **Predefined Categories**: Web Development, Mobile App, AI/ML, DevOps, etc.
   - **Tag System**: Flexible tagging with technology stacks (React, TypeScript, Python)
   - **Category Stats**: Show project count and activity per category
   - **Tag Autocomplete**: Help users discover relevant tags
-  
+
 - **Project Metrics & Analytics**: Engagement tracking
   - **Activity Metrics**: Mission creation/completion rates, recent activity
   - **Community Metrics**: Contributor count, stars, forks (template usage)
   - **Progress Visualization**: Visual progress bars for mission completion
   - **Performance Indicators**: Success rates, average completion times
-  
+
 - **Community Engagement**: User interaction features
   - **Star System**: Users can star projects for bookmarking and popularity ranking
   - **Project Following**: Get notifications for project updates
   - **Contribution Tracking**: Track user contributions across public projects
   - **Community Profiles**: Show user's public project involvement
-  
+
 - **Project Sharing & Embedding**: External integration
   - **Public URLs**: Clean, memorable URLs for public projects
   - **Social Sharing**: Share project links with rich preview metadata
@@ -361,19 +336,19 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Public Interfaces**:
 
-- **CLI**: 
+- **CLI**:
   - Browse public projects: `solo-unicorn projects browse [--category] [--featured]`
   - Search projects: `solo-unicorn projects search "query"`
   - Star projects: `solo-unicorn projects star PROJECT_SLUG`
   - Create from template: `solo-unicorn projects create-from-template TEMPLATE_SLUG`
-  
-- **Web**: 
+
+- **Web**:
   - Project gallery with advanced filtering and search
   - Template marketplace with preview and customization
   - Community dashboard showing user contributions
   - Social features for project engagement
-  
-- **API**: 
+
+- **API**:
   - Public project discovery endpoints (no auth required)
   - Template API for programmatic project creation
   - Analytics API for project statistics
@@ -390,37 +365,37 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
   - `GET /api/public/projects/{slug}/missions` - Get public missions (permission-aware)
   - `GET /api/public/categories` - List project categories and counts
   - `GET /api/public/featured` - Get featured projects list
-  
+
 - **Permission-Aware Responses**: API responses adapt to user authentication
   - **Anonymous**: Basic project info, completed missions, public documentation
   - **Authenticated**: Additional permissions based on role (contributor, collaborator, etc.)
   - **Graceful Degradation**: No authentication errors, just filtered responses
   - **Permission Headers**: Include user role in response headers when authenticated
-  
+
 - **Rate Limiting**: Prevent abuse while enabling legitimate usage
   - **Anonymous Users**: 100 requests/hour per IP
   - **Authenticated Users**: 1000 requests/hour per user
   - **Contributor+**: 5000 requests/hour for project contributors
   - **Burst Limits**: Allow short bursts for legitimate usage patterns
   - **Rate Limit Headers**: Include remaining quota in response headers
-  
+
 - **CORS Configuration**: Enable web embedding and third-party integrations
   - **Permissive CORS**: Allow requests from any origin for public endpoints
   - **Credential Support**: Support authenticated requests with credentials
   - **Preflight Handling**: Proper OPTIONS request handling for complex requests
   - **Security Headers**: CSRF protection for authenticated operations
-  
+
 - **Caching Strategy**: Optimize performance for high-traffic public content
   - **CDN Integration**: Cache public project data at edge locations
   - **Conditional Requests**: Support ETag and If-Modified-Since headers
   - **Cache Invalidation**: Smart cache busting when projects are updated
   - **Vary Headers**: Proper caching for permission-aware responses
-  
+
 - **API Versioning**: Maintain backward compatibility
   - **URL Versioning**: `/api/v1/public/projects` for stable public APIs
   - **Deprecation Strategy**: Clear timeline for API version lifecycle
   - **Migration Guide**: Help users upgrade between API versions
-  
+
 - **Documentation**: Comprehensive API documentation
   - **OpenAPI Spec**: Machine-readable API specification
   - **Interactive Docs**: Swagger UI for API exploration

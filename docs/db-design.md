@@ -880,7 +880,7 @@ CREATE TABLE missions (
   stage VARCHAR(50) DEFAULT 'clarify', -- Now supports custom stages
   flow_id VARCHAR(26),
   flow_config JSON, -- customized stage sequence and review requirements
-  current_flow_step INTEGER DEFAULT 0, -- Current position in flow
+  current_flow_task INTEGER DEFAULT 0, -- Current position in flow
   requires_review BOOLEAN DEFAULT false, -- Current stage requires review
 
   -- Assignment (maintain compatibility with current system)
@@ -910,8 +910,8 @@ CREATE TABLE missions (
   last_code_agent_session_id VARCHAR(100), -- for tracking code agent sessions
 
   -- Plan (Hybrid filesystem + database tracking)
-  plan_steps_summary JSON, -- Array of one-liner step descriptions for UI display
-  plan_current_step INTEGER DEFAULT 0, -- Current step being worked on (0-based index)
+  plan_tasks_summary JSON, -- Array of one-liner task descriptions for UI display
+  plan_current_task INTEGER DEFAULT 0, -- Current task being worked on (0-based index)
 
   -- Review
   review_status ENUM('pending', 'approved', 'rejected') DEFAULT NULL,
