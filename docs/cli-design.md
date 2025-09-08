@@ -2,7 +2,7 @@
 
 ## Overview
 
-Solo Unicorn CLI is a Bun-compiled single-file application that runs on user machines (workstations) to orchestrate AI coding tasks. It bridges the gap between the Solo Unicorn web platform and local development environments.
+Solo Unicorn CLI is a Bun-compiled single-file application that runs on user machines (workstations) to orchestrate AI coding missions. It bridges the gap between the Solo Unicorn web platform and local development environments.
 
 Majority of prompt command is provided by Solo Unicorn server. However, CLI might append extra information sourced from `~/.solo-unicorn/config.json`, e.g. workspace directory path.
 
@@ -11,8 +11,8 @@ Majority of prompt command is provided by Solo Unicorn server. However, CLI migh
 **Protocol Hierarchy** (use least powerful approach):
 - **oRPC**: Internal communication (web ↔ server) when breaking changes acceptable
 - **REST API**: External communication (CLI ↔ server, third-party integrations) when backward compatibility required  
-- **WebSocket**: Real-time push notifications only (task assignments, status updates)
-- **MCP**: AI agent communication only (task updates, project memory access)
+- **WebSocket**: Real-time push notifications only (mission assignments, status updates)
+- **MCP**: AI agent communication only (mission updates, project memory access)
 
 ## Architecture
 
@@ -20,14 +20,14 @@ Majority of prompt command is provided by Solo Unicorn server. However, CLI migh
                           ┌──────────────────────┐
            ┌───────────── │  Solo Unicorn MCP    │───┐
            |              │                      │   |
-           |              │ - Code agent create tasks │   |
-           |              │ - Code agent update tasks │   |
+           |              │ - Code agent create missions │   |
+           |              │ - Code agent update missions │   |
            |              └──────────────────────┘   |
 ┌─────────────────────┐                  ┌─────────────────────┐
 │   Solo Unicorn      │                  │   Workstation       │
 │   Server            │                  │   (CLI)             │
 │                     │                  │                     │
-│ - Task Queue        │    Monster       │ - Run Code Agents   │
+│ - Mission Queue     │    Monster       │ - Run Code Agents   │
 │ - Project Mgmt      │    Realtime      │ - Repo Manager      │
 │ - Prompt generation │    WebSocket     │ - Config Store      │
 │ - Public URL        │    Tunnel        │ - Dev server @ Port │
@@ -37,7 +37,7 @@ Majority of prompt command is provided by Solo Unicorn server. However, CLI migh
            └──────────────│  Monster Realtime   │───┘
                           │  Gateway            │
                           │                     │
-                          │ - Server pushes tasks to CLI│
+                          │ - Server pushes missions to CLI│
                           │ - Channel routing   │
                           │ - Presence system   │
                           │ - Auth validation   │
@@ -79,7 +79,7 @@ solo-unicorn worktree remove WORKTREE_PATH
 # Public Project Management
 solo-unicorn projects browse [--category CATEGORY] [--featured] [--starred]
 solo-unicorn projects search QUERY [--category CATEGORY] [--sort popularity|recent|stars]
-solo-unicorn projects view PROJECT_SLUG [--tasks] [--contributors]
+solo-unicorn projects view PROJECT_SLUG [--missions] [--contributors]
 solo-unicorn projects star PROJECT_SLUG
 solo-unicorn projects contribute PROJECT_SLUG [--role contributor|collaborator]
 solo-unicorn projects create-from-template PROJECT_SLUG [--name NAME] [--private]
@@ -163,7 +163,7 @@ solo-unicorn login --config-dir ~/.solo-unicorn-dev
 
 #### `solo-unicorn start`
 
-**Purpose**: Connect to Monster Realtime and signal readiness for task assignments
+**Purpose**: Connect to Monster Realtime and signal readiness for mission assignments
 
 ```bash
 solo-unicorn start
@@ -197,10 +197,10 @@ channel.push("message", {
   }
 });
 
-// Listen for task assignments
+// Listen for mission assignments
 channel.on("message", (envelope) => {
-  if (envelope.type === "task:assign") {
-    handleTaskAssignment(envelope.payload);
+  if (envelope.type === "mission:assign") {
+    handleMissionAssignment(envelope.payload);
   }
 });
 ```
@@ -209,7 +209,7 @@ channel.on("message", (envelope) => {
 
 - `workstation:{workstation_id}` - Direct workstation communication
 - `project:{project_id}:workstations` - Project-wide workstation updates
-- `task:{task_id}` - Task-specific coordination
+- `mission:{mission_id}` - Mission-specific coordination
 
 #### `solo-unicorn status`
 
@@ -265,8 +265,8 @@ Development Server:
 🌐 Local server: http://localhost:3000
 🔗 Public tunnel: https://channel.solounicorn.lol/workstation/ws_abc123def/project/proj_123
 
-Active Tasks:
-📋 task_789 - Implement auth system (claude-code, 15m ago)
+Active Missions:
+📋 mission_789 - Implement auth system (claude-code, 15m ago)
    Working in: /Users/john/workspace/solo-unicorn-feature-auth
 ```
 
@@ -295,7 +295,7 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
 1. **Main Repository**: Clone to `WORKSPACE_PATH/repo-name`
 2. **Feature Worktrees**: Create in `WORKSPACE_PATH/repo-name-branch-name`
 3. **Automatic Cleanup**: Remove worktrees when branches are deleted
-4. **Task Assignment**: Route tasks to appropriate worktree based on target branch
+4. **Mission Assignment**: Route missions to appropriate worktree based on target branch
 
 **Configuration Storage**:
 
@@ -316,9 +316,9 @@ solo-unicorn worktree remove ~/workspace/repo-feature-auth
         {
           "branch": "hotfix/critical-bug",
           "path": "/Users/john/workspace/solo-unicorn-hotfix",
+          "missionId": "mission_123",
           "createdAt": "2024-01-16T14:20:00Z"
         }
-      ]
     }
   ]
 }
@@ -337,7 +337,7 @@ interface WorktreePool {
   inUse: Array<{
     path: string;
     branch: string;
-    taskId: string;
+    missionId: string;
   }>;
 }
 
@@ -358,9 +358,9 @@ interface WorktreePool {
 
 - Multiple branches checked out simultaneously
 - No need to stash/commit when switching contexts
-- Isolated working directories for different tasks
+- Isolated working directories for different missions
 - Shared .git directory (efficient disk usage)
-- Perfect for parallel AI task execution
+- Perfect for parallel AI mission execution
 - Smart reuse reduces disk space and setup time
 
 ### 8. Public Project Discovery & Management
@@ -452,7 +452,7 @@ Search Results for "react typescript" (8 found)
 📱 Task Manager          ⭐ 67   ✅ 12/15  Updated 1d ago  
    React + TypeScript productivity app with AI features
    Tags: react, typescript, productivity, openai
-   [View: solo-unicorn projects view task-manager]
+   [View: solo-unicorn projects view mission-manager]
 ```
 
 #### `solo-unicorn projects view`
@@ -463,14 +463,14 @@ Search Results for "react typescript" (8 found)
 # Basic project view
 solo-unicorn projects view ecommerce-starter
 
-# Include task details
-solo-unicorn projects view ecommerce-starter --tasks
+# Include mission details
+solo-unicorn projects view ecommerce-starter --missions
 
 # Include contributor information  
 solo-unicorn projects view ecommerce-starter --contributors
 
 # Full details
-solo-unicorn projects view ecommerce-starter --tasks --contributors
+solo-unicorn projects view ecommerce-starter --missions --contributors
 ```
 
 **Output Example**:
@@ -480,14 +480,14 @@ E-commerce Starter Kit
 ======================
 
 by @ecommerce_expert • React, TypeScript, Stripe
-⭐ 142 stars • ✅ 23/25 tasks completed • 📈 High activity
+⭐ 142 stars • ✅ 23/25 missions completed • 📈 High activity
 
 Description:
 Complete e-commerce solution with React frontend, Node.js backend,
 Stripe payments, and PostgreSQL database. Includes user authentication,
 product catalog, shopping cart, and admin dashboard.
 
-Progress: ██████████████████████▒▒▒ 92% (23/25 tasks)
+Progress: ██████████████████████▒▒▒ 92% (23/25 missions)
 Status: 🟢 Active • Last updated: 2 hours ago
 Workstations: 2 active (can contribute)
 Contributors: 8 members
@@ -498,9 +498,9 @@ Category: Web Development
 Tags: react, typescript, stripe, ecommerce, nodejs, postgresql
 
 Latest Activity:
-• Task completed: "Payment Gateway Integration" (2h ago)
+• Mission completed: "Payment Gateway Integration" (2h ago)
 • New contributor: mike_dev joined as Contributor (5h ago)  
-• Task created: "Mobile Responsive Design" (1d ago)
+• Mission created: "Mobile Responsive Design" (1d ago)
 
 Actions:
 [⭐ Star]    [🍴 Use as Template]    [💻 Contribute]    [📋 View Kanban]
@@ -546,11 +546,11 @@ Current access: Public (read-only)
 Requesting role: Contributor
 
 Contributor permissions include:
-✅ Create and edit tasks  
-✅ Comment on tasks and PRs
-✅ Submit task dependencies
-❌ View workstation details
-❌ Execute tasks
+✓ Create and edit missions  
+✓ Comment on missions and PRs
+✓ Submit mission dependencies
+✗ View workstation details
+✗ Execute missions
 
 Why do you want to contribute? (optional)
 > I have experience with React and Stripe integration. I'd like to help 
@@ -564,7 +564,7 @@ This project has automatic approval for Contributors.
 You now have contributor access to ecommerce-starter.
 
 Next steps:
-• View tasks: solo-unicorn projects view ecommerce-starter --tasks  
+• View missions: solo-unicorn projects view ecommerce-starter --missions  
 • Browse kanban: https://solounicorn.lol/projects/ecommerce-starter
 • Join discussions: Check project channels for collaboration
 ```
@@ -593,9 +593,9 @@ Creating project from template: E-commerce Starter Kit
 ======================================================
 
 Template includes:
-✅ 25 pre-configured tasks
-✅ Workflow templates (Development, Testing, Deployment)  
-✅ Project memory with tech stack documentation
+✓ 25 pre-configured missions
+✓ Workflow templates (Development, Testing, Deployment)  
+✓ Project memory with tech stack documentation
 ✅ Actor profiles (Frontend Dev, Backend Dev, Full-stack)
 ✅ Repository recommendations
 
@@ -606,8 +606,8 @@ Visibility: Private
 Description: Custom e-commerce solution for handmade crafts
 
 Customization options:
-[1] Keep original tasks as-is
-[2] Update task descriptions for your use case  
+[1] Keep original missions as-is
+[2] Update mission descriptions for your use case  
 [3] Modify tech stack recommendations
 [4] Custom setup (advanced)
 
@@ -617,13 +617,13 @@ Choice [2]: 2
 
 Created: proj_789xyz (my-ecommerce-store)  
 URL: https://app.solounicorn.lol/projects/my-ecommerce-store
-Tasks: 25 imported (ready for customization)
+Missions: 25 imported (ready for customization)
 
 Next steps:
-• Customize tasks for your specific needs
+• Customize missions for your specific needs
 • Set up your repository: solo-unicorn repo add <YOUR_REPO_URL>
 • Start your workstation: solo-unicorn start
-• Begin development: Tasks are ready for AI processing!
+• Begin development: Missions are ready for AI processing!
 ```
 
 ### 9. Project Permission Management
@@ -635,14 +635,14 @@ Next steps:
 ```bash
 # View command shows different content based on permissions
 solo-unicorn projects view ecommerce-starter
-# Public user: sees overview, completed tasks, public documentation
-# Contributor: sees active tasks, can comment
+# Public user: sees overview, completed missions, public documentation
+# Contributor: sees active missions, can comment
 # Maintainer: sees workstation status, can execute tasks
 # Owner: sees all details, can manage permissions
 
 # Commands are enabled/disabled based on permissions
-solo-unicorn tasks create --project ecommerce-starter
-# ✅ Works if user has write_tasks permission  
+solo-unicorn missions create --project ecommerce-starter
+# ✓ Works if user has write_missions permission
 # ❌ Error: "Permission denied. Need Contributor access or higher"
 
 # Context-aware help
@@ -920,7 +920,7 @@ interface WorkstationCodeAgentConfig {
       },
       "enabled": true,
       "healthStatus": "healthy",
-      "tasksCompleted": 42,
+      "missionsCompleted": 42,
       "lastUsed": "2024-01-15T14:30:00Z",
       "averageTaskDuration": 1200
     },
@@ -942,7 +942,7 @@ interface WorkstationCodeAgentConfig {
       },
       "enabled": true,
       "healthStatus": "healthy",
-      "tasksCompleted": 18,
+      "missionsCompleted": 18,
       "lastUsed": "2024-01-14T16:45:00Z",
       "averageTaskDuration": 900
     }
@@ -1099,7 +1099,7 @@ $ solo-unicorn init https://github.com/user/large-repo
 Repository: user/large-repo (repo_123)
 Main path: /Users/john/workspace/large-repo
 Branch: main
-Ready for task assignments!
+Ready for mission assignments!
 
 $ solo-unicorn start --background
 🔌 Connecting to Monster Realtime...
@@ -1110,7 +1110,7 @@ $ solo-unicorn start --background
    - Claude Code v2.1.4 ✓
    - Cursor v0.42.0 ✓
    - OpenCode (not installed)
-🚀 Workstation ready for tasks
+🚀 Workstation ready for missions
 
 Background process started (PID: 12345)
 Use 'solo-unicorn status' to monitor
@@ -1163,14 +1163,14 @@ snap install solo-unicorn-cli          # Linux
 
 ### Planned Features
 
-1. **Multi-Code Agent Orchestration**: Coordinate multiple code agents on single tasks
-2. **Task Templates**: Pre-configured task types with workflow templates
+1. **Multi-Code Agent Orchestration**: Coordinate multiple code agents on single missions
+2. **Mission Templates**: Pre-configured mission types with workflow templates
 3. **Remote Development**: Full VS Code server integration with tunneling
 4. **Team Workspaces**: Shared workstation pools for organizations
 5. **CI/CD Integration**: GitHub Actions and other CI/CD platform support
 6. **Metrics and Analytics**: Workstation performance and usage tracking
 7. **Plugin System**: Extensible code agent and tool integration
-8. **Loop Task Scheduling**: Advanced scheduling for loop tasks (max per day/hour)
+8. **Loop Mission Scheduling**: Advanced scheduling for loop missions (max per day/hour)
 
 This comprehensive CLI design integrates seamlessly with Monster Auth and Monster Realtime while providing robust git worktree support and innovative development server tunneling. The system is designed for production use with excellent error handling, security practices, and cross-platform compatibility.
 
@@ -1200,7 +1200,7 @@ Service will provide information if user has chosen to use PRs or not (YOLO, pus
 
 #### Smart Branch Management
 
-- **Auto-naming**: `solo-unicorn/task-{id}-{slug}` format
+- **Auto-naming**: `solo-unicorn/mission-{id}-{slug}` format
 - **Conflict Resolution**: AI handles merge conflicts when possible
 - **Branch Cleanup**: Automatic deletion after successful merge
 
@@ -1212,4 +1212,4 @@ Service will provide information if user has chosen to use PRs or not (YOLO, pus
 
 - Read PR comments and change requests via Github CLI/MCP
 
-This comprehensive PR support system bridges the gap between fast iteration and controlled development, providing the perfect solution for projects at any stage of maturity while maintaining Solo Unicorn's focus on AI-powered task orchestration.
+This comprehensive PR support system bridges the gap between fast iteration and controlled development, providing the perfect solution for projects at any stage of maturity while maintaining Solo Unicorn's focus on AI-powered mission orchestration.

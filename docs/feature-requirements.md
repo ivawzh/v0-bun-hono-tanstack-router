@@ -22,8 +22,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 - **oRPC**: Internal communication (web ↔ server) when breaking changes acceptable (components update together)
 - **REST API**: External communication (CLI ↔ server, third-party integrations) when backward compatibility required
-- **WebSocket**: Real-time push notifications only (task assignments, status updates)
-- **MCP**: AI agent communication only (task updates, project memory access)
+- **WebSocket**: Real-time push notifications only (mission assignments, status updates)
+- **MCP**: AI agent communication only (mission updates, project memory access)
 
 **Implementation**:
 - Use oRPC for all internal HTTP communications via `/rpc` endpoints
@@ -55,7 +55,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 - Workstation is user's machine that hosts code agents and repository worktrees. That is, coding happens on client side.
 - Workstation registration and status tracking
-- Workstation receive task push from server via Monster Realtime WebSocket. Code agents update tasks via MCP server.
+- Workstation receive mission push from server via Monster Realtime WebSocket. Code agents update missions via MCP server.
 - Real-time presence via Monster Realtime WebSocket
 - Cross-platform support (Windows, macOS, Linux)
 - Background daemon mode with system service integration
@@ -92,36 +92,36 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Public Interfaces**:
 
-- **CLI**: automatically clone/worktree repo when task is assigned with Github URL.
+- **CLI**: automatically clone/worktree repo when mission is assigned with Github URL.
 - **Web**: Repository configuration and worktree visualization
 
-### 5. Task Management & Workflow
+### 5. Mission Management & Workflow
 
 **Requirements**:
 
-- Kanban-style task organization (Todo, Doing, Review, Done)
-- Default task modes (clarify, plan, code, review). Task mode mainly determines prompt template.
+- Kanban-style mission organization (Todo, Doing, Review, Done)
+- Default mission modes (clarify, plan, code, review). Mission mode mainly determines prompt template.
 - Default workflow - clarify → plan → code → review
 - User may add their own modes and workflows.
 - Review system - any mode can optionally require human review
-- Task dependencies and priority management
-- Loop tasks with `is_loop` boolean flag for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
+- Mission dependencies and priority management
+- Loop missions with `is_loop` boolean flag for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
 - Future loop scheduling (once per day max, twice per hour max, etc.)
-- Careful task assignment. Task is ready based on dependencies, repo concurrency, and workstation/code agent availability. Ordered by priority, list, and list order.
-- Plan document management in filesystem (./solo-unicorn-docs/tasks/{task-id}/)
+- Careful mission assignment. Mission is ready based on dependencies, repo concurrency, and workstation/code agent availability. Ordered by priority, list, and list order.
+- Plan document management in filesystem (./solo-unicorn-docs/missions/{mission-id}/)
 
 **Public Interfaces**:
 
-- **CLI**: Task updates via MCP integration
-- **Web**: Kanban board with drag-and-drop, task creation/editing, review UI
-- **MCP**: Tools for task updates - plan, mode, list, etc.
+- **CLI**: Mission updates via MCP integration
+- **Web**: Kanban board with drag-and-drop, mission creation/editing, review UI
+- **MCP**: Tools for mission updates - plan, mode, list, etc.
 
 ### 6. Change Management System
 
 **Requirements**:
 
 - Dual change management support: YOLO mode (direct to default branch) and PRs
-- Automatic GitHub PR creation with task context
+- Automatic GitHub PR creation with mission context
 - AI code agent view PR comments and implement changes.
 
 **Public Interfaces**:
@@ -141,7 +141,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 **Requirements**:
 
 - Multi-project organization structure
-- Project memory for shared context across tasks
+- Project memory for shared context across missions
 - Project-specific configuration and defaults
 - User invitation and role management
 - Project archiving and lifecycle management
@@ -157,13 +157,13 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 - Monster Realtime WebSocket integration
 - Workstation presence and status updates
-- Task assignment notifications
-- Real-time UI updates for task status changes
+- Mission assignment notifications
+- Real-time UI updates for mission status changes
 - Channel-based communication architecture
 
 **Public Interfaces**:
 
-- **CLI**: WebSocket client for presence and task assignment
+- **CLI**: WebSocket client for presence and mission assignment
 - **Web**: Real-time status updates via WebSocket
 - **API**: system schema endpoint with API key based authentication
 
@@ -185,10 +185,10 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 **Requirements**:
 
 - **Review Points**: Any workflow mode can require human review
-- **Review List**: Special kanban column for tasks awaiting review
+- **Review List**: Special kanban column for missions awaiting review
 - **Approval Flow**: Human reviews and approves/rejects with feedback
-- **Workflow Continuation**: Approved tasks proceed to next mode automatically
-- **Rejection Handling**: Rejected tasks return to doing list and current mode to iterate with feedback. PR comments are also used to guide the iteration.
+- **Workflow Continuation**: Approved missions proceed to next mode automatically
+- **Rejection Handling**: Rejected missions return to doing list and current mode to iterate with feedback. PR comments are also used to guide the iteration.
 - **Review History**: Track who reviewed, when, and with what feedback
 
 **Public Interfaces**:
@@ -201,7 +201,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 **Requirements**:
 
 - **Hybrid Storage**: Plan content in filesystem, progress tracking in database
-- **Filesystem Storage**: Plans stored in `./solo-unicorn-docs/tasks/{task-id}/`
+- **Filesystem Storage**: Plans stored in `./solo-unicorn-docs/missions/{mission-id}/`
 - **Plan Structure**:
   - `plan.md`: Main plan with solution, spec, steps list
   - `steps/{n}.md`: Detailed step-by-step implementation plans
@@ -217,7 +217,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 - **CLI**: Plan viewing commands, progress status
 - **Web**: Plan viewer with step navigation
-- **MCP**: `task_update` tool
+- **MCP**: `mission_update` tool
 
 ### 13. Public Projects & Access Control
 
@@ -226,22 +226,22 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - **Project Visibility**: Support private (organization-only) and public projects
 - **Granular Permissions**: Fine-grained access control for different project resources
 - **Permission Levels**: Public, Contributor, Collaborator, Maintainer, Owner roles
-- **Resource-Based Access**: Separate permissions for tasks, workstations, execution, and admin functions
+- **Resource-Based Access**: Separate permissions for missions, workstations, execution, and admin functions
 - **Security Boundaries**: Public access must not expose sensitive workstation or organizational data
 - **Invitation System**: Invite external users to public projects with specific permission levels
 - **Permission Inheritance**: Default permissions with per-user overrides
 - **Audit Trail**: Track all permission changes and access attempts
 
 **Permission Matrix**:
-- **Public Access**: View project overview, completed tasks, public documentation
-- **Contributor**: Create/edit tasks, comment, submit dependencies
+- **Public Access**: View project overview, completed missions, public documentation
+- **Contributor**: Create/edit missions, comment, submit dependencies
 - **Collaborator**: View workstation status, access analytics, create workflows
-- **Maintainer**: Execute tasks, manage repositories, detailed workstation access
+- **Maintainer**: Execute missions, manage repositories, detailed workstation access
 - **Owner**: Full project control, permission management, project deletion
 
 **Public Interfaces**:
 
-- **CLI**: Public project browsing, permission-aware task operations
+- **CLI**: Public project browsing, permission-aware mission operations
 - **Web**: Public project gallery, permission management UI, role-based feature access
 - **API**: Public project endpoints with permission validation
 

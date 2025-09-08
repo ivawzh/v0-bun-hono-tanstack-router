@@ -53,8 +53,8 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 **Decision**: Simplified agent table + client-side configuration JSON
 
 **Rationale**:
-- Existing task assignment code requires complex agent queries (impossible with JSONB)
-- Server needs agent status, concurrency limits, and type for task assignment
+- Existing mission assignment code requires complex agent queries (impossible with JSONB)
+- Server needs agent status, concurrency limits, and type for mission assignment
 - Client-specific config (paths, environment vars) should stay on workstation
 - Cleaner separation of concerns: server for orchestration, client for execution
 
@@ -70,7 +70,7 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 
 ### Pull Request Support
 
-**Decision**: Optional per-project and per-task PR workflow
+**Decision**: Optional per-project and per-mission PR workflow
 
 **Rationale**:
 - Early stage projects need fast iteration (direct push to main)
@@ -93,10 +93,10 @@ Organizations 1---* Users *---* UserAuthentications
      *                    |
  Projects 1---* ProjectWorkstations
      |                    |
-     1                    *
+     1                    |
      |                    |
-     *                    1
-  Tasks *---* TaskAgents *---1 Agents
+     *                    |
+  Missions *---* MissionAgents *---1 Agents
      |               |
      |               |
      1               *
@@ -243,7 +243,7 @@ CREATE TABLE workstations (
   last_seen_at TIMESTAMP,
   last_heartbeat_at TIMESTAMP,
 
-  -- Code Agent Information (minimal for server task assignment)
+  -- Code Agent Information (minimal for server mission assignment)
   available_code_agents JSON, -- [{"type": "claude-code", "name": "Claude Primary", "available": true}]
 
   -- Monster Realtime Integration
@@ -284,7 +284,7 @@ interface WorkstationPresence {
     rateLimited?: boolean;
     rateLimitResetAt?: string;
   }>;
-  activeTaskCount: number;
+  activeMissionCount: number;
   maxConcurrency: number;
 }
 ```
@@ -400,9 +400,9 @@ interface WorkstationCodeAgentConfig {
       healthStatus: 'healthy' | 'warning' | 'error' | 'unknown';
 
       // Statistics
-      tasksCompleted: number;
+      missionsCompleted: number;
       lastUsed?: string;               // ISO timestamp
-      averageTaskDuration?: number;    // seconds
+      averageMissionDuration?: number;    // seconds
     };
   };
 
@@ -419,7 +419,7 @@ interface WorkstationCodeAgentConfig {
 
 ### Projects
 
-Projects contain tasks and define which workstations can work on them. Projects can be private (organization-only) or public with granular access control.
+Projects contain missions and define which workstations can work on them. Projects can be private (organization-only) or public with granular access control.
 
 ```sql
 CREATE TABLE projects (
@@ -430,33 +430,33 @@ CREATE TABLE projects (
   name VARCHAR(255) NOT NULL,
   description TEXT,
   slug VARCHAR(100), -- URL-safe identifier within org
-  
+
   -- Public Project Support
   visibility ENUM('private', 'public') DEFAULT 'private',
   public_slug VARCHAR(100) UNIQUE, -- Global unique slug for public projects
-  
+
   -- Public Project Metadata
   category VARCHAR(50), -- 'web-development', 'mobile-app', 'ai-ml', etc.
   tags JSON, -- ["react", "typescript", "api"]
   featured BOOLEAN DEFAULT false, -- Featured in project gallery
   star_count INTEGER DEFAULT 0, -- Community engagement metric
-  
+
   -- Public Access Configuration
-  public_task_read BOOLEAN DEFAULT true, -- Allow public users to read tasks
+  public_mission_read BOOLEAN DEFAULT true, -- Allow public users to read missions
   public_memory_read BOOLEAN DEFAULT true, -- Allow public users to read project memory
-  contributor_task_write BOOLEAN DEFAULT true, -- Allow contributors to create/edit tasks
+  contributor_mission_write BOOLEAN DEFAULT true, -- Allow contributors to create/edit missions
   collaborator_workstation_read BOOLEAN DEFAULT false, -- Allow collaborators to see workstation status
-  maintainer_task_execute BOOLEAN DEFAULT false, -- Allow maintainers to execute tasks
+  maintainer_mission_execute BOOLEAN DEFAULT false, -- Allow maintainers to execute missions
 
   -- Configuration
   default_workflow_template_id VARCHAR(26),
   default_actor_id VARCHAR(26),
 
-  -- Project Memory (shared context for all tasks)
+  -- Project Memory (shared context for all missions)
   memory TEXT, -- markdown content
 
   -- Pull Request Configuration
-  pr_mode_default ENUM('disabled', 'enabled') DEFAULT 'disabled', -- default PR mode for new tasks
+  pr_mode_default ENUM('disabled', 'enabled') DEFAULT 'disabled', -- default PR mode for new missions
   pr_require_review BOOLEAN DEFAULT true, -- require human review before merging
   pr_auto_merge BOOLEAN DEFAULT false, -- auto-merge approved PRs
   pr_delete_branch_after_merge BOOLEAN DEFAULT true, -- cleanup branches
@@ -511,12 +511,12 @@ CREATE TABLE project_repositories (
   auto_delete_pr_branches BOOLEAN DEFAULT true, -- cleanup merged branches
 
   -- Concurrency Control
-  max_concurrent_tasks INTEGER DEFAULT 1, -- 0 = unlimited
+  max_concurrent_missions INTEGER DEFAULT 1, -- 0 = unlimited
 
   -- Status
   status ENUM('active', 'inactive', 'error') DEFAULT 'active',
   last_accessed_at TIMESTAMP,
-  last_task_pushed_at TIMESTAMP, -- critical for task assignment logic
+  last_mission_pushed_at TIMESTAMP, -- critical for mission assignment logic
   last_pr_sync_at TIMESTAMP, -- last GitHub PR sync
 
   -- GitHub API Integration
@@ -590,7 +590,7 @@ CREATE TABLE git_worktrees (
 
   -- Usage
   last_used_at TIMESTAMP,
-  active_task_count INTEGER DEFAULT 0,
+  active_mission_count INTEGER DEFAULT 0,
 
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
@@ -613,36 +613,36 @@ CREATE TABLE project_permissions (
   id VARCHAR(26) PRIMARY KEY, -- ulid: projperm_01H123...
   project_id VARCHAR(26) NOT NULL,
   user_id VARCHAR(26), -- NULL for anonymous/public permissions
-  
+
   -- Permission Role
   role ENUM('public', 'contributor', 'collaborator', 'maintainer', 'owner') NOT NULL,
-  
+
   -- Granular Permission Overrides (NULL = inherit from role default)
-  can_read_tasks BOOLEAN DEFAULT NULL,
-  can_write_tasks BOOLEAN DEFAULT NULL,
+  can_read_missions BOOLEAN DEFAULT NULL,
+  can_write_missions BOOLEAN DEFAULT NULL,
   can_read_workstations BOOLEAN DEFAULT NULL,
-  can_execute_tasks BOOLEAN DEFAULT NULL,
+  can_execute_missions BOOLEAN DEFAULT NULL,
   can_admin_project BOOLEAN DEFAULT NULL,
-  
+
   -- Additional Permissions
   can_invite_users BOOLEAN DEFAULT NULL,
   can_manage_repositories BOOLEAN DEFAULT NULL,
   can_view_analytics BOOLEAN DEFAULT NULL,
-  
+
   -- Status
   status ENUM('active', 'invited', 'revoked') DEFAULT 'active',
   invited_by VARCHAR(26), -- user_id of inviter
   invited_at TIMESTAMP,
   accepted_at TIMESTAMP,
-  
+
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  
+
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (invited_by) REFERENCES users(id) ON DELETE SET NULL,
-  
+
   UNIQUE KEY unique_project_user (project_id, user_id),
   INDEX idx_project_permissions_project_id (project_id),
   INDEX idx_project_permissions_user_id (user_id),
@@ -660,13 +660,13 @@ CREATE TABLE project_stars (
   id VARCHAR(26) PRIMARY KEY, -- ulid: star_01H123...
   project_id VARCHAR(26) NOT NULL,
   user_id VARCHAR(26) NOT NULL,
-  
+
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
-  
+
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  
+
   UNIQUE KEY unique_project_user_star (project_id, user_id),
   INDEX idx_project_stars_project_id (project_id),
   INDEX idx_project_stars_user_id (user_id),
@@ -683,23 +683,23 @@ CREATE TABLE project_activity (
   id VARCHAR(26) PRIMARY KEY, -- ulid: activity_01H123...
   project_id VARCHAR(26) NOT NULL,
   user_id VARCHAR(26), -- NULL for anonymous activity
-  
+
   -- Activity Details
-  activity_type ENUM('task_created', 'task_completed', 'user_joined', 'star_added', 'repository_updated') NOT NULL,
+  activity_type ENUM('mission_created', 'mission_completed', 'user_joined', 'star_added', 'repository_updated') NOT NULL,
   activity_data JSON, -- Flexible activity metadata
-  
+
   -- Context
-  task_id VARCHAR(26), -- Associated task if applicable
+  mission_id VARCHAR(26), -- Associated mission if applicable
   workstation_id VARCHAR(26), -- Associated workstation if applicable
-  
+
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
-  
+
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE SET NULL,
+  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE SET NULL,
   FOREIGN KEY (workstation_id) REFERENCES workstations(id) ON DELETE SET NULL,
-  
+
   INDEX idx_project_activity_project_id (project_id),
   INDEX idx_project_activity_user_id (user_id),
   INDEX idx_project_activity_type (activity_type),
@@ -718,7 +718,7 @@ CREATE TABLE project_workstations (
   workstation_id VARCHAR(26) NOT NULL,
 
   -- Access Control
-  can_receive_tasks BOOLEAN DEFAULT true,
+  can_receive_missions BOOLEAN DEFAULT true,
   priority INTEGER DEFAULT 100, -- lower = higher priority
 
   -- Timestamps
@@ -753,7 +753,7 @@ CREATE TABLE workflow_templates (
   is_system BOOLEAN DEFAULT false, -- System-provided templates
 
   -- Usage Statistics
-  tasks_using_count INTEGER DEFAULT 0,
+  missions_using_count INTEGER DEFAULT 0,
 
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
@@ -802,7 +802,7 @@ CREATE TABLE workflow_modes (
 
 ### Actors
 
-Defines AI agent personalities and methodologies for tasks.
+Defines AI agent personalities and methodologies for missions.
 
 ```sql
 CREATE TABLE actors (
@@ -820,7 +820,7 @@ CREATE TABLE actors (
 
   -- Usage
   is_default BOOLEAN DEFAULT false,
-  tasks_assigned_count INTEGER DEFAULT 0,
+  missions_assigned_count INTEGER DEFAULT 0,
 
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
@@ -833,16 +833,16 @@ CREATE TABLE actors (
 );
 ```
 
-### Tasks
+### Missions
 
-Core task entity supporting flexible workflows and workstation-based execution.
+Core mission entity supporting flexible workflows and workstation-based execution.
 
 ```sql
-CREATE TABLE tasks (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: task_01H123...
+CREATE TABLE missions (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: mission_01H123...
   project_id VARCHAR(26) NOT NULL,
 
-  -- Task Content
+  -- Mission Content
   title VARCHAR(500) NOT NULL,
   description TEXT,
 
@@ -850,7 +850,7 @@ CREATE TABLE tasks (
   refined_title VARCHAR(500),
   refined_description TEXT,
 
-  -- Task Configuration
+  -- Mission Configuration
   priority INTEGER DEFAULT 3, -- 1-5 (5=highest)
   list ENUM('todo', 'doing', 'review', 'done', 'loop') DEFAULT 'todo',
   list_order DECIMAL(10,5) DEFAULT 1000.00000, -- for drag-and-drop ordering
@@ -869,15 +869,15 @@ CREATE TABLE tasks (
   actor_id VARCHAR(26), -- assigned AI persona
 
   -- PR Support
-  pr_mode ENUM('disabled', 'enabled', 'auto') DEFAULT 'auto', -- per-task PR override
-  pr_created BOOLEAN DEFAULT false, -- has PR been created for this task
+  pr_mode ENUM('disabled', 'enabled', 'auto') DEFAULT 'auto', -- per-mission PR override
+  pr_created BOOLEAN DEFAULT false, -- has PR been created for this mission
   github_pr_number INTEGER, -- GitHub PR number
   github_pr_url TEXT, -- full GitHub PR URL
-  pr_branch_name VARCHAR(255), -- task-specific branch name
+  pr_branch_name VARCHAR(255), -- mission-specific branch name
   pr_merge_strategy ENUM('merge', 'squash', 'rebase') DEFAULT 'squash',
 
-  -- Loop Task Configuration
-  is_loop BOOLEAN DEFAULT false, -- loop task flag
+  -- Loop Mission Configuration
+  is_loop BOOLEAN DEFAULT false, -- loop mission flag
   loop_schedule JSON, -- future: {"maxPerDay": 2, "maxPerHour": 1}
 
   -- Status & Execution
@@ -916,29 +916,29 @@ CREATE TABLE tasks (
   FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE SET NULL,
   FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
 
-  INDEX idx_tasks_project_id (project_id),
-  INDEX idx_tasks_list (list),
-  INDEX idx_tasks_mode (mode),
-  INDEX idx_tasks_ready (ready),
-  INDEX idx_tasks_agent_session_status (agent_session_status),
-  INDEX idx_tasks_is_loop (is_loop),
-  INDEX idx_tasks_agent_session_status_changed_at (agent_session_status_changed_at),
-  INDEX idx_tasks_priority_list_order (priority DESC, list, list_order),
-  INDEX idx_tasks_created_at (created_at),
-  INDEX idx_tasks_pr_number (github_pr_number),
-  INDEX idx_tasks_pr_created (pr_created)
+  INDEX idx_missions_project_id (project_id),
+  INDEX idx_missions_list (list),
+  INDEX idx_missions_mode (mode),
+  INDEX idx_missions_ready (ready),
+  INDEX idx_missions_agent_session_status (agent_session_status),
+  INDEX idx_missions_is_loop (is_loop),
+  INDEX idx_missions_agent_session_status_changed_at (agent_session_status_changed_at),
+  INDEX idx_missions_priority_list_order (priority DESC, list, list_order),
+  INDEX idx_missions_created_at (created_at),
+  INDEX idx_missions_pr_number (github_pr_number),
+  INDEX idx_missions_pr_created (pr_created)
 );
 ```
 
-### Task Dependencies
+### Mission Dependencies
 
-Manages dependencies between tasks.
+Manages dependencies between missions.
 
 ```sql
-CREATE TABLE task_dependencies (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: taskdep_01H123...
-  task_id VARCHAR(26) NOT NULL, -- the task that depends
-  depends_on_task_id VARCHAR(26) NOT NULL, -- the task it depends on
+CREATE TABLE mission_dependencies (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: missiondep_01H123...
+  mission_id VARCHAR(26) NOT NULL, -- the mission that depends
+  depends_on_mission_id VARCHAR(26) NOT NULL, -- the mission it depends on
 
   -- Dependency Type
   dependency_type ENUM('blocks', 'relates_to') DEFAULT 'blocks',
@@ -950,35 +950,35 @@ CREATE TABLE task_dependencies (
   -- Timestamps
   created_at TIMESTAMP DEFAULT NOW(),
 
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
-  FOREIGN KEY (depends_on_task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
+  FOREIGN KEY (depends_on_mission_id) REFERENCES missions(id) ON DELETE CASCADE,
 
-  UNIQUE KEY unique_task_dependency (task_id, depends_on_task_id),
-  INDEX idx_task_deps_task_id (task_id),
-  INDEX idx_task_deps_depends_on (depends_on_task_id),
-  INDEX idx_task_deps_status (status)
+  UNIQUE KEY unique_mission_dependency (mission_id, depends_on_mission_id),
+  INDEX idx_mission_deps_mission_id (mission_id),
+  INDEX idx_mission_deps_depends_on (depends_on_mission_id),
+  INDEX idx_mission_deps_status (status)
 );
 ```
 
-### Task Assignment Strategy
+### Mission Assignment Strategy
 
-**Client-Side Assignment**: Tasks are assigned to available workstations based on:
+**Client-Side Assignment**: Missions are assigned to available workstations based on:
 
 1. **Project Workstation Access**: Which workstations can access the project
 2. **Agent Availability**: Real-time agent status via WebSocket presence
 3. **Repository Concurrency**: Respect `maxConcurrencyLimit` per repository
-4. **Task Priority**: Higher priority tasks assigned first
+4. **Mission Priority**: Higher priority missions assigned first
 
-**No Database Table Needed**: Assignment logic uses workstation presence data and simple task queries.
+**No Database Table Needed**: Assignment logic uses workstation presence data and simple mission queries.
 
-### Task Attachments
+### Mission Attachments
 
-File attachments for tasks (wireframes, specs, etc.).
+File attachments for missions (wireframes, specs, etc.).
 
 ```sql
-CREATE TABLE task_attachments (
+CREATE TABLE mission_attachments (
   id VARCHAR(26) PRIMARY KEY, -- ulid: attach_01H123...
-  task_id VARCHAR(26) NOT NULL,
+  mission_id VARCHAR(26) NOT NULL,
 
   -- File Details
   filename VARCHAR(500) NOT NULL,
@@ -998,21 +998,21 @@ CREATE TABLE task_attachments (
   -- Timestamps
   uploaded_at TIMESTAMP DEFAULT NOW(),
 
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
 
-  INDEX idx_attachments_task_id (task_id),
+  INDEX idx_attachments_mission_id (mission_id),
   INDEX idx_attachments_type (attachment_type)
 );
 ```
 
 ### Code Agent Sessions
 
-Tracks individual code agent execution sessions for tasks.
+Tracks individual code agent execution sessions for missions.
 
 ```sql
 CREATE TABLE code_agent_sessions (
   id VARCHAR(26) PRIMARY KEY, -- ulid: session_01H123...
-  task_id VARCHAR(26) NOT NULL,
+  mission_id VARCHAR(26) NOT NULL,
   code_agent_type VARCHAR(50) NOT NULL, -- claude-code, cursor, etc.
   code_agent_name VARCHAR(255), -- display name
   workstation_id VARCHAR(26) NOT NULL,
@@ -1045,11 +1045,11 @@ CREATE TABLE code_agent_sessions (
   error_message TEXT,
   recovery_attempts INTEGER DEFAULT 0,
 
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
   FOREIGN KEY (workstation_id) REFERENCES workstations(id) ON DELETE CASCADE,
   FOREIGN KEY (worktree_id) REFERENCES git_worktrees(id) ON DELETE SET NULL,
 
-  INDEX idx_sessions_task_id (task_id),
+  INDEX idx_sessions_mission_id (mission_id),
   INDEX idx_sessions_code_agent_type (code_agent_type),
   INDEX idx_sessions_workstation_id (workstation_id),
   INDEX idx_sessions_status (status),
@@ -1059,12 +1059,12 @@ CREATE TABLE code_agent_sessions (
 
 ### GitHub Pull Requests
 
-Tracks GitHub PRs created by AI agents for tasks in PR mode.
+Tracks GitHub PRs created by AI agents for missions in PR mode.
 
 ```sql
 CREATE TABLE github_pull_requests (
   id VARCHAR(26) PRIMARY KEY, -- ulid: ghpr_01H123...
-  task_id VARCHAR(26) NOT NULL,
+  mission_id VARCHAR(26) NOT NULL,
   project_repository_id VARCHAR(26) NOT NULL,
 
   -- GitHub PR Information
@@ -1073,7 +1073,7 @@ CREATE TABLE github_pull_requests (
   github_pr_url TEXT NOT NULL,
 
   -- Branch Information
-  source_branch VARCHAR(255) NOT NULL, -- solo-unicorn/task-123-feature
+  source_branch VARCHAR(255) NOT NULL, -- solo-unicorn/mission-123-feature
   target_branch VARCHAR(255) NOT NULL, -- main, develop, etc.
 
   -- PR Content
@@ -1110,12 +1110,12 @@ CREATE TABLE github_pull_requests (
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
 
-  FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
   FOREIGN KEY (project_repository_id) REFERENCES project_repositories(id) ON DELETE CASCADE,
   FOREIGN KEY (created_by_workstation_id) REFERENCES workstations(id) ON DELETE SET NULL,
 
   UNIQUE KEY unique_repo_pr_number (project_repository_id, github_pr_number),
-  INDEX idx_github_prs_task_id (task_id),
+  INDEX idx_github_prs_mission_id (mission_id),
   INDEX idx_github_prs_repo_id (project_repository_id),
   INDEX idx_github_prs_status (status),
   INDEX idx_github_prs_review_status (review_status),
@@ -1184,14 +1184,14 @@ CREATE TABLE github_pr_comments (
 ### Helpers (System Infrastructure)
 
 System-wide helper table for database locking and configuration storage.
-**Critical**: This table is required for the database locking mechanism used in task assignment.
+**Critical**: This table is required for the database locking mechanism used in mission assignment.
 
 ```sql
 CREATE TABLE helpers (
   id VARCHAR(26) PRIMARY KEY, -- ulid: helper_01H123...
 
   -- Helper Identity
-  code VARCHAR(100) UNIQUE NOT NULL, -- unique identifier (e.g., 'TASK_PUSH_LOCK')
+  code VARCHAR(100) UNIQUE NOT NULL, -- unique identifier (e.g., 'MISSION_PUSH_LOCK')
   description TEXT,
 
   -- Helper Data
@@ -1211,7 +1211,7 @@ CREATE TABLE helpers (
 
 -- Pre-populate with required system helpers
 INSERT INTO helpers (id, code, description, state) VALUES
-('helper_01TASK_PUSH_LOCK', 'TASK_PUSH_LOCK', 'Database lock for task assignment operations',
+('helper_01MISSION_PUSH_LOCK', 'MISSION_PUSH_LOCK', 'Database lock for mission assignment operations',
  '{"locked": false, "timestamp": null, "expiresAt": null}');
 ```
 
@@ -1219,26 +1219,26 @@ INSERT INTO helpers (id, code, description, state) VALUES
 
 ### High-Frequency Query Optimization
 
-**Critical Performance Note**: These indexes are optimized for queries that run every 10 seconds (monitoring) and complex task assignment queries with embedded subqueries.
+**Critical Performance Note**: These indexes are optimized for queries that run every 10 seconds (monitoring) and complex mission assignment queries with embedded subqueries.
 
 ```sql
 -- ULTRA HIGH FREQUENCY: Monitoring queries (every 10 seconds)
--- Count active tasks: SELECT COUNT(*) FROM tasks WHERE agent_session_status IN ('PUSHING', 'ACTIVE')
-CREATE INDEX idx_monitoring_active_tasks ON tasks (
+-- Count active missions: SELECT COUNT(*) FROM missions WHERE agent_session_status IN ('PUSHING', 'ACTIVE')
+CREATE INDEX idx_monitoring_active_missions ON missions (
   agent_session_status,
   list
 ) WHERE agent_session_status IN ('PUSHING', 'ACTIVE') AND list NOT IN ('done', 'review');
 
--- Count ready tasks: SELECT COUNT(*) FROM tasks WHERE ready = true AND agent_session_status = 'INACTIVE'
-CREATE INDEX idx_monitoring_ready_tasks ON tasks (
+-- Count ready missions: SELECT COUNT(*) FROM missions WHERE ready = true AND agent_session_status = 'INACTIVE'
+CREATE INDEX idx_monitoring_ready_missions ON missions (
   ready,
   agent_session_status,
   list
 ) WHERE ready = true AND agent_session_status = 'INACTIVE' AND list NOT IN ('done', 'review');
 
--- COMPLEX QUERY: Task assignment with embedded subqueries (from task-finder.ts)
--- Primary task assignment query with all conditions
-CREATE INDEX idx_task_assignment_complex ON tasks (
+-- COMPLEX QUERY: Mission assignment with embedded subqueries (from mission-finder.ts)
+-- Primary mission assignment query with all conditions
+CREATE INDEX idx_mission_assignment_complex ON missions (
   ready,
   agent_session_status,
   list,
@@ -1247,28 +1247,28 @@ CREATE INDEX idx_task_assignment_complex ON tasks (
   created_at
 ) WHERE ready = true AND agent_session_status = 'INACTIVE' AND list NOT IN ('done', 'review');
 
--- Repository concurrency subquery: COUNT(*) FROM tasks WHERE main_repository_id = X AND agent_session_status IN ('PUSHING', 'ACTIVE')
-CREATE INDEX idx_repo_active_tasks ON tasks (
+-- Repository concurrency subquery: COUNT(*) FROM missions WHERE main_repository_id = X AND agent_session_status IN ('PUSHING', 'ACTIVE')
+CREATE INDEX idx_repo_active_missions ON missions (
   main_repository_id,
   agent_session_status,
   list
 ) WHERE agent_session_status IN ('PUSHING', 'ACTIVE') AND list NOT IN ('done', 'review');
 
--- Code Agent concurrency subquery: COUNT(*) FROM tasks WHERE code_agent_type = X AND agent_session_status IN ('PUSHING', 'ACTIVE')
-CREATE INDEX idx_code_agent_active_tasks ON tasks (
+-- Code Agent concurrency subquery: COUNT(*) FROM missions WHERE code_agent_type = X AND agent_session_status IN ('PUSHING', 'ACTIVE')
+CREATE INDEX idx_code_agent_active_missions ON missions (
   code_agent_type,
   agent_session_status,
   list
 ) WHERE agent_session_status IN ('PUSHING', 'ACTIVE') AND list NOT IN ('done', 'review');
 
--- Task dependency resolution (EXISTS subquery)
-CREATE INDEX idx_task_dependencies_blocking ON task_dependencies (
-  task_id,
+-- Mission dependency resolution (EXISTS subquery)
+CREATE INDEX idx_mission_dependencies_blocking ON mission_dependencies (
+  mission_id,
   status,
-  depends_on_task_id
+  depends_on_mission_id
 ) WHERE status = 'active';
 
--- Code Agent availability for task assignment
+-- Code Agent availability for mission assignment
 CREATE INDEX idx_code_agent_availability ON code_agents (
   workstation_id,
   status,
@@ -1276,9 +1276,9 @@ CREATE INDEX idx_code_agent_availability ON code_agents (
   max_concurrency_limit
 ) WHERE status IN ('available', 'busy');
 
--- Task-code agent relationship queries
-CREATE INDEX idx_task_code_agents_assignment ON task_code_agents (
-  task_id,
+-- Mission-code agent relationship queries
+CREATE INDEX idx_mission_code_agents_assignment ON mission_code_agents (
+  mission_id,
   code_agent_id,
   assignment_status,
   priority
@@ -1299,8 +1299,8 @@ CREATE INDEX idx_workstation_monitoring ON workstations (
   last_heartbeat_at DESC
 );
 
--- Project task overview (web UI)
-CREATE INDEX idx_project_tasks_overview ON tasks (
+-- Project mission overview (web UI)
+CREATE INDEX idx_project_missions_overview ON missions (
   project_id,
   list,
   priority DESC,
@@ -1319,7 +1319,7 @@ CREATE INDEX idx_code_agent_sessions_active ON code_agent_sessions (
 CREATE INDEX idx_worktrees_usage ON git_worktrees (
   workstation_repository_id,
   status,
-  active_task_count,
+  active_mission_count,
   last_used_at DESC
 );
 ```
@@ -1330,13 +1330,13 @@ CREATE INDEX idx_worktrees_usage ON git_worktrees (
 
 ```sql
 -- Simple monitoring queries with proper indexes
--- Count active tasks
+-- Count active missions
 SELECT
   COUNT(*) FILTER (WHERE agent_session_status = 'PUSHING') as pushing_count,
   COUNT(*) FILTER (WHERE agent_session_status = 'ACTIVE') as active_count,
   COUNT(*) FILTER (WHERE agent_session_status IN ('PUSHING', 'ACTIVE')) as total_active,
   COUNT(*) FILTER (WHERE ready = true AND agent_session_status = 'INACTIVE') as ready_count
-FROM tasks
+FROM missions
 WHERE list NOT IN ('done', 'review');
 
 -- Code agent availability check (via workstation presence)
@@ -1344,11 +1344,11 @@ SELECT
   w.id as workstation_id,
   JSON_EXTRACT(w.available_code_agents, '$[*].type') as agent_types,
   JSON_EXTRACT(w.available_code_agents, '$[*].available') as availability,
-  COALESCE(t.active_count, 0) as current_active_tasks
+  COALESCE(t.active_count, 0) as current_active_missions
 FROM workstations w
 LEFT JOIN (
   SELECT code_agent_type, COUNT(*) as active_count
-  FROM tasks
+  FROM missions
   WHERE agent_session_status IN ('PUSHING', 'ACTIVE')
     AND list NOT IN ('done', 'review')
   GROUP BY code_agent_type
@@ -1359,12 +1359,12 @@ WHERE w.status = 'online';
 ### Error Recovery Functions
 
 ```sql
--- Reset stuck tasks based on timeout
-CREATE FUNCTION reset_stuck_tasks()
+-- Reset stuck missions based on timeout
+CREATE FUNCTION reset_stuck_missions()
 RETURNS INTEGER
 LANGUAGE SQL
 AS $$
-  UPDATE tasks SET
+  UPDATE missions SET
     agent_session_status = 'INACTIVE',
     code_agent_id = NULL,
     agent_session_status_changed_at = NOW()
@@ -1391,25 +1391,25 @@ AS $$
   SELECT CASE
     -- Check if project is public and permission is public-allowed
     WHEN EXISTS (
-      SELECT 1 FROM projects 
-      WHERE id = p_project_id 
+      SELECT 1 FROM projects
+      WHERE id = p_project_id
         AND visibility = 'public'
         AND (
-          (p_permission = 'read_tasks' AND public_task_read = true) OR
+          (p_permission = 'read_missions' AND public_mission_read = true) OR
           (p_permission = 'read_memory' AND public_memory_read = true)
         )
     ) THEN true
-    
+
     -- Check organization membership first
     WHEN EXISTS (
       SELECT 1 FROM projects p
       JOIN organization_memberships om ON om.organization_id = p.organization_id
-      WHERE p.id = p_project_id 
-        AND om.user_id = p_user_id 
+      WHERE p.id = p_project_id
+        AND om.user_id = p_user_id
         AND om.status = 'active'
         AND om.role IN ('owner', 'admin')
     ) THEN true
-    
+
     -- Check specific project permissions
     WHEN EXISTS (
       SELECT 1 FROM project_permissions pp
@@ -1418,8 +1418,8 @@ AS $$
         AND pp.status = 'active'
         AND (
           CASE p_permission
-            WHEN 'read_tasks' THEN COALESCE(pp.can_read_tasks, 
-              CASE pp.role 
+            WHEN 'read_missions' THEN COALESCE(pp.can_read_missions,
+              CASE pp.role
                 WHEN 'public' THEN false
                 WHEN 'contributor' THEN true
                 WHEN 'collaborator' THEN true
@@ -1427,7 +1427,7 @@ AS $$
                 WHEN 'owner' THEN true
                 ELSE false
               END)
-            WHEN 'write_tasks' THEN COALESCE(pp.can_write_tasks,
+            WHEN 'write_missions' THEN COALESCE(pp.can_write_missions,
               CASE pp.role
                 WHEN 'public' THEN false
                 WHEN 'contributor' THEN true
@@ -1445,7 +1445,7 @@ AS $$
                 WHEN 'owner' THEN true
                 ELSE false
               END)
-            WHEN 'execute_tasks' THEN COALESCE(pp.can_execute_tasks,
+            WHEN 'execute_missions' THEN COALESCE(pp.can_execute_missions,
               CASE pp.role
                 WHEN 'public' THEN false
                 WHEN 'contributor' THEN false
@@ -1463,7 +1463,7 @@ AS $$
           END
         )
     ) THEN true
-    
+
     ELSE false
   END;
 $$;
@@ -1479,17 +1479,17 @@ READS SQL DATA
 AS $$
   SELECT COALESCE(
     -- Check organization membership first (highest priority)
-    (SELECT CASE 
+    (SELECT CASE
       WHEN om.role IN ('owner', 'admin') THEN 'owner'
       ELSE NULL
     END
     FROM projects p
     JOIN organization_memberships om ON om.organization_id = p.organization_id
-    WHERE p.id = p_project_id 
-      AND om.user_id = p_user_id 
+    WHERE p.id = p_project_id
+      AND om.user_id = p_user_id
       AND om.status = 'active'
     LIMIT 1),
-    
+
     -- Check project-specific permissions
     (SELECT pp.role::VARCHAR(20)
     FROM project_permissions pp
@@ -1497,16 +1497,16 @@ AS $$
       AND pp.user_id = p_user_id
       AND pp.status = 'active'
     LIMIT 1),
-    
+
     -- Check if project is public
-    (SELECT CASE 
+    (SELECT CASE
       WHEN p.visibility = 'public' THEN 'public'
       ELSE 'none'
     END
     FROM projects p
     WHERE p.id = p_project_id
     LIMIT 1),
-    
+
     'none'
   );
 $$;
@@ -1518,12 +1518,12 @@ LANGUAGE plpgsql
 AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    UPDATE projects 
+    UPDATE projects
     SET star_count = star_count + 1
     WHERE id = NEW.project_id;
     RETURN NEW;
   ELSIF TG_OP = 'DELETE' THEN
-    UPDATE projects 
+    UPDATE projects
     SET star_count = GREATEST(star_count - 1, 0)
     WHERE id = OLD.project_id;
     RETURN OLD;
@@ -1539,7 +1539,7 @@ $$;
 -- Update agent session status timestamp on status changes
 DELIMITER //
 CREATE TRIGGER update_agent_session_status_timestamp
-BEFORE UPDATE ON tasks
+BEFORE UPDATE ON missions
 FOR EACH ROW
 BEGIN
   -- Update timestamp when agent session status changes
@@ -1549,59 +1549,59 @@ BEGIN
 END//
 DELIMITER ;
 
--- Note: Code agent task counts managed via workstation presence updates
+-- Note: Code agent mission counts managed via workstation presence updates
 -- No database triggers needed since counts are tracked client-side
 
 -- Update dependency count when dependencies change
 DELIMITER //
-CREATE TRIGGER update_task_dependency_count
-AFTER INSERT ON task_dependencies
+CREATE TRIGGER update_mission_dependency_count
+AFTER INSERT ON mission_dependencies
 FOR EACH ROW
 BEGIN
-  UPDATE tasks
+  UPDATE missions
   SET dependency_count = (
-    SELECT COUNT(*) FROM task_dependencies
-    WHERE task_id = NEW.task_id AND status = 'active'
+    SELECT COUNT(*) FROM mission_dependencies
+    WHERE mission_id = NEW.mission_id AND status = 'active'
   )
-  WHERE id = NEW.task_id;
+  WHERE id = NEW.mission_id;
 END//
 
-CREATE TRIGGER update_task_dependency_count_delete
-AFTER DELETE ON task_dependencies
+CREATE TRIGGER update_mission_dependency_count_delete
+AFTER DELETE ON mission_dependencies
 FOR EACH ROW
 BEGIN
-  UPDATE tasks
+  UPDATE missions
   SET dependency_count = (
-    SELECT COUNT(*) FROM task_dependencies
-    WHERE task_id = OLD.task_id AND status = 'active'
+    SELECT COUNT(*) FROM mission_dependencies
+    WHERE mission_id = OLD.mission_id AND status = 'active'
   )
-  WHERE id = OLD.task_id;
+  WHERE id = OLD.mission_id;
 END//
 DELIMITER ;
 
 -- Update workflow template usage count
 DELIMITER //
 CREATE TRIGGER update_workflow_template_usage
-AFTER INSERT ON tasks
+AFTER INSERT ON missions
 FOR EACH ROW
 BEGIN
   IF NEW.workflow_template_id IS NOT NULL THEN
     UPDATE workflow_templates
-    SET tasks_using_count = tasks_using_count + 1
+    SET missions_using_count = missions_using_count + 1
     WHERE id = NEW.workflow_template_id;
   END IF;
 END//
 
 -- Maintain main_repository_id compatibility field
 CREATE TRIGGER maintain_main_repository_id
-BEFORE INSERT ON tasks
+BEFORE INSERT ON missions
 FOR EACH ROW
 BEGIN
   SET NEW.main_repository_id = NEW.project_repository_id;
 END//
 
 CREATE TRIGGER maintain_main_repository_id_update
-BEFORE UPDATE ON tasks
+BEFORE UPDATE ON missions
 FOR EACH ROW
 BEGIN
   SET NEW.main_repository_id = NEW.project_repository_id;
@@ -1621,20 +1621,20 @@ EXECUTE FUNCTION update_project_star_count();
 
 -- Project activity logging triggers
 DELIMITER //
-CREATE TRIGGER log_task_activity
-AFTER UPDATE ON tasks
+CREATE TRIGGER log_mission_activity
+AFTER UPDATE ON missions
 FOR EACH ROW
 BEGIN
-  -- Log task completion
+  -- Log mission completion
   IF OLD.list != 'done' AND NEW.list = 'done' THEN
-    INSERT INTO project_activity (id, project_id, user_id, activity_type, activity_data, task_id)
+    INSERT INTO project_activity (id, project_id, user_id, activity_type, activity_data, mission_id)
     VALUES (
       CONCAT('activity_', SUBSTRING(MD5(RAND()) FROM 1 FOR 22)),
       NEW.project_id,
       NULL, -- Will need to be updated based on session user
-      'task_completed',
+      'mission_completed',
       JSON_OBJECT(
-        'task_title', NEW.title,
+        'mission_title', NEW.title,
         'mode', NEW.mode,
         'priority', NEW.priority
       ),
@@ -1687,8 +1687,8 @@ interface RealtimeChannels {
   // Project-wide workstation updates
   project_workstations: `project:${project.id}:workstations`;
 
-  // Task-specific coordination
-  task: `task:${task.id}`;
+  // Mission-specific coordination
+  mission: `mission:${mission.id}`;
 }
 
 // Presence metadata stored in workstations.realtime_presence_meta
@@ -1697,7 +1697,7 @@ interface WorkstationPresenceMeta {
   availableAgents: string[];
   activeProjects: string[];
   devServerPort?: number;
-  currentTaskCount: number;
+  currentMissionCount: number;
 }
 ```
 
@@ -1708,10 +1708,10 @@ interface WorkstationPresenceMeta {
 2. Workstations, Agents
 3. Projects, Repositories
 
-### Phase 2: Task Management
+### Phase 2: Mission Management
 1. Workflow Templates, Actors
-2. Tasks, Dependencies
-3. Task Agents, Attachments
+2. Missions, Dependencies
+3. Mission Agents, Attachments
 
 ### Phase 3: Advanced Features
 1. Git Worktrees
@@ -1732,8 +1732,8 @@ SELECT
   created_at
 FROM v2_organizations;
 
--- Phase 2: Migrate tasks with compatibility fields
-INSERT INTO tasks (
+-- Phase 2: Migrate missions with compatibility fields
+INSERT INTO missions (
   id, project_id, title, description, priority,
   list, mode, workflow_template_id,
   project_repository_id, main_repository_id, -- both fields for compatibility
@@ -1755,20 +1755,20 @@ SELECT
   t.agent_session_status,
   t.ready,
   t.created_at
-FROM v2_tasks t
+FROM v2_missions t
 JOIN v2_repositories r ON r.id = t.main_repository_id;
 
 -- Phase 3: Initialize materialized views after migration
-REFRESH MATERIALIZED VIEW mv_active_task_counts;
+REFRESH MATERIALIZED VIEW mv_active_mission_counts;
 REFRESH MATERIALIZED VIEW mv_agent_capacity;
 
 -- Phase 4: Validate data integrity
 SELECT
-  'tasks' as table_name,
+  'missions' as table_name,
   COUNT(*) as v2_count,
-  (SELECT COUNT(*) FROM tasks) as v3_count,
-  CASE WHEN COUNT(*) = (SELECT COUNT(*) FROM tasks) THEN '✓ MATCH' ELSE '✗ MISMATCH' END as status
-FROM v2_tasks;
+  (SELECT COUNT(*) FROM missions) as v3_count,
+  CASE WHEN COUNT(*) = (SELECT COUNT(*) FROM missions) THEN '✓ MATCH' ELSE '✗ MISMATCH' END as status
+FROM v2_missions;
 ```
 
 ## V3 Architecture Adaptations & Performance Optimizations
@@ -1778,58 +1778,58 @@ FROM v2_tasks;
 This v3 schema design addresses **critical performance and compatibility issues** identified from analyzing existing query patterns in the v2 codebase:
 
 #### 1. **Workstation-Agent Architecture Alignment**
-- **Problem**: V3 introduces workstation hierarchy (Organizations → Workstations → Agents) but existing task assignment expects direct task-agent relationships
-- **Solution**: Hybrid approach with denormalized fields in `task_agents` table:
+- **Problem**: V3 introduces workstation hierarchy (Organizations → Workstations → Agents) but existing mission assignment expects direct mission-agent relationships
+- **Solution**: Hybrid approach with denormalized fields in `mission_agents` table:
   - Maintains workstation hierarchy for management
-  - Provides direct task-agent relationships for performance
+  - Provides direct mission-agent relationships for performance
   - Adds `workstation_id` and `project_workstation_id` for validation
 
 #### 2. **Ultra-High Frequency Query Optimization**
 - **Problem**: Monitoring queries run every 10 seconds and must be lightning fast
 - **Solution**: Materialized views + specialized indexes:
-  - `mv_active_task_counts` - cached aggregations for monitoring
+  - `mv_active_mission_counts` - cached aggregations for monitoring
   - `mv_agent_capacity` - precomputed agent availability
-  - Triggered refresh on task status changes
-  - Dedicated functions: `get_active_task_counts()`, `is_agent_available()`
+  - Triggered refresh on mission status changes
+  - Dedicated functions: `get_active_mission_counts()`, `is_agent_available()`
 
-#### 3. **Complex Task Assignment Query Performance**
-- **Problem**: Task finder uses embedded subqueries checking repository/agent concurrency
+#### 3. **Complex Mission Assignment Query Performance**
+- **Problem**: Mission finder uses embedded subqueries checking repository/agent concurrency
 - **Solution**: Purpose-built composite indexes:
-  - `idx_repo_active_tasks` - repository concurrency subquery
-  - `idx_agent_active_tasks` - agent concurrency subquery
-  - `idx_task_assignment_complex` - primary task selection
-  - `idx_task_dependencies_blocking` - dependency resolution
+  - `idx_repo_active_missions` - repository concurrency subquery
+  - `idx_agent_active_missions` - agent concurrency subquery
+  - `idx_mission_assignment_complex` - primary mission selection
+  - `idx_mission_dependencies_blocking` - dependency resolution
 
 #### 4. **Missing Critical Infrastructure**
-- **Added `helpers` table** - database locking mechanism for atomic task assignment
+- **Added `helpers` table** - database locking mechanism for atomic mission assignment
 - **Added `agent_settings`** - compatibility with existing agent configuration
-- **Added `last_task_pushed_at`** - required for task distribution logic
+- **Added `last_mission_pushed_at`** - required for mission distribution logic
 - **Added `main_repository_id`** - compatibility field with triggers
 
 ### Query Pattern Adaptations
 
 #### Current V2 Pattern → V3 Optimization
 ```sql
--- V2: Direct task-agent query (fast)
-SELECT * FROM task_agents ta
+-- V2: Direct mission-agent query (fast)
+SELECT * FROM mission_agents ta
 JOIN agents a ON a.id = ta.agent_id
-WHERE ta.task_id = ?
+WHERE ta.mission_id = ?
 
 -- V3: Same performance with denormalized fields
 SELECT ta.*, a.*, w.status as workstation_status
-FROM task_agents ta
+FROM mission_agents ta
 JOIN agents a ON a.id = ta.agent_id
 JOIN workstations w ON w.id = ta.workstation_id  -- denormalized for speed
-WHERE ta.task_id = ?
+WHERE ta.mission_id = ?
 ```
 
 #### Monitoring Queries (Every 10 Seconds)
 ```sql
 -- V2: Count queries on main table (slower with scale)
-SELECT COUNT(*) FROM tasks WHERE agent_session_status IN ('PUSHING', 'ACTIVE');
+SELECT COUNT(*) FROM missions WHERE agent_session_status IN ('PUSHING', 'ACTIVE');
 
 -- V3: Materialized view query (ultra-fast)
-SELECT total_active FROM mv_active_task_counts;
+SELECT total_active FROM mv_active_mission_counts;
 ```
 
 #### Agent Availability Check
@@ -1837,7 +1837,7 @@ SELECT total_active FROM mv_active_task_counts;
 -- V2: Complex calculation on each check
 SELECT a.*, COUNT(t.id) as active_count
 FROM agents a
-LEFT JOIN tasks t ON t.active_agent_id = a.id AND t.agent_session_status IN ('PUSHING', 'ACTIVE')
+LEFT JOIN missions t ON t.active_agent_id = a.id AND t.agent_session_status IN ('PUSHING', 'ACTIVE')
 WHERE a.id = ? AND (a.rate_limit_reset_at IS NULL OR a.rate_limit_reset_at <= NOW())
 GROUP BY a.id;
 
@@ -1850,9 +1850,9 @@ SELECT is_agent_available(?) as available;
 | Query Type | V2 Performance | V3 Performance | Improvement |
 |------------|----------------|----------------|-------------|
 | Monitoring (10s) | ~50-100ms | ~1-5ms | 10-20x faster |
-| Task Assignment | ~200-500ms | ~50-100ms | 4-5x faster |
+| Mission Assignment | ~200-500ms | ~50-100ms | 4-5x faster |
 | Agent Availability | ~10-50ms | ~1-2ms | 10-25x faster |
-| Task Count | ~20-100ms | ~1ms | 20-100x faster |
+| Mission Count | ~20-100ms | ~1ms | 20-100x faster |
 
 ### Backward Compatibility
 
@@ -1868,4 +1868,4 @@ SELECT is_agent_available(?) as available;
 - **Sharding Ready**: Organization-based sharding possible
 - **Cache Integration**: Materialized views integrate with Redis/Memcached
 
-This comprehensive schema supports all the features outlined in the UI/UX and CLI design documents while providing **dramatic performance improvements** for the most critical query patterns. The design is optimized for the workstation-centric architecture and flexible workflow system that defines Solo Unicorn v3, with **special attention to ultra-high frequency monitoring queries** that are essential for real-time task orchestration.
+This comprehensive schema supports all the features outlined in the UI/UX and CLI design documents while providing **dramatic performance improvements** for the most critical query patterns. The design is optimized for the workstation-centric architecture and flexible workflow system that defines Solo Unicorn v3, with **special attention to ultra-high frequency monitoring queries** that are essential for real-time mission orchestration.
