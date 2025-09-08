@@ -254,7 +254,8 @@ This layout provides a comprehensive mission management system specifically desi
 **Tab Structure**:
 
 **Base Tab** (Default):
-- Editable fields: Title, Description, Priority, List
+- Editable fields: Title, Description, Spec, Priority, List
+- Spec: Structured field covering intent, story, and cases (replaces refined description)
 - Stage: Display-only badge on the card; click opens the Flow tab to make changes
 - Read-only: Repository, Agent, Actor (configured at creation)
 - Attachments with drag-and-drop upload
@@ -292,27 +293,27 @@ This layout provides a comprehensive mission management system specifically desi
 ```
 Note: This Flow settings panel is shared with the Create Mission popup.
 
-**Plan Tab**:
+**Solution & Tasks Tab**:
 ```
-┌─ PLAN TAB ────────────────────────────────────────────────────────────────┐
-│ Solution title:                                                           │
-│ OAuth + JWT  tokens                                                       │
-│ Solution  Description:                                                    │
-│ .....                                                                     │
-│                                                                           │
-│ Progress: Task 1 of 5 (20% complete) [━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░]     │
-│                                                                           │
-│ Tasks:                                                                    │
-│ ┌─────────────────────────────────────────────────────────────────────┐   │
-│ │ ✅ Set up OAuth provider integration                    ← Current    │   │
-│ │ [ ] Create JWT token generation/validation                          │   │
-│ │ [ ] Build login/logout UI components                                │   │
-│ │ [ ] Implement session management                                     │   │
-│ │ [ ] Add password reset functionality                                 │   │
-│ └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                           │
-│ [View Detailed Plan Documents] [View Step 1 Details]                     │
-└───────────────────────────────────────────────────────────────────────────┘
+┌─ SOLUTION & TASKS TAB ────────────────────────────────────────────────────┐
+│ Solution:                                                                  │
+│ OAuth + JWT tokens                                                          │
+│ Description:                                                                │
+│ .....                                                                       │
+│                                                                             │
+│ Progress: Task 1 of 5 (20% complete) [━━━━━━░░░░░░░░░░░░░░░░░░░░░░░░]       │
+│                                                                             │
+│ Tasks:                                                                      │
+│ ┌───────────────────────────────────────────────────────────────────────┐   │
+│ │ ✅ Set up OAuth provider integration                      ← Current    │   │
+│ │ [ ] Create JWT token generation/validation                            │   │
+│ │ [ ] Build login/logout UI components                                  │   │
+│ │ [ ] Implement session management                                       │   │
+│ │ [ ] Add password reset functionality                                   │   │
+│ └───────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│ [View Solution Document] [View Task 1 Details]                               │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Review Tab**:
@@ -1447,6 +1448,11 @@ const DesktopKanban = () => (
 - Same loop mission design as desktop (Regular Missions/Loop Missions sections)
 
 ## Pull Request Support UI/UX
+
+MVP Review Flow Note:
+- Human reviewers approve/request changes in GitHub directly
+- Solo Unicorn shows PR link and status on the Review/Done cards
+- Iterations: Users reject in Solo Unicorn with feedback; the server instructs the code agent to read PR comments via the GitHub CLI (`gh`) and iterate
 
 ### Overview
 

@@ -39,14 +39,15 @@ Worktree Support**: Multiple working directories from same repository
 
 ### Authentication Strategy
 
-**Decision**: Separate authentication table (n:1 relationship)
+**Decision (MVP)**: No separate authentication table. Users are looked up by email returned from Monster Auth. Multiple OAuth providers are supported as long as they authenticate the same email address.
 
 **Rationale**:
-- Users can have multiple authentication methods (Google OAuth, password, future providers)
-- Stable user identity even if email address changes
-- Ready for Monster Auth service accounts when available
-- Industry standard approach for OAuth integrations
-- Better audit trail for authentication events
+- Server trusts Monster Auth as the identity provider; email is canonical
+- Avoids server-side sync/duplication of provider IDs and reduces drift
+- Simpler model: one user per email; multiple providers map to the same user via email
+- Still compatible with organization API keys and service accounts
+
+Note: If an email changes at the IdP, an out-of-band account migration process will be required (post-MVP).
 
 ### Agent Storage Strategy
 
@@ -61,6 +62,9 @@ Worktree Support**: Multiple working directories from same repository
 ### GitHub Repository Storage
 
 **Decision**: Multi-field approach for maximum stability
+
+Canonical Identifier:
+- repository_id = GitHub numeric repo ID (BIGINT). Used across MCP/REST/CLI and in the missions table.
 
 **Rationale**:
 - GitHub URLs can change with repository renames
@@ -93,29 +97,24 @@ Worktree Support**: Multiple working directories from same repository
 ## Entity Relationship Overview
 
 ```
-Organizations 1---* Users *---* UserAuthentications
-     |               |
-     1               |
-     |               |
-     *               |
- Workstations 1---* Agents
-     |                    |
-     1                    |
-     |                    |
-     *                    |
+Organizations 1---* Users
+     |
+     1
+     |
+     *
+ Workstations
+     |
+     1
+     |
+     *
  Projects 1---* ProjectWorkstations
-     |                    |
-     1                    |
-     |                    |
-     *                    |
-  Missions *---* MissionAgents *---1 Agents
-     |               |
-     |               |
-     1               *
-     |               |
-     *               1
-Flows   GitHubPRs
+     |
+     1
+     |
+     *
+  Missions --- GitHubPRs
 ```
+(Note: Agents and their configuration are client-side; the server does not persist agent definitions. Availability and capabilities are reported via workstation presence.)
 
 ## Core Entities
 
@@ -432,6 +431,8 @@ interface WorkstationCodeAgentConfig {
 ### Projects
 
 Projects contain missions and define which workstations can work on them. Projects can be private (organization-only) or public with granular access control.
+
+MVP note: Project memory is stored as a single text field without versioning.
 
 ```sql
 CREATE TABLE projects (
@@ -863,13 +864,10 @@ CREATE TABLE missions (
   id VARCHAR(26) PRIMARY KEY, -- ulid: mission_01H123...
   project_id VARCHAR(26) NOT NULL,
 
-  -- Mission Content
-  title VARCHAR(500) NOT NULL,
-  description TEXT,
-
-  -- Refined Content (AI-generated)
-  refined_title VARCHAR(500),
-  refined_description TEXT,
+  -- Mission Content (MVP)
+  title VARCHAR(500) NOT NULL,         -- human-authored title
+  description TEXT,                    -- human-authored description
+  spec TEXT,                           -- AI-refined/structured spec (intent, story, cases)
 
   -- Mission Configuration
   priority INTEGER DEFAULT 3, -- 1-5 (5=highest)
@@ -877,15 +875,15 @@ CREATE TABLE missions (
   list_order DECIMAL(10,5) DEFAULT 1000.00000, -- for drag-and-drop ordering
 
   -- Flow
-  stage VARCHAR(50) DEFAULT 'clarify', -- Now supports custom stages
+  stage VARCHAR(50) DEFAULT 'clarify', -- supports custom stages
   flow_id VARCHAR(26),
   flow_config JSON, -- customized stage sequence and review requirements
   current_flow_task INTEGER DEFAULT 0, -- Current position in flow
   requires_review BOOLEAN DEFAULT false, -- Current stage requires review
 
-  -- Assignment (maintain compatibility with current system)
-  project_repository_id VARCHAR(26), -- target repository
-  main_repository_id VARCHAR(26), -- alias for compatibility with current system
+  -- Repository Assignment
+  repository_id BIGINT,                -- canonical GitHub numeric repository ID (MVP standard)
+  project_repository_id VARCHAR(26),   -- optional FK to per-project repository entry
   target_branch VARCHAR(100) DEFAULT 'main', -- target git branch
   actor_id VARCHAR(26), -- assigned AI persona
 
@@ -909,9 +907,10 @@ CREATE TABLE missions (
   code_agent_name VARCHAR(255), -- display name from workstation
   last_code_agent_session_id VARCHAR(100), -- for tracking code agent sessions
 
-  -- Plan (Hybrid filesystem + database tracking)
-  plan_tasks_summary JSON, -- Array of one-liner task descriptions for UI display
-  plan_current_task INTEGER DEFAULT 0, -- Current task being worked on (0-based index)
+  -- Solution & Tasks (Hybrid filesystem + database tracking)
+  solution TEXT,                       -- chosen solution (also stored in filesystem)
+  tasks JSON,                          -- array of tasks
+  tasks_current INTEGER DEFAULT 0,     -- current task index (0-based)
 
   -- Review
   review_status ENUM('pending', 'approved', 'rejected') DEFAULT NULL,
@@ -930,10 +929,6 @@ CREATE TABLE missions (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
   FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE SET NULL,
   FOREIGN KEY (project_repository_id) REFERENCES project_repositories(id) ON DELETE SET NULL,
-
-  -- Computed field for compatibility
-  CONSTRAINT main_repository_id_computed
-    CHECK (main_repository_id IS NULL OR main_repository_id = project_repository_id),
   FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE SET NULL,
   FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL,
 
@@ -947,7 +942,8 @@ CREATE TABLE missions (
   INDEX idx_missions_priority_list_order (priority DESC, list, list_order),
   INDEX idx_missions_created_at (created_at),
   INDEX idx_missions_pr_number (github_pr_number),
-  INDEX idx_missions_pr_created (pr_created)
+  INDEX idx_missions_pr_created (pr_created),
+  INDEX idx_missions_repository_id (repository_id)
 );
 ```
 
@@ -1236,7 +1232,9 @@ INSERT INTO helpers (id, code, description, state) VALUES
  '{"locked": false, "timestamp": null, "expiresAt": null}');
 ```
 
-## Indexes and Performance Optimization
+### Indexes and Performance Optimization
+
+MVP note: Agent data is not stored in the server database. Availability, rate limits, and concurrency are reported by the workstation over presence/MCP. Indexes related to server-side agent tables are removed. Caching and further optimization can be considered post-MVP.
 
 ### High-Frequency Query Optimization
 
@@ -1268,9 +1266,9 @@ CREATE INDEX idx_mission_assignment_complex ON missions (
   created_at
 ) WHERE ready = true AND agent_session_status = 'INACTIVE' AND list NOT IN ('done', 'review');
 
--- Repository concurrency subquery: COUNT(*) FROM missions WHERE main_repository_id = X AND agent_session_status IN ('PUSHING', 'ACTIVE')
+-- Repository concurrency subquery: COUNT(*) FROM missions WHERE repository_id = X AND agent_session_status IN ('PUSHING', 'ACTIVE')
 CREATE INDEX idx_repo_active_missions ON missions (
-  main_repository_id,
+  repository_id,
   agent_session_status,
   list
 ) WHERE agent_session_status IN ('PUSHING', 'ACTIVE') AND list NOT IN ('done', 'review');
@@ -1289,21 +1287,8 @@ CREATE INDEX idx_mission_dependencies_blocking ON mission_dependencies (
   depends_on_mission_id
 ) WHERE status = 'active';
 
--- Code Agent availability for mission assignment
-CREATE INDEX idx_code_agent_availability ON code_agents (
-  workstation_id,
-  status,
-  rate_limit_reset_at,
-  max_concurrency_limit
-) WHERE status IN ('available', 'busy');
-
--- Mission-code agent relationship queries
-CREATE INDEX idx_mission_code_agents_assignment ON mission_code_agents (
-  mission_id,
-  code_agent_id,
-  assignment_status,
-  priority
-);
+-- Agent availability is reported via workstation presence (WebSocket).
+-- No server-side code_agents table or mission_code_agents mapping in MVP.
 
 -- Database locking (helpers table - very frequent)
 CREATE INDEX idx_helpers_locking ON helpers (
@@ -1396,7 +1381,9 @@ AS $$
 $$;
 ```
 
-### Permission System Functions
+### Permission System Functions (Not used in MVP)
+
+Permission checks are implemented in the application layer (TypeScript). The SQL helper functions below are reference-only and are not used in the MVP runtime.
 
 ```sql
 -- Check if user has specific permission on project
@@ -1613,21 +1600,7 @@ BEGIN
   END IF;
 END//
 
--- Maintain main_repository_id compatibility field
-CREATE TRIGGER maintain_main_repository_id
-BEFORE INSERT ON missions
-FOR EACH ROW
-BEGIN
-  SET NEW.main_repository_id = NEW.project_repository_id;
-END//
-
-CREATE TRIGGER maintain_main_repository_id_update
-BEFORE UPDATE ON missions
-FOR EACH ROW
-BEGIN
-  SET NEW.main_repository_id = NEW.project_repository_id;
-END//
-DELIMITER ;
+-- Removed: main_repository_id compatibility triggers (field no longer exists).
 
 -- Project star count triggers
 CREATE TRIGGER project_star_count_insert

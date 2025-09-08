@@ -46,6 +46,10 @@ Majority of prompt command is provided by Solo Unicorn server. However, CLI migh
 
 **Key Integration Points:**
 
+Repository Identification:
+- repository_id is standardized to GitHub numeric repository ID (BIGINT)
+- Code agents receive one main repository_id and optional additionalRepositoryIds[]
+
 - **Monster Realtime**: WebSocket gateway for real-time communication
 - **Monster Auth**: Personal access token authentication (no service accounts yet)
 - **Git Worktrees**: Support for multiple working directories from same repo
@@ -79,10 +83,8 @@ solo-unicorn repo add GITHUB_URL [--path PATH]
 solo-unicorn repo list
 solo-unicorn repo remove REPO_ID
 
-# Worktrees (auto-provisioned)
-# Worktrees are created automatically on first mission for a repo/branch
-solo-unicorn worktree list [REPO_ID]
-solo-unicorn worktree remove WORKTREE_ID | --repo REPO_ID --branch BRANCH | --path PATH
+# Worktrees
+# MVP: Auto-managed by CLI on first mission for a repo/branch (no user-facing commands)
 
 # Configuration
 solo-unicorn config get [KEY]
@@ -305,7 +307,7 @@ Active Missions:
 
 #### Repository Management with Worktrees
 
-**Purpose**: Support multiple working directories from the same repository. For MVP, worktrees are created automatically by the CLI on first mission targeting a repo/branch; there is no manual worktree create command.
+**MVP Purpose**: Support multiple working directories from the same repository. Worktrees are created automatically by the CLI on first mission targeting a repo/branch; there are no user-facing worktree commands in MVP.
 
 ```bash
 # Add repository by GitHub URL (optionally specify local path)
@@ -313,16 +315,10 @@ solo-unicorn repo add https://github.com/user/repo --path ~/workspace/repo
 
 # On first mission targeting this repo/branch, the CLI auto-creates a worktree
 # at the default workspace path following your naming scheme.
-# You can view it with:
-solo-unicorn worktree list repo_123
 
-# Remove worktree (if needed)
-# Preferably by ID or by repo+branch; path is still accepted
-solo-unicorn worktree remove --repo repo_123 --branch feature/auth
-# or
-solo-unicorn worktree remove WORKTREE_ID
-# or
-solo-unicorn worktree remove --path ~/workspace/repo-feature-auth
+# (Post-MVP) The following commands may be introduced:
+# solo-unicorn worktree list [REPO_ID]
+# solo-unicorn worktree remove WORKTREE_ID | --repo REPO_ID --branch BRANCH | --path PATH
 ```
 
 **Worktree Management Flow**:
@@ -421,6 +417,14 @@ solo-unicorn tunnel status
 ```
 
 **Public Tunneling Architecture**:
+
+Tunneling Options (MVP analysis):
+- Cloudflare Tunnel (cloudflared): Recommended for MVP. Pros: free tier, dynamic subdomains, easy setup, fits multi-tenant. Cons: vendor dependency.
+- Ngrok: Simple, but free tier limits and cost at scale.
+- Tailscale Funnel: Great for teams already on Tailscale; not ideal for public internet at scale.
+- Inlets/self-hosted reverse proxy: More control, more ops overhead.
+
+MVP choice: Cloudflare Tunnel for cost and ease. Performance is not a concern for MVP.
 
 ```
 User Browser
@@ -584,6 +588,7 @@ interface SoloUnicornConfig {
   "repositories": [
     {
       "id": "repo_123",
+      "repositoryId": 123456789,
       "githubUrl": "https://github.com/user/solo-unicorn",
       "mainPath": "/Users/john/workspace/solo-unicorn",
       "mainBranch": "main",
@@ -633,9 +638,9 @@ interface WorkstationCodeAgentConfig {
       healthStatus: 'healthy' | 'warning' | 'error' | 'unknown';
 
       // Statistics
-      tasksCompleted: number;
+      missionsCompleted: number;
       lastUsed?: string;               // ISO timestamp
-      averageTaskDuration?: number;    // seconds
+      averageMissionDuration?: number;    // seconds
     };
   };
 
@@ -675,7 +680,7 @@ interface WorkstationCodeAgentConfig {
       "healthStatus": "healthy",
       "missionsCompleted": 42,
       "lastUsed": "2024-01-15T14:30:00Z",
-      "averageTaskDuration": 1200
+      "averageMissionDuration": 1200
     },
     "codeagent_cursor_001": {
       "id": "codeagent_cursor_001",
@@ -697,7 +702,7 @@ interface WorkstationCodeAgentConfig {
       "healthStatus": "healthy",
       "missionsCompleted": 18,
       "lastUsed": "2024-01-14T16:45:00Z",
-      "averageTaskDuration": 900
+      "averageMissionDuration": 900
     }
   },
   "settings": {
@@ -928,6 +933,11 @@ snap install solo-unicorn-cli          # Linux
 This comprehensive CLI design integrates seamlessly with Monster Auth and Monster Realtime while providing robust git worktree support and innovative development server tunneling. The system is designed for production use with excellent error handling, security practices, and cross-platform compatibility.
 
 ## PR support
+
+MVP Review Flow:
+- Human reviews occur in GitHub; leave comments in GitHub
+- Solo Unicorn links to the PR and shows status in the Review/Done columns
+- When the mission is rejected in Solo Unicorn with feedback, the agent is instructed to read GitHub PR comments via `gh` and iterate
 
 Service will provide information if user has chosen to use PRs or not (YOLO, push straight to default branch).
 

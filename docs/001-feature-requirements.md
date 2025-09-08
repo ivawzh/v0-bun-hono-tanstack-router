@@ -42,6 +42,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Server-initiated token refresh via Monster Realtime
 - Organization-based multi-tenancy
 - Role-based access control (owner, admin, member)
+- Canonical identity by email (no separate authentication table); multiple OAuth providers are supported if they authenticate the same email address
+- Authn via Monster Auth tokens; Authz in app layer (TypeScript)
 
 **Public Interfaces**:
 
@@ -59,8 +61,9 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Real-time presence via Monster Realtime WebSocket
 - Cross-platform support (Windows, macOS, Linux)
 - Background daemon mode with system service integration
-
 - Health monitoring and diagnostics
+
+MVP decision: The server does not persist code agent configuration. Agent availability, versions, rate limits, and concurrency are reported by the workstation via presence/MCP and used at assignment time.
 
 **Public Interfaces**:
 
@@ -89,6 +92,10 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Automatic repository cloning and worktree creation by AI code agents
 - Branch management and cleanup
 - Repository access control per project
+- Standardized repository identifier: repository_id = GitHub numeric repository ID (BIGINT)
+- Code agents accept one main repository_id and optional additionalRepositoryIds[]
+
+MVP decision: CLI auto-manages cloning and worktree creation on first mission for a new repo; no user-facing worktree commands.
 
 **Public Interfaces**:
 
@@ -110,7 +117,11 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Loop missions with `is_loop` boolean flag for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
 - Future loop scheduling (once per day max, twice per hour max, etc.)
 - Careful mission assignment. Mission is ready based on dependencies, repo concurrency, and workstation/code agent availability. Ordered by priority, list, and list order.
-- Plan document management in filesystem (./solo-unicorn-docs/missions/{mission-id}/)
+- Solution & Tasks document management in filesystem (./solo-unicorn-docs/missions/{mission-id}/)
+
+MVP field model:
+- title (human), description (human), spec (AI-refined)
+- solution (chosen approach), tasks (array of tasks replacing steps), currentTask index
 
 **Public Interfaces**:
 
@@ -119,6 +130,11 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - **MCP**: Tools for mission updates - plan, stage, list, etc.
 
 ### 6. Change Management System
+
+MVP PR Review Flow:
+- Human reviewers approve/request changes in GitHub directly
+- Solo Unicorn shows PR links/status; comments UI is Not in MVP
+- To iterate, the human clicks Reject in Solo Unicorn with feedback; the server will push the mission back to the code agent with instructions to read PR comments using the GitHub CLI (`gh`)
 
 **Requirements**:
 
@@ -138,6 +154,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Local development server hosting
 - Local development tunneling to public URL (dev.solounicorn.lol) via Cloudflared CLI
 
+MVP tunneling choice: Use Cloudflare Tunnel (cloudflared) for cost-effectiveness and ease of setup. Support multi-tenancy and dynamic subdomains per project/workstation via Cloudflare configuration.
+
 ### 8. Project & Organization Management
 
 **Requirements**:
@@ -154,6 +172,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - **Web**: Project creation, settings, and member management
 
 ### 9. Real-time Communication
+
+Note: oRPC endpoints are not pre-designed. Internal RPCs can be introduced ad hoc by AI agents as needed; MCP and REST are the primary stable interfaces.
 
 **Requirements**:
 
@@ -177,6 +197,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - Local configuration files with TypeScript typing.
 - Secure credential storage in OS keychain
 
+MVP performance: Caching/optimizations are deferred to post-MVP.
+
 **Public Interfaces**:
 
 - **CLI**: `config get/set/list/reset` commands, flow management commands
@@ -198,22 +220,23 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - **Web**: Review UI in kanban board, approval/rejection buttons
 - **MCP**: `request_review` tool for code agents to trigger review
 
-### 12. Plan Document Management
+### 12. Solution & Tasks Document Management
 
 **Requirements**:
 
-- **Hybrid Storage**: Plan content in filesystem, progress tracking in database
-- **Filesystem Storage**: Plans stored in `./solo-unicorn-docs/missions/{mission-id}/`
-- **Plan Structure**:
-  - `plan.md`: Main plan with solution, spec, steps list
-  - `steps/{n}.md`: Detailed step-by-step implementation plans
-- **Database Progress Tracking**: Store plan steps summary and current progress in database:
-  - `plan_steps_summary`: Array of one-liner step descriptions for UI display
-  - `plan_current_step`: Current step number being worked on (total steps = array length)
-- **Context Preservation**: Each step includes previous/next context
-- **Version Control**: Plans tracked in git for history
-- **Cross-Session Context**: Plans persist between code agent sessions
-- **Server Prompting**: Server uses database plan progress to determine next prompts
+- **Hybrid Storage**: Solution and tasks content in filesystem, progress tracking in database
+- **Filesystem Storage**: Stored in `./solo-unicorn-docs/missions/{mission-id}/`
+- **Structure**:
+  - `solution.md`: Main solution write-up (supersedes plan.md)
+  - `tasks/{n}.md`: Detailed task-by-task implementation notes (supersedes steps)
+- **Database Tracking**:
+  - `solution` (TEXT)
+  - `tasks` (JSON array of task descriptors)
+  - `tasks_current` (current task index)
+- **Context Preservation**: Each task includes previous/next context
+- **Version Control**: Documents tracked in git for history
+- **Cross-Session Context**: Persists between code agent sessions
+- **Server Prompting**: Server uses database task progress to determine next prompts
 
 **Public Interfaces**:
 
@@ -290,6 +313,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 ### 14. Public Project Discovery & Community
 
+Permission checks are performed in the application layer (TypeScript). SQL permission helper functions, if any, are reference-only and not used in MVP.
+
 **Requirements**:
 
 - **Project Gallery**: Comprehensive public project browsing
@@ -356,6 +381,8 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 ### 15. Public API Design & Security
 
+See also: docs/api-and-mcp-design.md (MCP-first design; REST as adapters).
+
 **Requirements**:
 
 - **Public Discovery Endpoints**: Authentication-optional API access
@@ -416,3 +443,14 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - **CLI**: Public API consumption for project discovery commands
 - **Web**: Frontend uses same public APIs for consistency
 - **Third-party**: Enable community tools and integrations
+
+### 16. Flow Template System and Prompt Strategy
+
+- Flow Templates with versioning; stages are versioned; prompts treated as code
+- Store flow/stage versions with semantic versioning
+- (Not in MVP) Dynamic Prompt Generation: Server can call client-hosted endpoint to fetch prompts dynamically given mission context
+  - POST https://client-company.com/custom-prompt
+  - Body: { mission: { id, title, description, tasks, solution }, stage, flow, workstation, repositoryId, additionalRepositoryIds, codeAgent }
+  - Returns: { prompt: string }
+
+MVP: Static prompt templates; dynamic prompt generation is deferred.
