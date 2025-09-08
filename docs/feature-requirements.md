@@ -16,7 +16,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 ### Communication Protocol Hierarchy
 
-**Principle: Use least powerful approach** - Power order: WebSocket > API > oRPC > MCP
+**Principle: Use least powerful approach** - Power order: WebSocket > API & MCP > oRPC
 
 **Requirements**:
 
@@ -64,7 +64,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Public Interfaces**:
 
-- **CLI**: `start`, `stop`, `status`, `doctor` commands
+- **CLI**: `workstation` commands
 - **Web**: Workstation status dashboard and management
 
 ### 3. Code Agent Orchestration
@@ -77,7 +77,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Public Interfaces**:
 
-- **CLI**: `code-agent scan`, `code-agent config` commands
+- **CLI**: `agent scan`, `agent add` commands
 - **Web**: Code agent status display and configuration UI
 
 ### 4. Repository & Git Worktree Management
@@ -92,7 +92,7 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Public Interfaces**:
 
-- **CLI**: automatically clone/worktree repo when mission is assigned with Github URL.
+- **CLI**: automatically clone/worktree repo when mission is assigned for the repo the first time with Github URL.
 - **Web**: Repository configuration and worktree visualization
 
 ### 5. Mission Management & Flow
