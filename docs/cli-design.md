@@ -870,7 +870,7 @@ snap install solo-unicorn-cli          # Linux
 ### Planned Features
 
 1. **Multi-Code Agent Orchestration**: Coordinate multiple code agents on single missions
-2. **Mission Templates**: Pre-configured mission types with workflow templates
+2. **Mission Templates**: Pre-configured mission types with flow templates
 3. **Remote Development**: Full VS Code server integration with tunneling
 4. **Team Workspaces**: Shared workstation pools for organizations
 5. **CI/CD Integration**: GitHub Actions and other CI/CD platform support
@@ -900,7 +900,7 @@ Service will provide information if user has chosen to use PRs or not (YOLO, pus
 - **Audit Trail**: Complete PR history and discussions
 - **AI Enhancement**: Code agents respond to feedback and improve code
 - **Branch Management**: Automatic branch creation and cleanup
-- **GitHub Integration**: Native GitHub workflow experience
+- **GitHub Integration**: Native GitHub flow experience
 
 ### PR Features
 
@@ -910,7 +910,7 @@ Service will provide information if user has chosen to use PRs or not (YOLO, pus
 - **Conflict Resolution**: AI handles merge conflicts when possible
 - **Branch Cleanup**: Automatic deletion after successful merge
 
-#### Review Workflow Automation
+#### Review Flow Automation
 
 - **Merge Strategies**: Support for merge, squash, and rebase
 

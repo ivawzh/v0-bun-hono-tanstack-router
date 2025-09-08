@@ -2,10 +2,10 @@
 
 ## Overview
 
-Solo Unicorn v3 introduces **Pull Request Support** for controlled development workflows while maintaining fast iteration for early-stage projects, plus **Public Projects** with granular permission controls for community collaboration.
+Solo Unicorn v3 introduces **Pull Request Support** for controlled development flows while maintaining fast iteration for early-stage projects, plus **Public Projects** with granular permission controls for community collaboration.
 
 ### Key Features
-- **Optional PR Modes**: Direct push (early stage) vs PR workflow (production)
+- **Optional PR Modes**: Direct push (early stage) vs PR flow (production)
 - **Seamless GitHub Integration**: Auto-create PRs, sync comments, handle reviews
 - **AI Feedback Loop**: Agents read and respond to GitHub PR comments
 - **Flexible Configuration**: Per-project defaults with per-mission overrides
@@ -222,7 +222,7 @@ Whenever in doubt, follow Trello UI/UX design.
 - Approve: Move to Done
 - Reject: Require feedback + return to previous column
 
-This layout provides a comprehensive mission management system specifically designed for AI-agent workflows with clear visual hierarchy and intuitive controls.
+This layout provides a comprehensive mission management system specifically designed for AI-agent flows with clear visual hierarchy and intuitive controls.
 
 ### MissionViewPopup component
 
@@ -412,20 +412,19 @@ This layout provides a comprehensive mission management system specifically desi
 │ │ [MacBook Pro ▼] │ [Claude Code ▼] │ [GPT-4 ▼]      │ [Default ▼]    │   │
 │ └─────────────────┴─────────────────┴─────────────────┴─────────────────┘   │
 │                                                                             │
-│ Workflow Template: [Standard Development ▼]                                │
-│                                                                             │
-│ ▼ Advanced Settings                                                         │
-│ ┌─────────────────────────────────────────────────────────────────────────┐ │
-│ │ Customize Review Requirements:                                          │ │
-│ │ ┌─ Stage Sequence ────────────────────────────────────────────────────┐ │ │
-│ │ │ 1. ☑ Clarify    → [☑ Require Review]                               │   │ │
-│ │ │ 2. ☑ Plan       → [☑ Require Review]                               │   │ │
-│ │ │ 3. ☑ Code       → [☐ Require Verification]                        │   │ │
-│ │ │ 4. ☐ Custom     → [☐ Require Review]                               │   │ │
-│ │ │ 5. ☐ Deploy     → [☐ Require Review]                               │   │ │
-│ │ └─────────────────────────────────────────────────────────────────────┘   │ │
-│ │ [+ Add Custom Stage]                                                     │ │
-│ └─────────────────────────────────────────────────────────────────────────┘ │
+│ │ Flow: [Standard Development ▼] ← PRIMARY SELECTION                         │
+│ │                                                                             │
+│ │ ▼ Optional: Start at a Specific Stage (skip earlier stages)                │
+│ │ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ │ Start Stage (Optional): [From Beginning ▼]                              │ │
+│ │ │                                                                         │ │
+│ │ │ Available stages for "Standard Development" flow:                       │ │
+│ │ │ ○ From Beginning (Clarify → Plan → Code)                                │ │
+│ │ │ ○ Skip to Plan (Plan → Code)                                            │ │
+│ │ │ ○ Skip to Code (Code only)                                              │ │
+│ │ │                                                                         │ │
+│ │ │ ℹ️ Selecting a later stage will skip the earlier stages in this flow    │ │
+│ │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ Dependencies (Optional)                                                     │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
@@ -444,7 +443,7 @@ This layout provides a comprehensive mission management system specifically desi
 
 - **Title** (Required): Auto-focus, max 255 chars
 - **Description**: Rich text with GitHub-style file attachment support
-- **Stage**: Default "Clarify", affects workflow path
+- **Stage**: Default "Clarify", affects flow path
 - **Priority**: Default "Medium", visual priority in board
 - **List**: Default "Todo", can create directly in other columns
 - **Repository**: Shows GitHub URLs from projectRepo entities, max concurrent missions = 1
@@ -452,7 +451,8 @@ This layout provides a comprehensive mission management system specifically desi
 - **Agent**: Required, dynamically loaded from selected workstation
 - **Model**: Required, appears after agent selection (GPT-5, GPT-4, etc.)
 - **Actor**: Optional, narrower field, defaults to project default actor
-- **Workflow Configuration**: Template-based workflow with customizable stage sequence and review requirements per stage
+- **Flow**: Primary selection - determines the sequence of stages (e.g., "Standard Development", "Quick Fix", "Research & Analysis")
+- **Start Stage**: Optional secondary selection - allows skipping earlier stages in the selected flow
 - **Dependencies**: Mission picker with search/filter
 - **Auto-ready**: Convenience flag to skip manual ready toggle
 
@@ -464,7 +464,7 @@ This layout provides a comprehensive mission management system specifically desi
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Project Settings: My App                                              [×]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ [General] [Members] [Repositories] [Actors] [Workflows]                   │
+│ [General] [Members] [Repositories] [Actors] [Flows]                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │ ┌─ GENERAL TAB ─────────────────────────────────────────────────────────────┐│
@@ -550,10 +550,10 @@ This layout provides a comprehensive mission management system specifically desi
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Workflows Tab**:
+**Flows Tab**:
 ```
-┌─ WORKFLOWS TAB ───────────────────────────────────────────────────────────┐
-│ Project Workflow Templates:                                                 │
+┌─ FLOWS TAB ───────────────────────────────────────────────────────────────┐
+│ Project Flows:                                                              │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 📋 Standard Development (Default)                       [Edit] [×]   │   │
 │ │ Sequence: Clarify(✓) → Plan(✓) → Code                                 │   │
@@ -572,10 +572,10 @@ This layout provides a comprehensive mission management system specifically desi
 │ │ Used by: 3 missions                                                     │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
-│ [+ Create Workflow Template]                                              │
+│ [+ Create Flow]                                                           │
 │                                                                           │
-│ Edit Template Modal:                                                      │
-│ ┌─ Create/Edit Workflow Template ──────────────────────────────────────┐   │
+│ Edit Flow Modal:                                                          │
+│ ┌─ Create/Edit Flow ────────────────────────────────────────────────────┐   │
 │ │ Name: [Research & Analysis                                        ]   │   │
 │ │                                                                     │   │
 │ │ Stage Sequence:                                                      │   │
@@ -587,7 +587,7 @@ This layout provides a comprehensive mission management system specifically desi
 │ │ └─────────────────────────────────────────────────────────────────┘     │   │
 │ │ [+ Add Stage]                                                        │   │
 │ │                                                                     │   │
-│ │                                         [Cancel] [Save Template]   │   │
+│ │                                         [Cancel] [Save Flow]       │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
@@ -953,7 +953,7 @@ All components follow the established design patterns with consistent spacing, r
 │ │   ✓ All contributor permissions                                         │ │
 │ │   ✓ View workstation status (if project allows)                        │ │
 │ │   ✓ Access detailed analytics                                           │ │
-│ │   ✓ Create workflow templates                                           │ │
+│ │   ✓ Create flow templates                                               │ │
 │ │   ✗ Execute missions on workstations                                    │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
@@ -1011,7 +1011,7 @@ All components follow the established design patterns with consistent spacing, r
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 👤 @frontend_dev (Collaborator)                     [Change Role ▼]│   │
-│ │ Can view workstation status, create workflows                       │   │
+│ Can view workstation status, create flows                           │   │
 │ │ Added: 2 weeks ago • Last active: 1 day ago                        │   │
 │ │ [Message User] [Remove]                                             │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
@@ -1387,7 +1387,7 @@ All components follow the established design patterns with consistent spacing, r
 │ │                                                                          ││
 │ │ Template includes:                                                       ││
 │ │ ✅ 25 pre-configured missions (User auth, Product catalog, Payments, etc.)  ││
-│ │ ✅ Workflow templates (Development, Testing, Deployment)                ││
+│ │ ✅ Flow templates (Development, Testing, Deployment)                    ││
 │ │ ✅ Project memory with tech stack documentation                         ││
 │ │ ✅ Actor profiles (Frontend Dev, Backend Dev, Full-stack)               ││
 │ │ ✅ Repository structure recommendations                                  ││

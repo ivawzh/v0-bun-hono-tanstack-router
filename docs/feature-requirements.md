@@ -12,6 +12,31 @@ This document captures high-level feature requirements that cover all public int
 
 This ensures comprehensive feature coverage across all interfaces and maintains consistency between CLI, Web, and API implementations.
 
+## Terminology Migration Guide
+
+**Updated Design Pattern**: Solo Unicorn v3 introduces a **flow-first mission creation** approach for improved user experience.
+
+**Terminology Changes**:
+- "Mission workflow" → "Flow"
+- "Mission workflow template" → "Flow"
+- "Workflow template" → "Flow"
+
+**Design Changes**:
+1. **Flow Selection First**: Users now select a flow as the primary step when creating missions
+2. **Optional Stage Selection**: Stage selection becomes a secondary, optional step to skip earlier flow stages
+3. **Improved UX**: This change makes the mission creation process more intuitive and flow-oriented
+
+**Migration Mapping**:
+| Old Term | New Term | Context |
+|----------|----------|----------|
+| Workflow Template | Flow | Database entities, UI components |
+| Mission Workflow | Flow | General references to mission sequences |
+| Workflow Configuration | Flow Configuration | Settings and customization |
+| workflow_templates | flows | Database table names |
+| workflow_template_id | flow_id | Foreign key references |
+
+**Note**: This is primarily a documentation and UI terminology update. API endpoints may maintain backward compatibility where needed.
+
 ## Core Feature Requirements
 
 ### Communication Protocol Hierarchy
@@ -95,14 +120,16 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 - **CLI**: automatically clone/worktree repo when mission is assigned with Github URL.
 - **Web**: Repository configuration and worktree visualization
 
-### 5. Mission Management & Workflow
+### 5. Mission Management & Flow
 
 **Requirements**:
 
 - Kanban-style mission organization (Todo, Doing, Review, Done)
 - Default mission modes (clarify, plan, code, review). Mission mode mainly determines prompt template.
-- Default workflow - clarify → plan → code → review
-- User may add their own modes and workflows.
+- Default flow - clarify → plan → code → review
+- User may add their own modes and flows.
+- **Flow-First Mission Creation**: When creating a new mission, users first select a flow (e.g., "Standard Development", "Quick Fix", "Research & Analysis")
+- **Optional Stage Selection**: After selecting a flow, users can optionally select a specific stage to start from, allowing them to skip earlier stages in the flow sequence
 - Review system - any mode can optionally require human review
 - Mission dependencies and priority management
 - Loop missions with `is_loop` boolean flag for continuous project improvement and maintenance. So that users can maximize their code agent monthly budget.
@@ -177,17 +204,17 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 
 **Public Interfaces**:
 
-- **CLI**: `config get/set/list/reset` commands, workflow management commands
-- **Web**: Configuration UI for project and user settings, workflow template editor
+- **CLI**: `config get/set/list/reset` commands, flow management commands
+- **Web**: Configuration UI for project and user settings, flow template editor
 
-### 11. Workflow Review System
+### 11. Flow Review System
 
 **Requirements**:
 
-- **Review Points**: Any workflow mode can require human review
+- **Review Points**: Any flow mode can require human review
 - **Review List**: Special kanban column for missions awaiting review
 - **Approval Flow**: Human reviews and approves/rejects with feedback
-- **Workflow Continuation**: Approved missions proceed to next mode automatically
+- **Flow Continuation**: Approved missions proceed to next mode automatically
 - **Rejection Handling**: Rejected missions return to doing list and current mode to iterate with feedback. PR comments are also used to guide the iteration.
 - **Review History**: Track who reviewed, when, and with what feedback
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document defines the complete database schema for Solo Unicorn v3, supporting the workstation-based architecture, flexible workflow system, git worktree management, and Monster services integration.
+This document defines the complete database schema for Solo Unicorn v3, supporting the workstation-based architecture, flexible flow system, git worktree management, and Monster services integration.
 
 ### Database Infrastructure
 
@@ -28,12 +28,12 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 ## Architecture Principles
 
 - **Workstation-Centric**: Organizations own workstations, workstations contain agents
-- **Flexible Workflows**: Template-based workflow system with customizable stages
-- **Git Worktree Support**: Multiple working directories from same repository
+- **Flexible Flows**: Template-based flow system with customizable stages
+Worktree Support**: Multiple working directories from same repository
 - **Monster Integration**: Compatible with Monster Auth and Monster Realtime
 - **Multi-tenancy**: Organization-based isolation with project-level access control
 - **Audit Trail**: Complete history tracking for all operations
-- **PR Support**: Optional pull request workflow for controlled development
+- **PR Support**: Optional pull request flow for controlled development
 
 ## V3 Design Decisions & Rationale
 
@@ -70,7 +70,7 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 
 ### Pull Request Support
 
-**Decision**: Optional per-project and per-mission PR workflow
+**Decision**: Optional per-project and per-mission PR flow
 
 **Rationale**:
 - Early stage projects need fast iteration (direct push to main)
@@ -114,7 +114,7 @@ Organizations 1---* Users *---* UserAuthentications
      1               *
      |               |
      *               1
-WorkflowTemplates   GitHubPRs
+Flows   GitHubPRs
 ```
 
 ## Core Entities
@@ -139,7 +139,7 @@ CREATE TABLE organizations (
   api_key_expires_at TIMESTAMP,
 
   -- Settings
-  default_workflow_template_id VARCHAR(26),
+  default_flow_id VARCHAR(26),
   auto_invite_to_projects BOOLEAN DEFAULT true,
 
   -- Timestamps
@@ -468,7 +468,7 @@ CREATE TABLE projects (
   -- full_details: Show detailed workstation information
 
   -- Configuration
-  default_workflow_template_id VARCHAR(26),
+  default_flow_id VARCHAR(26),
   default_actor_id VARCHAR(26),
 
   -- Project Memory (shared context for all missions)
@@ -526,7 +526,7 @@ CREATE TABLE project_repositories (
   default_branch VARCHAR(100) DEFAULT 'main',
 
   -- PR Support Configuration
-  pr_mode_enabled BOOLEAN DEFAULT false, -- enable PR workflow for this repo
+  pr_mode_enabled BOOLEAN DEFAULT false, -- enable PR flow for this repo
   pr_branch_prefix VARCHAR(50) DEFAULT 'solo-unicorn/', -- branch naming prefix
   pr_target_branch VARCHAR(100), -- target branch for PRs (defaults to default_branch)
   auto_delete_pr_branches BOOLEAN DEFAULT true, -- cleanup merged branches
@@ -755,23 +755,23 @@ CREATE TABLE project_workstations (
 );
 ```
 
-### Workflow Templates
+### Flows
 
-Defines reusable workflow sequences with per-stage review requirements.
+Defines reusable flow sequences with per-stage review requirements.
 
 ```sql
-CREATE TABLE workflow_templates (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: wftpl_01H123...
+CREATE TABLE flows (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: flow_01H123...
   project_id VARCHAR(26) NOT NULL,
 
-  -- Template Details
+  -- Flow Details
   name VARCHAR(255) NOT NULL,
   description TEXT,
 
-  -- Template Configuration
+  -- Flow Configuration
   stage_sequence JSON NOT NULL, -- [{"stage": "clarify", "requireReview": true}, ...]
   is_default BOOLEAN DEFAULT false,
-  is_system BOOLEAN DEFAULT false, -- System-provided templates
+  is_system BOOLEAN DEFAULT false, -- System-provided flows
 
   -- Usage Statistics
   missions_using_count INTEGER DEFAULT 0,
@@ -782,18 +782,18 @@ CREATE TABLE workflow_templates (
 
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
 
-  INDEX idx_workflow_templates_project_id (project_id),
-  INDEX idx_workflow_templates_is_default (is_default)
+  INDEX idx_flows_project_id (project_id),
+  INDEX idx_flows_is_default (is_default)
 );
 ```
 
-### Custom Workflow Stages
+### Custom Flow Stages
 
-Defines custom stages that can be used in workflows beyond system stages.
+Defines custom stages that can be used in flows beyond system stages.
 
 ```sql
-CREATE TABLE workflow_stages (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: wfstage_01H123...
+CREATE TABLE flow_stages (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: flowstage_01H123...
   project_id VARCHAR(26) NULL, -- NULL for system stages
 
   -- Stage Details
@@ -816,8 +816,8 @@ CREATE TABLE workflow_stages (
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
 
   UNIQUE KEY unique_stage_name_per_project (project_id, name),
-  INDEX idx_workflow_stages_project_id (project_id),
-  INDEX idx_workflow_stages_is_system (is_system)
+  INDEX idx_flow_stages_project_id (project_id),
+  INDEX idx_flow_stages_is_system (is_system)
 );
 ```
 
@@ -856,7 +856,7 @@ CREATE TABLE actors (
 
 ### Missions
 
-Core mission entity supporting flexible workflows and workstation-based execution.
+Core mission entity supporting flexible flows and workstation-based execution.
 
 ```sql
 CREATE TABLE missions (
@@ -876,11 +876,11 @@ CREATE TABLE missions (
   list ENUM('todo', 'doing', 'review', 'done', 'loop') DEFAULT 'todo',
   list_order DECIMAL(10,5) DEFAULT 1000.00000, -- for drag-and-drop ordering
 
-  -- Workflow
+  -- Flow
   stage VARCHAR(50) DEFAULT 'clarify', -- Now supports custom stages
-  workflow_template_id VARCHAR(26),
-  workflow_config JSON, -- customized stage sequence and review requirements
-  current_workflow_step INTEGER DEFAULT 0, -- Current position in workflow
+  flow_id VARCHAR(26),
+  flow_config JSON, -- customized stage sequence and review requirements
+  current_flow_step INTEGER DEFAULT 0, -- Current position in flow
   requires_review BOOLEAN DEFAULT false, -- Current stage requires review
 
   -- Assignment (maintain compatibility with current system)
@@ -928,7 +928,7 @@ CREATE TABLE missions (
   updated_at TIMESTAMP DEFAULT NOW(),
 
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  FOREIGN KEY (workflow_template_id) REFERENCES workflow_templates(id) ON DELETE SET NULL,
+  FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE SET NULL,
   FOREIGN KEY (project_repository_id) REFERENCES project_repositories(id) ON DELETE SET NULL,
 
   -- Computed field for compatibility
@@ -1600,16 +1600,16 @@ BEGIN
 END//
 DELIMITER ;
 
--- Update workflow template usage count
+-- Update flow usage count
 DELIMITER //
-CREATE TRIGGER update_workflow_template_usage
+CREATE TRIGGER update_flow_usage
 AFTER INSERT ON missions
 FOR EACH ROW
 BEGIN
-  IF NEW.workflow_template_id IS NOT NULL THEN
-    UPDATE workflow_templates
+  IF NEW.flow_id IS NOT NULL THEN
+    UPDATE flows
     SET missions_using_count = missions_using_count + 1
-    WHERE id = NEW.workflow_template_id;
+    WHERE id = NEW.flow_id;
   END IF;
 END//
 
@@ -1730,7 +1730,7 @@ interface WorkstationPresenceMeta {
 3. Projects, Repositories
 
 ### Phase 2: Mission Management
-1. Workflow Templates, Actors
+1. Flows, Actors
 2. Missions, Dependencies
 3. Mission Agents, Attachments
 
@@ -1756,7 +1756,7 @@ FROM v2_organizations;
 -- Phase 2: Migrate missions with compatibility fields
 INSERT INTO missions (
   id, project_id, title, description, priority,
-  list, stage, workflow_template_id,
+  list, stage, flow_id,
   project_repository_id, main_repository_id, -- both fields for compatibility
   agent_session_status, ready,
   created_at
@@ -1770,7 +1770,7 @@ SELECT
     WHEN t.list = 'check' THEN 'review' -- enum mapping
   END as list,
   COALESCE(t.stage, 'execute') as stage,
-  NULL as workflow_template_id,
+  NULL as flow_id,
   r.id as project_repository_id,
   r.id as main_repository_id, -- compatibility
   t.agent_session_status,
@@ -1889,4 +1889,4 @@ SELECT is_agent_available(?) as available;
 - **Sharding Ready**: Organization-based sharding possible
 - **Cache Integration**: Materialized views integrate with Redis/Memcached
 
-This comprehensive schema supports all the features outlined in the UI/UX and CLI design documents while providing **dramatic performance improvements** for the most critical query patterns. The design is optimized for the workstation-centric architecture and flexible workflow system that defines Solo Unicorn v3, with **special attention to ultra-high frequency monitoring queries** that are essential for real-time mission orchestration.
+This comprehensive schema supports all the features outlined in the UI/UX and CLI design documents while providing **dramatic performance improvements** for the most critical query patterns. The design is optimized for the workstation-centric architecture and flexible flow system that defines Solo Unicorn v3, with **special attention to ultra-high frequency monitoring queries** that are essential for real-time mission orchestration.
