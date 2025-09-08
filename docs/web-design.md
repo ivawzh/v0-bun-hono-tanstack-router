@@ -5,10 +5,10 @@
 Solo Unicorn v3 introduces **Pull Request Support** for controlled development workflows while maintaining fast iteration for early-stage projects, plus **Public Projects** with granular permission controls for community collaboration.
 
 ### Key Features
-- **Dual Workflow Modes**: Direct push (early stage) vs PR workflow (production)
+- **Optional PR Modes**: Direct push (early stage) vs PR workflow (production)
 - **Seamless GitHub Integration**: Auto-create PRs, sync comments, handle reviews
 - **AI Feedback Loop**: Agents read and respond to GitHub PR comments
-- **Flexible Configuration**: Per-project defaults with per-task overrides
+- **Flexible Configuration**: Per-project defaults with per-mission overrides
 - **Public Projects**: Community collaboration with granular permission controls
 - **Project Discovery**: Browse, star, and contribute to public projects
 - **Permission Management**: Role-based access (Public, Contributor, Collaborator, Maintainer, Owner)
@@ -33,7 +33,7 @@ Whenever in doubt, follow Trello UI/UX design.
 │ ││Normal ▼││         │         │         │                                   │
 │ │├───────┤│         │         │         │                                   │
 │ ││┌─────┐││┌───────┐│┌───────┐│┌───────┐│                                   │
-│ │││Task │││ Task  ││ Task  ││ Task  ││                                   │
+│ │││Mission │││ Mission  ││ Mission  ││ Mission  ││                                   │
 │ │││P H  │││ P L   ││ P M   ││ P H   ││                                   │
 │ │││Code▼│││ Plan  ││ Review││ Done  ││                                   │
 │ │││🔄   │││🤖 AI  ││       ││       ││                                   │
@@ -67,32 +67,32 @@ Whenever in doubt, follow Trello UI/UX design.
 **Main Kanban Board Area**
 
 - 4 columns: Todo, Doing, Review, Done
-- Todo column has special split sections (Normal/Loop tasks)
-- Each card shows TaskPreview component
+- Todo column has special split sections (Normal/Loop missions)
+- Each card shows MissionPreview component
 - Kanban column height is fixed and scrollable.
 - Mobile friendly horizontal scroll.
-- Drag and drop will update task.list.
+- Drag and drop will update mission.list.
 
-**TaskPreview Card Structure** (Column-Specific)
+**MissionPreview Card Structure** (Column-Specific)
 
 **Todo Column:**
 
 1. Title line
-2. Badge row (Priority emoji+number, Mode dropdown ▼, Process badge)
+2. Badge row (Priority emoji+number, Stage dropdown ▼, Process badge)
 3. Description (collapsible, 3.5 lines visible)
 4. Ready toggle button
 
 **Doing Column:**
 
 1. Title line
-2. Badge row (Priority emoji+number, Mode badge, Process badge)
+2. Badge row (Priority emoji+number, Stage badge, Process badge)
 3. Description (collapsible, 3.5 lines visible)
 4. Ready toggle button
 
 **Review Column:**
 
 1. Title line
-2. Badge row (Priority emoji+number, Mode badge, **PR status badge**)
+2. Badge row (Priority emoji+number, Stage badge, **PR status badge**)
 3. Description (collapsible, 3.5 lines visible)
 4. **GitHub PR link** (if PR mode)
 5. Review actions (Approve/Request Changes)
@@ -100,21 +100,21 @@ Whenever in doubt, follow Trello UI/UX design.
 **Done Column:**
 
 1. Title line
-2. Badge row (Priority emoji+number, Mode badge, **PR status badge**)
+2. Badge row (Priority emoji+number, Stage badge, **PR status badge**)
 3. Description (collapsible, 3.5 lines visible)
 4. **GitHub PR/Merge info** (if applicable)
 
-### TaskPreview component (Column-Specific)
+### MissionPreview component (Column-Specific)
 
 **Todo Column Card:**
 
 ```
 ┌─────────────────────────────────────┐
-│ Task Title Here                  [⋮]│
+│ Mission Title Here                  [⋮]│
 ├─────────────────────────────────────┤
 │ P High [Code ▼] [📝 PR Mode]         │
 ├─────────────────────────────────────┤
-│ Branch: solo-unicorn/task-auth-123  │
+│ Branch: solo-unicorn/mission-auth-123  │
 ├─────────────────────────────────────┤
 │ Description text here that can be   │
 │ multiple lines long and will show   │
@@ -125,16 +125,16 @@ Whenever in doubt, follow Trello UI/UX design.
 └─────────────────────────────────────┘
 ```
 
-**TaskPreview Dropdown Menu (⋮)**:
-- View & Edit (opens TaskViewPopup)
-- Reset AI (when task is active)
-- Delete Task
+**MissionPreview Dropdown Menu (⋮)**:
+- View & Edit (opens MissionViewPopup)
+- Reset AI (when mission is active)
+- Delete Mission
 
 **Review Column Card:**
 
 ```
 ┌─────────────────────────────────────┐
-│ Task Title Here                     │
+│ Mission Title Here                     │
 ├─────────────────────────────────────┤
 │ P Low [Code]                        │
 ├─────────────────────────────────────┤
@@ -147,7 +147,7 @@ Whenever in doubt, follow Trello UI/UX design.
 └─────────────────────────────────────┘
 ```
 
-*Note: Review column shows the current mode being reviewed as a display badge*
+*Note: Review column shows the current stage being reviewed as a display badge*
 
 #### Priority System
 
@@ -168,7 +168,7 @@ Whenever in doubt, follow Trello UI/UX design.
 - **Review Column**: (no Process badge)
 - **Done Column**: (no Process badge)
 
-#### Task Mode System
+#### Mission Stage System
 
 **Todo Column** (Editable dropdown):
 
@@ -188,15 +188,15 @@ Whenever in doubt, follow Trello UI/UX design.
 
 **Todo Column Special Layout**
 
-- Collapsible "Normal Tasks" section (default open)
-- Collapsible "Loop Tasks" section (default closed)
+- Collapsible "Normal Missions" section (default open)
+- Collapsible "Loop Missions" section (default closed)
 - When both open: 50/50 vertical split
 - Smooth expand/collapse animations
 
 **AI Agent Controls**
 
 - Pause/Resume button in sub-header
-- Controls the AI agent task processing queue
+- Controls the AI agent mission processing queue
 - Visual indicator of current agent state
 
 **Column-Specific Controls**
@@ -205,32 +205,32 @@ Whenever in doubt, follow Trello UI/UX design.
 
 - Ready: Green "Ready" button
 - Not Ready: Red "Not Ready" button
-- Affects task eligibility for AI processing
+- Affects mission eligibility for AI processing
 
 **Review Button** (Review column only):
 
-- Opens TaskViewPopup → Review Tab
+- Opens MissionViewPopup → Review Tab
 - Shows "review instruction"
 - Approve/Reject buttons
 - Reject requires mandatory "feedback" field
-- Approved tasks move to Done column
+- Approved missions move to Done column
 
-**TaskViewPopup Integration**
+**MissionViewPopup Integration**
 
 - Review column Review button → Review Tab
 - Review Tab displays review instructions
 - Approve: Move to Done
 - Reject: Require feedback + return to previous column
 
-This layout provides a comprehensive task management system specifically designed for AI-agent workflows with clear visual hierarchy and intuitive controls.
+This layout provides a comprehensive mission management system specifically designed for AI-agent workflows with clear visual hierarchy and intuitive controls.
 
-### TaskViewPopup component
+### MissionViewPopup component
 
 **Modal Layout (Full Screen on Mobile)**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Task: Implement user authentication                                   [×]  │
+│ Mission: Implement user authentication                                   [×]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ [Base] [Clarify] [Plan] [Review] [Dependencies] [Settings]                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
@@ -238,7 +238,7 @@ This layout provides a comprehensive task management system specifically designe
 │ ┌─ BASE TAB ────────────────────────────────────────────────────────────────┐│
 │ │ Title: [Implement user authentication                                   ]││
 │ │ Description: [Create login page with email/password validation...       ]││
-│ │ Priority: [High ▼]  Mode: [Code ▼]  List: [Doing ▼]                    ││
+│ │ Priority: [High ▼]  Stage: [Code ▼]  List: [Doing ▼]                    ││
 │ │ Repository: [Main Repo]  Agent: [Claude Code]  Actor: [Default]        ││
 │ │                                                                         ││
 │ │ Attachments:                                                            ││
@@ -249,7 +249,7 @@ This layout provides a comprehensive task management system specifically designe
 │ │                                                                         ││
 │ │ Status: 🤖 AI at work  •  Started: 2 minutes ago                       ││
 │ └─────────────────────────────────────────────────────────────────────────┘│
-│ ID: task_123456789                                                        │
+│ ID: mission_123456789                                                        │
 │ Created: Dec 15, 2024 2:30 PM                                            │
 │ Updated: Dec 15, 2024 4:45 PM                                           |│                                                                             │
 │                                                                             │
@@ -259,11 +259,11 @@ This layout provides a comprehensive task management system specifically designe
 **Tab Structure**:
 
 **Base Tab** (Default):
-- Editable fields: Title, Description, Priority, Mode, List
+- Editable fields: Title, Description, Priority, Stage, List
 - Read-only: Repository, Agent, Actor (configured at creation)
 - Attachments with drag-and-drop upload
 - Real-time status display
-- Action buttons: Delete Task, Save Changes
+- Action buttons: Delete Mission, Save Changes
 
 **Clarify Tab**
 ```
@@ -349,7 +349,7 @@ This layout provides a comprehensive task management system specifically designe
 │                                                                           │
 │ Blocks:                                                                   │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
-│ │ ⏳ Create user dashboard (waiting for this task)                    │   │
+│ │ ⏳ Create user dashboard (waiting for this mission)                    │   │
 │ │ ⏳ Implement user profile page                                       │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 └───────────────────────────────────────────────────────────────────────────┘
@@ -358,37 +358,37 @@ This layout provides a comprehensive task management system specifically designe
 **Settings Tab**:
 ```
 ┌─ SETTINGS TAB ────────────────────────────────────────────────────────────┐
-│ Task Configuration:                                                       │
+│ Mission Configuration:                                                       │
 │ Workstation: [My MacBook Pro ▼]                                          │
 │ Repository: [Main Repo (github.com/user/project)]                        │
 │                                                                           │
-│ Task Metadata:                                                            │
-│ ID: task_123456789                                                        │
+│ Mission Metadata:                                                            │
+│ ID: mission_123456789                                                        │
 │ Created: Dec 15, 2024 2:30 PM                                            │
 │ Author: user.name                                                         │
 │                                                                           │
 │ Advanced Settings:                                                        │
 │ Auto-ready: [☑] Mark ready automatically when dependencies complete      │
-│ Notifications: [☑] Notify when task status changes                       │
-│ Time tracking: [☐] Track time spent on this task                         │
+│ Notifications: [☑] Notify when mission status changes                       │
+│ Time tracking: [☐] Track time spent on this mission                         │
 │                                                                           │
 │ Danger Zone:                                                              │
-│ [🔄 Reset AI] [🗑️ Delete Task]                                           │
+│ [🔄 Reset AI] [🗑️ Delete Mission]                                           │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-### TaskCreatePopup component
+### MissionCreatePopup component
 
 **Modal Layout (Responsive)**
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Create New Task                                                       [×]  │
+│ Create New Mission                                                       [×]  │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │ Title *                                                                     │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
-│ │ Task title here...                                                      │ │
+│ │ Mission title here...                                                      │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ Description                                                                 │
@@ -403,7 +403,7 @@ This layout provides a comprehensive task management system specifically designe
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ ┌─────────────────┬─────────────────┬─────────────────┬─────────────────┐   │
-│ │ Mode            │ Priority        │ List            │ Repository      │   │
+│ │ Stage            │ Priority        │ List            │ Repository      │   │
 │ │ [Clarify ▼]     │ [Medium ▼]      │ [Todo ▼]        │ [Main Repo ▼]  │   │
 │ └─────────────────┴─────────────────┴─────────────────┴─────────────────┘   │
 │                                                                             │
@@ -417,14 +417,14 @@ This layout provides a comprehensive task management system specifically designe
 │ ▼ Advanced Settings                                                         │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │ Customize Review Requirements:                                          │ │
-│ │ ┌─ Mode Sequence ────────────────────────────────────────────────────┐   │ │
+│ │ ┌─ Stage Sequence ────────────────────────────────────────────────────┐ │ │
 │ │ │ 1. ☑ Clarify    → [☑ Require Review]                               │   │ │
 │ │ │ 2. ☑ Plan       → [☑ Require Review]                               │   │ │
 │ │ │ 3. ☑ Code       → [☐ Require Verification]                        │   │ │
 │ │ │ 4. ☐ Custom     → [☐ Require Review]                               │   │ │
 │ │ │ 5. ☐ Deploy     → [☐ Require Review]                               │   │ │
 │ │ └─────────────────────────────────────────────────────────────────────┘   │ │
-│ │ [+ Add Custom Mode]                                                     │ │
+│ │ [+ Add Custom Stage]                                                     │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ Dependencies (Optional)                                                     │
@@ -434,9 +434,9 @@ This layout provides a comprehensive task management system specifically designe
 │ │ └────────────────────────────────────────────────────────────────────┘   │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
-│ Auto-ready: [☑] Mark task ready for AI processing immediately              │
+│ Auto-ready: [☑] Mark mission ready for AI processing immediately              │
 │                                                                             │
-│                                             [Cancel] [Create Task]         │
+│                                             [Cancel] [Create Mission]         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -444,16 +444,16 @@ This layout provides a comprehensive task management system specifically designe
 
 - **Title** (Required): Auto-focus, max 255 chars
 - **Description**: Rich text with GitHub-style file attachment support
-- **Mode**: Default "Clarify", affects workflow path
+- **Stage**: Default "Clarify", affects workflow path
 - **Priority**: Default "Medium", visual priority in board
 - **List**: Default "Todo", can create directly in other columns
-- **Repository**: Shows GitHub URLs from projectRepo entities, max concurrent tasks = 1
+- **Repository**: Shows GitHub URLs from projectRepo entities, max concurrent missions = 1
 - **Workstation**: Required, defaults to single workstation if available
 - **Agent**: Required, dynamically loaded from selected workstation
 - **Model**: Required, appears after agent selection (GPT-5, GPT-4, etc.)
 - **Actor**: Optional, narrower field, defaults to project default actor
-- **Workflow Configuration**: Template-based workflow with customizable mode sequence and review requirements per mode
-- **Dependencies**: Task picker with search/filter
+- **Workflow Configuration**: Template-based workflow with customizable stage sequence and review requirements per stage
+- **Dependencies**: Mission picker with search/filter
 - **Auto-ready**: Convenience flag to skip manual ready toggle
 
 ### ProjectSettingsPopup component
@@ -514,14 +514,14 @@ This layout provides a comprehensive task management system specifically designe
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 📁 Main Repository                                      [Edit] [×]   │   │
 │ │ GitHub URL: https://github.com/user/my-app                         │   │
-│ │ Max Concurrent Tasks: [1 ▼]                                        │   │
+│ │ Max Concurrent Missions: [1 ▼]                                        │   │
 │ │ Last Active: 2 minutes ago                                         │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 📁 Frontend Repository                                  [Edit] [×]   │   │
 │ │ GitHub URL: https://github.com/user/my-app-frontend                │   │
-│ │ Max Concurrent Tasks: [1 ▼]                                        │   │
+│ │ Max Concurrent Missions: [1 ▼]                                        │   │
 │ │ Last Active: Never                                                 │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
@@ -536,14 +536,14 @@ This layout provides a comprehensive task management system specifically designe
 │ │ 👤 Default Actor (System Default)                      [Edit] [×]   │   │
 │ │ Description: Full-stack engineering agent focused on working        │   │
 │ │              solutions with clean, maintainable code               │   │
-│ │ Used by: 34 tasks                                                  │   │
+│ │ Used by: 34 missions                                                  │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 👤 Frontend Specialist                                  [Edit] [×]   │   │
 │ │ Description: React/TypeScript expert focused on UI/UX best         │   │
 │ │              practices and responsive design                        │   │
-│ │ Used by: 8 tasks                                                   │   │
+│ │ Used by: 8 missions                                                   │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ [+ Create Actor]                                                          │
@@ -557,19 +557,19 @@ This layout provides a comprehensive task management system specifically designe
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 📋 Standard Development (Default)                       [Edit] [×]   │   │
 │ │ Sequence: Clarify(✓) → Plan(✓) → Code                                 │   │
-│ │ Used by: 28 tasks                                                    │   │
+│ │ Used by: 28 missions                                                    │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 📋 Quick Fix                                            [Edit] [×]   │   │
 │ │ Sequence: Code                                                        │   │
-│ │ Used by: 12 tasks                                                    │   │
+│ │ Used by: 12 missions                                                    │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 📋 Research & Analysis                                  [Edit] [×]   │   │
 │ │ Sequence: Clarify(✓) → Plan(✓) → Code(✓) → Review(✓)                │   │
-│ │ Used by: 3 tasks                                                     │   │
+│ │ Used by: 3 missions                                                     │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ [+ Create Workflow Template]                                              │
@@ -578,14 +578,14 @@ This layout provides a comprehensive task management system specifically designe
 │ ┌─ Create/Edit Workflow Template ──────────────────────────────────────┐   │
 │ │ Name: [Research & Analysis                                        ]   │   │
 │ │                                                                     │   │
-│ │ Mode Sequence:                                                      │   │
+│ │ Stage Sequence:                                                      │   │
 │ │ ┌─ Drag to reorder ────────────────────────────────────────────┐     │   │
 │ │ │ 1. ☑ Clarify    → [☑ Require Review] [⋮]                    │     │   │
 │ │ │ 2. ☑ Plan       → [☑ Require Review] [⋮]                    │     │   │
 │ │ │ 3. ☑ Code       → [☑ Require Verification] [⋮]             │     │   │
 │ │ │ 4. ☑ Review     → [☑ Require Review] [⋮]                    │     │   │
 │ │ └─────────────────────────────────────────────────────────────────┘     │   │
-│ │ [+ Add Mode]                                                        │   │
+│ │ [+ Add Stage]                                                        │   │
 │ │                                                                     │   │
 │ │                                         [Cancel] [Save Template]   │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
@@ -663,13 +663,13 @@ This layout provides a comprehensive task management system specifically designe
 │ Main Repository *                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │ GitHub URL: [https://github.com/user/my-repo                        ] │ │
-│ │ Max Concurrent Tasks: [1 ▼]                                            │ │
+│ │ Max Concurrent Missions: [1 ▼]                                            │ │
 │ │                                                                         │ │
 │ │ Status: ✅ Valid repository found                                       │ │
 │ └─────────────────────────────────────────────────────────────────────────┘ │
 │                                                                             │
 │ Additional Repositories (Optional):                           [+ Add More] │                                                                                                     │                                                                             │
-│ ☑️ Create sample "Welcome" task to test the setup                          │
+│ ☑️ Create sample "Welcome" mission to test the setup                          │
 │                                                                             │
 │                                          [← Back] [Cancel] [Create Project]│
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -693,16 +693,16 @@ This layout provides a comprehensive task management system specifically designe
 │ │ OS: macOS 14.2  •  Arch: arm64                                          ││
 │ │ Registration: Dec 1, 2024 via CLI                                       ││
 │ │                                                                          ││
-│ │ Current Tasks:                                                        ││
+│ │ Current Missions:                                                        ││
 │ │ ┌──────────────────────────────────────────────────────────────────────┐ ││
 │ │ │ 🤖 Agent: Claude Code                                                │ ││
-│ │ │ 📋 Task: Implement user authentication (task_123456)                │ ││
+│ │ │ 📋 Mission: Implement user authentication (mission_123456)                │ ││
 │ │ │ 📁 Repository: github.com/user/my-app                                │ ││
 │ │ │ ⏱️  Started: 15 minutes ago                                           │ ││
 │ │ └──────────────────────────────────────────────────────────────────────┘ ││
 │ │                                                                          ││
 │ │ Quick Actions:                                                           ││
-│ │ [🔄 Pause receiving tasks] [📊 View Metrics] [🚫 Disconnect]             ││
+│ │ [🔄 Pause receiving missions] [📊 View Metrics] [🚫 Disconnect]             ││
 │ └──────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
 │                                                      [Close] [Save]        │
@@ -716,14 +716,14 @@ This layout provides a comprehensive task management system specifically designe
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 🤖 Claude Code                                          [Config] [×]   │   │
 │ │ Version: v2.1.4                                  │   │
-│ │ Rate Limit: Available  •  Concurrent Tasks: 1/1                       │   │
+│ │ Rate Limit: Available  •  Concurrent Missions: 1/1                       │   │
 │ │ Last Activity: 2 minutes ago                                          │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 🤖 OpenCode                                             [Config] [×]   │   │
 │ │ Version: v1.3.2                                                        │   │
-│ │ Rate Limit: Available  •  Concurrent Tasks: 0/2                       │   │
+│ │ Rate Limit: Available  •  Concurrent Missions: 0/2                       │ │
 │ │ Last Activity: 1 hour ago                                             │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
@@ -766,7 +766,7 @@ This layout provides a comprehensive task management system specifically designe
 │ │ Projects (4)                                           [+ New Project] │      │
 │ │ ┌─────────────────┬─────────────────┬─────────────────┬─────────────┐ │      │
 │ │ │ 📱 Mobile App   │ 🌐 Web Portal   │ 📊 Analytics    │ 🔧 DevTools │ │      │
-│ │ │ 12 tasks        │ 8 tasks         │ 3 tasks        │ 15 tasks    │ │      │
+│ │ │ 12 missions        │ 8 missions         │ 3 missions        │ 15 missions    │ │      │
 │ │ │ 💻 2 stations    │ 💻 1 station    │ 💻 1 station   │ 💻 3 stations │ │      │
 │ │ │ ✅ 23 done      │ ✅ 45 done      │ ✅ 12 done     │ ✅ 67 done  │ │      │
 │ │ │                 │                 │                 │             │ │      │
@@ -852,13 +852,313 @@ This layout provides a comprehensive task management system specifically designe
 
 **Key Features**:
 
-1. **TaskViewPopup**: Context-aware tabs based on task state, real-time status updates
-2. **TaskCreatePopup**: Streamlined creation with smart defaults, file attachment support
+1. **MissionViewPopup**: Context-aware tabs based on mission state, real-time status updates
+2. **MissionCreatePopup**: Streamlined creation with smart defaults, file attachment support
 3. **ProjectSettingsPopup**: Comprehensive configuration with validation and status indicators
 4. **ProjectCreatePopup**: 3-step wizard with validation and template support
 5. **OrganizationPage**: Team management, project overview, usage tracking
 
 All components follow the established design patterns with consistent spacing, responsive layouts, and mobile-first approach.
+
+## Public Project Components
+
+### PublicProjectViewPopup component
+
+**Permission-aware Project View for Anonymous and Authenticated Users**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ E-commerce Starter Kit                                              [×]   │
+│ by @ecommerce_expert • ⭐ 142 • 👥 8 contributors                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ [Overview] [Missions] [Contributors] [Analytics]          [🌟 Request Access]│
+├─────────────────────────────────────────────────────────────────────────────┤
+│ ┌─ OVERVIEW TAB ────────────────────────────────────────────────────────────┐│
+│ │ Project Description:                                                      ││
+│ │ Complete e-commerce solution with React frontend, Node.js backend,       ││
+│ │ Stripe payments, and PostgreSQL database. Includes user authentication,  ││
+│ │ product catalog, shopping cart, and admin dashboard.                     ││
+│ │                                                                          ││
+│ │ 🏷️ Tags: react, typescript, stripe, ecommerce, nodejs, postgresql       ││
+│ │ 📂 Category: Web Development                                             ││
+│ │ 🔗 Repository: github.com/ecommerce-expert/starter-kit (⭐ 89)           ││
+│ │                                                                          ││
+│ │ Progress: ██████████████████████▒▒▒ 92% (23/25 missions)                ││
+│ │ Status: 🟢 Active • Last updated: 2 hours ago                           ││
+│ │                                                                          ││
+│ │ Workstation Activity: (based on workstation_visibility setting)         ││
+│ │ 💻 2 workstations online (Status Only mode - no details shown)          ││
+│ │                                                                          ││
+│ │ Recent Activity:                                                         ││
+│ │ • ✅ Mission completed: "Payment Gateway Integration" (2h ago)           ││
+│ │ • 👤 New contributor: mike_dev joined as Contributor (5h ago)            ││
+│ │ • 📋 Mission created: "Mobile Responsive Design" (1d ago)               ││
+│ │                                                                          ││
+│ │ Quick Actions:                                                           ││
+│ │ [⭐ Star Project] [🍴 Use as Template] [📋 Browse Missions] [🤝 Contribute]││
+│ └──────────────────────────────────────────────────────────────────────────┘│
+│                                                              [Close]        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Missions Tab (Permission-aware)**:
+```
+┌─ MISSIONS TAB ────────────────────────────────────────────────────────────┐
+│ Public Missions (23 completed, 2 active):              [Filter ▼] [Sort ▼]│
+│                                                                            │
+│ ✅ Completed Missions (Readable by public):                                │
+│ ┌──────────────────────────────────────────────────────────────────────┐  │
+│ │ ✅ User Authentication System                          P High         │  │
+│ │    JWT tokens, password hashing, session management                   │  │
+│ │    Completed 3 days ago • Stage: Code                                  │  │
+│ │    🔗 PR: #23 merged • 📁 Files: auth.ts, login.tsx (+4 more)        │  │
+│ └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│ 🚀 Active Missions (Contributors can see):                                │
+│ ┌──────────────────────────────────────────────────────────────────────┐  │
+│ │ 🔄 Mobile Responsive Design                            P Medium        │  │
+│ │    Make the entire app mobile-friendly with Tailwind CSS              │  │
+│ │    Status: In Progress • Stage: Code                                    │  │
+│ │    💻 Workstation: Hidden (Permission restricted)                      │  │
+│ └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│ Anonymous users see: Completed missions and basic info                    │
+│ Contributors can: View active missions, create new missions               │
+│ Collaborators can: See workstation assignments                           │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### AccessRequestModal component
+
+**Self-Service Permission Request System**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Request Access to: E-commerce Starter Kit                            [×]  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Current Access: 👁️ Public (View only)                                       │
+│                                                                             │
+│ Request Permission Level:                                                   │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ ○ Contributor                                                           │ │
+│ │   ✓ Create and edit missions                                            │ │
+│ │   ✓ Comment on missions and pull requests                              │ │
+│ │   ✓ Submit mission dependencies                                         │ │
+│ │   ✗ View workstation details                                            │ │
+│ │   ✗ Execute missions                                                    │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ ○ Collaborator                                                          │ │
+│ │   ✓ All contributor permissions                                         │ │
+│ │   ✓ View workstation status (if project allows)                        │ │
+│ │   ✓ Access detailed analytics                                           │ │
+│ │   ✓ Create workflow templates                                           │ │
+│ │   ✗ Execute missions on workstations                                    │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ Why do you want to contribute? (optional)                                  │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ I have 5 years of React experience and would love to help improve      │ │
+│ │ the authentication flow. I've built similar e-commerce systems         │ │
+│ │ before and can contribute meaningful features.                          │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ GitHub Profile (optional): github.com/[myusername                       ] │
+│                                                                             │
+│ ℹ️  This project has automatic approval for Contributor access              │
+│                                                                             │
+│                                                    [Cancel] [Request Access]│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### ProjectPermissionsPanel component
+
+**Admin Interface for Managing Project Permissions**
+
+```
+┌─ PROJECT PERMISSIONS TAB ─────────────────────────────────────────────────┐
+│ Public Access Settings:                                                     │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ Visibility: [🌍 Public ▼] (Private, Public)                        │   │
+│ │                                                                     │   │
+│ │ Anonymous Users Can:                                                │   │
+│ │ ☑️ Read completed missions                                          │   │
+│ │ ☑️ Read project documentation                                       │   │
+│ │ ☑️ View repository information                                      │   │
+│ │ ☐ See mission comments                                             │   │
+│ │                                                                     │   │
+│ │ Workstation Visibility: [🔒 Hidden ▼]                              │   │
+│ │ • Hidden: No workstation info visible                              │   │
+│ │ • Status Only: Show online/offline status                          │   │
+│ │ • Full Details: Show all workstation information                   │   │
+│ │                                                                     │   │
+│ │ Contributors Can:                                                   │   │
+│ │ ☑️ Create and edit missions                                         │   │
+│ │ ☑️ Comment on missions                                              │   │
+│ │ ☐ View active mission details                                      │   │
+│ │                                                                     │   │
+│ │ Auto-approve Contributor requests: [☑️]                             │   │
+│ │ Require review for Collaborator+: [☑️]                             │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ Project Members:                                    [📧 Invite User]      │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ 👤 @ecommerce_expert (Owner)                         [Change Role ▼]│   │
+│ │ Full project control, permission management                         │   │
+│ │ Added: Project creation • Last active: 2 hours ago                 │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ 👤 @frontend_dev (Collaborator)                     [Change Role ▼]│   │
+│ │ Can view workstation status, create workflows                       │   │
+│ │ Added: 2 weeks ago • Last active: 1 day ago                        │   │
+│ │ [Message User] [Remove]                                             │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ Pending Requests (2):                                                     │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ 👤 @new_contributor → Contributor                                   │   │
+│ │ "I want to help with the payment integration..."                    │   │
+│ │ Requested: 3 hours ago • GitHub: github.com/new_contributor         │   │
+│ │ [✅ Approve] [❌ Deny] [💬 Message]                                   │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ [Save Changes]                                                            │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### PublicProjectSettings component
+
+**Enhanced Project Settings for Public Visibility**
+
+```
+┌─ PUBLIC SETTINGS TAB ─────────────────────────────────────────────────────┐
+│ Project Visibility:                                                        │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ Current Status: [🌍 Public ▼] (Private, Public)                     │   │
+│ │                                                                     │   │
+│ │ ⚠️  Making project public will:                                     │   │
+│ │ • Allow anyone to view project overview and completed missions     │   │
+│ │ • Enable community contributions based on permission settings       │   │
+│ │ • List project in public gallery (if not unlisted)                 │   │
+│ │ • Generate public URL: solounicorn.lol/projects/my-project          │   │
+│ │                                                                     │   │
+│ │ Public URL Slug: [my-ecommerce-starter            ] (.unavailable)  │   │
+│ │ Category: [Web Development ▼]                                       │   │
+│ │ Tags: react, typescript, stripe, ecommerce                         │   │
+│ │                                                                     │   │
+│ │ Gallery Options:                                                    │   │
+│ │ ☑️ List in public gallery                                          │   │
+│ │ ☐ Submit for featured projects                                     │   │
+│ │ ☑️ Allow use as template                                           │   │
+│ │ ☑️ Enable community starring                                       │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ Public Project Preview:                                                   │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ 🌍 E-commerce Starter Kit                              ⭐ 142 💬 23   │   │
+│ │ Complete e-commerce solution with React, Stripe...                  │   │
+│ │ by @ecommerce_expert • Web Development • 23/25 missions complete    │   │
+│ │ 💻 2 workstations online • Updated 2 hours ago                      │   │
+│ │ [View Project] [⭐ Star] [🍴 Use Template]                           │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ SEO & Sharing:                                                            │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ Project Description (for search & social sharing):                  │   │
+│ │ ┌─────────────────────────────────────────────────────────────────┐ │   │
+│ │ │ Complete e-commerce solution with React frontend, Node.js      │ │   │
+│ │ │ backend, Stripe payments, and PostgreSQL database. Perfect     │ │   │
+│ │ │ for learning full-stack development with AI assistance.        │ │   │
+│ │ │                                                                 │ │   │
+│ │ └─────────────────────────────────────────────────────────────────┘ │   │
+│ │                                                                     │   │
+│ │ Social Preview Image: [📷 Upload Custom] or [🎨 Generate Badge]     │   │
+│ │ README Integration: ☑️ Show README.md prominently                   │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ Privacy Controls:                                                         │
+│ ┌─────────────────────────────────────────────────────────────────────┐   │
+│ │ Hide sensitive information:                                          │   │
+│ │ ☑️ Hide organization details                                        │   │
+│ │ ☑️ Hide workstation local paths                                     │   │
+│ │ ☑️ Hide private mission details                                     │   │
+│ │ ☑️ Hide user email addresses                                        │   │
+│ │                                                                     │   │
+│ │ Analytics & Tracking:                                               │   │
+│ │ ☑️ Track project views and engagement                               │   │
+│ │ ☑️ Show activity metrics publicly                                   │   │
+│ │ ☐ Allow third-party analytics (Google Analytics, etc.)             │   │
+│ └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                           │
+│ [Revert to Private] [Save Public Settings]                               │
+└───────────────────────────────────────────────────────────────────────────┘
+```
+
+### CommunityDashboard component
+
+**User Dashboard for Public Project Involvement**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ [LOGO] My Community Dashboard                          [🌙/☀️] [👤 User ▼]  │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ [My Projects] [Contributing] [Starred] [Templates] [Activity]                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ ┌─ Contributing To (3) ─────────────────────────────────────────────────────┐ │
+│ │ ┌─────────────────────────────────────────────────────────────────────┐   │ │
+│ │ │ 🌍 E-commerce Starter Kit                   📍 Collaborator Role     │   │ │
+│ │ │ Your contributions: 5 missions created, 12 comments                 │   │ │
+│ │ │ Recent: Added mobile responsive design mission (2 days ago)         │   │ │
+│ │ │ [View Project] [View My Contributions]                             │   │ │
+│ │ └─────────────────────────────────────────────────────────────────────┘   │ │
+│ │                                                                         │ │
+│ │ ┌─────────────────────────────────────────────────────────────────────┐   │ │
+│ │ │ 🌍 AI Chatbot Framework                     📍 Contributor Role      │   │ │
+│ │ │ Your contributions: 2 missions created, 8 comments                  │   │ │
+│ │ │ Recent: Reviewed prompt optimization mission (1 week ago)              │   │ │
+│ │ │ [View Project] [View My Contributions]                             │   │ │
+│ │ └─────────────────────────────────────────────────────────────────────┘   │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ ┌─ Starred Projects (8) ────────────────────────────────────────────────────┐ │
+│ │ 📌 Quick access to your favorite public projects                          │ │
+│ │ [⭐ Design System] [⭐ Todo App] [⭐ Analytics Dashboard] [View All...]      │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ ┌─ My Templates Used (2) ───────────────────────────────────────────────────┐ │
+│ │ Projects created from your public project templates:                      │ │
+│ │ • "My Store" created from E-commerce Starter Kit (5 users)              │ │
+│ │ • "Company Chat" created from AI Chatbot Framework (2 users)            │ │
+│ │ [View Template Analytics]                                                  │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ ┌─ Community Stats ─────────────────────────────────────────────────────────┐ │
+│ │ Your Impact:                                                               │ │
+│ │ 🎯 7 missions contributed • 🌟 24 stars received • 🍴 7 templates used     │ │
+│ │ 💬 45 helpful comments • 🏆 Contributor level reached                      │ │
+│ │                                                                           │ │
+│ │ Recent Activity:                                                          │ │
+│ │ • Starred "Mobile Game Engine" project                                    │ │
+│ │ • Added comment to "E-commerce Starter Kit"                              │ │
+│ │ • Created "Payment Integration" mission                                   │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                             │
+│ [Discover More Projects] [Create Public Project]                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Public Project UI Features:**
+
+1. **Permission-Aware Display**: UI adapts based on user's permission level
+2. **Access Request Flow**: Self-service permission requests with approval workflow
+3. **Public Gallery**: Browse, search, and discover public projects
+4. **Community Features**: Starring, templating, and contribution tracking
+5. **Privacy Controls**: Granular settings for workstation visibility and data exposure
+6. **Role Management**: Visual role hierarchy with clear permission boundaries
+7. **Activity Tracking**: Public activity feeds and contribution analytics
 
 ### PublicProjectGallery component
 
@@ -892,8 +1192,8 @@ All components follow the established design patterns with consistent spacing, r
 │ │ ┌─────────────────────────────────────────────────────────────────────┐   │   │
 │ │ │ 📄 Todo App with AI Assistant                          ⭐ 15 ✅ 8/10  │   │   │
 │ │ │ by @johndoe • React, OpenAI, TypeScript • Updated 2h ago            │   │   │
-│ │ │ Build a smart todo app that suggests tasks and priorities using AI   │   │   │
-│ │ │ [View] [⭐ Star] [💬 3 comments]                                      │   │   │
+│ │ │ Build a smart todo app that suggests missions and priorities using AI   │   │   │
+│ │ │ [View] [⭐ Star] [🍴 Use Template] [💬 3 comments]                   │   │   │
 │ │ └─────────────────────────────────────────────────────────────────────┘   │   │
 │ │                                                                         │   │
 │ │ ┌─────────────────────────────────────────────────────────────────────┐   │   │
@@ -918,7 +1218,7 @@ All components follow the established design patterns with consistent spacing, r
 │ [← Back] E-commerce Starter Kit                    [⭐ Star] [🍴 Use Template] │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ by @ecommerce_expert • React, Stripe, PostgreSQL                            │
-│ 42 stars • 23/25 tasks completed • Last active: 2 hours ago                │
+│ 42 stars • 23/25 missions completed • Last active: 2 hours ago                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │ ┌─ Project Overview ──────────────────────────────────────────────────────┐   │
@@ -927,9 +1227,9 @@ All components follow the established design patterns with consistent spacing, r
 │ │ product catalog, shopping cart, and admin dashboard.                    │   │
 │ │                                                                         │   │
 │ │ 🏷️  Tags: react, nodejs, stripe, ecommerce, postgresql, api            │   │
-│ │ 📊 Progress: 92% complete (23/25 tasks)                                 │   │
+│ │ 📊 Progress: 92% complete (23/25 missions)                                 │   │
 │ │ 💻 Active Workstations: 2 (can contribute)                             │   │
-│ │ 📈 Activity: High (5 tasks completed this week)                        │   │
+│ │ 📈 Activity: High (5 missions completed this week)                        │   │
 │ └─────────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
 │ [📋 View Kanban] [💻 Contribute] [📖 Documentation] [💬 Discussions]         │
@@ -979,7 +1279,7 @@ All components follow the established design patterns with consistent spacing, r
 │ │ ┌────────────────────────────────────────────────────────────────────┐   ││
 │ │ │ Anonymous Users Can:                                               │   ││
 │ │ │ ☑ View project overview and description                           │   ││
-│ │ │ ☑ View completed tasks and progress                               │   ││
+│ │ │ ☑ View completed missions and progress                               │   ││
 │ │ │ ☑ Read project memory/documentation                               │   ││
 │ │ │ ☐ See workstation status (online/offline only)                   │   ││
 │ │ └────────────────────────────────────────────────────────────────────┘   ││
@@ -987,9 +1287,9 @@ All components follow the established design patterns with consistent spacing, r
 │ │ Contributor Permissions:                                                 ││
 │ │ ┌────────────────────────────────────────────────────────────────────┐   ││
 │ │ │ Contributors Can:                                                  │   ││
-│ │ │ ☑ Create and edit tasks                                           │   ││
-│ │ │ ☑ Comment on tasks and PRs                                        │   ││
-│ │ │ ☑ Submit task dependencies                                        │   ││
+│ │ │ ☑ Create and edit missions                                           │   ││
+│ │ │ ☑ Comment on missions and PRs                                        │   ││
+│ │ │ ☑ Submit mission dependencies                                        │   ││
 │ │ │ ☐ View workstation details                                        │   ││
 │ │ └────────────────────────────────────────────────────────────────────┘   ││
 │ │                                                                          ││
@@ -1016,14 +1316,14 @@ All components follow the established design patterns with consistent spacing, r
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 👤 Sarah Developer (Maintainer)                       [Edit] [×]    │   │
 │ │ sarah@dev.com  •  Invited contributor                              │   │
-│ │ Can: Execute tasks, Read/Write, Workstations                       │   │
+│ │ Can: Execute missions, Read/Write, Workstations                       │   │
 │ │ Override: [☑] Can invite users  [☐] Can manage repositories        │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
 │ ┌─────────────────────────────────────────────────────────────────────┐   │
 │ │ 👤 Mike Contributor (Contributor)                     [Edit] [×]    │   │
 │ │ mike@freelance.com  •  Public contributor                          │   │
-│ │ Can: Read/Write tasks, Comment                                      │   │
+│ │ Can: Read/Write missions, Comment                                      │   │
 │ │ Status: ⏳ Pending invitation                                       │   │
 │ └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                           │
@@ -1040,13 +1340,13 @@ All components follow the established design patterns with consistent spacing, r
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Contribute to E-commerce Starter                                      [×] │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ [Request Access] [Create Task] [View Guidelines]                           │
+│ [Request Access] [Create Mission] [View Guidelines]                           │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
 │ ┌─ REQUEST ACCESS TAB ──────────────────────────────────────────────────────┐│
 │ │ Join as Contributor to this project                                      ││
 │ │                                                                          ││
-│ │ Your Role: [Contributor ▼] (Can create/edit tasks, comment on work)     ││
+│ │ Your Role: [Contributor ▼] (Can create/edit missions, comment on work)     ││
 │ │                                                                          ││
 │ │ Why do you want to contribute?                                           ││
 │ │ ┌────────────────────────────────────────────────────────────────────┐   ││
@@ -1062,7 +1362,7 @@ All components follow the established design patterns with consistent spacing, r
 │ │ GitHub Profile (optional): [github.com/username                       ] ││
 │ │                                                                          ││
 │ │ ⚡ This project accepts contributors automatically                        ││
-│ │ You'll be able to create tasks and comment immediately after joining    ││
+│ │ You'll be able to create missions and comment immediately after joining    ││
 │ └──────────────────────────────────────────────────────────────────────────┘│
 │                                                                             │
 │                                                        [Cancel] [Join Now] │
@@ -1086,14 +1386,14 @@ All components follow the established design patterns with consistent spacing, r
 │ │ Description: [Online store for handmade crafts                        ] ││
 │ │                                                                          ││
 │ │ Template includes:                                                       ││
-│ │ ✅ 25 pre-configured tasks (User auth, Product catalog, Payments, etc.)  ││
+│ │ ✅ 25 pre-configured missions (User auth, Product catalog, Payments, etc.)  ││
 │ │ ✅ Workflow templates (Development, Testing, Deployment)                ││
 │ │ ✅ Project memory with tech stack documentation                         ││
 │ │ ✅ Actor profiles (Frontend Dev, Backend Dev, Full-stack)               ││
 │ │ ✅ Repository structure recommendations                                  ││
 │ │                                                                          ││
 │ │ Customizations:                                                          ││
-│ │ ☑ Update task descriptions for my use case                             ││
+│ │ ☑ Update mission descriptions for my use case                             ││
 │ │ ☑ Modify tech stack recommendations                                     ││
 │ │ ☐ Keep original project memory as-is                                   ││
 │ │                                                                          ││
@@ -1146,7 +1446,7 @@ const DesktopKanban = () => (
 - Touch-friendly card interactions
 - Full-screen modal popups
 - Thumb-reachable navigation
-- Same loop task design as desktop (Regular Tasks/Loop Tasks sections)
+- Same loop mission design as desktop (Regular Missions/Loop Missions sections)
 
 ## Pull Request Support UI/UX
 
@@ -1162,10 +1462,10 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 1. **Dual Workflow Support**: Seamlessly switch between direct push and PR modes
 2. **GitHub Integration**: Auto-create PRs, sync comments, handle reviews
 3. **AI Feedback Loop**: Agents read and respond to GitHub PR comments
-4. **Flexible Configuration**: Per-project defaults with per-task overrides
+4. **Flexible Configuration**: Per-project defaults with per-mission overrides
 5. **Team Collaboration**: Multiple reviewers and real-time PR status
 
-### Enhanced Task Cards (PR Mode)
+### Enhanced Mission Cards (PR Mode)
 
 #### Review Column Card with PR Integration
 
@@ -1176,7 +1476,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 │ P High [Review] 👀 PR #42 (pending) │
 ├─────────────────────────────────────┤
 │ 🔗 [View GitHub PR] [💬 PR Comments] │
-│ Branch: solo-unicorn/task-oauth-456 │
+│ Branch: solo-unicorn/mission-oauth-456 │
 ├─────────────────────────────────────┤
 │ Description text here that can be   │
 │ multiple lines long and will show   │
@@ -1196,7 +1496,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 ├─────────────────────────────────────┤
 │ P High [Review] 👎 PR #42 (rework) │
 ├─────────────────────────────────────┤
-│ Branch: solo-unicorn/task-oauth-456 │
+│ Branch: solo-unicorn/mission-oauth-456 │
 ├─────────────────────────────────────┤
 │ Add Google OAuth integration using  │
 │ Monster Auth. Create login flow...  │
@@ -1234,12 +1534,12 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 │ 🔄 Pull Request Mode                                                        │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │ ○ Direct Push Mode (Fast iteration)                                    │ │
-│ │   • Tasks work directly on main branch                                 │ │
+│ │   • Missions work directly on main branch                                 │ │
 │ │   • No PR creation, immediate commits                                  │ │
 │ │   • Best for: Early stage development, solo work                      │ │
 │ │                                                                         │ │
 │ │ ● PR Mode (Controlled development)                                     │ │
-│ │   • Tasks create individual branches                                   │ │
+│ │   • Missions create individual branches                                   │ │
 │ │   • Auto-create GitHub PRs when moving to Review                      │ │
 │ │   • AI agents respond to GitHub PR comments                           │ │
 │ │   • Best for: Production projects, team collaboration                 │ │
@@ -1247,7 +1547,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 │                                                                             │
 │ PR Configuration (when PR Mode enabled)                                    │
 │ ┌─────────────────────────────────────────────────────────────────────────┐ │
-│ │ Branch Prefix: [solo-unicorn/] (e.g., solo-unicorn/task-123-auth)      │ │
+│ │ Branch Prefix: [solo-unicorn/] (e.g., solo-unicorn/mission-123-auth)      │ │
 │ │ Target Branch: [main      ▼] (base branch for PRs)                     │ │
 │ │ Require Review: [✓] (human approval before merge)                      │ │
 │ │ Auto-merge: [✓] (merge approved PRs automatically)                     │ │
@@ -1259,11 +1559,11 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Task Creation with PR Override
+### Mission Creation with PR Override
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Create New Task                                                             │
+│ Create New Mission                                                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Title: [Implement OAuth integration                               ]         │
 │                                                                             │
@@ -1283,7 +1583,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 │ ● Force PR Mode (override)                                                 │
 │   └─ Target Branch: [main ▼] Custom Branch: [ ]                           │
 │                                                                             │
-│                                            [Cancel]  [Create Task]         │
+│                                            [Cancel]  [Create Mission]         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -1334,8 +1634,7 @@ Solo Unicorn v3 introduces comprehensive Pull Request support enabling two disti
 ### PR Status Indicators & Workflow
 
 #### PR Mode Badges
-- `📝 PR Mode` - Task configured for PR workflow
-- `⚡ Direct` - Task using direct push mode
+- `⚡ Direct` - Mission using direct push mode
 - `🔄 PR #42` - PR created and linked
 - `✅ Merged` - PR successfully merged
 - `❌ Closed` - PR closed without merging
@@ -1367,7 +1666,7 @@ Todo (PR Mode) → Doing (Working) → Review (PR Created) → Done (Merged)
 
 1. **PR Comment Detection**: Real-time GitHub webhook integration
 2. **Context Understanding**: AI analyzes code context and review comments
-3. **Smart Task Reopening**: Tasks automatically move back to Doing for changes
+3. **Smart Mission Reopening**: Missions automatically move back to Doing for changes
 4. **Targeted Code Updates**: AI implements specific requested changes
 5. **Conversational Responses**: AI responds to reviewers with implementation details
 6. **Iterative Improvement**: Multiple review cycles supported

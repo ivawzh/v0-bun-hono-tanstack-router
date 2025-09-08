@@ -28,7 +28,7 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 ## Architecture Principles
 
 - **Workstation-Centric**: Organizations own workstations, workstations contain agents
-- **Flexible Workflows**: Template-based workflow system with customizable modes
+- **Flexible Workflows**: Template-based workflow system with customizable stages
 - **Git Worktree Support**: Multiple working directories from same repository
 - **Monster Integration**: Compatible with Monster Auth and Monster Realtime
 - **Multi-tenancy**: Organization-based isolation with project-level access control
@@ -77,6 +77,18 @@ This document defines the complete database schema for Solo Unicorn v3, supporti
 - Production projects need code review and controlled changes
 - Seamless GitHub integration with PR creation and comment parsing
 - AI agents can respond to GitHub PR feedback
+
+### Public Project Support
+
+**Decision**: Granular permission system with optional public visibility
+
+**Rationale**:
+- Projects are private by default, maintaining current security model
+- Public projects support community collaboration and open-source development
+- Granular permissions allow fine-tuned access control (missions, workstations, execution)
+- Permission levels follow established open-source collaboration patterns
+- Workstation visibility remains optional even for public projects (security/privacy)
+- Enables project discovery and template sharing within the community
 
 ## Entity Relationship Overview
 
@@ -444,9 +456,16 @@ CREATE TABLE projects (
   -- Public Access Configuration
   public_mission_read BOOLEAN DEFAULT true, -- Allow public users to read missions
   public_memory_read BOOLEAN DEFAULT true, -- Allow public users to read project memory
+  public_repository_read BOOLEAN DEFAULT true, -- Allow public users to see repository information
   contributor_mission_write BOOLEAN DEFAULT true, -- Allow contributors to create/edit missions
   collaborator_workstation_read BOOLEAN DEFAULT false, -- Allow collaborators to see workstation status
   maintainer_mission_execute BOOLEAN DEFAULT false, -- Allow maintainers to execute missions
+
+  -- Workstation Visibility Control
+  workstation_visibility ENUM('hidden', 'status_only', 'full_details') DEFAULT 'hidden',
+  -- hidden: Workstations completely invisible to non-owners
+  -- status_only: Show online/offline status only
+  -- full_details: Show detailed workstation information
 
   -- Configuration
   default_workflow_template_id VARCHAR(26),
@@ -456,7 +475,7 @@ CREATE TABLE projects (
   memory TEXT, -- markdown content
 
   -- Pull Request Configuration
-  pr_mode_default ENUM('disabled', 'enabled') DEFAULT 'disabled', -- default PR mode for new missions
+  pr_mode_default ENUM('disabled', 'enabled') DEFAULT 'disabled', -- default PR stage for new missions
   pr_require_review BOOLEAN DEFAULT true, -- require human review before merging
   pr_auto_merge BOOLEAN DEFAULT false, -- auto-merge approved PRs
   pr_delete_branch_after_merge BOOLEAN DEFAULT true, -- cleanup branches
@@ -480,7 +499,9 @@ CREATE TABLE projects (
   INDEX idx_projects_public_slug (public_slug),
   INDEX idx_projects_category (category),
   INDEX idx_projects_featured (featured),
-  INDEX idx_projects_star_count (star_count DESC)
+  INDEX idx_projects_star_count (star_count DESC),
+  INDEX idx_projects_workstation_visibility (workstation_visibility),
+  INDEX idx_projects_public_access (visibility, public_mission_read, public_memory_read)
 );
 ```
 
@@ -736,7 +757,7 @@ CREATE TABLE project_workstations (
 
 ### Workflow Templates
 
-Defines reusable workflow sequences with per-mode review requirements.
+Defines reusable workflow sequences with per-stage review requirements.
 
 ```sql
 CREATE TABLE workflow_templates (
@@ -748,7 +769,7 @@ CREATE TABLE workflow_templates (
   description TEXT,
 
   -- Template Configuration
-  mode_sequence JSON NOT NULL, -- [{"mode": "clarify", "requireReview": true}, ...]
+  stage_sequence JSON NOT NULL, -- [{"stage": "clarify", "requireReview": true}, ...]
   is_default BOOLEAN DEFAULT false,
   is_system BOOLEAN DEFAULT false, -- System-provided templates
 
@@ -766,22 +787,22 @@ CREATE TABLE workflow_templates (
 );
 ```
 
-### Custom Workflow Modes
+### Custom Workflow Stages
 
-Defines custom modes that can be used in workflows beyond system modes.
+Defines custom stages that can be used in workflows beyond system stages.
 
 ```sql
-CREATE TABLE workflow_modes (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: wfmode_01H123...
-  project_id VARCHAR(26) NULL, -- NULL for system modes
+CREATE TABLE workflow_stages (
+  id VARCHAR(26) PRIMARY KEY, -- ulid: wfstage_01H123...
+  project_id VARCHAR(26) NULL, -- NULL for system stages
 
-  -- Mode Details
-  name VARCHAR(50) NOT NULL, -- Mode identifier
+  -- Stage Details
+  name VARCHAR(50) NOT NULL, -- Stage identifier
   display_name VARCHAR(255) NOT NULL,
   description TEXT,
 
-  -- Mode Configuration
-  prompt_template TEXT, -- Custom prompt for this mode
+  -- Stage Configuration
+  prompt_template TEXT, -- Custom prompt for this stage
   is_system BOOLEAN DEFAULT false,
   requires_code_execution BOOLEAN DEFAULT true,
 
@@ -794,9 +815,9 @@ CREATE TABLE workflow_modes (
 
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
 
-  UNIQUE KEY unique_mode_name_per_project (project_id, name),
-  INDEX idx_workflow_modes_project_id (project_id),
-  INDEX idx_workflow_modes_is_system (is_system)
+  UNIQUE KEY unique_stage_name_per_project (project_id, name),
+  INDEX idx_workflow_stages_project_id (project_id),
+  INDEX idx_workflow_stages_is_system (is_system)
 );
 ```
 
@@ -856,11 +877,11 @@ CREATE TABLE missions (
   list_order DECIMAL(10,5) DEFAULT 1000.00000, -- for drag-and-drop ordering
 
   -- Workflow
-  mode VARCHAR(50) DEFAULT 'clarify', -- Now supports custom modes
+  stage VARCHAR(50) DEFAULT 'clarify', -- Now supports custom stages
   workflow_template_id VARCHAR(26),
-  workflow_config JSON, -- customized mode sequence and review requirements
+  workflow_config JSON, -- customized stage sequence and review requirements
   current_workflow_step INTEGER DEFAULT 0, -- Current position in workflow
-  requires_review BOOLEAN DEFAULT false, -- Current mode requires review
+  requires_review BOOLEAN DEFAULT false, -- Current stage requires review
 
   -- Assignment (maintain compatibility with current system)
   project_repository_id VARCHAR(26), -- target repository
@@ -918,7 +939,7 @@ CREATE TABLE missions (
 
   INDEX idx_missions_project_id (project_id),
   INDEX idx_missions_list (list),
-  INDEX idx_missions_mode (mode),
+  INDEX idx_missions_stage (stage),
   INDEX idx_missions_ready (ready),
   INDEX idx_missions_agent_session_status (agent_session_status),
   INDEX idx_missions_is_loop (is_loop),
@@ -1019,7 +1040,7 @@ CREATE TABLE code_agent_sessions (
 
   -- Session Details
   external_session_id VARCHAR(100), -- code agent's internal session ID
-  mode VARCHAR(50), -- Now supports custom modes
+  stage VARCHAR(50), -- Now supports custom stages
 
   -- Execution Environment
   worktree_id VARCHAR(26), -- git worktree used
@@ -1635,7 +1656,7 @@ BEGIN
       'mission_completed',
       JSON_OBJECT(
         'mission_title', NEW.title,
-        'mode', NEW.mode,
+        'stage', NEW.stage,
         'priority', NEW.priority
       ),
       NEW.id
@@ -1735,7 +1756,7 @@ FROM v2_organizations;
 -- Phase 2: Migrate missions with compatibility fields
 INSERT INTO missions (
   id, project_id, title, description, priority,
-  list, mode, workflow_template_id,
+  list, stage, workflow_template_id,
   project_repository_id, main_repository_id, -- both fields for compatibility
   agent_session_status, ready,
   created_at
@@ -1748,7 +1769,7 @@ SELECT
     WHEN t.list = 'done' THEN 'done'
     WHEN t.list = 'check' THEN 'review' -- enum mapping
   END as list,
-  COALESCE(t.mode, 'execute') as mode,
+  COALESCE(t.stage, 'execute') as stage,
   NULL as workflow_template_id,
   r.id as project_repository_id,
   r.id as main_repository_id, -- compatibility

@@ -224,41 +224,193 @@ This ensures comprehensive feature coverage across all interfaces and maintains 
 **Requirements**:
 
 - **Project Visibility**: Support private (organization-only) and public projects
+  - **Default**: All projects are private by default
+  - **Opt-in Public**: Project owners must explicitly enable public visibility
+  - **Granular Controls**: Even public projects can restrict specific features
+  
 - **Granular Permissions**: Fine-grained access control for different project resources
-- **Permission Levels**: Public, Contributor, Collaborator, Maintainer, Owner roles
-- **Resource-Based Access**: Separate permissions for missions, workstations, execution, and admin functions
-- **Security Boundaries**: Public access must not expose sensitive workstation or organizational data
-- **Invitation System**: Invite external users to public projects with specific permission levels
-- **Permission Inheritance**: Default permissions with per-user overrides
-- **Audit Trail**: Track all permission changes and access attempts
+  - **Mission Access**: Separate read/write permissions for missions
+  - **Workstation Visibility**: Three levels - hidden, status only, full details
+  - **Repository Access**: Control visibility of repository information
+  - **Execution Permissions**: Control who can execute missions on workstations
+  - **Memory Access**: Control access to project memory/documentation
+  
+- **Permission Levels**: Hierarchical role system with inheritance
+  - **Public (Anonymous)**: Basic read-only access to public projects
+  - **Contributor**: Community members who can create/edit missions
+  - **Collaborator**: Trusted members with enhanced visibility
+  - **Maintainer**: Project maintainers who can execute missions
+  - **Owner**: Full project control including permission management
+  
+- **Workstation Privacy Controls**:
+  - **Hidden**: Workstations completely invisible to non-owners (default)
+  - **Status Only**: Show only online/offline status
+  - **Full Details**: Show detailed workstation information and capabilities
+  
+- **Security Boundaries**: Public access must not expose sensitive data
+  - **Workstation Security**: Local paths, environment variables, and sensitive config never exposed
+  - **Organization Privacy**: Organization details remain private unless explicitly shared
+  - **Rate Limiting**: Prevent abuse of public project features
+  - **Audit Logging**: Track all access attempts and permission changes
+  
+- **Access Request System**: Allow users to request elevated permissions
+  - **Self-Service Requests**: Users can request contributor/collaborator access
+  - **Approval Workflow**: Project owners can approve/deny access requests
+  - **Request History**: Track all permission requests and decisions
+  - **Auto-Approval**: Optional automatic approval for contributor-level access
+  
+- **Permission Inheritance**: Smart permission resolution
+  - **Default Permissions**: Role-based defaults with per-user overrides
+  - **Organization Override**: Organization owners have full access to all projects
+  - **Explicit Permissions**: Per-user permissions can override role defaults
 
-**Permission Matrix**:
-- **Public Access**: View project overview, completed missions, public documentation
-- **Contributor**: Create/edit missions, comment, submit dependencies
-- **Collaborator**: View workstation status, access analytics, create workflows
-- **Maintainer**: Execute missions, manage repositories, detailed workstation access
-- **Owner**: Full project control, permission management, project deletion
+**Detailed Permission Matrix**:
+
+| Permission | Public | Contributor | Collaborator | Maintainer | Owner |
+|------------|--------|-------------|--------------|------------|-------|
+| Read Missions | ✓* | ✓ | ✓ | ✓ | ✓ |
+| Write Missions | ❌ | ✓* | ✓ | ✓ | ✓ |
+| Read Project Memory | ✓* | ✓ | ✓ | ✓ | ✓ |
+| Read Repository Info | ✓* | ✓ | ✓ | ✓ | ✓ |
+| View Workstations | Setting-based | Setting-based | ✓* | ✓ | ✓ |
+| Execute Missions | ❌ | ❌ | ❌ | ✓* | ✓ |
+| Manage Repositories | ❌ | ❌ | ❌ | ✓ | ✓ |
+| Manage Permissions | ❌ | ❌ | ❌ | ❌ | ✓ |
+| Project Settings | ❌ | ❌ | ❌ | ❌ | ✓ |
+
+*Conditional on project settings
 
 **Public Interfaces**:
 
-- **CLI**: Public project browsing, permission-aware mission operations
-- **Web**: Public project gallery, permission management UI, role-based feature access
-- **API**: Public project endpoints with permission validation
+- **CLI**: Public project browsing, permission-aware mission operations, access requests
+- **Web**: Public project gallery, permission management UI, role-based feature access, request system
+- **API**: Public project endpoints with permission validation, rate limiting, CORS support
 
-### 14. Public Project Discovery
+### 14. Public Project Discovery & Community
 
 **Requirements**:
 
-- **Project Gallery**: Browse public projects with search and filtering
-- **Project Templates**: Create projects from public templates
-- **Featured Projects**: Curated list of exemplary public projects
-- **Category System**: Organize projects by technology, purpose, or domain
-- **Project Statistics**: Display activity metrics, completion rates, and community engagement
-- **Star/Follow System**: User engagement tracking for popular projects
-- **Community Features**: Comments, discussions, and collaboration on public projects
+- **Project Gallery**: Comprehensive public project browsing
+  - **Search & Filter**: By category, technology, activity level, completion rate
+  - **Sorting Options**: Popularity, recent activity, stars, creation date
+  - **Pagination**: Handle large numbers of public projects efficiently
+  - **Preview Mode**: Quick project overview without full access
+  
+- **Project Templates**: Reusable project structures
+  - **Template Creation**: Convert existing projects into reusable templates
+  - **Template Library**: Curated collection of project templates
+  - **One-Click Creation**: Create new projects from templates instantly
+  - **Template Customization**: Modify templates during project creation
+  
+- **Featured Projects**: Curated showcase
+  - **Editorial Control**: Admin-controlled featured project selection
+  - **Quality Criteria**: High completion rates, good documentation, active maintenance
+  - **Rotation System**: Regularly update featured projects
+  - **Spotlight Stories**: Featured project case studies and success stories
+  
+- **Category & Tag System**: Organized project discovery
+  - **Predefined Categories**: Web Development, Mobile App, AI/ML, DevOps, etc.
+  - **Tag System**: Flexible tagging with technology stacks (React, TypeScript, Python)
+  - **Category Stats**: Show project count and activity per category
+  - **Tag Autocomplete**: Help users discover relevant tags
+  
+- **Project Metrics & Analytics**: Engagement tracking
+  - **Activity Metrics**: Mission creation/completion rates, recent activity
+  - **Community Metrics**: Contributor count, stars, forks (template usage)
+  - **Progress Visualization**: Visual progress bars for mission completion
+  - **Performance Indicators**: Success rates, average completion times
+  
+- **Community Engagement**: User interaction features
+  - **Star System**: Users can star projects for bookmarking and popularity ranking
+  - **Project Following**: Get notifications for project updates
+  - **Contribution Tracking**: Track user contributions across public projects
+  - **Community Profiles**: Show user's public project involvement
+  
+- **Project Sharing & Embedding**: External integration
+  - **Public URLs**: Clean, memorable URLs for public projects
+  - **Social Sharing**: Share project links with rich preview metadata
+  - **README Integration**: Display project README prominently
+  - **Project Badges**: Status badges for embedding in external sites
 
 **Public Interfaces**:
 
-- **CLI**: Browse and clone public projects, search functionality
-- **Web**: Project gallery, template marketplace, community features
-- **API**: Public project search and discovery endpoints
+- **CLI**: 
+  - Browse public projects: `solo-unicorn projects browse [--category] [--featured]`
+  - Search projects: `solo-unicorn projects search "query"`
+  - Star projects: `solo-unicorn projects star PROJECT_SLUG`
+  - Create from template: `solo-unicorn projects create-from-template TEMPLATE_SLUG`
+  
+- **Web**: 
+  - Project gallery with advanced filtering and search
+  - Template marketplace with preview and customization
+  - Community dashboard showing user contributions
+  - Social features for project engagement
+  
+- **API**: 
+  - Public project discovery endpoints (no auth required)
+  - Template API for programmatic project creation
+  - Analytics API for project statistics
+  - Social API for stars, follows, and community features
+
+### 15. Public API Design & Security
+
+**Requirements**:
+
+- **Public Discovery Endpoints**: Authentication-optional API access
+  - `GET /api/public/projects` - Browse public projects with filtering
+  - `GET /api/public/projects/search` - Full-text search across public projects
+  - `GET /api/public/projects/{slug}` - Get public project details
+  - `GET /api/public/projects/{slug}/missions` - Get public missions (permission-aware)
+  - `GET /api/public/categories` - List project categories and counts
+  - `GET /api/public/featured` - Get featured projects list
+  
+- **Permission-Aware Responses**: API responses adapt to user authentication
+  - **Anonymous**: Basic project info, completed missions, public documentation
+  - **Authenticated**: Additional permissions based on role (contributor, collaborator, etc.)
+  - **Graceful Degradation**: No authentication errors, just filtered responses
+  - **Permission Headers**: Include user role in response headers when authenticated
+  
+- **Rate Limiting**: Prevent abuse while enabling legitimate usage
+  - **Anonymous Users**: 100 requests/hour per IP
+  - **Authenticated Users**: 1000 requests/hour per user
+  - **Contributor+**: 5000 requests/hour for project contributors
+  - **Burst Limits**: Allow short bursts for legitimate usage patterns
+  - **Rate Limit Headers**: Include remaining quota in response headers
+  
+- **CORS Configuration**: Enable web embedding and third-party integrations
+  - **Permissive CORS**: Allow requests from any origin for public endpoints
+  - **Credential Support**: Support authenticated requests with credentials
+  - **Preflight Handling**: Proper OPTIONS request handling for complex requests
+  - **Security Headers**: CSRF protection for authenticated operations
+  
+- **Caching Strategy**: Optimize performance for high-traffic public content
+  - **CDN Integration**: Cache public project data at edge locations
+  - **Conditional Requests**: Support ETag and If-Modified-Since headers
+  - **Cache Invalidation**: Smart cache busting when projects are updated
+  - **Vary Headers**: Proper caching for permission-aware responses
+  
+- **API Versioning**: Maintain backward compatibility
+  - **URL Versioning**: `/api/v1/public/projects` for stable public APIs
+  - **Deprecation Strategy**: Clear timeline for API version lifecycle
+  - **Migration Guide**: Help users upgrade between API versions
+  
+- **Documentation**: Comprehensive API documentation
+  - **OpenAPI Spec**: Machine-readable API specification
+  - **Interactive Docs**: Swagger UI for API exploration
+  - **Code Examples**: Sample requests in multiple languages
+  - **Authentication Guide**: Clear instructions for API key usage
+
+**Security Considerations**:
+
+- **Input Validation**: Strict validation of all API parameters
+- **SQL Injection Prevention**: Parameterized queries for all database access
+- **XSS Protection**: Sanitize all user-generated content in API responses
+- **Information Disclosure**: Never expose sensitive data in public APIs
+- **Audit Logging**: Log all API access for security monitoring
+- **DDoS Protection**: Rate limiting and request throttling
+
+**Public Interfaces**:
+
+- **CLI**: Public API consumption for project discovery commands
+- **Web**: Frontend uses same public APIs for consistency
+- **Third-party**: Enable community tools and integrations
