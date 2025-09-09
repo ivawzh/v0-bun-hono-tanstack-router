@@ -11,15 +11,17 @@ This document serves as comprehensive instructions for developers working with t
 ## Tech Stack & Architecture
 
 ### Core Technologies
-- **Runtime**: Bun (v1.x)
-- **Backend**: Hono (lightweight web framework)
+- **Runtime**: Bun (v1.2+)
+- **Backend**: Hono
 - **Frontend**: React 19 + TanStack Router
 - **Database**: PostgreSQL + Drizzle ORM
 - **Type Safety**: TypeScript + oRPC for end-to-end type safety
-- **Auth**: OpenAuth (OAuth providers + password auth)
+- **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
+- **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
+- **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
 - **Styling**: TailwindCSS v4 + shadcn/ui components
-- **Build Tools**: Vite (frontend), tsdown (backend)
-- **Deployment**: SST (Serverless Stack)
+- **Build Tools**: Vite (frontend), Bun (backend)
+- **Deployment**: SST V3
 
 ### Project Structure
 ```

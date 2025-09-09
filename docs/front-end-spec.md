@@ -100,7 +100,7 @@ This document outlines the UI/UX specification for Solo Unicorn, an AI-centric p
 5. Reviewer approves or requests changes on GitHub
 6. If approved, PR is merged and mission moves to Done
 7. If changes requested, user rejects mission in Solo Unicorn with feedback
-8. System instructs AI agent to read PR comments and iterate
+8. System instructs AI agent to read GitHub PR comments via `gh` and iterate
 9. Process repeats until PR is approved and merged
 
 ## Information Architecture
@@ -137,7 +137,7 @@ This document outlines the UI/UX specification for Solo Unicorn, an AI-centric p
 - **Todo Column**: Split sections for Normal/Loop missions
 - **Mobile Support**: Horizontal scrolling with snap points
 - **Interactions**: Drag-and-drop mission reordering
-- **Real-time Updates**: WebSocket-powered live updates
+- **Real-time Updates**: WebSocket-powered live updates via Monster Realtime
 
 #### 2. Mission Cards
 - **Visual Hierarchy**: Clear priority indicators (emoji+number format)
@@ -181,7 +181,7 @@ This document outlines the UI/UX specification for Solo Unicorn, an AI-centric p
 
 ## Design System
 
-See full theme at [Monster Theme](monster-wiki/theme/monster-theme.md).
+See full theme at [Monster Theme](/monster-wiki/theme/monster-theme.md).
 
 ### Dark/Light Mode
 - **Theme Switching**: User-controlled toggle in header
@@ -234,16 +234,32 @@ See full theme at [Monster Theme](monster-wiki/theme/monster-theme.md).
 - **TanStack Query**: Server state management
 - **shadcn/ui**: Component library with Tailwind CSS
 - **Tailwind CSS**: Utility-first styling approach
+- **Framer Motion**: Animation library for smooth transitions
+- **React Hook Form**: Form validation and management
 
 ### State Management
 - **Component State**: useState and useReducer for local component state
 - **Server State**: TanStack Query for API data management
 - **Global State**: Context API for application-level state
+- **Real-Time State**: WebSocket connection state via Monster Realtime
 
 ### Data Fetching
-- **oRPC**: Internal API communication
+- **oRPC**: Internal API communication with server
 - **REST API**: External integrations
 - **WebSocket**: Real-time updates via Monster Realtime
+- **File Uploads**: Direct uploads via Monster Upload service
+
+### Authentication Integration
+- **Monster Auth**: OAuth 2.0/OpenID Connect integration
+- **Token Management**: HTTP-only cookies for web app
+- **Session Handling**: Automatic token refresh via Monster Auth
+- **User Context**: Global authentication state management
+
+### Real-Time Communication
+- **Monster Realtime**: WebSocket connection for live updates
+- **Presence Tracking**: Workstation status and availability
+- **Mission Updates**: Real-time mission status changes
+- **Collaboration**: Multi-user presence indicators
 
 ## PWA Features
 
@@ -262,6 +278,60 @@ See full theme at [Monster Theme](monster-wiki/theme/monster-theme.md).
 - **Review Requests**: Notifications for pending reviews
 - **Community Activity**: Updates on starred projects and contributions
 
+## Security Considerations
+
+### Client-Side Security
+- **Input Sanitization**: Sanitize user-generated content before display
+- **XSS Prevention**: Proper escaping of dynamic content
+- **CSRF Protection**: Anti-CSRF tokens for state-changing operations
+- **Secure Storage**: Use secure storage for sensitive data
+
+### Authentication Integration
+- **Token Management**: Secure handling of authentication tokens via Monster Auth
+- **Session Management**: Proper session handling and timeouts
+- **Permission Checking**: Client-side permission validation with server-side enforcement
+- **Role-Based Access**: Conditional rendering based on user roles
+
+### Data Protection
+- **Encryption**: TLS for all communications
+- **Sensitive Data**: Avoid storing sensitive data in client-side storage
+- **File Uploads**: Secure file upload handling via Monster Upload
+- **Privacy**: Respect user privacy and data protection regulations
+
+## Testing Strategy
+
+### Component Testing
+- **Unit Tests**: Test individual components with Jest and React Testing Library
+- **Integration Tests**: Test component interactions and workflows
+- **Snapshot Tests**: Verify UI consistency (selectively)
+- **Accessibility Tests**: Automated accessibility testing with axe-core
+
+### End-to-End Testing
+- **User Flows**: Test complete user journeys with Cypress or Playwright
+- **Cross-Browser Testing**: Verify compatibility across browsers
+- **Performance Testing**: Measure and optimize performance metrics
+- **Accessibility Testing**: Manual accessibility audits
+
+### Real-Time Testing
+- **WebSocket Integration**: Test Monster Realtime connection and message handling
+- **Presence Updates**: Verify workstation status updates
+- **Collaboration Features**: Test multi-user scenarios
+- **Error Handling**: Test connection failures and reconnection logic
+
+## Monitoring and Analytics
+
+### Client-Side Monitoring
+- **Error Tracking**: Automatic error reporting and grouping
+- **Performance Monitoring**: Track key performance metrics
+- **User Analytics**: Understand user behavior and engagement
+- **Real User Monitoring**: Monitor actual user experience
+
+### Analytics Implementation
+- **Event Tracking**: Track key user actions and flows
+- **Conversion Tracking**: Measure successful completion of key workflows
+- **Performance Metrics**: Monitor page load times and interaction responsiveness
+- **Feature Usage**: Track adoption of new features
+
 ## Future Considerations
 
 ### Enhanced Collaboration
@@ -278,3 +348,13 @@ See full theme at [Monster Theme](monster-wiki/theme/monster-theme.md).
 - **Custom Themes**: User-defined color schemes
 - **Layout Customization**: Adjustable Kanban board layouts
 - **Workflow Templates**: Community-shared flow templates
+
+### Mobile Enhancements
+- **Native Mobile App**: Dedicated mobile applications for iOS and Android
+- **Push Notifications**: Native push notifications for mission updates
+- **Offline Capabilities**: Enhanced offline support for mobile users
+- **Device Integration**: Integration with device features (camera, GPS, etc.)
+
+## Conclusion
+
+This frontend specification provides a comprehensive blueprint for implementing Solo Unicorn's web application with a focus on usability, performance, and security. The specification emphasizes the integration with external Monster services (Auth, Realtime, Upload) while maintaining a modern, accessible, and responsive user interface that delivers on the product vision.

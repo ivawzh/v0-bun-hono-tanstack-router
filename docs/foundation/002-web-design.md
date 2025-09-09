@@ -68,12 +68,12 @@ Whenever in doubt, follow Trello UI/UX design.
 
 - 4 columns: Todo, Doing, Review, Done
 - Todo column has special split sections (Normal/Loop missions)
-- Each card shows MissionPreview component
+- Each card shows MissionCard component
 - Kanban column height is fixed and scrollable.
 - Mobile friendly horizontal scroll.
 - Drag and drop will update mission.list.
 
-**MissionPreview Card Structure** (Column-Specific)
+**MissionCard Card Structure** (Column-Specific)
 
 **Todo Column:**
 
@@ -104,7 +104,9 @@ Whenever in doubt, follow Trello UI/UX design.
 3. Description (collapsible, 3.5 lines visible)
 4. **GitHub PR/Merge info** (if applicable)
 
-### MissionPreview component (Column-Specific)
+### MissionCard component (Column-Specific)
+
+MissionCard is the preview of mission before click to open the MissionModal.
 
 **Todo Column Card:**
 
@@ -125,8 +127,8 @@ Whenever in doubt, follow Trello UI/UX design.
 └───────────────────────────────────────┘
 ```
 
-**MissionPreview Dropdown Menu (⋮)**:
-- View & Edit (opens MissionViewPopup)
+**MissionCard Dropdown Menu (⋮)**:
+- View & Edit (opens MissionModal)
 - Reset AI (when mission is active)
 - Delete Mission
 
@@ -204,13 +206,13 @@ Examples (badges):
 
 **Review Button** (Review column only):
 
-- Opens MissionViewPopup → Review Tab
+- Opens MissionModal → Review Tab
 - Shows "review instruction"
 - Approve/Reject buttons
 - Reject requires mandatory "feedback" field
 - Approved missions move to Done column
 
-**MissionViewPopup Integration**
+**MissionModal Integration**
 
 - Review column Review button → Review Tab
 - Review Tab displays review instructions
@@ -219,7 +221,7 @@ Examples (badges):
 
 This layout provides a comprehensive mission management system specifically designed for AI-agent flows with clear visual hierarchy and intuitive controls.
 
-### MissionViewPopup component
+### MissionModal component
 
 **Modal Layout (Full Screen on Mobile)**
 
@@ -851,7 +853,7 @@ Note: This Flow settings panel is shared with the Create Mission popup.
 
 **Key Features**:
 
-1. **MissionViewPopup**: Context-aware tabs based on mission state, real-time status updates
+1. **MissionModal**: Context-aware tabs based on mission state, real-time status updates
 2. **MissionCreatePopup**: Streamlined creation with smart defaults, file attachment support
 3. **ProjectSettingsPopup**: Comprehensive configuration with validation and status indicators
 4. **ProjectCreatePopup**: 3-step wizard with validation and template support
