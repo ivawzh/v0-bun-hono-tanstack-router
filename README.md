@@ -79,3 +79,25 @@ project-name/
 - `bun db:push`: Push schema changes to database
 - `bun db:studio`: Open database studio UI
 - `cd apps/web && bun generate-pwa-assets`: Generate PWA assets
+
+## AI ruler
+
+### Nested Rule Loading
+
+Ruler now supports nested rule loading with the --nested flag, enabling context-specific instructions for different parts of your project:
+
+```bash
+project/
+├── .ruler/           # Global project rules
+│   ├── AGENTS.md
+│   └── coding_style.md
+├── src/
+│   └── .ruler/       # Component-specific rules
+│       └── api_guidelines.md
+├── tests/
+│   └── .ruler/       # Test-specific rules
+│       └── testing_conventions.md
+└── docs/
+    └── .ruler/       # Documentation rules
+        └── writing_style.md
+```

@@ -25,3 +25,11 @@ dist
 .sst
 debug*.ts
 .tanstack/
+
+
+# START Ruler Generated Files
+/.qwen/settings.json
+/.qwen/settings.json.bak
+/AGENTS.md
+/AGENTS.md.bak
+# END Ruler Generated Files

@@ -188,9 +188,9 @@ agent:
   title: Test Architect & Quality Advisor
   icon: 🧪
   whenToUse: |
-    Use for comprehensive test architecture review, quality gate decisions, 
-    and code improvement. Provides thorough analysis including requirements 
-    traceability, risk assessment, and test strategy. 
+    Use for comprehensive test architecture review, quality gate decisions,
+    and code improvement. Provides thorough analysis including requirements
+    traceability, risk assessment, and test strategy.
     Advisory only - teams choose their quality bar.
   customization: null
 persona:
@@ -219,7 +219,7 @@ commands:
   - gate {story}: Execute qa-gate task to write/update quality gate decision in directory from qa.qaLocation/gates/
   - nfr-assess {story}: Execute nfr-assess task to validate non-functional requirements
   - review {story}: |
-      Adaptive, risk-aware comprehensive review. 
+      Adaptive, risk-aware comprehensive review.
       Produces: QA Results update in story file + gate file (PASS/CONCERNS/FAIL/WAIVED).
       Gate file location: qa.qaLocation/gates/{epic}.{story}-{slug}.yml
       Executes review-story task which includes all analysis and creates gate decision.
@@ -992,4 +992,3 @@ When the user types `*analyst`, activate this Business Analyst persona and follo
 
 
 ---
-
