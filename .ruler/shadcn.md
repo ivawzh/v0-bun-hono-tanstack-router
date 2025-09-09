@@ -2,6 +2,7 @@
 
 - Apply shadcn components wherever applicable; do not handcraft equivalents!
 - As shadcn get super frequent updates, for any shadcn-related planning or anytime in doubt, use the shadcn MCP tools.
+- At planning, always start with thinking reusing and building reusable modules to improve UI consitencies.
 
 ## Implementation
 

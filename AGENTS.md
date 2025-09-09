@@ -1268,11 +1268,10 @@ Value end-user UX over everything including tech difficulty, complexity, and per
      - WebSocket push to client after system updates
 
 2. Tech wise:
-   - **First Principle**
-   - **Least Powerful Principle**
-   - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
+   - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity. However, security is still important.
    - **Idempotency**: All operations safe to retry with proper deduplication.
-   - **Auth**: Every endpoint/operation must pass through Monster Auth guard
+   - **Auth**: Every non-public endpoint/operation must pass through authn and authz.
+   - At planning, always start with thinking reusing and building reusable modules to improve system consitencies.
 
 
 
@@ -1281,15 +1280,24 @@ Value end-user UX over everything including tech difficulty, complexity, and per
 # shadcn/ui rules
 
 - Apply shadcn components wherever applicable; do not handcraft equivalents!
-- When in doubt, use mcp__shadcn__list_components and mcp__jpisnice_shadcn__list_blocks
-- As shadcn get super frequent updates. Always use the MCP server for shadcn components.
-
-## Planning
-
-- For any shadcn-related planning, use the MCP server.
+- As shadcn get super frequent updates, for any shadcn-related planning or anytime in doubt, use the shadcn MCP tools.
+- At planning, always start with thinking reusing and building reusable modules to improve UI consitencies.
 
 ## Implementation
 
-- First call the mcp__jpisnice_shadcn__get_component_demo to see correct usage.
+- First call the shadcn mcp tool to see correct usage.
 - Install components via MCP; do not write files manually.
 - Then implement using the demonstrated pattern.
+
+## shadcn.io complex Components
+
+- Kanban board: https://www.shadcn.io/components/data/kanban.mdx
+- AI Chat: https://www.shadcn.io/ai
+- Data List: https://www.shadcn.io/components/data/list
+- Data Table: https://www.shadcn.io/components/data/table
+- Menu Dock: https://www.shadcn.io/components/dock/menu-dock
+- Message Dock: https://www.shadcn.io/components/dock/message-dock
+- Combobox: https://www.shadcn.io/components/forms/combobox
+- Editor: https://www.shadcn.io/components/forms/editor
+- Minimal Tiptap: https://www.shadcn.io/components/forms/minimal-tiptap
+- Status: https://www.shadcn.io/components/visualization/status

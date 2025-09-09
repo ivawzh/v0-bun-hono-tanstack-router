@@ -13,8 +13,7 @@ Value end-user UX over everything including tech difficulty, complexity, and per
      - WebSocket push to client after system updates
 
 2. Tech wise:
-   - **First Principle**
-   - **Least Powerful Principle**
-   - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity.
+   - **Think Small**: Ignore performance, cost, and scalability. Day-0 mindset with extreme simplicity. However, security is still important.
    - **Idempotency**: All operations safe to retry with proper deduplication.
-   - **Auth**: Every endpoint/operation must pass through Monster Auth guard
+   - **Auth**: Every non-public endpoint/operation must pass through authn and authz.
+   - At planning, always start with thinking reusing and building reusable modules to improve system consitencies.
