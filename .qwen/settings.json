@@ -1,0 +1,22 @@
+{
+  "contextFileName": "AGENTS.md",
+  "mcpServers": {
+    "shadcn": {
+      "command": "bunx",
+      "args": [
+        "shadcn@latest",
+        "mcp"
+      ],
+      "type": "stdio"
+    },
+    "jpisnice_shadcn": {
+      "command": "bunx",
+      "args": [
+        "@jpisnice/shadcn-ui-mcp-server",
+        "--framework",
+        "react"
+      ],
+      "type": "stdio"
+    }
+  }
+}

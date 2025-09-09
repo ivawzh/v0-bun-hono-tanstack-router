@@ -20,15 +20,16 @@
     "aws-sso": "aws sso login --sso-session=monster-make",
     "sst:prod": "bun sst --stage production",
     "sst:alpha": "bun sst --stage alpha",
-    "agent:rules:apply": "bun ruler apply --nested --agents qwen",
+    "agent:rules:apply": "bun ruler apply --nested --agents qwen,cursor",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "postinstall": "bun sst install"
+    "postinstall": "bun sst install && bun agent:rules:apply"
   },
   "dependencies": {
     "ts-pattern": "^5.8.0"
   },
   "devDependencies": {
+    "@intellectronica/ruler": "^0.3.8",
     "@eslint/markdown": "^7.2.0",
     "@seahax/eslint-plugin-wrap": "^0.6.8",
     "@stylistic/eslint-plugin": "^5.3.1",

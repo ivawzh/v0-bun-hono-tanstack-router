@@ -25,18 +25,43 @@
 # [agents.gemini-cli]
 # enabled = true
 
+# --- Global MCP Server Configuration ---
+[mcp]
+# Enable/disable MCP propagation globally (default: true)
+enabled = true
+# Global merge strategy: 'merge' or 'overwrite' (default: 'merge')
+merge_strategy = "merge"
+
 # --- MCP Servers ---
 # Define Model Context Protocol servers here. Two examples:
 # 1. A stdio server (local executable)
 # 2. A remote server (HTTP-based)
 
 [mcp_servers.shadcn]
-command = "npx"
+command = "bunx"
 args = ["shadcn@latest", "mcp"]
+
+[mcp_servers.jpisnice_shadcn]
+command = "bunx"
+args = ["@jpisnice/shadcn-ui-mcp-server", "--framework", "react"]
 
 # [mcp_servers.example_remote]
 # url = "https://api.example.com/mcp"
 # headers = { Authorization = "Bearer REPLACE_ME" }
+
+# [mcp_servers.filesystem]
+# command = "bunx"
+# args = ["-y", "@modelcontextprotocol/server-filesystem", "/path/to/project"]
+
+# [mcp_servers.git]
+# command = "bunx"
+# args = ["-y", "@modelcontextprotocol/server-git", "--repository", "."]
+
+# [mcp_servers.remote_api]
+# url = "https://api.example.com"
+
+# [mcp_servers.remote_api.headers]
+# Authorization = "Bearer your-token"
 
 # Nested Rule Loading
 # Ruler now supports nested rule loading with the --nested flag, enabling context-specific instructions for different parts of your project:

@@ -28,8 +28,8 @@ debug*.ts
 
 
 # START Ruler Generated Files
-/.qwen/settings.json
-/.qwen/settings.json.bak
+/.cursor/rules/ruler_cursor_instructions.mdc
+/.cursor/rules/ruler_cursor_instructions.mdc.bak
 /AGENTS.md
 /AGENTS.md.bak
 # END Ruler Generated Files
