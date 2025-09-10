@@ -4,6 +4,13 @@
 
 This document outlines the UI/UX specification for Solo Unicorn, an AI-centric platform that orchestrates AI agents through Kanban flows. The platform enables both fast iteration (YOLO/direct push) and controlled development (PR mode) workflows, with public project discovery and community collaboration features.
 
+**Note**: This project integrates with external Monster services that are hosted in separate repositories:
+- **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
+- **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
+- **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
+
+These services are isolated from Solo Unicorn and must be integrated according to their respective documentation.
+
 ## Personas
 
 ### 1. Solo Developer
@@ -244,7 +251,7 @@ See full theme at [Monster Theme](/monster-wiki/theme/monster-theme.md).
 - **Real-Time State**: WebSocket connection state via Monster Realtime
 
 ### Data Fetching
-- **oRPC**: Internal API communication with server
+- **oRPC**: Internal API communication
 - **REST API**: External integrations
 - **WebSocket**: Real-time updates via Monster Realtime
 - **File Uploads**: Direct uploads via Monster Upload service
@@ -293,7 +300,7 @@ See full theme at [Monster Theme](/monster-wiki/theme/monster-theme.md).
 - **Role-Based Access**: Conditional rendering based on user roles
 
 ### Data Protection
-- **Encryption**: TLS for all communications
+- **Encryption**: TLS in transit for all communications
 - **Sensitive Data**: Avoid storing sensitive data in client-side storage
 - **File Uploads**: Secure file upload handling via Monster Upload
 - **Privacy**: Respect user privacy and data protection regulations
@@ -332,6 +339,62 @@ See full theme at [Monster Theme](/monster-wiki/theme/monster-theme.md).
 - **Performance Metrics**: Monitor page load times and interaction responsiveness
 - **Feature Usage**: Track adoption of new features
 
+## Integration with External Services
+
+### Monster Auth Integration (External Service)
+
+#### Authentication Flow
+1. **Web Authentication**:
+   - Redirect user to Monster Auth OAuth endpoint
+   - Receive authorization code via callback
+   - Exchange code for access/refresh tokens via Monster Auth
+   - Store tokens in secure HTTP-only cookies
+
+2. **CLI Authentication**:
+   - Start local HTTP server on ephemeral port
+   - Open browser to Monster Auth authorization URL
+   - Receive authorization code via callback
+   - Exchange code for access/refresh tokens via Monster Auth
+   - Store tokens in OS keychain
+
+#### Token Management
+- **JWT Validation**: Verify token signatures and claims via Monster Auth
+- **Refresh Logic**: Automatic token refresh before expiration via Monster Auth
+- **Revocation**: Clean token cleanup on logout
+- **Scope Validation**: Ensure minimum required permissions via Monster Auth
+
+### Monster Realtime Integration (External Service)
+
+#### WebSocket Connection
+- **Protocol**: WSS with automatic reconnection via Monster Realtime
+- **Authentication**: JWT token in connection parameters via Monster Auth
+- **Channel Structure** (managed by Monster Realtime):
+  - `workstation:{id}` - Direct workstation communication
+  - `project:{id}:workstations` - Project-wide workstation updates
+  - `mission:{id}` - Mission-specific coordination
+
+#### Presence System
+- **Status Updates**: Periodic presence broadcasts via Monster Realtime
+- **Metadata**: Workstation status, agent availability, active projects via Monster Realtime
+- **Member Keys**: Unique identifiers for presence tracking via Monster Realtime
+- **Channel Routing**: Efficient message delivery to relevant parties via Monster Realtime
+
+### Monster Upload Integration (External Service)
+
+#### File Management
+- **Upload Flow**:
+  - Request upload URL from Solo Unicorn API
+  - API requests signed upload URL from Monster Upload service
+  - Client uploads directly to Monster Upload via signed URL
+  - Monster Upload notifies Solo Unicorn of successful upload
+  - Solo Unicorn stores file metadata in database
+
+#### Security
+- **Signed URLs**: Temporary signed URLs for direct uploads to Monster Upload
+- **Access Control**: File access controlled by Solo Unicorn permissions
+- **Content Validation**: MIME type and size validation
+- **Malware Scanning**: Integration with Monster Upload malware scanning (if enabled)
+
 ## Future Considerations
 
 ### Enhanced Collaboration
@@ -348,12 +411,6 @@ See full theme at [Monster Theme](/monster-wiki/theme/monster-theme.md).
 - **Custom Themes**: User-defined color schemes
 - **Layout Customization**: Adjustable Kanban board layouts
 - **Workflow Templates**: Community-shared flow templates
-
-### Mobile Enhancements
-- **Native Mobile App**: Dedicated mobile applications for iOS and Android
-- **Push Notifications**: Native push notifications for mission updates
-- **Offline Capabilities**: Enhanced offline support for mobile users
-- **Device Integration**: Integration with device features (camera, GPS, etc.)
 
 ## Conclusion
 

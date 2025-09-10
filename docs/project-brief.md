@@ -41,6 +41,7 @@ This solution succeeds where others haven't by providing a balanced approach tha
 ### Primary User Segment: Solo Founders and Small Development Teams
 
 Solo founders and small teams (1-10 developers) building software products who want to leverage AI for acceleration while maintaining control over their codebase. These users typically:
+
 - Have limited development resources and need to maximize productivity
 - Want to move fast in early stages but maintain quality as projects mature
 - Seek community collaboration opportunities for their projects
@@ -50,6 +51,7 @@ Solo founders and small teams (1-10 developers) building software products who w
 ### Secondary User Segment: Open Source Project Maintainers
 
 Maintainers of open-source projects looking to:
+
 - Accelerate development through AI assistance
 - Enable community contributions with proper access controls
 - Manage public project discovery and engagement
@@ -89,7 +91,7 @@ Maintainers of open-source projects looking to:
 - **Auth & Tenancy**: Monster Auth integration (OAuth, PAT, org API keys) with email as canonical identity and org-based multi-tenancy
 - **Mission Management**: Kanban board (Todo/Doing/Review/Done) with flows (Clarify/Plan/Code), optional review, dependencies, loop missions, priority and list ordering
 - **Workstation Management**: Registration, presence, agent availability reporting with repository concurrency controls
-- **Repository Integration**: GitHub linking with numeric repo_id and CLI auto-management of git worktrees
+- **Repository Integration**: GitHub linking with numeric repo_id identification and CLI auto-management of git worktrees
 - **Web UI**: Trello-like Kanban board with MissionView/MissionCreate modals, mobile-first responsive design
 - **CLI**: Authentication, workstation lifecycle, repository management, agent detection/registration, configuration management
 - **Database**: Schema supporting projects, missions, flows, actors, repositories, workstations, permissions with performance indexes
@@ -106,6 +108,7 @@ Maintainers of open-source projects looking to:
 ### MVP Success Criteria
 
 MVP is successful when users can:
+
 1. Create a project and complete their first mission within 10 minutes
 2. Successfully execute 90% of missions without errors in Direct Push mode
 3. Complete PR mode workflows with average 2 or fewer review iterations
@@ -126,6 +129,7 @@ MVP is successful when users can:
 ### Long-term Vision
 
 Solo Unicorn will become the standard platform for AI-assisted software development, with:
+
 - Support for multiple AI agent types beyond Claude Code
 - Enterprise-grade security and compliance features
 - Integration with major project management tools (Jira, Linear, etc.)
@@ -150,17 +154,28 @@ Solo Unicorn will become the standard platform for AI-assisted software developm
 
 ### Technology Preferences
 
-- **Frontend**: React with TypeScript, Tailwind CSS, shadcn/ui components
-- **Backend**: Node.js with Express/oRPC, PostgreSQL database
+- **Frontend**: React 19 with TanStack Router, TanStack Query, shadcn/ui components, Tailwind CSS
+- **Backend**: Bun with Hono.js, oRPC for internal communication, PostgreSQL database
 - **Database**: PostgreSQL (NeonDB for alpha, AWS RDS for production)
-- **Hosting/Infrastructure**: Cloudflare for frontend, AWS for backend services
+- **CLI**: Bun-compiled single-file application
+- **Hosting/Infrastructure**: Cloudflare for frontend, AWS for backend services, SST for deployment
 
 ### Architecture Considerations
 
 - **Repository Structure**: Monorepo with clear separation of web, server, and CLI components
-- **Service Architecture**: Microservices for auth, realtime, mission orchestration with shared database
-- **Integration Requirements**: GitHub API, Monster Auth/Realtime services, Cloudflare Tunnel
+- **Service Architecture**: Monolithic with clear module separation (breaking changes allowed for web-server)
+- **Integration Requirements**: GitHub API, Monster Auth, Monster Realtime, Monster Upload
 - **Security/Compliance**: OAuth2 for authentication, encrypted token storage, CORS protection
+
+### Integration with External Services
+
+**Note**: This project integrates with several external Monster services that are hosted in separate repositories:
+
+- **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
+- **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
+- **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
+
+These services are isolated from Solo Unicorn and must be integrated according to their respective documentation.
 
 ## Constraints & Assumptions
 

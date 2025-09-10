@@ -12,9 +12,16 @@
 
 ### Background Context
 
-Solo Unicorn is an AI-centric platform that orchestrates AI agents through Kanban flows. It addresses critical challenges in modern software development including developer productivity bottlenecks, AI orchestration complexity, and the balance between speed and quality. The platform enables flexible development modes with Direct Push for rapid prototyping and PR mode for production-quality code with GitHub integration. 
+Solo Unicorn is an AI-centric platform that orchestrates AI agents through Kanban flows. It addresses critical challenges in modern software development including developer productivity bottlenecks, AI orchestration complexity, and the balance between speed and quality. The platform enables flexible development modes with Direct Push for rapid prototyping and PR mode for production-quality code with GitHub integration.
 
 The solution is workstation-first, meaning AI agents run locally on user machines for privacy and performance, with the server orchestrating via Monster Realtime presence and WebSocket communication. This approach addresses workstation integration gaps that existing cloud-based solutions suffer from. The platform also features a hybrid documentation system where mission documentation is stored in both filesystem and database for progress tracking and contextual prompting.
+
+**Note**: This project integrates with external Monster services that are hosted in separate repositories:
+- **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
+- **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
+- **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
+
+These services are isolated from Solo Unicorn and must be integrated according to their respective documentation.
 
 ### Change Log
 
@@ -281,6 +288,7 @@ so that I can easily track work progress across Todo/Doing/Review/Done states.
 11. Board supports real-time presence indicators for team members currently viewing
 12. Column headers show mission counts and filtering options
 13. Cards support attachment previews and quick action menus
+14. Kanban board follows responsive design with proper mobile adaptation
 
 ### Story 2.2 Mission Creation and Editing
 
@@ -299,7 +307,7 @@ so that I can properly define work items for AI agents.
 7. System validates required fields during creation with clear error messaging
 8. Users can delete missions they have permission to modify with confirmation dialogs
 9. Mission metadata is properly tracked (ID, created/updated timestamps, author information)
-10. Creation form includes smart defaults and pre-filled dropdowns when only one option exists
+10. Creation form includes smart defaults and pre-filled dropdowns when only one choice exists
 11. Missions support rich text descriptions with GitHub-style markdown and file references
 12. System provides attachment management with size limits and file type validation
 13. Editing interface supports tabbed navigation for different mission aspects (Base, Flow, Dependencies, etc.)
@@ -397,7 +405,6 @@ so that the system knows when I'm available for mission assignment.
 10. Presence data includes workstation metadata (OS, arch, CLI version) for compatibility checking
 11. System supports multiple channels per workstation (workstation-specific, project-wide, mission-specific)
 12. Realtime member keys are properly formatted for Monster Realtime integration
-13. Presence updates include agent session information for active missions
 
 ### Story 3.3 Code Agent Detection and Management
 
