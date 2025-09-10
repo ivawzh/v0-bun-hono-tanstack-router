@@ -16,25 +16,140 @@ This document serves as comprehensive instructions for developers working with t
 ## Tech Stack & Architecture
 
 ### Core Technologies
-- **Runtime**: Bun (v1.x)
-- **Backend**: Hono (lightweight web framework)
+- **Runtime**: Bun (v1.2+)
+- **Backend**: Hono + oRPC (both /rpc and /api)
 - **Frontend**: React 19 + TanStack Router
-- **Database**: PostgreSQL + Drizzle ORM
-- **Type Safety**: TypeScript + oRPC for end-to-end type safety
-- **Auth**: OpenAuth (OAuth providers + password auth)
-- **Styling**: TailwindCSS v4 + shadcn/ui components
-- **Build Tools**: Vite (frontend), tsdown (backend)
-- **Deployment**: SST (Serverless Stack)
+- **Database**: PostgreSQL + Drizzle ORM + drizzle-migrations (to support migration rollback)
+- **MCP**: stateless HTTP server (@modelcontextprotocol/sdk/server/mcp)
+- **Type Safety**: TypeScript
+- **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
+- **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
+- **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
+- **Styling**: TailwindCSS v4 + shadcn/ui components. Theme is predefined at [Monster Theme](/monster-wiki/theme/monster-theme.md).
+- **Build Tools**: Vite (frontend), Bun (backend)
+- **CLI**: Bun single-file executable + yargs
+- **Deployment**: SST V3
 
 ### Project Structure
+
+Monorepo layout (top-level)
 ```
-project-name/
-├── apps/
-│   ├── web/          # React frontend with TanStack Router
-│   └── server/       # Hono backend with oRPC APIs
-├── packages/         # Shared packages (if any)
-└── sst.config.ts     # SST deployment configuration
+solo-unicorn/
+├─ apps/
+│  ├─ web/                         # React + Vite app (UI, PWA)
+│  │  ├─ src/
+│  │  │  ├─ shared/               # App-shared UI primitives, hooks, utils, constants, theme
+│  │  │  │  ├─ components/        # Button, Input, Modal, Toast, Badge, Skeleton
+│  │  │  │  ├─ hooks/             # useAuth, useSession, useRPC, useRealtime, useToast
+│  │  │  │  ├─ services/          # rpcClient.ts (oRPC client), errorToToast.ts, queryKeys.ts
+│  │  │  │  ├─ theme/             # tokens, CSS vars, dark/light mode helpers
+│  │  │  │  └─ utils/             # pure utils (ids, formatters)
+│  │  │  ├─ features/             # Feature folders combine UI + data glue
+│  │  │  │  ├─ mission/           # MissionCard, MissionBoard, MissionModal shell, service fns
+│  │  │  │  ├─ project/           # ProjectSettingsModal, forms, service fns
+│  │  │  │  └─ workstation/       # WorkstationView, status badges, service fns
+│  │  │  ├─ routes/               # TanStack Router routes
+│  │  │  ├─ main.tsx, index.css
+│  │  │  └─ lib/                  # Presentation-only helpers (no domain)
+│  │  ├─ public/
+│  │  ├─ env.ts, vite.config.ts, tsconfig.json
+│  │  └─ sst-env.d.ts (if used)
+│  ├─ server/                      # Bun + Hono app (oRPC + /api)
+│  │  ├─ src/
+│  │  │  ├─ index.ts              # Server bootstrap (Hono, CORS, route mounts)
+│  │  │  ├─ lib/
+│  │  │  │  ├─ context.ts         # Request context (session/org/project)
+│  │  │  │  ├─ orpc.ts            # oRPC server setup (publicProcedure, guards glue)
+│  │  │  │  └─ openauth.ts        # Monster Auth client
+│  │  │  ├─ routers/
+│  │  │  │  ├─ rpc.ts             # oRPC router mount (/rpc)
+│  │  │  │  ├─ api.ts             # API-format mount (/api) (REST-like or verbs), OpenAPI emit
+│  │  │  │  ├─ rpc/
+│  │  │  │  │  ├─ auth.ts
+│  │  │  │  │  ├─ mission.ts      # RPC procedures for mission
+│  │  │  │  │  └─ project.ts      # RPC procedures for project
+│  │  │  │  └─ others/
+│  │  │  │     └─ oauth-callback.ts
+│  │  │  ├─ services/             # Domain services (auth, missions, flows, projects)
+│  │  │  ├─ validators/           # Zod schemas used on server side
+│  │  │  ├─ db/
+│  │  │  │  ├─ db.ts
+│  │  │  │  ├─ schema/            # Drizzle table definitions
+│  │  │  │  └─ migrations/
+│  │  │  └─ utils/                # Server-only helpers (intervals, adapters)
+│  │  ├─ env.ts, drizzle.config.ts, tsconfig.json
+│  │  └─ sst-env.d.ts (if used)
+│  ├─ cli/                         # Bun-based CLI (single-file/binary target)
+│  │  ├─ src/
+│  │  │  ├─ commands/
+│  │  │  │  ├─ auth.ts            # login/logout/whoami
+│  │  │  │  ├─ workstation.ts     # register/start/stop/status
+│  │  │  │  ├─ repo.ts            # repo add/list/remove
+│  │  │  │  ├─ agent.ts           # agent scan/list/add
+│  │  │  │  └─ status.ts          # combined status output
+│  │  │  ├─ services/
+│  │  │  │  ├─ configStore.ts     # ~/.solo-unicorn/config.json read/write
+│  │  │  │  ├─ mcpClient.ts       # HTTP client to /api (PAT/org key)
+│  │  │  │  ├─ realtimeClient.ts  # Monster Realtime wrapper
+│  │  │  │  └─ worktree.ts        # git worktree helpers
+│  │  │  ├─ bin.ts                # CLI entry (bun build target)
+│  │  │  └─ index.ts              # program setup, command registration
+│  │  └─ tsconfig.json
+│  │
+├─ docs/                           # Design/architecture/spec documents
+│  ├─ foundation/                  # Source foundational docs (001–006)
+│  ├─ architecture.md              # This architecture (authoritative)
+│  └─ front-end-spec.md            # UI/UX spec and component inventory
+│
+├─ solo-unicorn-docs/              # Mission solution/tasks filesystem storage
+│  └─ missions/{mission-id}/
+│
+├─ scripts/                        # Dev/build/release scripts
+├─ .bmad-core/                     # BMAD configs/templates
+├─ package.json                    # Workspaces (apps/*)
+├─ bunfig.toml
+└─ tsconfig.json                   # Base TS config
 ```
+
+Notes on “shared” approach
+- Keep it simple: prefer intra-app shared modules (apps/web/src/shared, apps/server/src/validators, etc.).
+- Avoid complicated packages/* unless two or more apps truly need the same code.
+- Cross-app imports: allowed via relative paths when needed. Example (already used):
+  - apps/web/src/utils/orpc.ts imports types from apps/server/src/routers/rpc
+
+Intra-app shared modules
+- Web (apps/web/src/shared):
+  - components/: consistent primitives (Modal, Toast, Buttons, Inputs, Badge, Skeleton)
+  - hooks/: common hooks (useAuth, useSession, useRPC, useRealtime, useToast)
+  - services/: rpcClient.ts (oRPC client), errorToToast.ts, queryKeys.ts
+  - theme/: tokens, mode toggle helpers
+  - utils/: pure helpers
+- Server (apps/server/src/services, /validators, /lib):
+  - services/: domain logic; keep routers thin
+  - validators/: zod schemas
+  - lib/orpc.ts: centralize procedure/guard wiring
+  - lib/context.ts: session/org/project derivation
+- CLI (apps/cli/src/services):
+  - configStore.ts for ~/.solo-unicorn/config.json
+  - mcpClient.ts (/api HTTP)
+  - realtimeClient.ts (presence & push)
+  - worktree.ts for git worktree ops
+
+AuthZ patterns (server)
+- Guards used in RPC/API handlers:
+  - requireUser
+  - requireOrgMember(orgId)
+  - requireProjectRole(projectId, role)
+
+oRPC usage
+- /rpc: RPC-format for internal web; typed client; cache via TanStack Query
+- /api: API-format (REST-like or verbs) with OpenAPI generation; consumed by CLI/agents/third parties
+
+Testing strategy
+- Web: MSW for /rpc and /api; render helpers under apps/web/src/shared
+- Server: import schema/types directly from apps/server/src/db/schema; unit test services
+- CLI: integration-style command tests with mocked HTTP and realtime layers
+
 
 ## Developer Guidelines
 

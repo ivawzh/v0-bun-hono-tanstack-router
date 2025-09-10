@@ -1,417 +1,460 @@
-# Solo Unicorn Front-End Specification
+# Solo Unicorn UI/UX Specification
 
-## Overview
+Source documents: docs/foundation/001–006. This spec synthesizes those files into a cohesive, user-centered UI/UX reference for design and frontend implementation.
 
-This document outlines the UI/UX specification for Solo Unicorn, an AI-centric platform that orchestrates AI agents through Kanban flows. The platform enables both fast iteration (YOLO/direct push) and controlled development (PR mode) workflows, with public project discovery and community collaboration features.
+## Change Log
 
-**Note**: This project integrates with external Monster services that are hosted in separate repositories:
-- **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
-- **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
-- **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
+| Date       | Version | Description                                   | Author     |
+|------------|---------|-----------------------------------------------|------------|
+| 2025-09-10 | 1.0.0   | Initial specification generated from foundation | UX Expert |
 
-These services are isolated from Solo Unicorn and must be integrated according to their respective documentation.
+---
 
-## Personas
+## Introduction
 
-### 1. Solo Developer
-- **Characteristics**: Works alone on personal projects, values speed and simplicity
-- **Goals**: Rapidly prototype ideas, leverage AI for implementation, manage projects efficiently
-- **Tech Savviness**: High - comfortable with development tools and workflows
-- **Primary Use Cases**:
-  - Creating missions for AI agents to implement
-  - Managing personal projects with Kanban boards
-  - Using Direct Push mode for fast iteration
+This document defines the user experience goals, information architecture, core user flows, and visual design specifications for Solo Unicorn’s web interface. It translates foundational requirements into actionable UI/UX guidance to ensure a cohesive, accessible, and efficient product experience across devices.
 
-### 2. Small Team Lead
-- **Characteristics**: Leads small development teams (2-10 people), responsible for project delivery
-- **Goals**: Coordinate team efforts, ensure code quality, balance speed with control
-- **Tech Savviness**: High - experienced in team development and project management
-- **Primary Use Cases**:
-  - Setting up projects with PR mode for code review workflows
-  - Managing team members and permissions
-  - Overseeing mission progress and quality
+Scope and priorities are aligned to the MVP emphasis in the foundation docs: correctness and reliability first, with performance optimizations and extended features planned post-MVP.
 
-### 3. Open Source Contributor
-- **Characteristics**: Contributes to public projects, interested in learning and collaboration
-- **Goals**: Find interesting projects to contribute to, learn from others, build reputation
-- **Tech Savviness**: Medium to High - varies by individual experience
-- **Primary Use Cases**:
-  - Discovering public projects
-  - Requesting access to contribute
-  - Creating missions within public projects
+---
 
-### 4. Project Maintainer
-- **Characteristics**: Maintains public/open source projects, manages community contributions
-- **Goals**: Grow project community, ensure quality contributions, manage project roadmap
-- **Tech Savviness**: High - experienced in open source maintenance
-- **Primary Use Cases**:
-  - Managing project visibility and permissions
-  - Reviewing community contributions
-  - Curating project templates
+## Overall UX Goals & Principles
+
+### Target User Personas (derived from foundation)
+- Solo Developer
+  - Works independently; prioritizes speed and simplicity; heavy CLI usage; often YOLO (direct push).
+- Small Team Lead
+  - Coordinates 2–10 devs; needs visibility, quality gates, and PR workflows; manages permissions.
+- Project Maintainer (Public Projects)
+  - Curates community contributions; requires permission controls, review flow, and analytics.
+- Open Source Contributor
+  - Browses public projects; requests access; learns from missions and PR feedback.
+
+### Usability Goals
+- Time to First Mission (TTFM): Create and ready a mission in under 3 minutes for a new project.
+- Review Efficiency: In PR mode, average ≤ 2 human review cycles per mission to approval.
+- Visibility & Control: Real-time presence and mission status clarity within 1–2 obvious clicks.
+- Public Project Clarity: Anonymous users can grok project goals and progress within 30 seconds.
+
+### Design Principles
+1) Clarity over cleverness – clear status, state, and next actions at all times.
+2) Progressive disclosure – show details on demand (e.g., flow settings inside modal tabs).
+3) Consistent patterns – Trello-like Kanban with predictable cards, badges, and actions.
+4) Immediate feedback – optimistic UI where safe; live updates via WebSocket.
+5) Accessible by default – WCAG 2.2 AA standards; keyboard-first workflows supported.
+
+---
+
+## Information Architecture (IA)
+
+### Site Map / Screen Inventory
+```mermaid
+graph TD
+  A[Root Shell] --> B[Dashboard]
+  A --> C[Projects]
+  A --> D[Public Gallery]
+  A --> E[Community]
+  A --> F[Settings]
+
+  C --> C1[Project List]
+  C --> C2[Project Detail]
+
+  C2 --> C2a[Kanban Board]
+  C2 --> C2b[Project Settings]
+  C2 --> C2c[Workstations]
+  C2 --> C2d[Members]
+  C2 --> C2e[Repositories]
+  C2 --> C2f[Flows]
+  C2 --> C2g[Actors]
+
+  D --> D1[Project Overview]
+  D --> D2[Missions]
+  D --> D3[Contributors]
+  D --> D4[Analytics]
+  D --> D5[Contribute]
+```
+
+### Navigation Structure
+- Primary Navigation: Dashboard, Projects, Public Gallery, Community, Settings
+- Secondary (Project-level): Kanban Board, Project Settings, Workstations, Members, Repositories, Flows, Actors
+- Breadcrumbs: Organization / Project / Area / Item (e.g., Solo Unicorn / My Project / Missions / mission_123)
+
+---
 
 ## User Flows
 
-### 1. Authentication Flow
-1. User visits Solo Unicorn platform
-2. User clicks "Sign In" button
-3. User is redirected to Monster Auth for authentication
-4. User selects authentication method (Google OAuth, email/password)
-5. User completes authentication
-6. User is redirected back to Solo Unicorn
-7. User is presented with organization/project dashboard
+Each flow includes the basic path and notable edge cases pulled from foundation docs.
 
-### 2. Project Creation Flow
-1. User clicks "Create New Project" from dashboard
-2. User enters project details (name, description)
-3. User selects or registers workstation
-4. User links GitHub repositories
-5. User configures initial settings (visibility, default flow, etc.)
-6. User creates sample "Welcome" mission (optional)
-7. User is taken to project Kanban board
+### 1) Authentication Flow
+- User Goal: Access Solo Unicorn securely as an org member or public visitor.
+- Entry Points: Sign In; deep links from invites; public pages.
+- Success Criteria: Authenticated and routed to org/project context or public page with permission-aware content.
 
-### 3. Mission Creation Flow
-1. User clicks "Create Mission" button on Kanban board
-2. User fills in mission details (title, description, attachments)
-3. User selects priority, repository, workstation, agent, and actor
-4. User selects flow template and configures stages
-5. User adds dependencies (optional)
-6. Mission appears in Todo column of Kanban board
-7. User marks mission as ready for AI processing
+```mermaid
+flowchart LR
+  U[Visit App] --> S[Sign In]
+  S --> MA[Monster Auth]
+  MA -->|Success| R[Redirect Back]
+  R --> D[Dashboard / Last Project]
+  MA -->|Fail| E[Error Prompt]
+```
 
-### 4. Mission Execution Flow
-1. System identifies ready mission for assignment
-2. System matches mission to available workstation and agent
-3. System assigns mission to workstation via Monster Realtime
-4. Workstation agent begins mission execution
-5. Mission status updates in real-time on Kanban board
-6. Mission progresses through flow stages (Clarify → Plan → Code)
-7. Mission moves to Review column when ready for human review (if configured)
-8. Human reviewer approves or rejects mission
-9. Approved missions move to Done column
-10. Rejected missions return to Doing column for iteration
+Edge Cases & Error Handling
+- OAuth failure or token expiry → clear error, retry CTA.
+- Org selection needed → simple chooser with recent memory.
 
-### 5. Public Project Discovery Flow
-1. User visits public project gallery
-2. User browses projects by category or uses search
-3. User views project details and mission progress
-4. User clicks "Request Access" to contribute
-5. User fills in contribution request form
-6. Project owner reviews and approves request
-7. User gains appropriate permissions to contribute
+Notes
+- Auth via Monster Auth; email is canonical identity (001, 005).
 
-### 6. PR Mode Workflow
-1. User creates mission with PR mode enabled
-2. AI agent executes mission in feature branch
-3. System creates GitHub PR when mission moves to Review
-4. Human reviewer examines PR on GitHub
-5. Reviewer approves or requests changes on GitHub
-6. If approved, PR is merged and mission moves to Done
-7. If changes requested, user rejects mission in Solo Unicorn with feedback
-8. System instructs AI agent to read GitHub PR comments via `gh` and iterate
-9. Process repeats until PR is approved and merged
+### 2) Project Creation Flow
+- Goal: Create a new project and prepare it for missions.
+- Entry: “Create New Project” from Dashboard or Projects.
+- Success: Project ready; optional sample mission created.
 
-## Information Architecture
+```mermaid
+flowchart LR
+  S[Start] --> D1[Project Details]
+  D1 --> W1[Workstation Setup]
+  W1 --> R1[Repo Link]
+  R1 --> O[Option: Create Sample Mission]
+  O --> C[Project Created]
+```
 
-### Main Navigation
-- **Dashboard**: Organization overview with projects and workstations
-- **Projects**: List of projects with quick access
-- **Public Gallery**: Browse public projects
-- **Community**: User's community involvement (contributing, starred projects)
-- **Settings**: User and organization settings
+Edge Cases
+- No workstation online → step includes CLI registration hints (003).
+- Invalid repo URL → inline validation; cannot proceed until fixed.
 
-### Project-Level Navigation
-- **Kanban Board**: Mission management interface
-- **Project Settings**: Configuration and management
-- **Workstations**: Workstation status and management
-- **Members**: Team management
-- **Repositories**: Linked repository management
-- **Flows**: Custom flow templates
-- **Actors**: AI agent personas
+### 3) Mission Creation Flow
+- Goal: Create a mission with flow-first settings and ready it for AI.
+- Entry: “Create Mission” from Kanban.
+- Success: Mission appears in Todo; Ready toggled on.
 
-### Public Project Navigation
-- **Overview**: Project description and key metrics
-- **Missions**: Permission-aware mission browsing
-- **Contributors**: Community members and activity
-- **Analytics**: Project statistics and engagement metrics
-- **Contribute**: Access request and contribution tools
+```mermaid
+flowchart LR
+  C[Open Create Mission] --> F[Select Flow]
+  F --> S1["Configure Stages and Reviews"]
+  S1 --> B["Fill Base Fields"]
+  B --> D["Dependencies (optional)"]
+  D --> R["Set Ready"]
+  R --> K["Mission in Todo"]
+```
 
-## UI Components
+Edge Cases
+- Missing required fields → clear inline messages.
+- Conflicting dependencies → highlight with guidance.
 
-### Core Components
+Notes
+- Flow-first with stage selection; Ready controls assignment (001, 002).
 
-#### 1. Kanban Board
-- **Layout**: Four columns (Todo, Doing, Review, Done)
-- **Todo Column**: Split sections for Normal/Loop missions
-- **Mobile Support**: Horizontal scrolling with snap points
-- **Interactions**: Drag-and-drop mission reordering
-- **Real-time Updates**: WebSocket-powered live updates via Monster Realtime
+### 4) Mission Execution Flow
+- Goal: AI agent executes code; real-time updates; human review if required.
+- Entry: Mission moves from Todo → Doing → Review → Done.
+- Success: Mission approved (if required) and completed.
 
-#### 2. Mission Cards
-- **Visual Hierarchy**: Clear priority indicators (emoji+number format)
-- **Status Badges**: Stage badges (Clarify, Plan, Code) and process indicators
-- **PR Integration**: PR status badges and links when in PR mode
-- **Quick Actions**: Dropdown menu for View/Edit, Reset, Delete
+```mermaid
+flowchart LR
+  T["Todo + Ready"] --> A["Assignment"]
+  A --> Do["Doing - AI at work"]
+  Do --> Rev["Review (if configured)"]
+  Rev -->|Approve| X["Done"]
+  Rev -->|Reject| Do
+```
 
-#### 3. Mission Modal
-- **Tabbed Interface**: Base, Flow, Clarify, Plan, Review, Dependencies, Settings
-- **Context-Aware**: Tabs and content adapt based on mission state
-- **Rich Editing**: File attachments with drag-and-drop upload
-- **Real-time Status**: Live mission status and progress indicators
+Edge Cases
+- Agent unavailable or rate-limited → status shown; retry/backoff.
+- Stuck sessions → timeout detection and reset (004, 001 basics).
 
-#### 4. Project Creation Wizard
-- **Step-by-Step**: Three-step process (Project Details, Workstation Setup, Repository Configuration)
-- **Validation**: Real-time validation with clear error messaging
-- **Smart Defaults**: Pre-filled options when only one choice exists
+### 5) Public Project Discovery Flow
+- Goal: Browse public projects; request access where allowed.
+- Entry: Public Gallery; project share links.
+- Success: User gains clarity on project and optionally requests access.
 
-#### 5. Organization Dashboard
-- **Project Overview**: Visual project cards with mission counts and workstation status
-- **Workstation Management**: Status indicators and quick actions
-- **Team Members**: Member list with roles and activity indicators
+```mermaid
+flowchart LR
+  V[Visit Gallery] --> B[Browse/Search]
+  B --> P[Open Project]
+  P --> A[Request Access]
+  A --> W[Owner Decision]
+  W -->|Approve| C[Contributor/Collaborator]
+  W -->|Deny| K[Remain Public]
+```
 
-### Public Components
+Edge Cases
+- Permission-aware responses; workstation visibility controlled (001, 004).
 
-#### 1. Public Project Gallery
-- **Search & Filter**: Category browsing, tag filtering, full-text search
-- **Project Cards**: Visual previews with key metrics (stars, progress, activity)
-- **Sorting Options**: Popularity, recent activity, stars, creation date
+### 6) PR Mode Workflow
+- Goal: Use PR-based change management for production-grade control.
+- Entry: Mission with PR mode enabled.
+- Success: PR approved and merged; mission moves to Done.
 
-#### 2. Public Project View
-- **Permission-Aware**: UI adapts based on user's access level
-- **Project Overview**: Description, tags, repository links, progress visualization
-- **Mission Browser**: Read-only Kanban view for public missions
-- **Contribution Flow**: Access request system with role selection
+```mermaid
+flowchart LR
+  M["Mission PR Mode"] --> B["Feature Branch"]
+  B --> P["Create PR"]
+  P --> H["Human Review @ GitHub"]
+  H -->|Approve| M1["Merge"]
+  H -->|Changes Requested| I["Iterate - read GitHub PR comments"]
+  I --> P
+  M1 --> Dn["Mission Done"]
+```
 
-#### 3. Community Dashboard
-- **Personal Activity**: User's contributions, starred projects, template usage
-- **Quick Access**: Favorite projects and recent activity
-- **Community Stats**: Impact metrics (missions contributed, stars received)
+Edge Cases
+- Merge conflict → surface PR status/badges; guide iteration.
+- Permission limitations for external contributors → reflect in UI (001, 002).
 
-## Design System
+---
 
-See full theme at [Monster Theme](/monster-wiki/theme/monster-theme.md).
+## Wireframes & Mockups (Conceptual)
 
-### Dark/Light Mode
-- **Theme Switching**: User-controlled toggle in header
-- **System Preference**: Respects OS-level theme preference by default
-- **Consistent Styling**: All components adapt to both color schemes
+Primary Design Files: (to link once available)
 
-## Accessibility
+Key Screen Layouts
+- Kanban Board
+  - Purpose: Mission visibility and flow progression.
+  - Key Elements: Columns (Todo/Doing/Review/Done), Mission cards, badges (priority, stage, process), Ready toggle.
+  - Interaction Notes: Drag-and-drop reorder; click badges to open Flow tab; mobile horizontal scroll.
+- Mission Modal
+  - Purpose: Full mission context and settings.
+  - Key Elements: Tabs (Base, Flow, Clarify, Plan, Review, Dependencies, Settings).
+  - Interaction Notes: Real-time status; review actions; required feedback on reject.
+- Project Creation Wizard
+  - Purpose: Guided project setup.
+  - Key Elements: Steps (Details → Workstation → Repository), validation, sample mission toggle.
+- Project Settings
+  - Purpose: Administrative configuration.
+  - Key Elements: General, Members, Repositories, Actors, Flows tabs.
+- Organization Page
+  - Purpose: Portfolio and team overview.
+  - Key Elements: Projects grid, Workstations, Team Members.
+- Public Project View
+  - Purpose: Permission-aware public access.
+  - Key Elements: Overview, Missions (read-only or limited), Contributors, Analytics, Contribute.
+- Workstation View
+  - Purpose: Workstation health and activity.
+  - Key Elements: Overview, Agents, Repositories, Activity, Settings.
 
-### WCAG AA Compliance
-- **Color Contrast**: Minimum 4.5:1 contrast ratio for text
-- **Keyboard Navigation**: Full keyboard operability for all interactive elements
-- **Screen Reader Support**: Proper ARIA labels and semantic HTML
-- **Focus Management**: Visible focus indicators for interactive elements
+---
 
-### Inclusive Design
-- **Text Scaling**: Support for user-defined text scaling
-- **Motion Reduction**: Reduced motion options for animations
-- **Alternative Text**: Descriptive alt text for all informative images
+## Component Library / Design System
 
-## Mobile-First Design
+Design System Approach
+- Consistent, accessible, and responsive components driven by tokens (color, type, spacing). MVP focuses on usability; full theming can expand post-MVP.
 
-### Responsive Breakpoints
-- **Mobile**: Up to 768px
-- **Tablet**: 769px to 1024px
-- **Desktop**: 1025px and above
+Core Components (top 10)
+1) KanbanBoard
+   - Purpose: Visualize mission flow
+   - Anatomy: Columns, column headers, column footers (optional), scroll area
+   - Variants: 4-column default; loop sections in Todo
+   - States: Loading (skeleton), Empty, Error
+   - Behavior: DnD reorder updates list order; live updates via WebSocket
+   - Accessibility: Columns are landmarks; keyboard reordering (post-MVP); color-contrast badges
+   - Responsive: Horizontal scroll on mobile with snap points
+2) MissionCard
+   - Purpose: Mission summary and quick actions
+   - Anatomy: Title, badges (priority, stage, process/PR), description snippet, Ready toggle, overflow menu
+   - Variants: With PR badge; with Review CTA
+   - States: Ready/Not Ready; Active; Review-required
+   - Behavior: Click stage badge → Flow tab; Review column shows PR link
+   - Accessibility: Buttons with labels; focus order; aria-describedby for badges
+3) MissionModal
+   - Purpose: Full mission details and controls
+   - Anatomy: Header (title, close), Tabs (Base, Flow, Clarify, Plan, Review, Dependencies, Settings)
+   - Variants: Review tab active with Approve/Reject
+   - States: Real-time status indicators; disabled fields when AI active
+   - Behavior: Reject requires feedback; files attach; tabs preserve scroll state
+   - Accessibility: Dialog with focus trap; Esc to close; labeled controls
+4) ProjectSettingsModal
+   - Tabs: General, Members, Repositories, Actors, Flows
+   - Patterns: Inline validation; status badges for repositories; danger zone
+5) ProjectCreateWizard
+   - Steps: Details → Workstation → Repository
+   - Validation: Real-time; smart defaults; hints for missing workstation registration
+6) PublicProjectView
+   - Tabs: Overview, Missions, Contributors, Analytics, Contribute
+   - Permission-aware: Adjust visibility for anonymous vs roles
+7) WorkstationView
+   - Tabs: Overview, Agents, Repositories, Activity, Settings
+   - Presence: Online/offline; active missions; quick actions
+8) AccessRequestModal
+   - Levels: Contributor, Collaborator (+ details)
+   - Required rationale (optional) and submission
+9) PriorityBadge / StageBadge / PRStatusBadge
+   - Visual status chips; tooltips for clarity; consistent spacing and contrast
+10) Toasts & Notifications
+   - Mission status changes; PR review events; errors and recoverables
 
-### Mobile Optimizations
-- **Touch Targets**: Minimum 44px touch targets for interactive elements
-- **Horizontal Scrolling**: Kanban board with snap points
-- **Full-Screen Modals**: Mission creation and editing optimized for small screens
-- **Thumb-Friendly**: Key actions positioned for easy thumb reach
+For each component, ensure:
+- Props/config guidelines documented with defaults
+- State matrix: default/hover/focus/active/disabled/loading/error
+- Accessible names/roles; keyboard navigation
+- Token usage for colors/spacing/typography
+- Mobile adaptations (density, line lengths, tap targets)
+
+---
+
+## Branding & Style Guide (MVP placeholders)
+
+Visual Identity
+- Brand guidelines: (link TBD)
+
+Color Palette (semantic tokens)
+
+| Color Type | Hex | Usage |
+|------------|-----|-------|
+| Primary    | TBD | Actions, highlights |
+| Secondary  | TBD | Secondary actions |
+| Accent     | TBD | Accents/links |
+| Success    | TBD | Positive states/confirmations |
+| Warning    | TBD | Cautions/attention |
+| Error      | TBD | Errors/destructive actions |
+| Neutral    | TBD | Text/borders/backgrounds |
+
+Typography
+- Primary: TBD
+- Secondary: TBD
+- Monospace: TBD
+
+Type Scale
+
+| Element | Size | Weight | Line Height |
+|---------|------|--------|-------------|
+| H1      | TBD  | TBD    | TBD         |
+| H2      | TBD  | TBD    | TBD         |
+| H3      | TBD  | TBD    | TBD         |
+| Body    | TBD  | TBD    | TBD         |
+| Small   | TBD  | TBD    | TBD         |
+
+Iconography
+- Library: TBD
+- Guidelines: Consistent stroke weight; meaningful metaphors; alt text for informative icons.
+
+Spacing & Layout
+- Grid: 12-column responsive
+- Spacing scale: 4/8-based (TBD specifics)
+
+Dark/Light Mode
+- Support both; ensure contrast; preserve badge legibility in both schemes.
+
+---
+
+## Accessibility Requirements
+
+Compliance Target
+- WCAG 2.2 AA
+
+Key Requirements
+- Visual
+  - Contrast: ≥ 4.5:1 body text; ≥ 3:1 for large text and UI elements
+  - Focus indicators: prominent, not solely color-dependent
+  - Text sizing: resizable to 200% without loss of content
+- Interaction
+  - Full keyboard navigation for all interactive components
+  - Screen reader support with semantic HTML and ARIA where needed
+  - Touch targets: ≥ 44px for mobile/touch
+- Content
+  - Descriptive alt text for informative media
+  - Proper heading structure; label all form controls
+
+Testing Strategy
+- Automated checks via axe; manual screen reader passes; keyboard-only walkthroughs of core flows.
+
+---
+
+## Responsiveness Strategy
+
+Breakpoints (guideline)
+
+| Breakpoint | Min Width | Max Width | Target Devices |
+|------------|-----------|-----------|----------------|
+| Mobile     | 0         | 768px     | Phones         |
+| Tablet     | 769px     | 1024px    | Tablets        |
+| Desktop    | 1025px    | 1440px    | Laptops        |
+| Wide       | 1441px    | —         | Large displays |
+
+Adaptation Patterns
+- Layout: Kanban horizontal scroll with snap on mobile; columns may stack in summaries
+- Navigation: Condense tabs into overflow on small screens; hamburger for primary nav
+- Content priority: Cards over tables on small screens; truncate with tooltip
+- Interaction: Larger tap targets; full-screen modals; sticky action bars when helpful
+
+---
+
+## Animation & Micro-interactions
+
+Motion Principles
+- Purposeful, subtle, and informative; never block task flow; respect OS reduce-motion.
+
+Key Animations
+- Drag-and-drop affordances on Kanban (150–200ms, ease-out)
+- Status transitions (Ready/Not Ready toggle) with fade/scale (120–160ms)
+- Modal open/close with scale+opacity (160–220ms)
+
+---
 
 ## Performance Considerations
 
-### Loading States
-- **Skeleton Screens**: For content loading
-- **Progress Indicators**: For long-running operations
-- **Optimistic Updates**: For immediate UI feedback
+Performance Goals
+- Initial load: under pragmatic MVP constraints; skeletons for mission board and lists
+- Interaction response: < 100ms perceived for common actions
+- Animation: 60 FPS target where possible; fallbacks for low-power devices
 
-### Offline Capabilities
-- **Service Worker**: Basic offline support for critical assets
-- **Local Storage**: Cache important UI state
-- **Network Awareness**: Visual indicators for connectivity status
+Design Strategies
+- Skeleton screens for Kanban and modals
+- Optimistic updates for non-destructive changes (e.g., Ready toggle)
+- Real-time sync via WebSocket; reconcile conflicts in UI with clear status
 
-## Technical Implementation
+---
 
-### Framework & Libraries
-- **React 19**: Core UI framework
-- **TanStack Router**: Client-side routing
-- **TanStack Query**: Server state management
-- **shadcn/ui**: Component library with Tailwind CSS
-- **Tailwind CSS**: Utility-first styling approach
-- **Framer Motion**: Animation library for smooth transitions
-- **React Hook Form**: Form validation and management
+## Next Steps
 
-### State Management
-- **Component State**: useState and useReducer for local component state
-- **Server State**: TanStack Query for API data management
-- **Global State**: Context API for application-level state
-- **Real-Time State**: WebSocket connection state via Monster Realtime
+Immediate Actions
+1. Stakeholder review and sign-off on IA, flows, and component priorities
+2. Produce low/high-fidelity mockups based on this spec
+3. Frontend architecture doc alignment (routing, state, data fetching)
+4. Define brand tokens (color, type, spacing) and map to components
+5. Accessibility test plan for MVP flows
 
-### Data Fetching
-- **oRPC**: Internal API communication
-- **REST API**: External integrations
-- **WebSocket**: Real-time updates via Monster Realtime
-- **File Uploads**: Direct uploads via Monster Upload service
+Design Handoff Checklist
+- [ ] All user flows documented
+- [ ] Component inventory complete
+- [ ] Accessibility requirements defined
+- [ ] Responsive strategy clear
+- [ ] Brand guidelines incorporated
+- [ ] Performance goals established
 
-### Authentication Integration
-- **Monster Auth**: OAuth 2.0/OpenID Connect integration
-- **Token Management**: HTTP-only cookies for web app
-- **Session Handling**: Automatic token refresh via Monster Auth
-- **User Context**: Global authentication state management
+---
 
-### Real-Time Communication
-- **Monster Realtime**: WebSocket connection for live updates
-- **Presence Tracking**: Workstation status and availability
-- **Mission Updates**: Real-time mission status changes
-- **Collaboration**: Multi-user presence indicators
+## Checklist Results
+- To be filled after running UI/UX checklist against this document.
 
-## PWA Features
+---
 
-### Installation
-- **Install Prompt**: Browser install prompt for desktop and mobile
-- **Manifest File**: Proper web app manifest for home screen installation
-- **App Icons**: Multiple sizes for various devices
+## Appendices
 
-### Offline Support
-- **Caching Strategy**: Cache-first for static assets, network-first for API
-- **Offline Indicators**: Visual feedback when offline
-- **Queued Actions**: Local queuing of actions to sync when online
+### A) Foundation → Spec Mapping
 
-### Push Notifications
-- **Mission Updates**: Real-time notifications for mission status changes
-- **Review Requests**: Notifications for pending reviews
-- **Community Activity**: Updates on starred projects and contributions
+| Foundation Doc | Spec Sections Informed |
+|----------------|------------------------|
+| 001-feature-requirements.md | Personas, Design principles, Mission flow, Review/PR, Public Projects |
+| 002-web-design.md | IA, Flows, Components, Screens, Interactions, Mobile patterns |
+| 003-cli-design.md | Workstation presence hints, repo/worktree concepts surfaced in UI |
+| 004-db-design.md | Permission-aware UI, PR status surfaces, fields and states |
+| 005-api-and-mcp-design.md | MCP-first operations reflected in mission updates and lists |
+| 006-rpc-design.md | oRPC internal flows; cache invalidation patterns in UI |
 
-## Security Considerations
+### B) Foundation Source Index
+- docs/foundation/001-feature-requirements.md – Core features, flows, public projects, permissions, mission lifecycle
+- docs/foundation/002-web-design.md – Detailed UI components and flows (Kanban, Mission Modal, Settings, Public pages)
+- docs/foundation/003-cli-design.md – CLI architecture, workstation registration, presence, repo management
+- docs/foundation/004-db-design.md – Schema and performance considerations; PRs; permissions and visibility
+- docs/foundation/005-api-and-mcp-design.md – MCP-first design; REST adapters
+- docs/foundation/006-rpc-design.md – Internal oRPC conventions and TanStack Query cache mapping
 
-### Client-Side Security
-- **Input Sanitization**: Sanitize user-generated content before display
-- **XSS Prevention**: Proper escaping of dynamic content
-- **CSRF Protection**: Anti-CSRF tokens for state-changing operations
-- **Secure Storage**: Use secure storage for sensitive data
+### C) Open Questions / Elicit Items
+- Brand tokens (colors, type, spacing) – provide or confirm
+- Component prop-level specifications (finalize with FE architecture)
+- Keyboard reordering on Kanban (scope and timing)
+- Exact analytics/telemetry events and parameters
 
-### Authentication Integration
-- **Token Management**: Secure handling of authentication tokens via Monster Auth
-- **Session Management**: Proper session handling and timeouts
-- **Permission Checking**: Client-side permission validation with server-side enforcement
-- **Role-Based Access**: Conditional rendering based on user roles
+---
 
-### Data Protection
-- **Encryption**: TLS in transit for all communications
-- **Sensitive Data**: Avoid storing sensitive data in client-side storage
-- **File Uploads**: Secure file upload handling via Monster Upload
-- **Privacy**: Respect user privacy and data protection regulations
-
-## Testing Strategy
-
-### Component Testing
-- **Unit Tests**: Test individual components with Jest and React Testing Library
-- **Integration Tests**: Test component interactions and workflows
-- **Snapshot Tests**: Verify UI consistency (selectively)
-- **Accessibility Tests**: Automated accessibility testing with axe-core
-
-### End-to-End Testing
-- **User Flows**: Test complete user journeys with Cypress or Playwright
-- **Cross-Browser Testing**: Verify compatibility across browsers
-- **Performance Testing**: Measure and optimize performance metrics
-- **Accessibility Testing**: Manual accessibility audits
-
-### Real-Time Testing
-- **WebSocket Integration**: Test Monster Realtime connection and message handling
-- **Presence Updates**: Verify workstation status updates
-- **Collaboration Features**: Test multi-user scenarios
-- **Error Handling**: Test connection failures and reconnection logic
-
-## Monitoring and Analytics
-
-### Client-Side Monitoring
-- **Error Tracking**: Automatic error reporting and grouping
-- **Performance Monitoring**: Track key performance metrics
-- **User Analytics**: Understand user behavior and engagement
-- **Real User Monitoring**: Monitor actual user experience
-
-### Analytics Implementation
-- **Event Tracking**: Track key user actions and flows
-- **Conversion Tracking**: Measure successful completion of key workflows
-- **Performance Metrics**: Monitor page load times and interaction responsiveness
-- **Feature Usage**: Track adoption of new features
-
-## Integration with External Services
-
-### Monster Auth Integration (External Service)
-
-#### Authentication Flow
-1. **Web Authentication**:
-   - Redirect user to Monster Auth OAuth endpoint
-   - Receive authorization code via callback
-   - Exchange code for access/refresh tokens via Monster Auth
-   - Store tokens in secure HTTP-only cookies
-
-2. **CLI Authentication**:
-   - Start local HTTP server on ephemeral port
-   - Open browser to Monster Auth authorization URL
-   - Receive authorization code via callback
-   - Exchange code for access/refresh tokens via Monster Auth
-   - Store tokens in OS keychain
-
-#### Token Management
-- **JWT Validation**: Verify token signatures and claims via Monster Auth
-- **Refresh Logic**: Automatic token refresh before expiration via Monster Auth
-- **Revocation**: Clean token cleanup on logout
-- **Scope Validation**: Ensure minimum required permissions via Monster Auth
-
-### Monster Realtime Integration (External Service)
-
-#### WebSocket Connection
-- **Protocol**: WSS with automatic reconnection via Monster Realtime
-- **Authentication**: JWT token in connection parameters via Monster Auth
-- **Channel Structure** (managed by Monster Realtime):
-  - `workstation:{id}` - Direct workstation communication
-  - `project:{id}:workstations` - Project-wide workstation updates
-  - `mission:{id}` - Mission-specific coordination
-
-#### Presence System
-- **Status Updates**: Periodic presence broadcasts via Monster Realtime
-- **Metadata**: Workstation status, agent availability, active projects via Monster Realtime
-- **Member Keys**: Unique identifiers for presence tracking via Monster Realtime
-- **Channel Routing**: Efficient message delivery to relevant parties via Monster Realtime
-
-### Monster Upload Integration (External Service)
-
-#### File Management
-- **Upload Flow**:
-  - Request upload URL from Solo Unicorn API
-  - API requests signed upload URL from Monster Upload service
-  - Client uploads directly to Monster Upload via signed URL
-  - Monster Upload notifies Solo Unicorn of successful upload
-  - Solo Unicorn stores file metadata in database
-
-#### Security
-- **Signed URLs**: Temporary signed URLs for direct uploads to Monster Upload
-- **Access Control**: File access controlled by Solo Unicorn permissions
-- **Content Validation**: MIME type and size validation
-- **Malware Scanning**: Integration with Monster Upload malware scanning (if enabled)
-
-## Future Considerations
-
-### Enhanced Collaboration
-- **Real-time Co-editing**: Simultaneous mission editing
-- **Presence Indicators**: Show when others are viewing/working on missions
-- **Commenting System**: Inline comments on missions and code
-
-### Advanced Analytics
-- **Developer Insights**: Personal productivity metrics
-- **Project Analytics**: Team performance and velocity tracking
-- **AI Performance**: Agent effectiveness and iteration metrics
-
-### Extended Customization
-- **Custom Themes**: User-defined color schemes
-- **Layout Customization**: Adjustable Kanban board layouts
-- **Workflow Templates**: Community-shared flow templates
-
-## Conclusion
-
-This frontend specification provides a comprehensive blueprint for implementing Solo Unicorn's web application with a focus on usability, performance, and security. The specification emphasizes the integration with external Monster services (Auth, Realtime, Upload) while maintaining a modern, accessible, and responsive user interface that delivers on the product vision.
