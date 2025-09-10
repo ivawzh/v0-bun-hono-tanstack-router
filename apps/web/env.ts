@@ -7,27 +7,27 @@ const prodServerDomain = 'server.solounicorn.lol'
 
 const availableStages = ['alpha', 'production', 'development', 'test'] as const
 type Stage = (typeof availableStages)[number]
-
-export function getEnv(stageInput?: string) {
-  let viteEnv = import.meta.env
-  if (!viteEnv) {
-    // Vite auto load env after vite.config.ts defineConfig().
-    // Before invoking vite.config.ts defineConfig(), import.meta.env is undefined.
-    // If we want to use env.ts in vite.config.ts, we need to trigger loadEnv manually as below.
-    try {
-      const vite = require('vite')
-      if (vite) {
-        viteEnv = vite.loadEnv(
-          process.env.NODE_ENV || 'development',
-          process.cwd(),
-        )
-      }
-    } catch (error: any) {
-      if (!error.message?.includes('Cannot find module \'vite\'')) {
-        throw error
-      }
-    }
-  }
+/**
+ *
+ * Vite auto load env after vite.config.ts defineConfig().
+ * Before invoking vite.config.ts defineConfig(), import.meta.env is undefined.
+ * If we want to use env.ts in vite.config.ts, consumer need to first fire vite.loadEnv()
+ * and pass its output to this function.
+ *
+ * @example
+ * ```ts
+ * import { getEnv } from './env'
+ * import { loadEnv } from 'vite'
+ *
+ * const viteEnv = vite.loadEnv(
+      process.env.NODE_ENV || 'development',
+      process.cwd(),
+    )
+ * const env = getEnv('development', { viteEnv })
+ * ```
+ */
+export function getEnv(stageInput?: string, opts?: { viteEnv?: Record<string, string> }) {
+  const viteEnv = opts?.viteEnv || import.meta.env
 
   const stage = parseStage(stageInput)
 
