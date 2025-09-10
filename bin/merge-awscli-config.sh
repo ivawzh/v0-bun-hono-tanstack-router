@@ -20,12 +20,29 @@
 set -euo pipefail
 
 # Paths for local and destination configuration files.
-LOCAL_CONFIG="./aws-config"
+LOCAL_CONFIG="$(cat <<'EOF'
+[sso-session monster-make]
+sso_start_url = https://monster-make.awsapps.com/start
+sso_region = ap-southeast-2
+
+[profile monster-make-alpha]
+sso_session = monster-make
+sso_account_id = 253490795163
+sso_role_name = SstEngStaging
+region = ap-southeast-2
+
+[profile monster-make-production]
+sso_session = monster-make
+sso_account_id = 619071337788
+sso_role_name = SstEngProd
+region = ap-southeast-2
+EOF
+)"
 DEST_CONFIG="$HOME/.aws/config"
 
-# Check if the local config file exists.
-if [[ ! -f "$LOCAL_CONFIG" ]]; then
-    echo "Error: Local config file '$LOCAL_CONFIG' not found."
+# Ensure local config content is present.
+if [[ -z "$LOCAL_CONFIG" ]]; then
+    echo "Error: Local config content is empty."
     exit 1
 fi
 
@@ -62,7 +79,7 @@ while IFS= read -r line; do
         # Append the line to the current block.
         current_block="${current_block}"$'\n'"$line"
     fi
-done < "$LOCAL_CONFIG"
+done <<< "$LOCAL_CONFIG"
 
 # Process the last section if present.
 if [[ -n "$current_header" ]]; then
