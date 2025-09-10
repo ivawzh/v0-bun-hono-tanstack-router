@@ -1,5 +1,4 @@
 import { match, P } from 'ts-pattern'
-import { loadEnv } from 'vite'
 
 const alphaWebDomain = 'alpha.solounicorn.lol'
 const prodWebDomain = 'solounicorn.lol'
@@ -10,12 +9,25 @@ const availableStages = ['alpha', 'production', 'development', 'test'] as const
 type Stage = (typeof availableStages)[number]
 
 export function getEnv(stageInput?: string) {
-  const viteEnv
-    = import.meta.env
-    // Vite auto load env after vite.config.ts defineConfig.
-    // Before invoking vite.config.ts defineConfig, import.meta.env is undefined.
+  let viteEnv = import.meta.env
+  if (!viteEnv) {
+    // Vite auto load env after vite.config.ts defineConfig().
+    // Before invoking vite.config.ts defineConfig(), import.meta.env is undefined.
     // If we want to use env.ts in vite.config.ts, we need to trigger loadEnv manually as below.
-      || loadEnv(process.env.NODE_ENV || 'development', process.cwd())
+    try {
+      const vite = require('vite')
+      if (vite) {
+        viteEnv = vite.loadEnv(
+          process.env.NODE_ENV || 'development',
+          process.cwd(),
+        )
+      }
+    } catch (error: any) {
+      if (!error.message?.includes('Cannot find module \'vite\'')) {
+        throw error
+      }
+    }
+  }
 
   const stage = parseStage(stageInput)
 

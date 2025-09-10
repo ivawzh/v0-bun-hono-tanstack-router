@@ -23,13 +23,35 @@ export function getSstVars(stageInput?: string) {
     throw new Error(`Invalid stage: ${stage}`)
   }
 
+  let webVars
+  let serverVars
+
+  try {
+    webVars = getWebEnv(stage)
+  } catch (error) {
+    console.warn('Error getting web env:', error)
+    // Provide fallback values for development
+    if (stage === 'development') {
+      webVars = {
+        stage,
+        webUrl: process.env.VITE_WEB_URL || 'http://localhost:8888',
+        serverUrl: process.env.VITE_SERVER_URL || 'http://localhost:3500',
+      }
+    } else {
+      throw error
+    }
+  }
+
+  try {
+    serverVars = getServerEnv(stage)
+  } catch (error) {
+    console.warn('Error getting server env:', error)
+    throw error
+  }
+
   return {
-    webVars: {
-      ...getWebEnv(stage),
-    },
-    serverVars: {
-      ...getServerEnv(stage),
-    },
+    webVars,
+    serverVars,
   }
 }
 

@@ -5,7 +5,6 @@ import { Stage } from './sst.vars'
 export default $config({
   async app(input) {
     const { getAwsProfile } = await import('./sst.vars')
-
     const stage = parseStage(input?.stage)
 
     const isProduction = stage === 'production'

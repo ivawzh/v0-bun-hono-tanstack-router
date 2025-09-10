@@ -40,12 +40,12 @@ app.use(
   }),
 )
 
-const rpchandler = new RPCHandler(rpcRouter)
-const apihandler = new OpenAPIHandler(apiRouter)
+const rpcHandler = new RPCHandler(rpcRouter)
+const apiHandler = new OpenAPIHandler(apiRouter)
 
 app.use('/rpc/*', async (c, next) => {
   const context = await createContext({ context: c })
-  const { matched, response } = await rpchandler.handle(c.req.raw, {
+  const { matched, response } = await rpcHandler.handle(c.req.raw, {
     prefix: '/rpc',
     context,
   })
@@ -58,7 +58,7 @@ app.use('/rpc/*', async (c, next) => {
 
 app.use('/api/*', async (c, next) => {
   const context = await createContext({ context: c })
-  const { matched, response } = await apihandler.handle(c.req.raw, {
+  const { matched, response } = await apiHandler.handle(c.req.raw, {
     prefix: '/api',
     context,
   })
