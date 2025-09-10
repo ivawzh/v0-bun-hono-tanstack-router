@@ -145,6 +145,7 @@ Testing strategy
 - Server: import schema/types directly from apps/server/src/db/schema; unit test services
 - CLI: integration-style command tests with mocked HTTP and realtime layers
 
+Logo at docs/assets/logo.jpg
 
 ## Developer Guidelines
 
