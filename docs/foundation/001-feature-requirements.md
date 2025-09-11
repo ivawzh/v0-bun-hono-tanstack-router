@@ -120,7 +120,7 @@ MVP decision: CLI auto-manages cloning and worktree creation on first mission fo
 - Solution & Tasks document management in filesystem (./solo-unicorn-docs/missions/{mission-id}/)
 
 MVP field model:
-- title (human), description (human), spec (AI-refined)
+- title (human), description (human), Clarification (by AI)
 - solution (chosen approach), tasks (array of tasks replacing steps), currentTask index
 
 **Public Interfaces**:

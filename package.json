@@ -20,7 +20,7 @@
     "aws-sso": "aws sso login --sso-session=monster-make",
     "sst:prod": "bun sst --stage production",
     "sst:alpha": "bun sst --stage alpha",
-    "agent:rules:apply": "bun ruler apply --nested --agents qwen,cursor",
+    "agent:rules:apply": "bun ruler apply --nested --agents qwen,cursor,claude",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "postinstall": "bun sst install --print-logs && bun agent:rules:apply"

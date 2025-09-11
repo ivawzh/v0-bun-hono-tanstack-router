@@ -867,7 +867,7 @@ CREATE TABLE missions (
   -- Mission Content (MVP)
   title VARCHAR(500) NOT NULL,         -- human-authored title
   description TEXT,                    -- human-authored description
-  spec TEXT,                           -- AI-refined/structured spec (intent, story, cases)
+  clarification TEXT,                  -- AI-refined/structured clarification (intent, story, cases)
 
   -- Mission Configuration
   priority INTEGER DEFAULT 3, -- 1-5 (5=highest)
@@ -1009,7 +1009,7 @@ CREATE TABLE mission_attachments (
   storage_url TEXT, -- public URL if applicable
 
   -- Context
-  attachment_type ENUM('spec', 'wireframe', 'reference', 'feedback', 'other') DEFAULT 'other',
+  attachment_type ENUM('clarification', 'wireframe', 'reference', 'feedback', 'other') DEFAULT 'other',
   description TEXT,
 
   -- Timestamps
