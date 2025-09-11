@@ -152,7 +152,7 @@ sequenceDiagram
 
 ## Endpoints
 
-### MISSION-001 Mission Update (MCP)
+### MISSION-001 - POST - mission.update
 
 #### Summary
 Update mission specification, solution, tasks, and execution status via MCP tool
@@ -174,7 +174,7 @@ Personal access token (pat_*) or organization API key (org_key_*) via MCP contex
 #### Notes
 Primary interface for AI agents to update mission progress and content
 
-### MISSION-002 Mission Get (MCP)
+### MISSION-002 - GET - mission.get
 
 #### Summary
 Retrieve complete mission details including current state and configuration
@@ -196,7 +196,7 @@ PAT/org key with mission read permissions based on project access
 #### Notes
 Core read operation for AI agents to understand mission context
 
-### WORKSTATION-001 Registration (HTTP)
+### WORKSTATION-001 - POST - /api/v1/workstations/register
 
 #### Summary
 Register workstation with organization and establish WebSocket connection details
@@ -218,7 +218,7 @@ Personal access token or organization API key in Authorization header
 #### Notes
 Called by CLI during workstation setup, provides WebSocket connection configuration
 
-### PROJECT-001 Public Project List (HTTP)
+### PROJECT-001 - GET - /api/v1/projects/public
 
 #### Summary
 Browse public projects with filtering, search, and pagination
@@ -240,7 +240,7 @@ Optional authentication for permission-aware responses
 #### Notes
 Public endpoint with no authentication required, graceful permission-aware filtering
 
-### AUTH-001 OAuth Callback (HTTP)
+### AUTH-001 - GET - /api/v1/auth/callback
 
 #### Summary
 Handle Monster Auth OAuth callback and establish session
@@ -262,7 +262,7 @@ Session cookies set, redirect URL for successful authentication
 #### Notes
 Part of web authentication flow, sets httpOnly secure cookies
 
-### RPC-001 Web Mission List (oRPC)
+### RPC-001 - POST - /rpc/missions.list
 
 #### Summary
 Internal web app mission listing with real-time updates
@@ -284,7 +284,7 @@ Session cookies from web authentication
 #### Notes
 Internal web interface, includes real-time channel information for live updates
 
-### RPC-002 Web Project Settings (oRPC)
+### RPC-002 - POST - /rpc/projects.getSettings
 
 #### Summary
 Internal project configuration management for web interface

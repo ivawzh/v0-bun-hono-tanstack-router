@@ -17,7 +17,7 @@ Solo Unicorn is a design-driven framework for AI‑assisted development that pro
 
 ## Features
 
-### F001 Authentication & Authorization
+### F001 - Authentication & Authorization
 
 #### Meta
 - **ID:** F001
@@ -46,7 +46,7 @@ Provide secure, multi-tenant authentication using Monster Auth with support for 
 Integrate with Monster Auth as the identity provider where email is the canonical identifier. Support multiple OAuth providers that authenticate the same email address. Implement authn via Monster Auth tokens with authz in the application layer (TypeScript). Store minimal user data server-side while leveraging Monster Auth for identity management.
 
 #### User Flow Links
-- [UF-AUTH-001](./02-ui/web.md#uf-auth-001)
+- [UF-AUTH-001](./20-gui/web.md#uf-auth-001)
 
 #### Transport Flow Links
 - HTTP: POST /api/oauth/callback
@@ -62,7 +62,7 @@ Integrate with Monster Auth as the identity provider where email is the canonica
 - Email change at IdP → account migration process required (post-MVP)
 - Token compromise → automatic refresh and revocation capabilities
 
-### F002 Workstation Management
+### F002 - Workstation Management
 
 #### Meta
 - **ID:** F002
@@ -89,7 +89,7 @@ Enable users to register and manage workstations (physical/virtual machines) tha
 Workstations register via CLI and maintain persistent WebSocket connections to Monster Realtime. Report available code agent types, capacity, and status via presence metadata. Server uses real-time presence data for mission assignment decisions without storing detailed agent configurations locally.
 
 #### User Flow Links
-- [UF-WORKSTATION-001](./02-ui/web.md#uf-workstation-001)
+- [UF-WORKSTATION-001](./20-gui/web.md#uf-workstation-001)
 
 #### Transport Flow Links
 - WebSocket: workstation:{workstation_id} channel
@@ -101,7 +101,7 @@ Workstations register via CLI and maintain persistent WebSocket connections to M
 - Real-time presence enables dynamic mission assignment
 - Workstation-centric architecture for distributed development
 
-### F003 Code Agent Orchestration
+### F003 - Code Agent Orchestration
 
 #### Meta
 - **ID:** F003
@@ -127,7 +127,7 @@ Orchestrate multiple AI code agent types (starting with Claude Code) across work
 Use hybrid approach where detailed agent configurations stay on workstations (client-side JSON files) while server tracks basic availability via WebSocket presence. Mission assignment uses real-time agent status, repository concurrency limits, and priority queuing.
 
 #### User Flow Links
-- [UF-AGENT-001](./02-ui/web.md#uf-agent-001)
+- [UF-AGENT-001](./20-gui/web.md#uf-agent-001)
 
 #### Transport Flow Links
 - MCP: mission.v1.update for agent progress reporting
@@ -138,7 +138,7 @@ Use hybrid approach where detailed agent configurations stay on workstations (cl
 - Server gets real-time availability via presence updates
 - Mission assignment respects agent concurrency and rate limits
 
-### F004 Repository & Git Worktree Management
+### F004 - Repository & Git Worktree Management
 
 #### Meta
 - **ID:** F004
@@ -165,7 +165,7 @@ Manage GitHub repository integration with git worktree support for parallel deve
 Use GitHub numeric repository ID (BIGINT) as canonical identifier for stability. CLI auto-manages cloning and worktree creation on first mission for new repo/branch. Workstations maintain worktree pools for efficient resource usage with automatic cleanup policies.
 
 #### User Flow Links
-- [UF-REPO-001](./02-ui/web.md#uf-repo-001)
+- [UF-REPO-001](./20-gui/web.md#uf-repo-001)
 
 #### Transport Flow Links
 - HTTP: repository.linkGithub MCP tool
@@ -176,7 +176,7 @@ Use GitHub numeric repository ID (BIGINT) as canonical identifier for stability.
 - Worktree pools reduce setup time and disk usage
 - CLI manages worktrees automatically; no user-facing commands in MVP
 
-### F005 Mission Management & Flow
+### F005 - Mission Management & Flow
 
 #### Meta
 - **ID:** F005
@@ -204,8 +204,8 @@ Provide Kanban-style mission organization with flexible, flow-based stage manage
 Implement flow-first mission creation where users select flows then optionally start from specific stages. Store solution/tasks hybrid: filesystem for content (./solo-unicorn-docs/missions/{mission-id}/), database for progress tracking. Support loop missions with scheduling for automated maintenance.
 
 #### User Flow Links
-- [UF-MISSION-001](./02-ui/web.md#uf-mission-001)
-- [UF-REVIEW-001](./02-ui/web.md#uf-review-001)
+- [UF-MISSION-001](./20-gui/web.md#uf-mission-001)
+- [UF-REVIEW-001](./20-gui/web.md#uf-review-001)
 
 #### Transport Flow Links
 - MCP: mission.v1.create, mission.v1.update, mission.v1.reject
@@ -217,7 +217,7 @@ Implement flow-first mission creation where users select flows then optionally s
 - Loop missions maximize code agent monthly budget usage
 - Review system integrates with PR feedback via GitHub CLI
 
-### F006 Change Management System
+### F006 - Change Management System
 
 #### Meta
 - **ID:** F006
@@ -243,7 +243,7 @@ Support dual change management approaches: YOLO mode for fast iteration and PR m
 Provide per-project and per-mission PR mode configuration. When enabled, auto-create PRs with mission context and enable AI agents to read GitHub PR comments via `gh` CLI for iteration. Human reviews happen in GitHub with status reflected in Solo Unicorn.
 
 #### User Flow Links
-- [UF-PR-001](./02-ui/web.md#uf-pr-001)
+- [UF-PR-001](./20-gui/web.md#uf-pr-001)
 
 #### Transport Flow Links
 - HTTP: GitHub API for PR creation and status
@@ -258,7 +258,7 @@ Provide per-project and per-mission PR mode configuration. When enabled, auto-cr
 - GitHub API rate limits → smart caching and batched requests
 - PR conflicts → surface status in UI with clear guidance
 
-### F007 Development Server & Public Tunneling
+### F007 - Development Server & Public Tunneling
 
 #### Meta
 - **ID:** F007
@@ -291,7 +291,7 @@ Use Cloudflare Tunnel (cloudflared) for cost-effectiveness and multi-tenancy sup
 - WebSocket-based tunneling protocol
 - Public access with configurable security controls
 
-### F008 Project & Organization Management
+### F008 - Project & Organization Management
 
 #### Meta
 - **ID:** F008
@@ -317,7 +317,7 @@ Provide multi-project organization structure with project memory, configuration 
 Organization-based multi-tenancy with project-level access control. Store project memory as markdown content for AI context. Support granular permissions and role-based access control with public project capabilities.
 
 #### User Flow Links
-- [UF-PROJECT-001](./02-ui/web.md#uf-project-001)
+- [UF-PROJECT-001](./20-gui/web.md#uf-project-001)
 
 #### Transport Flow Links
 - HTTP: project.* MCP tools
@@ -328,7 +328,7 @@ Organization-based multi-tenancy with project-level access control. Store projec
 - Organization-level user management with project-level permissions
 - Public projects support community collaboration
 
-### F009 Real-time Communication
+### F009 - Real-time Communication
 
 #### Meta
 - **ID:** F009
@@ -361,7 +361,7 @@ Use Monster Realtime for push-only WebSocket communication. Structured channels 
 - Channel structure matches entity relationships
 - Presence metadata includes agent availability
 
-### F010 Configuration Management
+### F010 - Configuration Management
 
 #### Meta
 - **ID:** F010
@@ -386,7 +386,7 @@ Manage CLI and workstation configuration with secure credential storage and Type
 Use structured JSON configuration files with TypeScript interfaces for type safety. Integrate with OS keychain for secure credential storage. Support flow templates and agent configuration at workstation level.
 
 #### User Flow Links
-- [UF-CONFIG-001](./02-ui/web.md#uf-config-001)
+- [UF-CONFIG-001](./20-gui/web.md#uf-config-001)
 
 #### Transport Flow Links
 - HTTP: config get/set/list/reset commands
@@ -396,7 +396,7 @@ Use structured JSON configuration files with TypeScript interfaces for type safe
 - OS keychain integration for security
 - Local storage reduces server complexity
 
-### F011 Flow Review System
+### F011 - Flow Review System
 
 #### Meta
 - **ID:** F011
@@ -423,7 +423,7 @@ Enable human review gates at any flow stage with approval/rejection workflow and
 Configure review requirements per flow stage. Create dedicated Review kanban column. Integrate rejection feedback with AI agent iteration using GitHub PR comments when applicable.
 
 #### User Flow Links
-- [UF-REVIEW-001](./02-ui/web.md#uf-review-001)
+- [UF-REVIEW-001](./20-gui/web.md#uf-review-001)
 
 #### Transport Flow Links
 - MCP: request_review tool for code agents
@@ -434,7 +434,7 @@ Configure review requirements per flow stage. Create dedicated Review kanban col
 - Integration with GitHub PR feedback
 - Review history for audit trail
 
-### F012 Solution & Tasks Document Management
+### F012 - Solution & Tasks Document Management
 
 #### Meta
 - **ID:** F012
@@ -466,7 +466,7 @@ Store solution.md and tasks/{n}.md in filesystem for AI context while tracking p
 - Task granularity fits AI session context limits
 - Git provides automatic version control
 
-### F013 Public Projects & Access Control
+### F013 - Public Projects & Access Control
 
 #### Meta
 - **ID:** F013
@@ -493,7 +493,7 @@ Support public project visibility with granular access control and permission le
 Implement hierarchical role system with explicit permission overrides. Projects private by default with opt-in public visibility. Granular controls for missions, workstations, execution permissions, and memory access.
 
 #### User Flow Links
-- [UF-PUBLIC-001](./02-ui/web.md#uf-public-001)
+- [UF-PUBLIC-001](./20-gui/web.md#uf-public-001)
 
 #### Transport Flow Links
 - HTTP: GET /api/v1/public/projects
@@ -505,7 +505,7 @@ Implement hierarchical role system with explicit permission overrides. Projects 
 - Workstation visibility remains controllable
 - Permission checks in application layer, not SQL
 
-### F014 Public Project Discovery & Community
+### F014 - Public Project Discovery & Community
 
 #### Meta
 - **ID:** F014
@@ -533,7 +533,7 @@ Enable comprehensive public project browsing, discovery, and community engagemen
 Create public project gallery with filtering by category, technology, and activity. Implement template system for project reuse. Featured projects with editorial control and community metrics for engagement tracking.
 
 #### User Flow Links
-- [UF-DISCOVERY-001](./02-ui/web.md#uf-discovery-001)
+- [UF-DISCOVERY-001](./20-gui/web.md#uf-discovery-001)
 
 #### Transport Flow Links
 - HTTP: GET /api/v1/public/projects/search
@@ -544,7 +544,7 @@ Create public project gallery with filtering by category, technology, and activi
 - Template system enables project reuse
 - Community metrics drive engagement
 
-### F015 Public API Design & Security
+### F015 - Public API Design & Security
 
 #### Meta
 - **ID:** F015
@@ -580,7 +580,7 @@ Implement public discovery endpoints with graceful degradation based on authenti
 - CDN integration for performance
 - OpenAPI specification for documentation
 
-### F016 Flow Template System and Prompt Strategy
+### F016 - Flow Template System and Prompt Strategy
 
 #### Meta
 - **ID:** F016

@@ -72,7 +72,7 @@ Organization / Project / Area / Item (e.g., Solo Unicorn / My Project / Missions
 
 ## User Flows
 
-### UF-AUTH-001 Authentication Flow
+### UF-AUTH-001 - Authentication Flow
 
 **User Goal:** Access Solo Unicorn securely as an organization member
 
@@ -101,7 +101,7 @@ sequenceDiagram
     App->>App: Redirect to Dashboard/Project
 ```
 
-### UF-WORKSTATION-001 Workstation Management
+### UF-WORKSTATION-001 - Workstation Management
 
 **User Goal:** Register and manage workstations for AI code agent hosting
 
@@ -120,7 +120,7 @@ Workstation online and available for mission assignment
 4. Workstation appears online in web interface
 5. Configure workstation permissions and project access
 
-### UF-AGENT-001 Code Agent Configuration
+### UF-AGENT-001 - Code Agent Configuration
 
 **User Goal:** Configure and monitor AI code agents on workstations
 
@@ -138,7 +138,7 @@ Code agents available and reported in workstation presence
 4. Monitor agent availability and rate limits
 5. Review agent session history and performance
 
-### UF-REPO-001 Repository Management
+### UF-REPO-001 - Repository Management
 
 **User Goal:** Link GitHub repositories to projects for mission development
 
@@ -157,7 +157,7 @@ Repository linked and available for mission assignment
 5. Set concurrency limits and default branch
 6. Repository available for mission creation
 
-### UF-PROJECT-001 Project Creation
+### UF-PROJECT-001 - Project Creation
 
 **User Goal:** Create new project and prepare for missions
 
@@ -181,7 +181,7 @@ flowchart LR
     C --> P
 ```
 
-### UF-MISSION-001 Mission Creation and Execution
+### UF-MISSION-001 - Mission Creation and Execution
 
 **User Goal:** Create mission with flow-first configuration and execute via AI agent
 
@@ -211,7 +211,7 @@ flowchart TD
     RV -->|Reject| Do
 ```
 
-### UF-REVIEW-001 Mission Review Process
+### UF-REVIEW-001 - Mission Review Process
 
 **User Goal:** Review AI-generated code changes and provide feedback
 
@@ -230,7 +230,7 @@ Mission approved and moved to Done, or rejected with actionable feedback
 4. Provide approval or detailed rejection feedback
 5. Mission proceeds to Done or returns to Doing for iteration
 
-### UF-PR-001 Pull Request Workflow
+### UF-PR-001 - Pull Request Workflow
 
 **User Goal:** Use PR-based change management for production-grade control
 
@@ -270,7 +270,7 @@ sequenceDiagram
     end
 ```
 
-### UF-PUBLIC-001 Public Project Discovery
+### UF-PUBLIC-001 - Public Project Discovery
 
 **User Goal:** Browse public projects and request contributor access
 
@@ -290,7 +290,7 @@ User understands project goals and optionally gains contributor access
 5. Receive access decision from project owner
 6. Begin contributing missions (if approved)
 
-### UF-DISCOVERY-001 Project Discovery and Templates
+### UF-DISCOVERY-001 - Project Discovery and Templates
 
 **User Goal:** Discover interesting projects and create from templates
 
@@ -310,7 +310,7 @@ User finds relevant project or creates new project from template
 5. Customize template during project creation
 6. New project created with template structure
 
-### UF-CONFIG-001 Configuration Management
+### UF-CONFIG-001 - Configuration Management
 
 **User Goal:** Configure CLI, flows, and organizational settings
 
