@@ -28,7 +28,7 @@ export default defineConfig({
         name: 'solo-unicorn',
         short_name: 'solo-unicorn',
         description: 'solo-unicorn - PWA Application',
-        theme_color: '#0c0c0c',
+        theme_color: '#ffe68a',
       },
       pwaAssets: { disabled: false, config: true },
       devOptions: { enabled: true },

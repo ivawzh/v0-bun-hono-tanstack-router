@@ -25,7 +25,7 @@ This document serves as comprehensive instructions for developers working with t
 - **Auth**: Monster Auth. Read more at [Monster Auth](/monster-wiki/shared-services/monster-auth.md).
 - **Websocket**: Monster Realtime. Read more at [Monster Realtime](/monster-wiki/shared-services/monster-realtime.md).
 - **User uploads**: Monster Upload. Read more at [Monster Upload](/monster-wiki/shared-services/monster-upload.md).
-- **Styling**: TailwindCSS v4 + shadcn/ui components. Theme is predefined at [Monster Theme](/monster-wiki/theme/monster-theme.md).
+- **Styling**: TailwindCSS v4 + shadcn/ui components. Use [Monster Theme](/monster-wiki/theme/monster-theme.md).
 - **Build Tools**: Vite (frontend), Bun (backend)
 - **CLI**: Bun single-file executable + yargs
 - **Deployment**: SST V3

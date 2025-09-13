@@ -8,9 +8,11 @@
   "scripts": {
     "build": "bun run --filter '*' build",
     "server:run": "bun --elide-lines 0 --filter solo-unicorn-server ",
-    "db:migrate:generate": "server:run db:migrate:generate --name ",
-    "db:migrate:up": "server:run db:migrate:up",
-    "db:migrate:down": "server:run db:migrate:down",
+    "db:create": "bun server:run db:create",
+    "db:drop": "bun server:run db:drop",
+    "db:migrate:generate": "bun server:run db:migrate:generate --name ",
+    "db:migrate:up": "bun server:run db:migrate:up",
+    "db:migrate:down": "bun server:run db:migrate:down",
     "dev": "concurrently --prefix '[{name}]' --names 'server,web' --prefix-colors 'cyan,magenta' 'cd apps/server && bun dev' 'cd apps/web && bun dev'",
     "dev:native": "bun run --filter native dev",
     "dev:server": "bun run --filter solo-unicorn-server dev",
@@ -20,7 +22,7 @@
     "aws-sso": "aws sso login --sso-session=monster-make",
     "sst:prod": "bun sst --stage production",
     "sst:alpha": "bun sst --stage alpha",
-    "agent:rules:apply": "bun ruler apply --nested --agents qwen,cursor,claude",
+    "agent:rules:apply": "bun ruler apply --nested --agents qwen,cursor",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "postinstall": "bun sst install --print-logs && bun agent:rules:apply"
