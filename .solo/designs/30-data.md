@@ -1,164 +1,109 @@
 # Data Design
 
 ## Overview
-
-Solo Unicorn uses a workstation-centric, multi-tenant data architecture supporting distributed AI code agent orchestration. The system employs a hybrid storage strategy: PostgreSQL for operational data with performance-optimized indexes, filesystem storage for mission artifacts (solution/tasks documents), and Monster services integration for authentication and real-time communication. The design prioritizes mission assignment performance, real-time presence tracking, and granular access control for both private organizations and public project collaboration.
+Workstation-centric, multi-tenant schema with projects, missions, flexible flows, optional PR support, and public projects. Hybrid storage persists Solution & Tasks in filesystem with DB progress tracking. Agent configurations live client-side; server stores minimal availability state for orchestration.
 
 ## Data Relations Diagram
-
 ```mermaid
 erDiagram
-    Organizations ||--o{ Users : "owns/manages"
-    Organizations ||--o{ Workstations : "hosts"
-    Organizations ||--o{ Projects : "contains"
+  ORGANIZATIONS ||--o{ USERS : has
+  ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERSHIPS : includes
+  ORGANIZATIONS ||--o{ WORKSTATIONS : owns
+  ORGANIZATIONS ||--o{ PROJECTS : owns
 
-    Users ||--o{ OrganizationMemberships : "belongs to"
-    Users ||--o{ ProjectPermissions : "has permissions"
-    Users ||--o{ ProjectStars : "stars"
+  PROJECTS ||--o{ PROJECT_WORKSTATIONS : links
+  WORKSTATIONS ||--o{ PROJECT_WORKSTATIONS : links
 
-    Workstations ||--o{ ProjectWorkstations : "assigned to"
-    Workstations ||--o{ WorkstationRepositories : "manages"
-    Workstations ||--o{ CodeAgentSessions : "executes"
+  PROJECTS ||--o{ PROJECT_REPOSITORIES : uses
+  PROJECTS ||--o{ FLOWS : defines
+  PROJECTS ||--o{ ACTORS : defines
+  PROJECTS ||--o{ MISSIONS : contains
 
-    Projects ||--o{ ProjectRepositories : "links to"
-    Projects ||--o{ ProjectWorkstations : "uses"
-    Projects ||--o{ Missions : "contains"
-    Projects ||--o{ Flows : "defines"
-    Projects ||--o{ Actors : "has personas"
-    Projects ||--o{ ProjectPermissions : "controls access"
+  MISSIONS ||--o{ MISSION_DEPENDENCIES : depends
+  MISSIONS ||--o{ CODE_AGENT_SESSIONS : tracks
+  MISSIONS ||--o{ GITHUB_PULL_REQUESTS : opens
+  GITHUB_PULL_REQUESTS ||--o{ GITHUB_PR_COMMENTS : includes
 
-    ProjectRepositories ||--o{ WorkstationRepositories : "cloned to"
-    ProjectRepositories ||--o{ GitWorktrees : "creates worktrees"
-    ProjectRepositories ||--o{ GitHubPullRequests : "manages PRs"
+  PROJECTS ||--o{ PROJECT_STARS : starred_by
+  PROJECTS ||--o{ PROJECT_ACTIVITY : logs
 
-    Missions ||--o{ MissionDependencies : "depends on"
-    Missions ||--o{ MissionAttachments : "has files"
-    Missions ||--o{ CodeAgentSessions : "executed by"
-    Missions ||--o{ GitHubPullRequests : "creates PRs"
-
-    GitHubPullRequests ||--o{ GitHubPRComments : "has comments"
-
-    WorkstationRepositories ||--o{ GitWorktrees : "creates"
-
-    Flows ||--o{ Missions : "guides"
-    Actors ||--o{ Missions : "assigned to"
-
-    Projects {
-        varchar id PK
-        varchar organization_id FK
-        varchar name
-        text description
-        enum visibility "private/public"
-        varchar public_slug UK
-        varchar category
-        json tags
-        boolean featured
-        integer star_count
-        text memory
-        enum pr_mode_default
-        timestamp created_at
-    }
-
-    Organizations {
-        varchar id PK
-        varchar name
-        varchar slug UK
-        varchar owner_email
-        varchar api_key UK
-        timestamp created_at
-    }
-
-    Users {
-        varchar id PK
-        varchar email UK
-        varchar name
-        varchar avatar
-        jsonb monster_auth
-        enum status
-        timestamp created_at
-    }
-
-    Workstations {
-        varchar id PK
-        varchar organization_id FK
-        varchar name
-        varchar hostname
-        varchar os
-        varchar arch
-        json available_code_agents
-        enum status
-        timestamp last_seen_at
-        json realtime_presence_meta
-        timestamp created_at
-    }
-
-    Missions {
-        varchar id PK
-        varchar project_id FK
-        varchar title
-        text description
-        text clarification
-        integer priority
-        enum list "todo/doing/review/done/loop"
-        varchar stage
-        varchar flow_id FK
-        bigint repository_id
-        varchar target_branch
-        enum pr_mode
-        boolean ready
-        enum agent_session_status
-        text solution
-        json tasks
-        integer tasks_current
-        timestamp created_at
-    }
+  HELPERS {
+    id varchar
+    code varchar
+  }
 ```
 
 ## Conceptual Entities
 
-### Organizations
-**Purpose:** Top-level multi-tenant container that owns workstations and projects
-**Relationships:** Has many Users (via memberships), Workstations, and Projects
+### ENT-ORG - Organization
+Purpose: Tenant boundary; owns projects, workstations
+Relationships: has memberships (users), owns projects/workstations
 
-### Users
-**Purpose:** Individual users with email-based canonical identity across Monster Auth providers
-**Relationships:** Belongs to Organizations, has ProjectPermissions, can star Projects
+### ENT-USER - User
+Purpose: Canonical identity (email via Monster Auth)
+Relationships: member of organizations; stars public projects
 
-### Workstations
-**Purpose:** Physical/virtual machines that host code agents and execute missions
-**Relationships:** Belongs to Organization, assigned to Projects, manages local Repositories, executes CodeAgentSessions
+### ENT-MEM - Organization Membership
+Purpose: Role in org (owner/admin/member)
+Relationships: links user↔org
 
-### Projects
-**Purpose:** Development projects containing missions, with optional public visibility and granular permissions
-**Relationships:** Contains Missions, links to ProjectRepositories, defines Flows and Actors, controls access via ProjectPermissions
+### ENT-WS - Workstation
+Purpose: Registered machine hosting agents
+Relationships: belongs to org; linked to projects; reports presence
 
-### Missions
-**Purpose:** AI-executable tasks with flow-based stages and optional review gates
-**Relationships:** Belongs to Project, follows Flow, assigned to Actor, executed via CodeAgentSessions, creates GitHubPullRequests
+### ENT-PROJ - Project
+Purpose: Unit of collaboration and configuration
+Relationships: repositories, flows, actors, missions; stars/activity
 
-### ProjectRepositories
-**Purpose:** GitHub repository links with stable identification and PR configuration
-**Relationships:** Linked to Projects, cloned to WorkstationRepositories, manages GitHubPullRequests
+### ENT-REPO - Project Repository
+Purpose: GitHub repository linkage (stable by GitHub numeric ID)
+Relationships: belongs to project; referenced by missions/PRs
 
-### GitWorktrees
-**Purpose:** Multiple working directories from same repository for parallel development
-**Relationships:** Created by WorkstationRepositories, used by CodeAgentSessions
+### ENT-FLOW - Flow
+Purpose: Stage sequence with review flags
+Relationships: used by missions
 
-### CodeAgentSessions
-**Purpose:** Individual AI agent execution sessions with timing, results, and error tracking
-**Relationships:** Executes Missions on Workstations, uses GitWorktrees
+### ENT-ACTOR - Actor
+Purpose: AI persona/methodology
+Relationships: referenced by missions
 
-## Database Schema
+### ENT-MISSION - Mission
+Purpose: Work item with stage/flow, PR mode, tasks/solution
+Relationships: depends on missions; has agent sessions; PRs
 
-### organizations
+### ENT-PR - GitHub Pull Request
+Purpose: Track PR metadata/status
+Relationships: belongs to mission and repository
+
+### ENT-PRC - GitHub PR Comment
+Purpose: PR feedback for AI iteration
+Relationships: belongs to PR
+
+### ENT-STAR - Project Star
+Purpose: Community engagement
+Relationships: user stars project
+
+### ENT-ACT - Project Activity
+Purpose: Public analytics feed
+Relationships: project-scoped events; optional user/mission/ws context
+
+### ENT-HLP - Helpers
+Purpose: System helpers (e.g., DB locking)
+Relationships: standalone
+
+## Database Schema (key tables)
+
+Note: SQL defines enums and indexes optimized for high-frequency monitoring and mission assignment. AuthZ is enforced in the app layer; SQL helper functions exist for reference only.
+
 ```sql
+-- Organizations
 CREATE TABLE organizations (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: org_01H123...
+  id VARCHAR(26) PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
   slug VARCHAR(100) UNIQUE NOT NULL,
   domain VARCHAR(255),
   owner_email VARCHAR(255) NOT NULL,
-  api_key VARCHAR(100) UNIQUE, -- org_key_abc123...
+  api_key VARCHAR(100) UNIQUE,
   api_key_created_at TIMESTAMP,
   api_key_expires_at TIMESTAMP,
   default_flow_id VARCHAR(26),
@@ -167,68 +112,67 @@ CREATE TABLE organizations (
   updated_at TIMESTAMP DEFAULT NOW(),
   deleted_at TIMESTAMP NULL
 );
-```
 
-### users
-```sql
+-- Users
 CREATE TABLE users (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: user_01H123...
+  id VARCHAR(26) PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   name VARCHAR(255),
   avatar TEXT,
-  monster_auth JSONB, -- {"provider": "google"|"email", "monsterAuthEntity": {...}}
+  monster_auth JSONB,
   timezone VARCHAR(50) DEFAULT 'UTC',
   email_verified BOOLEAN DEFAULT false,
-  status ENUM('active', 'suspended', 'deleted') DEFAULT 'active',
+  status ENUM('active','suspended','deleted') DEFAULT 'active',
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
   last_active_at TIMESTAMP DEFAULT NOW()
 );
-```
 
-### workstations
-```sql
+-- Organization Memberships
+CREATE TABLE organization_memberships (
+  id VARCHAR(26) PRIMARY KEY,
+  organization_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26) NOT NULL,
+  role ENUM('owner','admin','member') DEFAULT 'member',
+  status ENUM('active','invited','suspended') DEFAULT 'active',
+  invited_by VARCHAR(26),
+  invited_at TIMESTAMP,
+  joined_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Workstations
 CREATE TABLE workstations (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: ws_01H123...
+  id VARCHAR(26) PRIMARY KEY,
   organization_id VARCHAR(26) NOT NULL,
   name VARCHAR(255) NOT NULL,
   hostname VARCHAR(255),
-  os VARCHAR(50), -- darwin, linux, win32
-  arch VARCHAR(50), -- x64, arm64
-  platform_version VARCHAR(100),
-  cli_version VARCHAR(20),
-  registration_token VARCHAR(100),
-  last_ip_address INET,
-  last_user_agent TEXT,
-  status ENUM('online', 'offline', 'suspended') DEFAULT 'offline',
-  last_seen_at TIMESTAMP,
-  last_heartbeat_at TIMESTAMP,
-  available_code_agents JSON, -- [{"type": "claude-code", "name": "Claude Primary", "available": true}]
-  realtime_member_key JSON, -- {"workstationId": "ws_123", "userId": "user_456"}
-  realtime_presence_meta JSON,
+  os VARCHAR(50), arch VARCHAR(50), platform_version VARCHAR(100),
+  cli_version VARCHAR(20), registration_token VARCHAR(100),
+  last_ip_address INET, last_user_agent TEXT,
+  status ENUM('online','offline','suspended') DEFAULT 'offline',
+  last_seen_at TIMESTAMP, last_heartbeat_at TIMESTAMP,
+  available_code_agents JSON,
+  realtime_member_key JSON, realtime_presence_meta JSON,
   dev_server_enabled BOOLEAN DEFAULT false,
   dev_server_port INTEGER,
   dev_server_public_url TEXT,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW(),
-  deleted_at TIMESTAMP NULL,
-  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+  deleted_at TIMESTAMP NULL
 );
-```
 
-### projects
-```sql
+-- Projects
 CREATE TABLE projects (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: proj_01H123...
+  id VARCHAR(26) PRIMARY KEY,
   organization_id VARCHAR(26) NOT NULL,
   name VARCHAR(255) NOT NULL,
   description TEXT,
   slug VARCHAR(100),
-  visibility ENUM('private', 'public') DEFAULT 'private',
+  visibility ENUM('private','public') DEFAULT 'private',
   public_slug VARCHAR(100) UNIQUE,
-  category VARCHAR(50), -- 'web-development', 'mobile-app', 'ai-ml', etc.
-  tags JSON, -- ["react", "typescript", "api"]
-  featured BOOLEAN DEFAULT false,
+  category VARCHAR(50), tags JSON, featured BOOLEAN DEFAULT false,
   star_count INTEGER DEFAULT 0,
   public_mission_read BOOLEAN DEFAULT true,
   public_memory_read BOOLEAN DEFAULT true,
@@ -236,53 +180,131 @@ CREATE TABLE projects (
   contributor_mission_write BOOLEAN DEFAULT true,
   collaborator_workstation_read BOOLEAN DEFAULT false,
   maintainer_mission_execute BOOLEAN DEFAULT false,
-  workstation_visibility ENUM('hidden', 'status_only', 'full_details') DEFAULT 'hidden',
-  default_flow_id VARCHAR(26),
-  default_actor_id VARCHAR(26),
-  memory TEXT, -- markdown content
-  pr_mode_default ENUM('disabled', 'enabled') DEFAULT 'disabled',
+  workstation_visibility ENUM('hidden','status_only','full_details') DEFAULT 'hidden',
+  default_flow_id VARCHAR(26), default_actor_id VARCHAR(26),
+  memory TEXT,
+  pr_mode_default ENUM('disabled','enabled') DEFAULT 'disabled',
   pr_require_review BOOLEAN DEFAULT true,
   pr_auto_merge BOOLEAN DEFAULT false,
   pr_delete_branch_after_merge BOOLEAN DEFAULT true,
   pr_template TEXT,
-  status ENUM('active', 'archived', 'suspended') DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  archived_at TIMESTAMP NULL,
-  FOREIGN KEY (organization_id) REFERENCES organizations(id) ON DELETE CASCADE
+  status ENUM('active','archived','suspended') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), archived_at TIMESTAMP NULL
 );
-```
 
-### missions
-```sql
+-- Project Repositories
+CREATE TABLE project_repositories (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  github_repo_id BIGINT,
+  github_owner VARCHAR(100) NOT NULL,
+  github_name VARCHAR(100) NOT NULL,
+  github_full_name VARCHAR(255) NOT NULL,
+  github_url TEXT NOT NULL,
+  default_branch VARCHAR(100) DEFAULT 'main'
+);
+
+-- Project Stars
+CREATE TABLE project_stars (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26) NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Project Activity
+CREATE TABLE project_activity (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26),
+  activity_type ENUM('mission_created','mission_completed','user_joined','star_added','repository_updated') NOT NULL,
+  activity_data JSON,
+  mission_id VARCHAR(26),
+  workstation_id VARCHAR(26),
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Project Workstations
+CREATE TABLE project_workstations (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  workstation_id VARCHAR(26) NOT NULL,
+  can_receive_missions BOOLEAN DEFAULT true,
+  priority INTEGER DEFAULT 100,
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Flows
+CREATE TABLE flows (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  stage_sequence JSON NOT NULL,
+  is_default BOOLEAN DEFAULT false,
+  is_system BOOLEAN DEFAULT false,
+  missions_using_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Flow Stages
+CREATE TABLE flow_stages (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NULL,
+  name VARCHAR(50) NOT NULL,
+  display_name VARCHAR(255) NOT NULL,
+  description TEXT,
+  prompt_template TEXT,
+  is_system BOOLEAN DEFAULT false,
+  requires_code_execution BOOLEAN DEFAULT true,
+  usage_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Actors
+CREATE TABLE actors (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  system_prompt TEXT,
+  methodology TEXT,
+  focus_areas JSON,
+  is_default BOOLEAN DEFAULT false,
+  missions_assigned_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Missions
 CREATE TABLE missions (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: mission_01H123...
+  id VARCHAR(26) PRIMARY KEY,
   project_id VARCHAR(26) NOT NULL,
   title VARCHAR(500) NOT NULL,
   description TEXT,
-  clarification TEXT, -- AI-refined/structured clarification
-  priority INTEGER DEFAULT 3, -- 1-5 (5=highest)
-  list ENUM('todo', 'doing', 'review', 'done', 'loop') DEFAULT 'todo',
+  clarification TEXT,
+  priority INTEGER DEFAULT 3,
+  list ENUM('todo','doing','review','done','loop') DEFAULT 'todo',
   list_order DECIMAL(10,5) DEFAULT 1000.00000,
   stage VARCHAR(50) DEFAULT 'clarify',
   flow_id VARCHAR(26),
   flow_config JSON,
   current_flow_task INTEGER DEFAULT 0,
   requires_review BOOLEAN DEFAULT false,
-  repository_id BIGINT, -- GitHub numeric repository ID
+  repository_id BIGINT,
   project_repository_id VARCHAR(26),
   target_branch VARCHAR(100) DEFAULT 'main',
   actor_id VARCHAR(26),
-  pr_mode ENUM('disabled', 'enabled', 'auto') DEFAULT 'auto',
+  pr_mode ENUM('disabled','enabled','auto') DEFAULT 'auto',
   pr_created BOOLEAN DEFAULT false,
   github_pr_number INTEGER,
   github_pr_url TEXT,
   pr_branch_name VARCHAR(255),
-  pr_merge_strategy ENUM('merge', 'squash', 'rebase') DEFAULT 'squash',
+  pr_merge_strategy ENUM('merge','squash','rebase') DEFAULT 'squash',
   is_loop BOOLEAN DEFAULT false,
   loop_schedule JSON,
   ready BOOLEAN DEFAULT false,
-  agent_session_status ENUM('INACTIVE', 'PUSHING', 'ACTIVE') DEFAULT 'INACTIVE',
+  agent_session_status ENUM('INACTIVE','PUSHING','ACTIVE') DEFAULT 'INACTIVE',
   agent_session_status_changed_at TIMESTAMP DEFAULT NOW(),
   code_agent_type VARCHAR(50),
   code_agent_name VARCHAR(255),
@@ -290,102 +312,38 @@ CREATE TABLE missions (
   solution TEXT,
   tasks JSON,
   tasks_current INTEGER DEFAULT 0,
-  review_status ENUM('pending', 'approved', 'rejected') DEFAULT NULL,
+  review_status ENUM('pending','approved','rejected') DEFAULT NULL,
   review_feedback TEXT,
   review_requested_at TIMESTAMP NULL,
   review_completed_at TIMESTAMP NULL,
   reviewed_by_user_id VARCHAR(26),
   dependency_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
-  FOREIGN KEY (flow_id) REFERENCES flows(id) ON DELETE SET NULL,
-  FOREIGN KEY (project_repository_id) REFERENCES project_repositories(id) ON DELETE SET NULL,
-  FOREIGN KEY (actor_id) REFERENCES actors(id) ON DELETE SET NULL,
-  FOREIGN KEY (reviewed_by_user_id) REFERENCES users(id) ON DELETE SET NULL
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
 );
-```
 
-### project_repositories
-```sql
-CREATE TABLE project_repositories (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: repo_01H123...
-  project_id VARCHAR(26) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  github_repo_id BIGINT, -- GitHub numeric ID (most stable)
-  github_owner VARCHAR(100) NOT NULL,
-  github_name VARCHAR(100) NOT NULL,
-  github_full_name VARCHAR(255) NOT NULL,
-  github_url TEXT NOT NULL,
-  default_branch VARCHAR(100) DEFAULT 'main',
-  pr_mode_enabled BOOLEAN DEFAULT false,
-  pr_branch_prefix VARCHAR(50) DEFAULT 'solo-unicorn/',
-  pr_target_branch VARCHAR(100),
-  auto_delete_pr_branches BOOLEAN DEFAULT true,
-  max_concurrent_missions INTEGER DEFAULT 1,
-  status ENUM('active', 'inactive', 'error') DEFAULT 'active',
-  last_accessed_at TIMESTAMP,
-  last_mission_pushed_at TIMESTAMP,
-  last_pr_sync_at TIMESTAMP,
-  github_webhook_id VARCHAR(100),
-  github_permissions JSON,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
-```
-
-### git_worktrees
-```sql
-CREATE TABLE git_worktrees (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: worktree_01H123...
-  workstation_repository_id VARCHAR(26) NOT NULL,
-  branch VARCHAR(100) NOT NULL,
-  worktree_path TEXT NOT NULL,
-  status ENUM('creating', 'ready', 'busy', 'error') DEFAULT 'creating',
-  error_message TEXT,
-  last_used_at TIMESTAMP,
-  active_mission_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (workstation_repository_id) REFERENCES workstation_repositories(id) ON DELETE CASCADE
-);
-```
-
-### code_agent_sessions
-```sql
-CREATE TABLE code_agent_sessions (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: session_01H123...
+-- Mission Dependencies
+CREATE TABLE mission_dependencies (
+  id VARCHAR(26) PRIMARY KEY,
   mission_id VARCHAR(26) NOT NULL,
-  code_agent_type VARCHAR(50) NOT NULL,
-  code_agent_name VARCHAR(255),
-  workstation_id VARCHAR(26) NOT NULL,
-  external_session_id VARCHAR(100),
-  stage VARCHAR(50),
-  worktree_id VARCHAR(26),
-  working_directory TEXT,
-  status ENUM('starting', 'active', 'completed', 'failed', 'timeout') DEFAULT 'starting',
-  start_reason TEXT,
-  end_reason TEXT,
-  output_summary TEXT,
-  files_changed JSON, -- ["src/auth.ts", "tests/auth.test.ts"]
-  commits_made JSON, -- [{"sha": "abc123", "message": "Add login form"}]
-  started_at TIMESTAMP DEFAULT NOW(),
-  ended_at TIMESTAMP NULL,
-  duration_seconds INTEGER,
-  error_type VARCHAR(100),
-  error_message TEXT,
-  recovery_attempts INTEGER DEFAULT 0,
-  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
-  FOREIGN KEY (workstation_id) REFERENCES workstations(id) ON DELETE CASCADE,
-  FOREIGN KEY (worktree_id) REFERENCES git_worktrees(id) ON DELETE SET NULL
+  depends_on_mission_id VARCHAR(26) NOT NULL,
+  status ENUM('active','resolved') DEFAULT 'active',
+  created_at TIMESTAMP DEFAULT NOW()
 );
-```
 
-### github_pull_requests
-```sql
+-- Code Agent Sessions
+CREATE TABLE code_agent_sessions (
+  id VARCHAR(26) PRIMARY KEY,
+  mission_id VARCHAR(26) NOT NULL,
+  code_agent_id VARCHAR(255),
+  workstation_id VARCHAR(26),
+  status ENUM('starting','active','stopped','failed') DEFAULT 'starting',
+  started_at TIMESTAMP DEFAULT NOW(),
+  ended_at TIMESTAMP NULL
+);
+
+-- GitHub Pull Requests
 CREATE TABLE github_pull_requests (
-  id VARCHAR(26) PRIMARY KEY, -- ulid: ghpr_01H123...
+  id VARCHAR(26) PRIMARY KEY,
   mission_id VARCHAR(26) NOT NULL,
   project_repository_id VARCHAR(26) NOT NULL,
   github_pr_number INTEGER NOT NULL,
@@ -395,10 +353,10 @@ CREATE TABLE github_pull_requests (
   target_branch VARCHAR(255) NOT NULL,
   title VARCHAR(500) NOT NULL,
   description TEXT,
-  status ENUM('open', 'closed', 'merged', 'draft') NOT NULL,
+  status ENUM('open','closed','merged','draft') NOT NULL,
   mergeable BOOLEAN,
   mergeable_state VARCHAR(50),
-  review_status ENUM('pending', 'approved', 'changes_requested', 'dismissed') DEFAULT 'pending',
+  review_status ENUM('pending','approved','changes_requested','dismissed') DEFAULT 'pending',
   required_reviews_count INTEGER DEFAULT 0,
   approved_reviews_count INTEGER DEFAULT 0,
   created_by_code_agent_type VARCHAR(50),
@@ -409,105 +367,89 @@ CREATE TABLE github_pull_requests (
   github_merged_at TIMESTAMP,
   github_closed_at TIMESTAMP,
   last_synced_at TIMESTAMP DEFAULT NOW(),
-  sync_status ENUM('synced', 'pending', 'error') DEFAULT 'pending',
+  sync_status ENUM('synced','pending','error') DEFAULT 'pending',
   sync_error TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  FOREIGN KEY (mission_id) REFERENCES missions(id) ON DELETE CASCADE,
-  FOREIGN KEY (project_repository_id) REFERENCES project_repositories(id) ON DELETE CASCADE,
-  FOREIGN KEY (created_by_workstation_id) REFERENCES workstations(id) ON DELETE SET NULL
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- GitHub PR Comments
+CREATE TABLE github_pr_comments (
+  id VARCHAR(26) PRIMARY KEY,
+  github_pr_id VARCHAR(26) NOT NULL,
+  github_comment_id BIGINT NOT NULL,
+  comment_type ENUM('issue','review','review_comment') NOT NULL,
+  body TEXT NOT NULL,
+  html_url TEXT,
+  author_github_login VARCHAR(100),
+  author_github_id BIGINT,
+  author_type ENUM('user','bot') DEFAULT 'user',
+  file_path TEXT,
+  line_number INTEGER,
+  diff_hunk TEXT,
+  review_id BIGINT,
+  review_state ENUM('pending','approved','changes_requested','commented'),
+  processed_by_ai BOOLEAN DEFAULT false,
+  ai_response TEXT,
+  ai_response_at TIMESTAMP,
+  github_created_at TIMESTAMP,
+  github_updated_at TIMESTAMP,
+  last_synced_at TIMESTAMP DEFAULT NOW(),
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Helpers (DB locking/config)
+CREATE TABLE helpers (
+  id VARCHAR(26) PRIMARY KEY,
+  code VARCHAR(100) UNIQUE NOT NULL,
+  description TEXT,
+  state JSON,
+  active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
 );
 ```
 
+Indexes & Performance (highlights)
+- Monitoring every 10s: partial indexes on missions by agent_session_status and list
+- Assignment: composite indexes on missions by ready, session status, list, priority DESC, list_order
+- Concurrency subqueries: indexes by repository_id and code_agent_type with ACTIVE/PUSHING
+- Dependencies: partial index on mission_dependencies where status='active'
+- Helpers: index by code/active/updated_at for locking
+- Materialized views (post-MVP option): mv_active_mission_counts, mv_agent_capacity
+- Reference index names: idx_monitoring_active_missions, idx_monitoring_ready_missions, idx_mission_assignment_complex, idx_repo_active_missions, idx_code_agent_active_missions, idx_mission_dependencies_blocking
+
+Triggers (highlights)
+- Update agent_session_status_changed_at on status change
+- Update dependency_count on mission_dependencies changes
+- Flow usage counter increment on mission insert with flow_id
+- Update projects.star_count on star insert/delete
+- Project activity on mission done and permission changes
+
+Agent storage strategy
+- Server: static code agent type definitions (capabilities, models)
+- Client: ~/.solo-unicorn/code-agents.json with paths, env, health, stats
+
+Reference SQL helpers (app-layer authz remains source of truth)
+- get_user_project_role(userId, projectId)
+- can_user_access_project(userId, projectId, action)
+
+Seed data
+- Insert required lock row for helpers: ('helper_01MISSION_PUSH_LOCK','MISSION_PUSH_LOCK', ...)
+
 ## Object Storage Layout
-
-### Monster Services Integration
-
-**Monster Auth Storage:**
-- User OAuth tokens (access/refresh) managed by Monster Auth service
-- Personal access tokens (pat_*) stored securely in CLI keychain
-- Organization API keys (org_key_*) in encrypted database fields
-
-**Monster Realtime Channels:**
-- `workstation:{workstation_id}` - Direct workstation communication
-- `project:{project_id}:workstations` - Project-wide workstation updates
-- `mission:{mission_id}` - Mission-specific coordination
-
-**Monster Upload (Future):**
-- Mission attachments: `attachments/{mission_id}/{filename}`
-- Project assets: `projects/{project_id}/assets/{filename}`
-- User avatars: `users/{user_id}/avatar.{ext}`
-
-### File Attachments (S3/CDN)
-
-**Mission Attachments:**
-- Bucket: `solo-unicorn-attachments`
-- Path: `missions/{mission_id}/{attachment_id}/{filename}`
-- Properties: Content-Type, file size, upload timestamp
-- Access: Authenticated users with mission access permissions
-
-**Project Assets:**
-- Bucket: `solo-unicorn-assets`
-- Path: `projects/{project_id}/{asset_type}/{filename}`
-- Properties: Public/private flag, CDN distribution
-- Access: Based on project visibility and user permissions
+- N/A (MVP)
 
 ## Client Filesystem
 
-### CLI Configuration
+Mission artifacts
 ```yaml
-path: "~/.solo-unicorn/config.json"
-ttl: "permanent"
-rotation: "on version upgrade"
-```
-
-### Code Agent Configuration
-```yaml
-path: "~/.solo-unicorn/code-agents.json"
-ttl: "permanent"
-rotation: "manual backup on changes"
-```
-
-### Mission Documents
-```yaml
-path: "./solo-unicorn-docs/missions/{mission-id}/"
-ttl: "project lifetime"
-rotation: "git version control"
-```
-
-### Repository Worktrees
-```yaml
-path: "{workspace_path}/{repo-name}-{branch-name}"
-ttl: "7 days unused"
-rotation: "automatic cleanup policy"
-```
-
-### Development Logs
-```yaml
-path: "~/.solo-unicorn/logs/{date}.log"
-ttl: "30 days"
-rotation: "daily, compressed after 7 days"
+path: ./solo-unicorn-docs/missions/{mission-id}/
+files:
+  - solution.md
+  - tasks/{n}.md  # detailed per-task notes
+git_tracked: true
+purpose: Rich solution and session-scoped context across iterations
 ```
 
 ## Lifecycle & Compliance
-
-### PII Classification
-- Email addresses (users.email) - Personal Identifier
-- Names (users.name) - Personal Information
-- IP addresses (workstations.last_ip_address) - Technical Identifier
-- Monster Auth tokens - Authentication Data
-
-### Retention Policies
-- Mission artifacts: Retained for project lifetime + 1 year
-- Code agent sessions: 90 days for performance data
-- Workstation logs: 30 days for debugging
-- GitHub integration data: Synchronized with repository access
-- User personal data: Deleted within 30 days of account deletion
-- Audit logs: 7 years for compliance (future implementation)
-
-### Data Security
-- Database encryption at rest (provider managed)
-- Monster Auth token encryption in transit and storage
-- Personal access tokens never stored server-side (CLI keychain only)
-- Row-level security for multi-tenant data isolation (future enhancement)
-- Regular automated backups with point-in-time recovery
+- PII: user email, names (users table); persisted per org/project with standard retention
+- Retention: project data retained until deletion; PR metadata mirrors GitHub state; logs/events per product policy
