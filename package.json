@@ -31,6 +31,7 @@
     "ts-pattern": "^5.8.0"
   },
   "devDependencies": {
+    "agents-md": "1.0.0",
     "@intellectronica/ruler": "^0.3.8",
     "@eslint/markdown": "^7.2.0",
     "@seahax/eslint-plugin-wrap": "^0.6.8",
