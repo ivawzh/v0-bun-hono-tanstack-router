@@ -169,7 +169,7 @@ Deliver a mission-first development companion where humans feel in control, AI a
 - Keep workstation setup under five minutes with guided guardrails
 - Support flexible change management (YOLO or PR) without configuration fatigue
 - Enable secure public discovery with clear permission messaging and low-friction access requests
-- Maintain a healthy mission backlog using the Mission Fallback so AI capacity is always productive
+- Maintain a healthy mission backlog using the Chore service so AI capacity is always productive
 
 ## Features
 
@@ -359,7 +359,7 @@ Keep UI and CLI live with push-only updates while falling back gracefully when o
 #### Goals
 - Presence updates for workstations, missions, notifications
 - Assignment events with idempotent payloads
-- Offline fallback with 15s polling and stale markers
+- Offline degrade with 15s polling and stale markers
 
 #### Solution
 Monster Realtime handles push events; watchers degrade to HTTP polls when disconnected while surfacing offline badges in UI.
@@ -682,26 +682,27 @@ Public request form posts to access request service; maintainers act via notific
 
 ---
 
-### FEAT-021 - Mission Fallback
+### FEAT-021 - Chore
 - **ID:** FEAT-021
-- **Name:** Mission Fallback
+- **Name:** Chore
 - **Status:** Draft (Beta)
 
 #### Intent
-Automatically generate ready-to-start missions when the Todo backlog is empty, and surface those templates inside the Todo "Fallback" area so agents stay productive without manual prep.
+Automatically generate ready-to-start missions when the Todo backlog is empty, and surface those templates inside the Todo "Chore" area so agents stay productive without manual prep while rotating through available chores.
 
 #### Goals
 - Configurable triggers (Todo count, cadence, manual run)
 - Template gallery defining intent, effort, flow, actor, repository
 - Approval workflow to accept/discard generated missions
-- Analytics on fallback output (accepted vs discarded, time saved)
+- Analytics on chore output (accepted vs discarded, time saved)
+- Rotation guardrails so a single chore template never starves others (minimum wait window, per-template ratio weighting)
 
 #### Non-Goals
 - Blindly auto-accepting missions without human opt-in (unless explicitly toggled)
 - Generating missions without predefined templates in MVP
 
 #### Solution
-Mission Fallback service evaluates backlog thresholds and monthly budget. When conditions met, it creates mission proposals using templates and posts them to both the approval queue and the Todo Fallback area. Users can accept via web modal or CLI, or launch directly from the Fallback panel. Accepted missions land in Todo with `Fallback` badge while the template remains available for next time.
+Chore service evaluates backlog thresholds, per-project chore configuration (enabled flag, default cadence), and monthly budget. When conditions are met, it creates mission proposals using templates and posts them to both the approval queue and the Todo Chore area. Selection favors templates that have waited the longest while respecting configured ratio weights so chores rotate fairly. Users can accept via web modal or CLI, or launch directly from the Chore panel. Accepted missions land in Todo with `Chore` badge while the template remains available for next time.
 
 #### User Flow Links
 - [Kanban Board Layout](./20-gui/web.md#kanban-board-layout)
@@ -709,28 +710,28 @@ Mission Fallback service evaluates backlog thresholds and monthly budget. When c
 - [Mission Creation Modal](./20-gui/web.md#mission-creation-modal)
 
 #### Transport Flow Links
-- HTTP: GET /api/v1/projects/{projectId}/mission-fallback/config
-- HTTP: PATCH /api/v1/projects/{projectId}/mission-fallback/config
-- HTTP: POST /api/v1/projects/{projectId}/mission-fallback/run
-- Event: mission-fallback.generated
+- HTTP: GET /api/v1/projects/{projectId}/chores/config
+- HTTP: PATCH /api/v1/projects/{projectId}/chores/config
+- HTTP: POST /api/v1/projects/{projectId}/chores/run
+- Event: chore.generated
 
 #### Risks & Mitigations
-- Fallback templates spamming irrelevant missions → Template quality review + discard feedback loop
+- Chore templates spamming irrelevant missions → Template quality review + discard feedback loop
 - Budget overspend → Guardrail fields (max missions/week, monthly hour targets) enforced server-side
 
 ---
 
 ## Design Notes
-- Board columns now fixed to Todo, Doing, Review, Done. Loop missions removed; the Todo Fallback panel keeps reusable templates powered by Mission Fallback.
-- Mission Fallback produces missions tagged with origin metadata for transparency and leaves templates visible in Fallback after execution.
+- Board columns now fixed to Todo, Doing, Review, Done. Loop missions removed; the Todo Chore panel keeps reusable templates powered by the Chore service.
+- Chore runs produce missions tagged with origin metadata for transparency and leave templates visible in the Chore panel after execution.
 - All mission creation surfaces are modals centered on screen (mobile sheets) for focus, matching the Mission Modal experience in the board design.
 - Ready toggle component stays visually consistent on cards, modals, and mobile layouts.
-- Notifications and CLI commands expose mission fallback activity for parity across interfaces.
+- Notifications and CLI commands expose chore activity for parity across interfaces.
 
 ## Acceptance Criteria
 - Mission creation to mission completion remains traceable within Mission Room timeline without leaving the page.
 - Workstation onboarding from CTA to healthy online state averages <5 minutes with checklist guidance.
-- Mission Fallback keeps Todo backlog ≥ configured threshold 90% of active hours or surfaces actionable alerts when budget guardrails prevent generation; Fallback always offers templates when backlog is empty.
+- Chore service keeps Todo backlog ≥ configured threshold 90% of active hours or surfaces actionable alerts when budget guardrails prevent generation; the Chore panel always offers templates when backlog is empty.
 - Access requests receive response (auto or manual) within SLA surfaced to requester and maintainer.
 - Notifications stay consistent across web and CLI, with unread counts matching and quiet hours respected.
 - Global search results respond in <200ms median with zero dead links.
@@ -763,7 +764,7 @@ graph TD
   PW --> KB[Kanban Board]
   KB --> KB1[Todo Column]
   KB1 --> KB1a[Normal Missions]
-  KB1 --> KB1b[Fallback Templates]
+  KB1 --> KB1b[Chore Templates]
   KB --> KB2[Doing]
   KB --> KB3[Review]
   KB --> KB4[Done]
@@ -808,14 +809,15 @@ graph TD
 │ │││Ready │││ Ready  ││ Review ││        ││                                   │
 │ ││└─────┘││└───────┘│└───────┘│└───────┘│                                    │
 │ │├───────┤│         │         │         │                                    │
-│ ││Fallback▶││         │         │         │                                 │
+│ ││Chore ▶ ││         │         │         │                                 │
 │ │└───────┘│         │         │         │                                    │
 │ └─────────┴─────────┴─────────┴─────────┘                                    │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Todo column splits into **Normal missions** and **Fallback templates** (collapsible). Fallback items are reusable placeholders; selecting one opens a pre-filled Mission Modal, creates a mission in Todo, and leaves the template in place to fill idle agent time when no Ready missions exist.
+- Todo column splits into **Normal missions** and **Chore templates** (collapsible). Chore items are reusable placeholders; selecting one opens a pre-filled Mission Modal, creates a mission in Todo, and leaves the template in place to fill idle agent time when no Ready missions exist.
+- Chore cards show a "next eligible" timer (minimum wait) and a rotation weight pill so agents understand how chores will cycle when multiple templates are available.
 - Doing, Review, Done columns follow traditional Kanban. Drag/drop updates `mission.list`.
 - Ready toggle appears on every mission card footer (Todo/Doing) with the same styling as Mission Modal.
 
@@ -937,7 +939,7 @@ Mission Modal replaces the “Mission Room”. Content is identical to the origi
 │ Workstations                                             [Register Workstation] │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 🟢 Delta (macOS)  •  Agents: Claude Code  •  Active Missions: 1             │
-│ Ready to accept fallback templates when backlog is empty.                   │
+│ Ready to accept chore templates when backlog is empty.                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 🟡 Echo (Linux)   •  Agents: Cursor       •  Active Missions: 0             │
 │ Recommend toggling Ready on queued missions to keep agents busy.           │
@@ -1019,13 +1021,13 @@ Mission Modal replaces the “Mission Room”. Content is identical to the origi
 - Uses shadcn/ui Kanban with DnD for horizontal scroll; cards stack vertically within each column.
 - Ready toggle sits at bottom of each card with large tap target.
 - Mission Modal becomes full-screen sheet on mobile.
-- Todo column preserves Normal vs Fallback accordion sections (default closed for Fallback).
+- Todo column preserves Normal vs Chore accordion sections (default closed for Chore).
 - PR review experiences link out to GitHub but show status chips on cards.
 
 ## States & Feedback
 - **Ready toggle:** consistent component across card footers and modal; label clarifies effect on AI eligibility.
-- **Fallback templates:** remain even after mission creation; show last-used timestamp to indicate freshness.
-- **Errors:** Inline banners and toasts with retry; fallback failure links to template edit.
+- **Chore templates:** remain even after mission creation; show last-generated timestamp plus next-eligible timer to indicate freshness.
+- **Errors:** Inline banners and toasts with retry; chore failure links to template edit.
 - **Notifications:** Severity badges (⚠️, ✅) align with Monster Theme colors.
 
 ## Theme
@@ -1188,20 +1190,20 @@ Always use this shadcn theme.
 # CLI Interface Design
 
 ## Overview
-Solo Unicorn CLI is a Bun-compiled single binary that keeps humans in the loop for workstation operations, mission execution, and Mission Fallback management. It mirrors the web experience with mobile-first language, smart defaults, and actionable guidance.
+Solo Unicorn CLI is a Bun-compiled single binary that keeps humans in the loop for workstation operations, mission execution, and Chore management. It mirrors the web experience with mobile-first language, smart defaults, and actionable guidance.
 
 ## Experience Principles
 - Plain-language feedback with next steps and undo hints
 - Smart context inference (org/project/workstation) while always stating assumptions
 - Safety nets: dry runs, confirmations, resumable operations, offline queue
 - Observability: emoji-rich TTY output plus JSON for scripting
-- Fallback-first mindset: keep Todo backlog healthy without loop missions
+- Chore-first mindset: keep Todo backlog healthy without loop missions while rotating work fairly
 
 ## Architecture
 ```
 Solo Unicorn Server ─HTTP /api────────▶ CLI commands
-                   ◀──WS push───────── Monster Realtime (presence, mission/fallback events)
-CLI daemon ───────▶ Background telemetry + mission supervision + fallback alerts
+                   ◀──WS push───────── Monster Realtime (presence, mission/chore events)
+CLI daemon ───────▶ Background telemetry + mission supervision + chore alerts
 CLI ─────────────▶ Local code agents, Git, dev servers, OS notifications
 ```
 - **Daemon mode (`workstation daemon`)** maintains realtime connection, supervises missions, watches backlog thresholds, and emits desktop notifications.
@@ -1227,7 +1229,7 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 - `solo-unicorn project status [--json]`
 
 ### Missions
-- `solo-unicorn mission list [--project PROJECT_ID] [--filter REVIEW|DOING|READY|FALLBACK] [--json]`
+- `solo-unicorn mission list [--project PROJECT_ID] [--filter REVIEW|DOING|READY|CHORE] [--json]`
 - `solo-unicorn mission accept MISSION_ID [--worktree WORKTREE]`
 - `solo-unicorn mission show MISSION_ID [--log --json]`
 - `solo-unicorn mission ready MISSION_ID [--note TEXT]`
@@ -1235,13 +1237,13 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 - `solo-unicorn mission complete MISSION_ID [--summary FILE|--stdin]`
 - `solo-unicorn mission retry MISSION_ID [--reason TEXT]`
 
-### Mission Fallback
-- `solo-unicorn fallback status [--json]` — show backlog threshold, last run, accepted/discarded counts
-- `solo-unicorn fallback run [--project PROJECT_ID] [--accept-all|--dry-run]` — trigger generation immediately
-- `solo-unicorn fallback approve RUN_ID [MISSION_ID...] [--all]` — accept generated missions
-- `solo-unicorn fallback discard RUN_ID [MISSION_ID...] [--note TEXT]`
-- `solo-unicorn fallback templates list|enable|disable|edit` — manage templates (opens editor or uses flags)
-- `solo-unicorn fallback config` — open configuration in `$EDITOR`, validates before saving
+### Chore
+- `solo-unicorn chore status [--json]` — show backlog threshold, last run, accepted/discarded counts, minimum wait timer, rotation balance
+- `solo-unicorn chore run [--project PROJECT_ID] [--accept-all|--force|--dry-run]` — trigger generation immediately (respecting wait timers unless `--force`)
+- `solo-unicorn chore approve RUN_ID [MISSION_ID...] [--all]` — accept generated missions
+- `solo-unicorn chore discard RUN_ID [MISSION_ID...] [--note TEXT]`
+- `solo-unicorn chore templates list|enable|disable|edit|weight|cooldown` — manage templates (opens editor or uses flags)
+- `solo-unicorn chore config` — open configuration in `$EDITOR`, validates before saving (`minimumWaitMinutes`, rotation defaults)
 
 ### Repositories & Worktrees
 - `solo-unicorn repo add GITHUB_URL [--path PATH] [--default-branch main]`
@@ -1259,7 +1261,7 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 ### Notifications & Inbox
 - `solo-unicorn notifications pull [--json] [--since TIMESTAMP]`
 - `solo-unicorn notifications read NOTIFICATION_ID...`
-- `solo-unicorn notifications watch` — streams realtime events, including fallback runs
+- `solo-unicorn notifications watch` — streams realtime events, including chore runs
 
 ### Access Requests
 - `solo-unicorn access request PROJECT_ID --role contributor|collaborator [--message TEXT]`
@@ -1278,22 +1280,21 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 - `solo-unicorn version`
 - `solo-unicorn completion install|uninstall`
 
-## Output Patterns
-- **TTY:** Tables with Monster Theme emojis (🟢 online, 🟡 idle, 🔴 offline, 🧪 review, 🏭 fallback). Progress bars show clone/generation status.
-- **JSON:** Structured as `{ context, data, meta }` for scripting. Fallback runs include `missions[]` with status `proposed|accepted|discarded`.
+- **TTY:** Tables with Monster Theme emojis (🟢 online, 🟡 idle, 🔴 offline, 🧪 review, 🧹 chore). Progress bars show clone/generation status plus wait timers.
+- **JSON:** Structured as `{ context, data, meta }` for scripting. Chore runs include `missions[]` with status `proposed|accepted|discarded` and `nextEligibleAt` timestamps.
 - **Quiet (-q):** Silence on success, errors only.
 
 ## Background Daemon
 - Autostarts after `register` (unless `--no-daemon`).
-- Monitors Todo count; when below threshold, triggers Mission Fallback run (subject to project config) and notifies via desktop + CLI.
-- Persists mission queue and fallback proposals under `~/.solo-unicorn/state.json` with journaling for offline replay.
+- Monitors Todo count; when below threshold and wait timers satisfied, triggers Chore run (subject to project config) and notifies via desktop + CLI.
+- Persists mission queue and chore proposals under `~/.solo-unicorn/state.json` with journaling for offline replay.
 - Sends heartbeats every 15s; backs off when offline and surfaces local notifications.
 
 ## Realtime Contracts
 - `workstation:{id}` → presence, mission assignment, tunnel updates.
 - `mission:{id}` → timeline updates, review actions.
-- `user:{id}:notifications` → inbox events, including fallback run results.
-- `project:{id}:fallback` → mission fallback status, run summaries.
+- `user:{id}:notifications` → inbox events, including chore run results.
+- `project:{id}:chore` → chore status, run summaries.
 
 ## Offline Queue & Retry
 - Mutative commands append to `~/.solo-unicorn/offline-queue.jsonl` when disconnected.
@@ -1303,10 +1304,10 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 ## Configuration Files
 - `~/.solo-unicorn/config.json` — global prefs.
 - `~/.solo-unicorn/code-agents.json` — agent registry.
-- `~/.solo-unicorn/settings.d/{project-id}.json` — per-project overrides (workspace path, concurrency, fallback defaults).
+- `~/.solo-unicorn/settings.d/{project-id}.json` — per-project overrides (workspace path, concurrency, chore defaults).
 - `.solo-unicorn/settings.json` inside repo for hints (optional).
 
-Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-polish.json`):
+Chore template sample (`~/.solo-unicorn/templates/chore/landing-polish.json`):
 ```json
 {
   "id": "tmpl_landing_polish",
@@ -1317,14 +1318,16 @@ Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-po
   "estimatedEffortMinutes": 45,
   "priority": 2,
   "description": "Refine hero headline and CTA to match current campaign.",
-  "acceptance": "Preview includes before/after diff and fallback copy."
+  "rotationWeight": 2,
+  "cooldownMinutes": 60,
+  "acceptance": "Preview includes before/after diff and chore copy."
 }
 ```
 
 ## Error Handling & Guidance
 - Errors show `What happened`, `Why it matters`, `Try this next`, docs link.
 - Exit codes follow POSIX conventions.
-- `--debug` prints stack trace + HTTP trace id; `mission` and `fallback` commands include correlation ids for support.
+- `--debug` prints stack trace + HTTP trace id; `mission` and `chore` commands include correlation ids for support.
 
 ## Installation & Distribution
 - npm/bun global install, signed installer script, Homebrew, Scoop, GitHub releases, container image.
@@ -1338,19 +1341,19 @@ Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-po
 
 ## Future Hooks
 - Plugin system placeholder (`solo-unicorn plugin ...`) behind feature flag.
-- Mission Fallback scoring engine improvements (accept/discard feedback loops) planned post-beta.
+- Chore scoring engine improvements (accept/discard feedback loops, smarter rotation heuristics) planned post-beta.
 
 ## Support & Documentation
 - `solo-unicorn help <command>` includes examples referencing web flows.
-- `solo-unicorn doc open mission-fallback` opens docs on backlog automation.
-- `doctor` command exports shareable Markdown summary with mission + fallback diagnostics.
+- `solo-unicorn doc open chore` opens docs on backlog automation.
+- `doctor` command exports shareable Markdown summary with mission + chore diagnostics.
 <!-- /source: .solo/designs/25-non-graphical-client-interfaces/cli.md -->
 
 <!-- source: .solo/designs/30-data.md priority=0 -->
 # Data Design
 
 ## Overview
-The Solo Unicorn schema centers on missions, workstations, and transparent automation. Mission Fallback replaces loop missions: instead of looping tasks, the system generates new missions from templates when the backlog is low. Those templates appear in the Todo column “Fallback” area so users can launch work instantly while the template remains available. Hybrid storage keeps rich mission docs on the filesystem with DB pointers for cross-session continuity.
+The Solo Unicorn schema centers on missions, workstations, and transparent automation. The Chore service replaces loop missions: instead of looping tasks, the system generates new missions from templates when the backlog is low. Those templates appear in the Todo column “Chore” area so users can launch work instantly while the template remains available. Hybrid storage keeps rich mission docs on the filesystem with DB pointers for cross-session continuity.
 
 ## Data Relations Diagram
 ```mermaid
@@ -1371,9 +1374,9 @@ erDiagram
   PROJECTS ||--o{ FLOWS : defines
   PROJECTS ||--o{ ACTORS : defines
   PROJECTS ||--o{ MISSIONS : contains
-  PROJECTS ||--o{ MISSION_FALLBACK_CONFIGS : configures
-  PROJECTS ||--o{ MISSION_FALLBACK_TEMPLATES : stores
-  PROJECTS ||--o{ MISSION_FALLBACK_RUNS : records
+  PROJECTS ||--o{ CHORE_CONFIGS : configures
+  PROJECTS ||--o{ CHORE_TEMPLATES : stores
+  PROJECTS ||--o{ CHORE_RUNS : records
   PROJECTS ||--o{ PROJECT_ACTIVITY : logs
 
   WORKSTATIONS ||--o{ PROJECT_WORKSTATIONS : maps
@@ -1387,15 +1390,15 @@ erDiagram
   MISSIONS ||--o{ GITHUB_PULL_REQUESTS : opens
   GITHUB_PULL_REQUESTS ||--o{ GITHUB_PR_COMMENTS : includes
   MISSIONS ||--o{ NOTIFICATIONS : triggers
-  MISSION_FALLBACK_RUNS ||--o{ MISSION_FALLBACK_ITEMS : proposes
-  MISSION_FALLBACK_ITEMS }o--|| MISSIONS : may_create
+  CHORE_RUNS ||--o{ CHORE_ITEMS : proposes
+  CHORE_ITEMS }o--|| MISSIONS : may_create
 ```
 
 ## Conceptual Entities
 - **ENT-ORG:** Organization owning projects and workstations.
 - **ENT-USER:** Monster Auth identity, receives notifications.
 - **ENT-MEM:** Organization membership with role.
-- **ENT-PROJECT:** Collaboration container with defaults, privacy, metrics, mission fallback settings.
+- **ENT-PROJECT:** Collaboration container with defaults, privacy, metrics, chore settings.
 - **ENT-PROJECT-MEMBER:** Project-level permission overrides.
 - **ENT-WORKSTATION / ENT-WORKSTATION-SESSION:** Machines + daemon sessions.
 - **ENT-REPOSITORY / ENT-WORKTREE:** GitHub linkage and mission worktrees.
@@ -1403,7 +1406,7 @@ erDiagram
 - **ENT-MISSION:** Core task, always ends in Done (no loop list).
 - **ENT-MISSION-EVENT:** Timeline events for transparency.
 - **ENT-CODE-AGENT-SESSION:** Execution attempts metadata.
-- **ENT-MISSION-FACTORY-CONFIG/TEMPLATE/RUN/ITEM:** Configuration, template definitions, run history, and individual mission proposals. Templates power the Todo Fallback area; items record each generated mission while leaving the template in place.
+- **ENT-CHORE-CONFIG/TEMPLATE/RUN/ITEM:** Configuration, template definitions, run history, and individual mission proposals. Templates power the Todo Chore area; items record each generated mission while leaving the template in place with rotation metadata.
 - **ENT-ACCESS-REQUEST / ENT-NOTIFICATION / ENT-AUDIT-EVENT:** Collaboration, alerts, compliance.
 
 ## Database Schema (key tables)
@@ -1430,8 +1433,8 @@ CREATE TABLE missions (
   pr_branch_name VARCHAR(255),
   github_pr_number INTEGER,
   ready BOOLEAN DEFAULT false,
-  origin ENUM('manual','fallback','imported') DEFAULT 'manual',
-  fallback_item_id VARCHAR(26),
+  origin ENUM('manual','chore','imported') DEFAULT 'manual',
+  chore_item_id VARCHAR(26),
   agent_session_status ENUM('inactive','pushing','active') DEFAULT 'inactive',
   solution_path TEXT,
   tasks_path TEXT,
@@ -1443,8 +1446,8 @@ CREATE TABLE missions (
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Mission Fallback Configuration
-CREATE TABLE mission_fallback_configs (
+-- Chore Configuration
+CREATE TABLE chore_configs (
   id VARCHAR(26) PRIMARY KEY,
   project_id VARCHAR(26) NOT NULL UNIQUE,
   backlog_threshold INTEGER DEFAULT 5,
@@ -1453,12 +1456,14 @@ CREATE TABLE mission_fallback_configs (
   monthly_target_hours INTEGER DEFAULT 120,
   weekly_mission_cap INTEGER DEFAULT 20,
   status ENUM('active','paused','snoozed') DEFAULT 'active',
+  minimum_wait_minutes INTEGER DEFAULT 30,
+  default_rotation_weight INTEGER DEFAULT 1,
   last_run_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE mission_fallback_templates (
+CREATE TABLE chore_templates (
   id VARCHAR(26) PRIMARY KEY,
   project_id VARCHAR(26) NOT NULL,
   name VARCHAR(255) NOT NULL,
@@ -1471,11 +1476,14 @@ CREATE TABLE mission_fallback_templates (
   acceptance_criteria TEXT,
   enabled BOOLEAN DEFAULT true,
   tags JSONB,
+  rotation_weight INTEGER DEFAULT 1,
+  cooldown_minutes INTEGER,
+  last_generated_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
-CREATE TABLE mission_fallback_runs (
+CREATE TABLE chore_runs (
   id VARCHAR(26) PRIMARY KEY,
   project_id VARCHAR(26) NOT NULL,
   triggered_by ENUM('automatic','manual','api') NOT NULL,
@@ -1489,9 +1497,9 @@ CREATE TABLE mission_fallback_runs (
   completed_at TIMESTAMP
 );
 
-CREATE TABLE mission_fallback_items (
+CREATE TABLE chore_items (
   id VARCHAR(26) PRIMARY KEY,
-  mission_fallback_run_id VARCHAR(26) NOT NULL,
+  chore_run_id VARCHAR(26) NOT NULL,
   template_id VARCHAR(26) NOT NULL,
   project_id VARCHAR(26) NOT NULL,
   title VARCHAR(500) NOT NULL,
@@ -1504,62 +1512,63 @@ CREATE TABLE mission_fallback_items (
   status ENUM('proposed','accepted','discarded') DEFAULT 'proposed',
   mission_id VARCHAR(26),
   feedback TEXT,
+  next_eligible_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
 
--- Additional mission / fallback indexes
+-- Additional mission / chore indexes
 CREATE INDEX idx_missions_project_list_ready ON missions(project_id, list, ready);
-CREATE INDEX idx_mission_fallback_runs_project ON mission_fallback_runs(project_id, started_at DESC);
-CREATE INDEX idx_mission_fallback_items_run_status ON mission_fallback_items(mission_fallback_run_id, status);
+CREATE INDEX idx_chore_runs_project ON chore_runs(project_id, started_at DESC);
+CREATE INDEX idx_chore_items_run_status ON chore_items(chore_run_id, status);
 ```
 
 Other core tables (organizations, users, workstations, repositories, mission events, notifications, audit events) remain as in previous revision but remove any `is_loop` or `loop_schedule` columns.
 
 ## Mission Events
-Mission events capture all lifecycle updates including fallback signals.
+Mission events capture all lifecycle updates including chore signals.
 ```sql
-ALTER TABLE mission_events ADD COLUMN origin ENUM('system','user','agent','fallback') DEFAULT 'system';
+ALTER TABLE mission_events ADD COLUMN origin ENUM('system','user','agent','chore') DEFAULT 'system';
 ```
-Fallback run completion inserts summary events with payload `{ "runId": "run_123", "generated": 3, "accepted": 2 }`.
+Chore run completion inserts summary events with payload `{ "runId": "run_123", "generated": 3, "accepted": 2 }`.
 
 ## Hybrid Storage
 - Mission docs: `solo-unicorn-docs/missions/{missionId}/solution.md`, `tasks/{n}.md`
-- Fallback run reports (JSON) stored under `solo-unicorn-docs/fallback/{runId}.json` for audit
+- Chore run reports (JSON) stored under `solo-unicorn-docs/chore/{runId}.json` for audit
 - Agent logs remain in `logs/{sessionId}.log` (gitignored)
 
 ## Derived Views & Metrics
-- `mv_project_metrics_daily` includes columns `fallback_generated`, `fallback_accepted`, `fallback_discarded`, `avg_backlog_size`.
-- `mv_fallback_health` summarizes backlog threshold adherence and guardrail usage.
-- `mv_notification_counts` adds fallback segment counts.
+- `mv_project_metrics_daily` includes columns `chore_generated`, `chore_accepted`, `chore_discarded`, `avg_backlog_size`.
+- `mv_chore_health` summarizes backlog threshold adherence, rotation balance, and guardrail usage.
+- `mv_notification_counts` adds chore segment counts.
 
 ## Retention & Compliance
-- Fallback runs retained 180 days; aggregated stats remain in metrics view.
+- Chore runs retained 180 days; aggregated stats remain in metrics view.
 - Notifications older than 180 days archived.
 - Access request messages anonymized 30 days post decision.
 - Audit events WORM for 400 days.
-- When user deleted, mission `reviewed_by` replaced with pseudonymous token; fallback feedback retains anonymized reviewer reference.
+- When user deleted, mission `reviewed_by` replaced with pseudonymous token; chore feedback retains anonymized reviewer reference.
 
 ## Performance
 - Mission queries: partial indexes on `(list='todo', ready=true)` for fast backlog checks.
-- Fallback run listing uses covering index `(project_id, started_at DESC, status)` to keep UI responsive.
+- Chore run listing uses covering index `(project_id, started_at DESC, status)` to keep UI responsive.
 - Notification unread counts rely on partial index `WHERE read_at IS NULL`.
 - All thresholds ensure mission backlog check stays <20ms.
 
 ## Migration Strategy
-1. Introduce new fallback tables and add `origin`, `fallback_item_id` columns to missions.
+1. Introduce new chore tables and add `origin`, `chore_item_id` columns to missions.
 2. Backfill existing missions with `origin='manual'`.
-3. Drop `is_loop`, `loop_schedule`, and `list` enum values referencing loop (with fallback conversions to `todo`).
+3. Drop `is_loop`, `loop_schedule`, and `list` enum values referencing loop (with chore conversions to `todo`).
 4. Update APIs/CLI to reference new structures.
-5. Deploy mission fallback service with feature flag for progressive rollout.
+5. Deploy chore service with feature flag for progressive rollout.
 
 ## Data Quality
-- Database constraints: `mission_fallback_items.mission_id` references missions; `missions.fallback_item_id` references items when accepted.
+- Database constraints: `chore_items.mission_id` references missions; `missions.chore_item_id` references items when accepted.
 - Guardrail check ensures accepted mission count per week ≤ cap.
-- Application enforces backlog threshold evaluation; DB triggers ensure Mission Fallback runs update counts on accept/discard.
+- Application enforces backlog threshold evaluation; DB triggers ensure chore runs update counts and next-eligible timers on accept/discard.
 
 ## Monster Service Integrations
-- Monster Realtime publishes fallback events on `project:{id}:fallback` channel, payload stored in `mission_fallback_runs`.
+- Monster Realtime publishes chore events on `project:{id}:chore` channel, payload stored in `chore_runs`.
 - Monster Auth metadata remains canonical identity source.
 
 ## Open Questions & Future Work
@@ -1575,7 +1584,7 @@ Fallback run completion inserts summary events with payload `{ "runId": "run_123
 Solo Unicorn server (Bun + Hono) serves:
 - `/rpc` — internal oRPC for web (cookie auth, breakable)
 - `/api/v1` — versioned HTTP for CLI, MCP, third parties
-- Monster Realtime — push-only channels for missions, workstations, notifications, Mission Fallback
+- Monster Realtime — push-only channels for missions, workstations, notifications, Chore
 - OAuth callbacks with Monster Auth
 
 Design goals: human-friendly errors, traceable `request_id`, idempotent mutations, and transparency in automation.
@@ -1632,7 +1641,7 @@ graph LR
   - `workstation:{id}` — presence, mission assignment, tunnel updates
   - `mission:{id}` — mission timeline, review events
   - `user:{id}:notifications` — notification inbox updates
-  - `project:{id}:fallback` — mission fallback status and runs
+  - `project:{id}:chore` — chore status and runs
 
 ## Endpoint Catalog
 
@@ -1647,11 +1656,11 @@ graph LR
 - **GET /api/v1/organizations/{organizationId}** — org summary.
 - **GET /api/v1/organizations/{organizationId}/projects** — paginated list.
 - **POST /api/v1/projects** — create project.
-- **GET /api/v1/projects/{projectId}** — workspace summary, defaults, fallback status.
+- **GET /api/v1/projects/{projectId}** — workspace summary, defaults, chore status.
 - **PATCH /api/v1/projects/{projectId}** — update defaults, privacy, featured flags.
 - **POST /api/v1/projects/{projectId}/members** — invite/update member.
 - **DELETE /api/v1/projects/{projectId}/members/{memberId}** — remove member.
-- **GET /api/v1/projects/{projectId}/metrics** — mission throughput, review SLA, fallback stats.
+- **GET /api/v1/projects/{projectId}/metrics** — mission throughput, review SLA, chore stats.
 
 ### Workstations
 - **POST /api/v1/workstations** — register/reregister workstation.
@@ -1668,8 +1677,8 @@ graph LR
 - **DELETE /api/v1/project-repositories/{repositoryId}** — unlink repository.
 
 ### Missions
-- **POST /api/v1/projects/{projectId}/missions** — create mission (manual or fallback accept).
-- **GET /api/v1/projects/{projectId}/missions** — list missions (`list`, `actor`, `ready`, `origin` filters). Response includes `fallbackTemplates[]` metadata when the Todo column needs to render the Fallback panel.
+- **POST /api/v1/projects/{projectId}/missions** — create mission (manual or chore accept).
+- **GET /api/v1/projects/{projectId}/missions** — list missions (`list`, `actor`, `ready`, `origin` filters). Response includes `choreTemplates[]` metadata when the Todo column needs to render the Chore panel.
 - **GET /api/v1/missions/{missionId}** — detail (timeline, docs, PR info).
 - **PATCH /api/v1/missions/{missionId}** — update stage, ready, actor, description.
 - **POST /api/v1/missions/{missionId}/ready** — toggle ready state with validation.
@@ -1679,17 +1688,17 @@ graph LR
 - **POST /api/v1/missions/{missionId}/pull-request** — sync PR metadata.
 - **GET /api/v1/missions/{missionId}/events** — timeline pagination.
 
-### Mission Fallback
-- **GET /api/v1/projects/{projectId}/mission-fallback/config** — fetch configuration (thresholds, caps, status).
-- **PATCH /api/v1/projects/{projectId}/mission-fallback/config** — update configuration.
-- **GET /api/v1/projects/{projectId}/mission-fallback/templates** — list templates (drives Todo Fallback panel and Mission Fallback modals).
-- **POST /api/v1/projects/{projectId}/mission-fallback/templates** — create template.
-- **PATCH /api/v1/mission-fallback/templates/{templateId}** — update/enable/disable template.
-- **DELETE /api/v1/mission-fallback/templates/{templateId}** — delete template.
-- **POST /api/v1/projects/{projectId}/mission-fallback/run** — trigger manual run; response includes run id and generated items.
-- **GET /api/v1/projects/{projectId}/mission-fallback/runs** — list recent runs.
-- **POST /api/v1/mission-fallback/runs/{runId}/accept** — accept proposed missions (optionally subset).
-- **POST /api/v1/mission-fallback/runs/{runId}/discard** — discard missions with optional feedback.
+### Chore Service
+- **GET /api/v1/projects/{projectId}/chores/config** — fetch configuration (thresholds, cadence, rotation defaults).
+- **PATCH /api/v1/projects/{projectId}/chores/config** — update configuration.
+- **GET /api/v1/projects/{projectId}/chores/templates** — list templates (drives Todo Chore panel and Chore modals).
+- **POST /api/v1/projects/{projectId}/chores/templates** — create template.
+- **PATCH /api/v1/chores/templates/{templateId}** — update/enable/disable template.
+- **DELETE /api/v1/chores/templates/{templateId}** — delete template.
+- **POST /api/v1/projects/{projectId}/chores/run** — trigger manual run; response includes run id and generated items with rotation metadata.
+- **GET /api/v1/projects/{projectId}/chores/runs** — list recent runs.
+- **POST /api/v1/chores/runs/{runId}/accept** — accept proposed missions (optionally subset, respecting rotation timers).
+- **POST /api/v1/chores/runs/{runId}/discard** — discard missions with optional feedback.
 
 ### Notifications
 - **GET /api/v1/notifications** — list notifications grouped by project/type.
@@ -1704,8 +1713,8 @@ graph LR
 - **POST /api/v1/access-requests/{requestId}/decision** — approve/decline.
 
 ### Search & Command
-- **GET /api/v1/search** — global search (missions, projects, docs, fallback templates) with `scopes[]` filter.
-- **POST /api/v1/commands/execute** — run server-side command (open mission, pause workstation, run fallback) with idempotency.
+- **GET /api/v1/search** — global search (missions, projects, docs, chore templates) with `scopes[]` filter.
+- **POST /api/v1/commands/execute** — run server-side command (open mission, pause workstation, run chore) with idempotency.
 
 ### Observability & Audit
 - **GET /api/v1/projects/{projectId}/timeline** — combined activity feed.
@@ -1724,7 +1733,7 @@ Standard response:
 ```json
 {
   "error": {
-    "code": "MISSION_FALLBACK_GUARDRAIL",
+    "code": "CHORE_GUARDRAIL",
     "message": "Weekly mission cap reached. Increase cap or wait until Monday.",
     "details": { "cap": 20, "resetsAt": "2025-02-03T00:00:00Z" },
     "trace_id": "req_8JA3"
@@ -1737,9 +1746,9 @@ Standard response:
 - `CONTEXT_PROJECT_REQUIRED`
 - `MISSION_BLOCKED_DEPENDENCY`
 - `MISSION_ALREADY_ASSIGNED`
-- `MISSION_FALLBACK_DISABLED`
-- `MISSION_FALLBACK_GUARDRAIL`
-- `MISSION_FALLBACK_NOTHING_GENERATED`
+- `CHORE_DISABLED`
+- `CHORE_GUARDRAIL`
+- `CHORE_NOTHING_GENERATED`
 - `WORKSTATION_OFFLINE`
 - `ACCESS_REQUIRES_REVIEW`
 - `NOTIFICATION_ALREADY_READ`
@@ -1756,13 +1765,13 @@ Standard response:
 - `mission.updated`: state diff with `updatedBy`.
 - `mission.review.requested`: `{ reviewerIds, prUrl?, checklist }`.
 - `mission.review.decision`: `{ decision, feedback, decidedBy }`.
-- `mission.event.appended`: timeline entry, including fallback acceptance note.
+- `mission.event.appended`: timeline entry, including chore acceptance note.
 
-### Mission Fallback Events (`project:{id}:fallback`)
-- `mission-fallback.status`: `{ status, backlog, threshold, nextCheckAt }`
-- `mission-fallback.generated`: `{ runId, generated, templatesUsed[], backlogBefore }` (UI refreshes Todo Fallback panel with latest template usage)
-- `mission-fallback.accepted`: `{ runId, missionIds[], acceptedCount }`
-- `mission-fallback.discarded`: `{ runId, missionIds[], feedback? }`
+### Chore Events (`project:{id}:chore`)
+- `chore.status`: `{ status, backlog, threshold, nextCheckAt, minimumWaitMinutes }`
+- `chore.generated`: `{ runId, generated, templatesUsed[], backlogBefore, rotationWeights }` (UI refreshes Todo Chore panel with latest template usage and next-eligible timers)
+- `chore.accepted`: `{ runId, missionIds[], acceptedCount }`
+- `chore.discarded`: `{ runId, missionIds[], feedback? }`
 
 ### Notification Events (`user:{id}:notifications`)
 - `notification.created`: new notification summary.
@@ -1771,7 +1780,7 @@ Standard response:
 ## Performance Targets
 - `/api/v1/search` median 200ms (p95 500ms).
 - Mission list median 120ms (filter indexes).
-- Mission Fallback run creation <250ms for 10 proposals.
+- Chore run creation <250ms for 10 proposals including rotation scoring.
 - Notification unread count fetch <50ms via materialized view.
 
 ## Security
@@ -1779,18 +1788,18 @@ Standard response:
 - Rate limits: 100/hour/IP (anon), 1000/hour (auth), 5000/hour (contributors+).
 - CORS allowlist per environment; public endpoints cached with `Vary: Authorization`.
 - Input validation via zod; sanitized responses.
-- Audit log entries for mission fallback runs, template edits, configuration changes.
+- Audit log entries for chore runs, template edits, configuration changes.
 
 ## Observability
 - Structured logs include `request_id`, `user_id`, `organization_id`, `project_id`.
-- Mission Fallback runs generate metrics (`fallback.generated`, `fallback.accepted`, `fallback.discarded`).
-- Tracing spans: mission create → assign → review; fallback run → accept/discard.
+- Chore runs generate metrics (`chore.generated`, `chore.accepted`, `chore.discarded`, `chore.wait_time_avg`).
+- Tracing spans: mission create → assign → review; chore run → accept/discard.
 - CLI surfaces `trace_id` when `--debug`.
 
 ## Deprecation Workflow
 1. Mark endpoint with `Deprecation` header; link documentation.
 2. Capture usage metrics.
-3. Notify CLI (update message) and Mission Fallback service via feature flags.
+3. Notify CLI (update message) and Chore service via feature flags.
 4. Remove after usage <1% for ≥90 days with alternative stable.
 <!-- /source: .solo/designs/40-server-interfaces.md -->
 
@@ -1809,7 +1818,7 @@ solo-unicorn/
 │  ├─ web/                         # React 19 + Vite web app (mission-first UI)
 │  │  ├─ src/
 │  │  │  ├─ shared/               # primitives, hooks, services, utils, theme tokens
-│  │  │  ├─ features/             # feature folders (mission, mission-fallback, workstation, notifications, search)
+│  │  │  ├─ features/             # feature folders (mission, chore, workstation, notifications, search)
 │  │  │  ├─ routes/               # TanStack Router routes per shell (launchpad, project, public)
 │  │  │  └─ lib/                  # presentation helpers (formatters, charts)
 │  │  ├─ public/
@@ -1843,7 +1852,7 @@ solo-unicorn/
 ## Principles
 - Ship trust: every change surfaces human-friendly copy, context, and undo clues
 - Mission-first mindset: code gravitates toward mission/workstation flows and shared services
-- Mission backlog stays healthy via Mission Fallback—Todo Fallback panel surfaces templates instead of loop hacks
+- Mission backlog stays healthy via the Chore service—Todo Chore panel surfaces templates instead of loop hacks
 - Favor pure functions for business rules; create adapters for I/O and side effects
 - Keep files lean (<300 lines) and feature folders cohesive; extract to shared modules only after 3 usages
 - Prefer named exports and direct imports; avoid barrels to keep tree-shaking predictable
@@ -1863,7 +1872,7 @@ solo-unicorn/
 | Backend Framework | Hono + oRPC | latest | HTTP routing, RPC + OpenAPI generation | Single entrypoint, typed handlers |
 | Frontend Framework | React | 19 | Mission-first UI with Suspense | TanStack Router/Query |
 | Data Store | PostgreSQL + Drizzle | 15 / latest | Mission + org data | Reversible migrations, typed schema |
-| Realtime | Monster Realtime | latest | Presence & mission events | Push-only, offline fallback |
+| Realtime | Monster Realtime | latest | Presence & mission events | Push-only, offline chore resiliency |
 | Auth | Monster Auth | latest | OAuth + token issuance | Cookie + PAT support |
 | Styling | TailwindCSS v4 + shadcn/ui | latest | UI theming | Install via MCP tooling |
 
@@ -1905,7 +1914,7 @@ export function createAuthClient() {
 - Document new features, flows, or scope adjustments in `.solo/designs/10-features.md`
 - Persist schema updates, new tables, or payload changes in `.solo/designs/30-data.md`
 - When adding or altering endpoints/events, sync `.solo/designs/40-server-interfaces.md`
-- Mission Fallback behaviour (config, templates, runs) must stay consistent across docs and code—update all relevant specs when touching it, including Todo Fallback rendering
+- Chore behaviour (config, templates, runs) must stay consistent across docs and code—update all relevant specs when touching it, including Todo Chore rendering and rotation hints
 - Mission Modal stays source of truth for mission details; Mission Room pages should not diverge
 - Keep doc diagrams in Mermaid and refresh when structural changes happen
 - Always accompany behavior changes with updated acceptance criteria or tests
@@ -1916,5 +1925,5 @@ export function createAuthClient() {
 - API contract tests guard `/api/v1` responses + error codes
 - CLI smoke tests cover login → mission accept → completion roundtrip
 - Notification sync tests keep unread counts consistent across channels
-- Mission Fallback tests cover threshold triggers, template selection, accept/discard flows, and Fallback panel rendering when backlog is empty
+- Chore tests cover threshold triggers, rotation weights, minimum wait enforcement, accept/discard flows, and Chore panel rendering when backlog is empty
 <!-- /source: .solo/designs/50-codebase.md -->
