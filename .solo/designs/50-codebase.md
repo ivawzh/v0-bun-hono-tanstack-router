@@ -31,9 +31,7 @@ solo-unicorn/
 │  │  │  ├─ instrumentation/     # logging, metrics stubs, tracing hooks
 │  │  │  └─ index.ts             # command registration + yargs setup
 │  │  └─ tsconfig.json
-├─ docs/                          # human-facing docs, diagrams (Mermaid where possible)
 ├─ .solo/designs/                 # SOLO50 design specifications (keep current)
-├─ solo-unicorn-docs/             # mission filesystem artifacts (git-tracked solutions)
 ├─ scripts/                       # helper scripts (db, lint, release)
 ├─ package.json                   # workspace definitions, scripts
 ├─ bunfig.toml
