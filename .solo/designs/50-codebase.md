@@ -83,6 +83,8 @@ solo-unicorn/
 │  └─ front-end-spec.md            # UI/UX spec and component inventory
 │
 ├─ .solo/
+│  └─ designs/                     # SOLO50 design documents
+├─ solo-unicorn-docs/
 │  └─ missions/{mission-id}/       # Mission solution/tasks filesystem storage
 │
 ├─ scripts/                        # Dev/build/release scripts
@@ -194,3 +196,20 @@ Environments (domains)
 - Index hot queries; serve public content with CDN + caching headers
 - Web: use skeletons, optimistic updates where safe, reconcile via realtime
 - Respect simplicity over micro-optimizations; revisit after MVP
+
+## Deployment & Configuration
+
+- **SST v3** for AWS infrastructure deployment
+- **Environment management**: apps/{app}/env.ts; never direct process.env access
+- **Database**: PostgreSQL via Drizzle ORM with migration tracking
+- **Build commands**: `bun dev` (all), `bun build` (all), `bun typecheck`, `bun lint`
+- **Database operations**: `bun db:push`, `bun db:studio`, `bun db:migrate`
+- **Deployment**: `bun sst:alpha` (staging), `bun sst:prod` (production)
+
+## Interface Boundary Rules (CRITICAL)
+
+- **Web app** → /rpc only (oRPC internal, breakable with web bundle)
+- **AI agents via MCP** → /api (HTTP) through MCP tools (not WebSocket)
+- **CLI/3rd parties** → /api (HTTP, versioned, backward compatible)
+- **WebSocket** → push-only (Monster Realtime; never request/response RPC)
+- **oRPC** supports both RPC format (/rpc) and API format (/api) with OpenAPI generation

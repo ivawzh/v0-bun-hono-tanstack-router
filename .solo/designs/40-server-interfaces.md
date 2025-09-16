@@ -180,6 +180,21 @@ Notes: PAT/org key auth; push-only WS
 - HTTP APIs: status code + `{ error: { code: string, message: string, details?: Object } }`
 - MCP tools: `{ error: { code: string, message: string, details?: Object } }`
 
+## Versioning & Compatibility
+
+- /rpc: internal and breakable; no versioning required; changes with web bundle
+- /api: versioned (/api/v1) with backward compatibility requirements
+- MCP tools: versioned namespaces (mission.v1.*) with stable signatures
+- oRPC supports both RPC format (/rpc) and API format (/api) with automatic OpenAPI generation
+- Repository identification: canonical GitHub numeric repo ID; future providers may use `provider:id` format
+
+## Security & Performance
+
+- Rate limiting: 100/hr/IP (anon), 1000/hr (auth), 5000/hr (contributor+)
+- CORS allowlist per environment; public endpoints permissive
+- CDN caching with Vary headers for permission-aware responses
+- Input validation via zod at boundaries; sanitized responses
+
 ## Events
 
 ### EVT-WS-001 - presence.update

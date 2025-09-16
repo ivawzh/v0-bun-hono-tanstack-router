@@ -437,13 +437,19 @@ CREATE TABLE helpers (
 ```
 
 Indexes & Performance (highlights)
-- Monitoring every 10s: partial indexes on missions by agent_session_status and list
-- Assignment: composite indexes on missions by ready, session status, list, priority DESC, list_order
-- Concurrency subqueries: indexes by repository_id and code_agent_type with ACTIVE/PUSHING
-- Dependencies: partial index on mission_dependencies where status='active'
-- Helpers: index by code/active/updated_at for locking
-- Materialized views (post-MVP option): mv_active_mission_counts, mv_agent_capacity
-- Reference index names: idx_monitoring_active_missions, idx_monitoring_ready_missions, idx_mission_assignment_complex, idx_repo_active_missions, idx_code_agent_active_missions, idx_mission_dependencies_blocking
+- **Ultra-high frequency monitoring** (every 10s): partial indexes on missions by agent_session_status and list
+- **Mission assignment optimization**: composite indexes for complex queries with embedded subqueries
+- **Repository concurrency**: indexes by repository_id and code_agent_type with ACTIVE/PUSHING status
+- **Dependencies resolution**: partial index on mission_dependencies where status='active'
+- **Database locking**: helpers table index by code/active/updated_at for atomic operations
+- **Future optimization**: materialized views for mv_active_mission_counts, mv_agent_capacity
+
+Critical performance targets:
+- Monitoring queries: ~1-5ms (was 50-100ms)
+- Mission assignment: ~50-100ms (was 200-500ms)
+- Agent availability: ~1-2ms (was 10-50ms)
+
+Key index names: idx_monitoring_active_missions, idx_monitoring_ready_missions, idx_mission_assignment_complex, idx_repo_active_missions, idx_code_agent_active_missions, idx_mission_dependencies_blocking
 
 Triggers (highlights)
 - Update agent_session_status_changed_at on status change
@@ -501,6 +507,32 @@ files:
 git_tracked: true
 purpose: Rich solution and session-scoped context across iterations
 ```
+
+## Monster Services Integration
+
+### Monster Auth Integration
+- `users.monster_auth` JSONB: links to Monster Auth user identity and OAuth payload
+- Email is canonical identity; multiple OAuth providers supported if same email
+- No server-side auth table duplication; Monster Auth is source of truth
+
+### Monster Realtime Integration
+- Workstation presence via `workstations.realtime_presence_meta` JSON field
+- Real-time channels: workstation:{id}, project:{id}:workstations, mission:{id}
+- Push-only communication; no request/response over WebSocket
+
+## Performance Strategy
+
+### Architecture Decisions
+- **Agent storage**: Static type definitions on server; detailed config client-side
+- **Mission assignment**: Uses workstation presence data + simple indexed queries
+- **No materialized views in MVP**: Simple indexed queries preferred for monitoring
+- **Hybrid storage**: Solution & Tasks in filesystem + DB progress tracking
+
+### Migration Strategy
+- Phase 1: Core entities (Organizations, Users, Workstations)
+- Phase 2: Mission management (Flows, Missions, Dependencies)
+- Phase 3: Advanced features (Git Worktrees, Sessions, Performance optimization)
+- Zero-downtime migration with backward compatibility fields
 
 ## Lifecycle & Compliance
 - PII: user email, names (users table); persisted per org/project with standard retention
