@@ -192,3 +192,20 @@ Agent integration
 - Metrics & analytics
 - Plugin system
 - Loop mission scheduling
+
+## Security & Best Practices
+
+Token management
+- Store access/refresh tokens in OS keychain
+- Automatic refresh and rotation; handle server-initiated refresh via realtime
+- Scope validation; revoke and cleanup on logout
+
+Network security
+- TLS only; validate certificates (pinning where supported)
+- Corporate proxy detection and configuration support
+- Respect API rate limits with backoff
+
+Repository security
+- SSH key management guidance; proper file permissions
+- Isolate agent execution where feasible
+- Audit logging for filesystem operations (where applicable)

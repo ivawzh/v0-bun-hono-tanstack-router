@@ -404,4 +404,7 @@ Treat flows/stages/prompts as versioned artifacts; allow static templates in MVP
 - Static prompt templates in MVP; dynamic prompt fetch post-MVP
 
 #### Design Notes
-- Future: dynamic POST to client-hosted prompt endpoint
+- Future: dynamic POST to client-hosted prompt endpoint. Example (post-MVP):
+  - POST https://client-company.com/custom-prompt
+  - Body: { mission: { id, title, description, tasks, solution }, stage, flow, workstation, repositoryId, additionalRepositoryIds, codeAgent }
+  - Returns: { prompt: string }

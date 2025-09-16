@@ -14,6 +14,83 @@ Shared (intra-app)
 - Server: `src/{services,validators,lib}` (lib: `orpc.ts`, `context.ts`)
 - CLI: `src/services/{configStore,mcpClient,realtimeClient,worktree}.ts`
 
+```bash
+solo-unicorn/
+├─ apps/
+│  ├─ web/                         # React + Vite app (UI, PWA)
+│  │  ├─ src/
+│  │  │  ├─ shared/               # App-shared UI primitives, hooks, utils, constants, theme
+│  │  │  │  ├─ components/        # Button, Input, Modal, Toast, Badge, Skeleton
+│  │  │  │  ├─ hooks/             # useAuth, useSession, useRPC, useRealtime, useToast
+│  │  │  │  ├─ services/          # rpcClient.ts (oRPC client), errorToToast.ts, queryKeys.ts
+│  │  │  │  ├─ theme/             # tokens, CSS vars, dark/light mode helpers
+│  │  │  │  └─ utils/             # pure utils (ids, formatters)
+│  │  │  ├─ features/             # Feature folders combine UI + data glue
+│  │  │  │  ├─ mission/           # MissionCard, MissionBoard, MissionModal shell, service fns
+│  │  │  │  ├─ project/           # ProjectSettingsModal, forms, service fns
+│  │  │  │  └─ workstation/       # WorkstationView, status badges, service fns
+│  │  │  ├─ routes/               # TanStack Router routes
+│  │  │  ├─ main.tsx, index.css
+│  │  │  └─ lib/                  # Presentation-only helpers (no domain)
+│  │  ├─ public/
+│  │  ├─ env.ts, vite.config.ts, tsconfig.json
+│  │  └─ sst-env.d.ts (if used)
+│  ├─ server/                      # Bun + Hono app (oRPC + /api)
+│  │  ├─ src/
+│  │  │  ├─ index.ts              # Server bootstrap (Hono, CORS, route mounts)
+│  │  │  ├─ lib/
+│  │  │  │  ├─ context.ts         # Request context (session/org/project)
+│  │  │  │  ├─ orpc.ts            # oRPC server setup (publicProcedure, guards glue)
+│  │  │  │  └─ openauth.ts        # Monster Auth client
+│  │  │  ├─ routers/
+│  │  │  │  ├─ rpc.ts             # oRPC router mount (/rpc)
+│  │  │  │  ├─ api.ts             # API-format mount (/api) (REST-like or verbs), OpenAPI emit
+│  │  │  │  ├─ rpc/
+│  │  │  │  │  ├─ auth.ts
+│  │  │  │  │  ├─ mission.ts      # RPC procedures for mission
+│  │  │  │  │  └─ project.ts      # RPC procedures for project
+│  │  │  │  └─ others/
+│  │  │  │     └─ oauth-callback.ts
+│  │  │  ├─ services/             # Domain services (auth, missions, flows, projects)
+│  │  │  ├─ validators/           # Zod schemas used on server side
+│  │  │  ├─ db/
+│  │  │  │  ├─ db.ts
+│  │  │  │  ├─ schema/            # Drizzle table definitions
+│  │  │  │  └─ migrations/
+│  │  │  └─ utils/                # Server-only helpers (intervals, adapters)
+│  │  ├─ env.ts, drizzle.config.ts, tsconfig.json
+│  │  └─ sst-env.d.ts (if used)
+│  ├─ cli/                         # Bun-based CLI (single-file/binary target)
+│  │  ├─ src/
+│  │  │  ├─ commands/
+│  │  │  │  ├─ auth.ts            # login/logout/whoami
+│  │  │  │  ├─ workstation.ts     # register/start/stop/status
+│  │  │  │  ├─ repo.ts            # repo add/list/remove
+│  │  │  │  ├─ agent.ts           # agent scan/list/add
+│  │  │  │  └─ status.ts          # combined status output
+│  │  │  ├─ services/
+│  │  │  │  ├─ configStore.ts     # ~/.solo-unicorn/config.json read/write
+│  │  │  │  ├─ mcpClient.ts       # HTTP client to /api (PAT/org key)
+│  │  │  │  ├─ realtimeClient.ts  # Monster Realtime wrapper
+│  │  │  │  └─ worktree.ts        # git worktree helpers
+│  │  │  ├─ bin.ts                # CLI entry (bun build target)
+│  │  │  └─ index.ts              # program setup, command registration
+│  │  └─ tsconfig.json
+│  │
+├─ docs/                           # Design/architecture/spec documents
+│  ├─ foundation/                  # Source foundational docs (001–006)
+│  ├─ architecture.md              # This architecture (authoritative)
+│  └─ front-end-spec.md            # UI/UX spec and component inventory
+│
+├─ .solo/
+│  └─ missions/{mission-id}/       # Mission solution/tasks filesystem storage
+│
+├─ scripts/                        # Dev/build/release scripts
+├─ package.json                    # Workspaces (apps/*)
+├─ bunfig.toml
+└─ tsconfig.json                   # Base TS config
+```
+
 ## Module Boundaries
 
 - Web
@@ -106,6 +183,11 @@ Shared (intra-app)
 - CORS allowlist; CSRF protection for cookie APIs
 - Never commit secrets; store credentials in OS keychain (CLI)
 - Sanitize user input and API responses; principle of least privilege
+
+Environments (domains)
+- Production: web `https://solounicorn.lol`, server `https://server.solounicorn.lol`, Monster Auth `https://auth.monstermake.limited`
+- Alpha: web `https://alpha.solounicorn.lol`, server `https://server.alpha.solounicorn.lol`, Monster Auth `https://auth.alpha.monstermake.limited`
+- Development/Test: require env vars `VITE_WEB_URL`, `VITE_SERVER_URL`, `DATABASE_URL`
 
 ## Performance Principles
 

@@ -235,6 +235,34 @@ CREATE TABLE project_workstations (
   created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Workstation Repositories (Git Worktrees)
+CREATE TABLE workstation_repositories (
+  id VARCHAR(26) PRIMARY KEY,
+  workstation_id VARCHAR(26) NOT NULL,
+  project_repository_id VARCHAR(26) NOT NULL,
+  main_path TEXT NOT NULL,
+  main_branch VARCHAR(100) DEFAULT 'main',
+  clone_status ENUM('cloning','ready','error') DEFAULT 'cloning',
+  clone_error TEXT,
+  last_synced_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Git Worktrees
+CREATE TABLE git_worktrees (
+  id VARCHAR(26) PRIMARY KEY,
+  workstation_repository_id VARCHAR(26) NOT NULL,
+  branch VARCHAR(100) NOT NULL,
+  worktree_path TEXT NOT NULL,
+  status ENUM('creating','ready','busy','error') DEFAULT 'creating',
+  error_message TEXT,
+  last_used_at TIMESTAMP,
+  active_mission_count INTEGER DEFAULT 0,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Flows
 CREATE TABLE flows (
   id VARCHAR(26) PRIMARY KEY,
@@ -434,6 +462,30 @@ Reference SQL helpers (app-layer authz remains source of truth)
 
 Seed data
 - Insert required lock row for helpers: ('helper_01MISSION_PUSH_LOCK','MISSION_PUSH_LOCK', ...)
+
+Project-level permissions
+```sql
+CREATE TABLE project_permissions (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  user_id VARCHAR(26),
+  role ENUM('public','contributor','collaborator','maintainer','owner') NOT NULL,
+  can_read_missions BOOLEAN DEFAULT NULL,
+  can_write_missions BOOLEAN DEFAULT NULL,
+  can_read_workstations BOOLEAN DEFAULT NULL,
+  can_execute_missions BOOLEAN DEFAULT NULL,
+  can_admin_project BOOLEAN DEFAULT NULL,
+  can_invite_users BOOLEAN DEFAULT NULL,
+  can_manage_repositories BOOLEAN DEFAULT NULL,
+  can_view_analytics BOOLEAN DEFAULT NULL,
+  status ENUM('active','invited','revoked') DEFAULT 'active',
+  invited_by VARCHAR(26),
+  invited_at TIMESTAMP,
+  accepted_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+```
 
 ## Object Storage Layout
 - N/A (MVP)

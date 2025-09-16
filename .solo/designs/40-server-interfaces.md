@@ -9,6 +9,8 @@ Consumers: Web app (/rpc), CLI and AI agents (/api via MCP), public users (publi
 - Trust: /rpc for first-party web only (cookie auth, breakable); /api versioned and backward-compatible; MCP tools map to /api and are versioned (mission.v1.*)
 - Deployment: Co-hosted Hono server (Bun) with MCP tools; PostgreSQL DB; Monster Realtime external service
 - Security: Auth via Monster Auth tokens; PAT/org keys via Authorization header; CORS allowlist; CSRF for cookie APIs
+- OpenAPI: /api uses oRPC API-format and emits OpenAPI (Swagger)
+ - Repository identification: canonical GitHub numeric repo ID; future providers may use `provider:id` (e.g., `github:123`); MVP supports GitHub only
 
 ### Architecture Diagram
 ```mermaid
@@ -148,6 +150,35 @@ Notes: PAT/org key auth; push-only WS
 - Kind: HTTP
 - Identifier/Path: GET /api/v1/public/projects/{slug}
 - Output Fields: { project, missions? }
+
+### INT-PUB-003 - Public Categories
+- Purpose: List categories and counts
+- Kind: HTTP
+- Identifier/Path: GET /api/v1/public/categories
+- Output Fields: { categories: Array<{ id, name, count }> }
+
+### INT-PUB-004 - Public Featured Projects
+- Purpose: Get featured projects
+- Kind: HTTP
+- Identifier/Path: GET /api/v1/public/featured
+- Output Fields: { projects }
+
+### INT-PUB-005 - Public Project Missions
+- Purpose: List public missions for a project (permission-aware)
+- Kind: HTTP
+- Identifier/Path: GET /api/v1/public/projects/{slug}/missions
+- Output Fields: Mission[] (filtered by public settings)
+
+### INT-SYS-001 - System Schema
+- Purpose: Machine-readable schema for system (API key auth)
+- Kind: HTTP
+- Identifier/Path: GET /api/v1/public/system-schema
+- Output Fields: { version, resources }
+
+## Error Model
+
+- HTTP APIs: status code + `{ error: { code: string, message: string, details?: Object } }`
+- MCP tools: `{ error: { code: string, message: string, details?: Object } }`
 
 ## Events
 
