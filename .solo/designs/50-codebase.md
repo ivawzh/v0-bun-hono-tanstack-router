@@ -12,7 +12,7 @@ solo-unicorn/
 │  ├─ web/                         # React 19 + Vite web app (mission-first UI)
 │  │  ├─ src/
 │  │  │  ├─ shared/               # primitives, hooks, services, utils, theme tokens
-│  │  │  ├─ features/             # feature folders (mission, mission-fallback, workstation, notifications, search)
+│  │  │  ├─ features/             # feature folders (mission, chore, workstation, notifications, search)
 │  │  │  ├─ routes/               # TanStack Router routes per shell (launchpad, project, public)
 │  │  │  └─ lib/                  # presentation helpers (formatters, charts)
 │  │  ├─ public/
@@ -46,7 +46,7 @@ solo-unicorn/
 ## Principles
 - Ship trust: every change surfaces human-friendly copy, context, and undo clues
 - Mission-first mindset: code gravitates toward mission/workstation flows and shared services
-- Mission backlog stays healthy via Mission Fallback—Todo Fallback panel surfaces templates instead of loop hacks
+- Mission backlog stays healthy via the Chore service—Todo Chore panel surfaces templates instead of loop hacks
 - Favor pure functions for business rules; create adapters for I/O and side effects
 - Keep files lean (<300 lines) and feature folders cohesive; extract to shared modules only after 3 usages
 - Prefer named exports and direct imports; avoid barrels to keep tree-shaking predictable
@@ -66,7 +66,7 @@ solo-unicorn/
 | Backend Framework | Hono + oRPC | latest | HTTP routing, RPC + OpenAPI generation | Single entrypoint, typed handlers |
 | Frontend Framework | React | 19 | Mission-first UI with Suspense | TanStack Router/Query |
 | Data Store | PostgreSQL + Drizzle | 15 / latest | Mission + org data | Reversible migrations, typed schema |
-| Realtime | Monster Realtime | latest | Presence & mission events | Push-only, offline fallback |
+| Realtime | Monster Realtime | latest | Presence & mission events | Push-only, offline chore resiliency |
 | Auth | Monster Auth | latest | OAuth + token issuance | Cookie + PAT support |
 | Styling | TailwindCSS v4 + shadcn/ui | latest | UI theming | Install via MCP tooling |
 
@@ -108,7 +108,7 @@ export function createAuthClient() {
 - Document new features, flows, or scope adjustments in `.solo/designs/10-features.md`
 - Persist schema updates, new tables, or payload changes in `.solo/designs/30-data.md`
 - When adding or altering endpoints/events, sync `.solo/designs/40-server-interfaces.md`
-- Mission Fallback behaviour (config, templates, runs) must stay consistent across docs and code—update all relevant specs when touching it, including Todo Fallback rendering
+- Chore behaviour (config, templates, runs) must stay consistent across docs and code—update all relevant specs when touching it, including Todo Chore rendering and rotation hints
 - Mission Modal stays source of truth for mission details; Mission Room pages should not diverge
 - Keep doc diagrams in Mermaid and refresh when structural changes happen
 - Always accompany behavior changes with updated acceptance criteria or tests
@@ -119,4 +119,4 @@ export function createAuthClient() {
 - API contract tests guard `/api/v1` responses + error codes
 - CLI smoke tests cover login → mission accept → completion roundtrip
 - Notification sync tests keep unread counts consistent across channels
-- Mission Fallback tests cover threshold triggers, template selection, accept/discard flows, and Fallback panel rendering when backlog is empty
+- Chore tests cover threshold triggers, rotation weights, minimum wait enforcement, accept/discard flows, and Chore panel rendering when backlog is empty

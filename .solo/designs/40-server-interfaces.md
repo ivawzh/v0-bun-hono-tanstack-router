@@ -4,7 +4,7 @@
 Solo Unicorn server (Bun + Hono) serves:
 - `/rpc` — internal oRPC for web (cookie auth, breakable)
 - `/api/v1` — versioned HTTP for CLI, MCP, third parties
-- Monster Realtime — push-only channels for missions, workstations, notifications, Mission Fallback
+- Monster Realtime — push-only channels for missions, workstations, notifications, Chore
 - OAuth callbacks with Monster Auth
 
 Design goals: human-friendly errors, traceable `request_id`, idempotent mutations, and transparency in automation.
@@ -61,7 +61,7 @@ graph LR
   - `workstation:{id}` — presence, mission assignment, tunnel updates
   - `mission:{id}` — mission timeline, review events
   - `user:{id}:notifications` — notification inbox updates
-  - `project:{id}:fallback` — mission fallback status and runs
+  - `project:{id}:chore` — chore status and runs
 
 ## Endpoint Catalog
 
@@ -76,11 +76,11 @@ graph LR
 - **GET /api/v1/organizations/{organizationId}** — org summary.
 - **GET /api/v1/organizations/{organizationId}/projects** — paginated list.
 - **POST /api/v1/projects** — create project.
-- **GET /api/v1/projects/{projectId}** — workspace summary, defaults, fallback status.
+- **GET /api/v1/projects/{projectId}** — workspace summary, defaults, chore status.
 - **PATCH /api/v1/projects/{projectId}** — update defaults, privacy, featured flags.
 - **POST /api/v1/projects/{projectId}/members** — invite/update member.
 - **DELETE /api/v1/projects/{projectId}/members/{memberId}** — remove member.
-- **GET /api/v1/projects/{projectId}/metrics** — mission throughput, review SLA, fallback stats.
+- **GET /api/v1/projects/{projectId}/metrics** — mission throughput, review SLA, chore stats.
 
 ### Workstations
 - **POST /api/v1/workstations** — register/reregister workstation.
@@ -97,8 +97,8 @@ graph LR
 - **DELETE /api/v1/project-repositories/{repositoryId}** — unlink repository.
 
 ### Missions
-- **POST /api/v1/projects/{projectId}/missions** — create mission (manual or fallback accept).
-- **GET /api/v1/projects/{projectId}/missions** — list missions (`list`, `actor`, `ready`, `origin` filters). Response includes `fallbackTemplates[]` metadata when the Todo column needs to render the Fallback panel.
+- **POST /api/v1/projects/{projectId}/missions** — create mission (manual or chore accept).
+- **GET /api/v1/projects/{projectId}/missions** — list missions (`list`, `actor`, `ready`, `origin` filters). Response includes `choreTemplates[]` metadata when the Todo column needs to render the Chore panel.
 - **GET /api/v1/missions/{missionId}** — detail (timeline, docs, PR info).
 - **PATCH /api/v1/missions/{missionId}** — update stage, ready, actor, description.
 - **POST /api/v1/missions/{missionId}/ready** — toggle ready state with validation.
@@ -108,17 +108,17 @@ graph LR
 - **POST /api/v1/missions/{missionId}/pull-request** — sync PR metadata.
 - **GET /api/v1/missions/{missionId}/events** — timeline pagination.
 
-### Mission Fallback
-- **GET /api/v1/projects/{projectId}/mission-fallback/config** — fetch configuration (thresholds, caps, status).
-- **PATCH /api/v1/projects/{projectId}/mission-fallback/config** — update configuration.
-- **GET /api/v1/projects/{projectId}/mission-fallback/templates** — list templates (drives Todo Fallback panel and Mission Fallback modals).
-- **POST /api/v1/projects/{projectId}/mission-fallback/templates** — create template.
-- **PATCH /api/v1/mission-fallback/templates/{templateId}** — update/enable/disable template.
-- **DELETE /api/v1/mission-fallback/templates/{templateId}** — delete template.
-- **POST /api/v1/projects/{projectId}/mission-fallback/run** — trigger manual run; response includes run id and generated items.
-- **GET /api/v1/projects/{projectId}/mission-fallback/runs** — list recent runs.
-- **POST /api/v1/mission-fallback/runs/{runId}/accept** — accept proposed missions (optionally subset).
-- **POST /api/v1/mission-fallback/runs/{runId}/discard** — discard missions with optional feedback.
+### Chore Service
+- **GET /api/v1/projects/{projectId}/chores/config** — fetch configuration (thresholds, cadence, rotation defaults).
+- **PATCH /api/v1/projects/{projectId}/chores/config** — update configuration.
+- **GET /api/v1/projects/{projectId}/chores/templates** — list templates (drives Todo Chore panel and Chore modals).
+- **POST /api/v1/projects/{projectId}/chores/templates** — create template.
+- **PATCH /api/v1/chores/templates/{templateId}** — update/enable/disable template.
+- **DELETE /api/v1/chores/templates/{templateId}** — delete template.
+- **POST /api/v1/projects/{projectId}/chores/run** — trigger manual run; response includes run id and generated items with rotation metadata.
+- **GET /api/v1/projects/{projectId}/chores/runs** — list recent runs.
+- **POST /api/v1/chores/runs/{runId}/accept** — accept proposed missions (optionally subset, respecting rotation timers).
+- **POST /api/v1/chores/runs/{runId}/discard** — discard missions with optional feedback.
 
 ### Notifications
 - **GET /api/v1/notifications** — list notifications grouped by project/type.
@@ -133,8 +133,8 @@ graph LR
 - **POST /api/v1/access-requests/{requestId}/decision** — approve/decline.
 
 ### Search & Command
-- **GET /api/v1/search** — global search (missions, projects, docs, fallback templates) with `scopes[]` filter.
-- **POST /api/v1/commands/execute** — run server-side command (open mission, pause workstation, run fallback) with idempotency.
+- **GET /api/v1/search** — global search (missions, projects, docs, chore templates) with `scopes[]` filter.
+- **POST /api/v1/commands/execute** — run server-side command (open mission, pause workstation, run chore) with idempotency.
 
 ### Observability & Audit
 - **GET /api/v1/projects/{projectId}/timeline** — combined activity feed.
@@ -153,7 +153,7 @@ Standard response:
 ```json
 {
   "error": {
-    "code": "MISSION_FALLBACK_GUARDRAIL",
+    "code": "CHORE_GUARDRAIL",
     "message": "Weekly mission cap reached. Increase cap or wait until Monday.",
     "details": { "cap": 20, "resetsAt": "2025-02-03T00:00:00Z" },
     "trace_id": "req_8JA3"
@@ -166,9 +166,9 @@ Standard response:
 - `CONTEXT_PROJECT_REQUIRED`
 - `MISSION_BLOCKED_DEPENDENCY`
 - `MISSION_ALREADY_ASSIGNED`
-- `MISSION_FALLBACK_DISABLED`
-- `MISSION_FALLBACK_GUARDRAIL`
-- `MISSION_FALLBACK_NOTHING_GENERATED`
+- `CHORE_DISABLED`
+- `CHORE_GUARDRAIL`
+- `CHORE_NOTHING_GENERATED`
 - `WORKSTATION_OFFLINE`
 - `ACCESS_REQUIRES_REVIEW`
 - `NOTIFICATION_ALREADY_READ`
@@ -185,13 +185,13 @@ Standard response:
 - `mission.updated`: state diff with `updatedBy`.
 - `mission.review.requested`: `{ reviewerIds, prUrl?, checklist }`.
 - `mission.review.decision`: `{ decision, feedback, decidedBy }`.
-- `mission.event.appended`: timeline entry, including fallback acceptance note.
+- `mission.event.appended`: timeline entry, including chore acceptance note.
 
-### Mission Fallback Events (`project:{id}:fallback`)
-- `mission-fallback.status`: `{ status, backlog, threshold, nextCheckAt }`
-- `mission-fallback.generated`: `{ runId, generated, templatesUsed[], backlogBefore }` (UI refreshes Todo Fallback panel with latest template usage)
-- `mission-fallback.accepted`: `{ runId, missionIds[], acceptedCount }`
-- `mission-fallback.discarded`: `{ runId, missionIds[], feedback? }`
+### Chore Events (`project:{id}:chore`)
+- `chore.status`: `{ status, backlog, threshold, nextCheckAt, minimumWaitMinutes }`
+- `chore.generated`: `{ runId, generated, templatesUsed[], backlogBefore, rotationWeights }` (UI refreshes Todo Chore panel with latest template usage and next-eligible timers)
+- `chore.accepted`: `{ runId, missionIds[], acceptedCount }`
+- `chore.discarded`: `{ runId, missionIds[], feedback? }`
 
 ### Notification Events (`user:{id}:notifications`)
 - `notification.created`: new notification summary.
@@ -200,7 +200,7 @@ Standard response:
 ## Performance Targets
 - `/api/v1/search` median 200ms (p95 500ms).
 - Mission list median 120ms (filter indexes).
-- Mission Fallback run creation <250ms for 10 proposals.
+- Chore run creation <250ms for 10 proposals including rotation scoring.
 - Notification unread count fetch <50ms via materialized view.
 
 ## Security
@@ -208,16 +208,16 @@ Standard response:
 - Rate limits: 100/hour/IP (anon), 1000/hour (auth), 5000/hour (contributors+).
 - CORS allowlist per environment; public endpoints cached with `Vary: Authorization`.
 - Input validation via zod; sanitized responses.
-- Audit log entries for mission fallback runs, template edits, configuration changes.
+- Audit log entries for chore runs, template edits, configuration changes.
 
 ## Observability
 - Structured logs include `request_id`, `user_id`, `organization_id`, `project_id`.
-- Mission Fallback runs generate metrics (`fallback.generated`, `fallback.accepted`, `fallback.discarded`).
-- Tracing spans: mission create → assign → review; fallback run → accept/discard.
+- Chore runs generate metrics (`chore.generated`, `chore.accepted`, `chore.discarded`, `chore.wait_time_avg`).
+- Tracing spans: mission create → assign → review; chore run → accept/discard.
 - CLI surfaces `trace_id` when `--debug`.
 
 ## Deprecation Workflow
 1. Mark endpoint with `Deprecation` header; link documentation.
 2. Capture usage metrics.
-3. Notify CLI (update message) and Mission Fallback service via feature flags.
+3. Notify CLI (update message) and Chore service via feature flags.
 4. Remove after usage <1% for ≥90 days with alternative stable.

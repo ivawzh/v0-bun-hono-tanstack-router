@@ -24,7 +24,7 @@ graph TD
   PW --> KB[Kanban Board]
   KB --> KB1[Todo Column]
   KB1 --> KB1a[Normal Missions]
-  KB1 --> KB1b[Fallback Templates]
+  KB1 --> KB1b[Chore Templates]
   KB --> KB2[Doing]
   KB --> KB3[Review]
   KB --> KB4[Done]
@@ -69,14 +69,15 @@ graph TD
 │ │││Ready │││ Ready  ││ Review ││        ││                                   │
 │ ││└─────┘││└───────┘│└───────┘│└───────┘│                                    │
 │ │├───────┤│         │         │         │                                    │
-│ ││Fallback▶││         │         │         │                                 │
+│ ││Chore ▶ ││         │         │         │                                 │
 │ │└───────┘│         │         │         │                                    │
 │ └─────────┴─────────┴─────────┴─────────┘                                    │
 │                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-- Todo column splits into **Normal missions** and **Fallback templates** (collapsible). Fallback items are reusable placeholders; selecting one opens a pre-filled Mission Modal, creates a mission in Todo, and leaves the template in place to fill idle agent time when no Ready missions exist.
+- Todo column splits into **Normal missions** and **Chore templates** (collapsible). Chore items are reusable placeholders; selecting one opens a pre-filled Mission Modal, creates a mission in Todo, and leaves the template in place to fill idle agent time when no Ready missions exist.
+- Chore cards show a "next eligible" timer (minimum wait) and a rotation weight pill so agents understand how chores will cycle when multiple templates are available.
 - Doing, Review, Done columns follow traditional Kanban. Drag/drop updates `mission.list`.
 - Ready toggle appears on every mission card footer (Todo/Doing) with the same styling as Mission Modal.
 
@@ -198,7 +199,7 @@ Mission Modal replaces the “Mission Room”. Content is identical to the origi
 │ Workstations                                             [Register Workstation] │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 🟢 Delta (macOS)  •  Agents: Claude Code  •  Active Missions: 1             │
-│ Ready to accept fallback templates when backlog is empty.                   │
+│ Ready to accept chore templates when backlog is empty.                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ 🟡 Echo (Linux)   •  Agents: Cursor       •  Active Missions: 0             │
 │ Recommend toggling Ready on queued missions to keep agents busy.           │
@@ -280,13 +281,13 @@ Mission Modal replaces the “Mission Room”. Content is identical to the origi
 - Uses shadcn/ui Kanban with DnD for horizontal scroll; cards stack vertically within each column.
 - Ready toggle sits at bottom of each card with large tap target.
 - Mission Modal becomes full-screen sheet on mobile.
-- Todo column preserves Normal vs Fallback accordion sections (default closed for Fallback).
+- Todo column preserves Normal vs Chore accordion sections (default closed for Chore).
 - PR review experiences link out to GitHub but show status chips on cards.
 
 ## States & Feedback
 - **Ready toggle:** consistent component across card footers and modal; label clarifies effect on AI eligibility.
-- **Fallback templates:** remain even after mission creation; show last-used timestamp to indicate freshness.
-- **Errors:** Inline banners and toasts with retry; fallback failure links to template edit.
+- **Chore templates:** remain even after mission creation; show last-generated timestamp plus next-eligible timer to indicate freshness.
+- **Errors:** Inline banners and toasts with retry; chore failure links to template edit.
 - **Notifications:** Severity badges (⚠️, ✅) align with Monster Theme colors.
 
 ## Theme

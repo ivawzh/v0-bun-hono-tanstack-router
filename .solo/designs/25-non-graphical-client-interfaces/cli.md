@@ -1,20 +1,20 @@
 # CLI Interface Design
 
 ## Overview
-Solo Unicorn CLI is a Bun-compiled single binary that keeps humans in the loop for workstation operations, mission execution, and Mission Fallback management. It mirrors the web experience with mobile-first language, smart defaults, and actionable guidance.
+Solo Unicorn CLI is a Bun-compiled single binary that keeps humans in the loop for workstation operations, mission execution, and Chore management. It mirrors the web experience with mobile-first language, smart defaults, and actionable guidance.
 
 ## Experience Principles
 - Plain-language feedback with next steps and undo hints
 - Smart context inference (org/project/workstation) while always stating assumptions
 - Safety nets: dry runs, confirmations, resumable operations, offline queue
 - Observability: emoji-rich TTY output plus JSON for scripting
-- Fallback-first mindset: keep Todo backlog healthy without loop missions
+- Chore-first mindset: keep Todo backlog healthy without loop missions while rotating work fairly
 
 ## Architecture
 ```
 Solo Unicorn Server ─HTTP /api────────▶ CLI commands
-                   ◀──WS push───────── Monster Realtime (presence, mission/fallback events)
-CLI daemon ───────▶ Background telemetry + mission supervision + fallback alerts
+                   ◀──WS push───────── Monster Realtime (presence, mission/chore events)
+CLI daemon ───────▶ Background telemetry + mission supervision + chore alerts
 CLI ─────────────▶ Local code agents, Git, dev servers, OS notifications
 ```
 - **Daemon mode (`workstation daemon`)** maintains realtime connection, supervises missions, watches backlog thresholds, and emits desktop notifications.
@@ -40,7 +40,7 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 - `solo-unicorn project status [--json]`
 
 ### Missions
-- `solo-unicorn mission list [--project PROJECT_ID] [--filter REVIEW|DOING|READY|FALLBACK] [--json]`
+- `solo-unicorn mission list [--project PROJECT_ID] [--filter REVIEW|DOING|READY|CHORE] [--json]`
 - `solo-unicorn mission accept MISSION_ID [--worktree WORKTREE]`
 - `solo-unicorn mission show MISSION_ID [--log --json]`
 - `solo-unicorn mission ready MISSION_ID [--note TEXT]`
@@ -48,13 +48,13 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 - `solo-unicorn mission complete MISSION_ID [--summary FILE|--stdin]`
 - `solo-unicorn mission retry MISSION_ID [--reason TEXT]`
 
-### Mission Fallback
-- `solo-unicorn fallback status [--json]` — show backlog threshold, last run, accepted/discarded counts
-- `solo-unicorn fallback run [--project PROJECT_ID] [--accept-all|--dry-run]` — trigger generation immediately
-- `solo-unicorn fallback approve RUN_ID [MISSION_ID...] [--all]` — accept generated missions
-- `solo-unicorn fallback discard RUN_ID [MISSION_ID...] [--note TEXT]`
-- `solo-unicorn fallback templates list|enable|disable|edit` — manage templates (opens editor or uses flags)
-- `solo-unicorn fallback config` — open configuration in `$EDITOR`, validates before saving
+### Chore
+- `solo-unicorn chore status [--json]` — show backlog threshold, last run, accepted/discarded counts, minimum wait timer, rotation balance
+- `solo-unicorn chore run [--project PROJECT_ID] [--accept-all|--force|--dry-run]` — trigger generation immediately (respecting wait timers unless `--force`)
+- `solo-unicorn chore approve RUN_ID [MISSION_ID...] [--all]` — accept generated missions
+- `solo-unicorn chore discard RUN_ID [MISSION_ID...] [--note TEXT]`
+- `solo-unicorn chore templates list|enable|disable|edit|weight|cooldown` — manage templates (opens editor or uses flags)
+- `solo-unicorn chore config` — open configuration in `$EDITOR`, validates before saving (`minimumWaitMinutes`, rotation defaults)
 
 ### Repositories & Worktrees
 - `solo-unicorn repo add GITHUB_URL [--path PATH] [--default-branch main]`
@@ -72,7 +72,7 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 ### Notifications & Inbox
 - `solo-unicorn notifications pull [--json] [--since TIMESTAMP]`
 - `solo-unicorn notifications read NOTIFICATION_ID...`
-- `solo-unicorn notifications watch` — streams realtime events, including fallback runs
+- `solo-unicorn notifications watch` — streams realtime events, including chore runs
 
 ### Access Requests
 - `solo-unicorn access request PROJECT_ID --role contributor|collaborator [--message TEXT]`
@@ -91,22 +91,21 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 - `solo-unicorn version`
 - `solo-unicorn completion install|uninstall`
 
-## Output Patterns
-- **TTY:** Tables with Monster Theme emojis (🟢 online, 🟡 idle, 🔴 offline, 🧪 review, 🏭 fallback). Progress bars show clone/generation status.
-- **JSON:** Structured as `{ context, data, meta }` for scripting. Fallback runs include `missions[]` with status `proposed|accepted|discarded`.
+- **TTY:** Tables with Monster Theme emojis (🟢 online, 🟡 idle, 🔴 offline, 🧪 review, 🧹 chore). Progress bars show clone/generation status plus wait timers.
+- **JSON:** Structured as `{ context, data, meta }` for scripting. Chore runs include `missions[]` with status `proposed|accepted|discarded` and `nextEligibleAt` timestamps.
 - **Quiet (-q):** Silence on success, errors only.
 
 ## Background Daemon
 - Autostarts after `register` (unless `--no-daemon`).
-- Monitors Todo count; when below threshold, triggers Mission Fallback run (subject to project config) and notifies via desktop + CLI.
-- Persists mission queue and fallback proposals under `~/.solo-unicorn/state.json` with journaling for offline replay.
+- Monitors Todo count; when below threshold and wait timers satisfied, triggers Chore run (subject to project config) and notifies via desktop + CLI.
+- Persists mission queue and chore proposals under `~/.solo-unicorn/state.json` with journaling for offline replay.
 - Sends heartbeats every 15s; backs off when offline and surfaces local notifications.
 
 ## Realtime Contracts
 - `workstation:{id}` → presence, mission assignment, tunnel updates.
 - `mission:{id}` → timeline updates, review actions.
-- `user:{id}:notifications` → inbox events, including fallback run results.
-- `project:{id}:fallback` → mission fallback status, run summaries.
+- `user:{id}:notifications` → inbox events, including chore run results.
+- `project:{id}:chore` → chore status, run summaries.
 
 ## Offline Queue & Retry
 - Mutative commands append to `~/.solo-unicorn/offline-queue.jsonl` when disconnected.
@@ -116,10 +115,10 @@ CLI ─────────────▶ Local code agents, Git, dev serve
 ## Configuration Files
 - `~/.solo-unicorn/config.json` — global prefs.
 - `~/.solo-unicorn/code-agents.json` — agent registry.
-- `~/.solo-unicorn/settings.d/{project-id}.json` — per-project overrides (workspace path, concurrency, fallback defaults).
+- `~/.solo-unicorn/settings.d/{project-id}.json` — per-project overrides (workspace path, concurrency, chore defaults).
 - `.solo-unicorn/settings.json` inside repo for hints (optional).
 
-Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-polish.json`):
+Chore template sample (`~/.solo-unicorn/templates/chore/landing-polish.json`):
 ```json
 {
   "id": "tmpl_landing_polish",
@@ -130,14 +129,16 @@ Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-po
   "estimatedEffortMinutes": 45,
   "priority": 2,
   "description": "Refine hero headline and CTA to match current campaign.",
-  "acceptance": "Preview includes before/after diff and fallback copy."
+  "rotationWeight": 2,
+  "cooldownMinutes": 60,
+  "acceptance": "Preview includes before/after diff and chore copy."
 }
 ```
 
 ## Error Handling & Guidance
 - Errors show `What happened`, `Why it matters`, `Try this next`, docs link.
 - Exit codes follow POSIX conventions.
-- `--debug` prints stack trace + HTTP trace id; `mission` and `fallback` commands include correlation ids for support.
+- `--debug` prints stack trace + HTTP trace id; `mission` and `chore` commands include correlation ids for support.
 
 ## Installation & Distribution
 - npm/bun global install, signed installer script, Homebrew, Scoop, GitHub releases, container image.
@@ -151,9 +152,9 @@ Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-po
 
 ## Future Hooks
 - Plugin system placeholder (`solo-unicorn plugin ...`) behind feature flag.
-- Mission Fallback scoring engine improvements (accept/discard feedback loops) planned post-beta.
+- Chore scoring engine improvements (accept/discard feedback loops, smarter rotation heuristics) planned post-beta.
 
 ## Support & Documentation
 - `solo-unicorn help <command>` includes examples referencing web flows.
-- `solo-unicorn doc open mission-fallback` opens docs on backlog automation.
-- `doctor` command exports shareable Markdown summary with mission + fallback diagnostics.
+- `solo-unicorn doc open chore` opens docs on backlog automation.
+- `doctor` command exports shareable Markdown summary with mission + chore diagnostics.

@@ -17,7 +17,7 @@ Deliver a mission-first development companion where humans feel in control, AI a
 - Keep workstation setup under five minutes with guided guardrails
 - Support flexible change management (YOLO or PR) without configuration fatigue
 - Enable secure public discovery with clear permission messaging and low-friction access requests
-- Maintain a healthy mission backlog using the Mission Fallback so AI capacity is always productive
+- Maintain a healthy mission backlog using the Chore service so AI capacity is always productive
 
 ## Features
 
@@ -207,7 +207,7 @@ Keep UI and CLI live with push-only updates while falling back gracefully when o
 #### Goals
 - Presence updates for workstations, missions, notifications
 - Assignment events with idempotent payloads
-- Offline fallback with 15s polling and stale markers
+- Offline degrade with 15s polling and stale markers
 
 #### Solution
 Monster Realtime handles push events; watchers degrade to HTTP polls when disconnected while surfacing offline badges in UI.
@@ -530,26 +530,27 @@ Public request form posts to access request service; maintainers act via notific
 
 ---
 
-### FEAT-021 - Mission Fallback
+### FEAT-021 - Chore
 - **ID:** FEAT-021
-- **Name:** Mission Fallback
+- **Name:** Chore
 - **Status:** Draft (Beta)
 
 #### Intent
-Automatically generate ready-to-start missions when the Todo backlog is empty, and surface those templates inside the Todo "Fallback" area so agents stay productive without manual prep.
+Automatically generate ready-to-start missions when the Todo backlog is empty, and surface those templates inside the Todo "Chore" area so agents stay productive without manual prep while rotating through available chores.
 
 #### Goals
 - Configurable triggers (Todo count, cadence, manual run)
 - Template gallery defining intent, effort, flow, actor, repository
 - Approval workflow to accept/discard generated missions
-- Analytics on fallback output (accepted vs discarded, time saved)
+- Analytics on chore output (accepted vs discarded, time saved)
+- Rotation guardrails so a single chore template never starves others (minimum wait window, per-template ratio weighting)
 
 #### Non-Goals
 - Blindly auto-accepting missions without human opt-in (unless explicitly toggled)
 - Generating missions without predefined templates in MVP
 
 #### Solution
-Mission Fallback service evaluates backlog thresholds and monthly budget. When conditions met, it creates mission proposals using templates and posts them to both the approval queue and the Todo Fallback area. Users can accept via web modal or CLI, or launch directly from the Fallback panel. Accepted missions land in Todo with `Fallback` badge while the template remains available for next time.
+Chore service evaluates backlog thresholds, per-project chore configuration (enabled flag, default cadence), and monthly budget. When conditions are met, it creates mission proposals using templates and posts them to both the approval queue and the Todo Chore area. Selection favors templates that have waited the longest while respecting configured ratio weights so chores rotate fairly. Users can accept via web modal or CLI, or launch directly from the Chore panel. Accepted missions land in Todo with `Chore` badge while the template remains available for next time.
 
 #### User Flow Links
 - [Kanban Board Layout](./20-gui/web.md#kanban-board-layout)
@@ -557,28 +558,28 @@ Mission Fallback service evaluates backlog thresholds and monthly budget. When c
 - [Mission Creation Modal](./20-gui/web.md#mission-creation-modal)
 
 #### Transport Flow Links
-- HTTP: GET /api/v1/projects/{projectId}/mission-fallback/config
-- HTTP: PATCH /api/v1/projects/{projectId}/mission-fallback/config
-- HTTP: POST /api/v1/projects/{projectId}/mission-fallback/run
-- Event: mission-fallback.generated
+- HTTP: GET /api/v1/projects/{projectId}/chores/config
+- HTTP: PATCH /api/v1/projects/{projectId}/chores/config
+- HTTP: POST /api/v1/projects/{projectId}/chores/run
+- Event: chore.generated
 
 #### Risks & Mitigations
-- Fallback templates spamming irrelevant missions → Template quality review + discard feedback loop
+- Chore templates spamming irrelevant missions → Template quality review + discard feedback loop
 - Budget overspend → Guardrail fields (max missions/week, monthly hour targets) enforced server-side
 
 ---
 
 ## Design Notes
-- Board columns now fixed to Todo, Doing, Review, Done. Loop missions removed; the Todo Fallback panel keeps reusable templates powered by Mission Fallback.
-- Mission Fallback produces missions tagged with origin metadata for transparency and leaves templates visible in Fallback after execution.
+- Board columns now fixed to Todo, Doing, Review, Done. Loop missions removed; the Todo Chore panel keeps reusable templates powered by the Chore service.
+- Chore runs produce missions tagged with origin metadata for transparency and leave templates visible in the Chore panel after execution.
 - All mission creation surfaces are modals centered on screen (mobile sheets) for focus, matching the Mission Modal experience in the board design.
 - Ready toggle component stays visually consistent on cards, modals, and mobile layouts.
-- Notifications and CLI commands expose mission fallback activity for parity across interfaces.
+- Notifications and CLI commands expose chore activity for parity across interfaces.
 
 ## Acceptance Criteria
 - Mission creation to mission completion remains traceable within Mission Room timeline without leaving the page.
 - Workstation onboarding from CTA to healthy online state averages <5 minutes with checklist guidance.
-- Mission Fallback keeps Todo backlog ≥ configured threshold 90% of active hours or surfaces actionable alerts when budget guardrails prevent generation; Fallback always offers templates when backlog is empty.
+- Chore service keeps Todo backlog ≥ configured threshold 90% of active hours or surfaces actionable alerts when budget guardrails prevent generation; the Chore panel always offers templates when backlog is empty.
 - Access requests receive response (auto or manual) within SLA surfaced to requester and maintainer.
 - Notifications stay consistent across web and CLI, with unread counts matching and quiet hours respected.
 - Global search results respond in <200ms median with zero dead links.
