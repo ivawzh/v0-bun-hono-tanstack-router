@@ -1,5 +1,10 @@
 # Codebase Convention Design
 
+## Mission Workflow
+- Missions live in `.solo/missions/*.mission.md`. Treat each as the authoritative brief for scope, tasks, tests, and file targets.
+- Track active work in `.solo/missions/current-state.md`: update **Active mission**, jot blockers in the log, and summarise the agreed scope after finishing Kickoff Step 4.
+- If there is any design change, ./solo/designs/ documentations must be updated before commits land; mission requirements call for Mermaid diagrams when visualising flows.
+
 ## Repo Structure
 ```plaintext
 solo-unicorn/
@@ -47,6 +52,11 @@ solo-unicorn/
 - Prefer named exports and direct imports; avoid barrels to keep tree-shaking predictable
 - Tests and docs update alongside code; PR checklist enforces spec-to-implementation parity
 - Every development step starts with an opt-in MSW API mock; UI must expose a "Mock API" toggle stored in `localStorage` so teammates can switch between real and mocked endpoints
+
+## Testing Guidance
+- Default to Bun test runner for unit/integration tests across server, web, and CLI.
+- Run `bun typecheck` after structural changes; mission tasks typically specify additional suites.
+- Prior to handoff or completion, annotate the mission log with test evidence (commands run, outcomes).
 
 ## Tech Stack
 | Category | Technology | Version | Purpose | Notes |

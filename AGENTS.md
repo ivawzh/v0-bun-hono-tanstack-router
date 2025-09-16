@@ -89,142 +89,6 @@ alwaysApply: true
 - Ensure newcomers can understand the system without learning numerous abstraction concepts
 <!-- /source: .ai/rules/shared/rules/js-rules.mdc -->
 
-<!-- source: .ai/rules/shared/rules/mission-rules.mdc priority=0 -->
----
-description: Basic guidline for all AI missions
-globs: *.mission.md
-alwaysApply: false
----
-# AI Mission Guidelines
-
-## Overview
-
-AI Mission is a core component in this agentic workflow framework, analogous to sprints in Agile methodologies but without size constraints. Each mission focuses on a single work unit, allowing for horizontal slicing of complex tasks.
-
-## Mission Structure
-
-- Mission files use the `.mission.md` extension
-- Each mission should focus on a single element or functional unit
-- Missions are horizontally sliced for focus. Ignore time/effort estimates and constraints.
-- Each mission contains multiple tasks, with each task representing one story point
-
-### Example Mission Slicing
-
-1-jbhifi-search-planning
-2-jbhifi-search-fetch-search-hits
-3-jbhifi-search-transform-to-items
-4-jbhifi-search-scoring
-5-jbhifi-search-save-to-db
-
-### Task Format
-
-Tasks are recorded and updated in mission file.
-
-Example:
-
-```md
-## Tasks
-
-- [x] Task 1: [title] 
-  - Description: [description]
-  - Log: [to-be-summarised]
-- [ ] Task 2: [title]
-  - Description: [description]
-  - Acceptance Criteria: [acceptance criteria]
-  - Outcome: [outcome]
-  - Log: [to-be-summarised]
-```
-
-## AI Agent Responsibilities
-
-### Task Management
-
-- Tasks should be executed one by one
-- Add, update, reorder, and cancel tasks as needed
-- Mark cancelled tasks as complete with `[cancelled]` tag and explain the reason
-- Prioritize tasks based on dependencies, importance, and complexity. Low-hanging fruits first.
-- Keep tasks small, focused, and achievable in a single sitting
-- Write tasks with clear, concise language and specific outcomes
-- Include acceptance criteria when needed
-- User may manually add tasks with the `[new]` tag
-- AI agent may ask questions and raise challenge when pick up the `[new]` tasks
-  
-#### Task Completion
-
-After working on each task, AI agent should:
-
-1. Update mission file, tick task checkbox, i.e. change from `- [ ]` to `- [x]` to mark completion
-2. Update the completed task's log
-3. Update documentations in `/notes/` and maybe `/wiki/docs` but only when necessary according to Documentation Rules.
-
-### Log
-
-- Maintain a summarized log for each task including:
-  - Work completed
-  - Significant insights (assumptions, challenges, decisions, rationales, solutions, compromises, tech debt)
-  - Only log key insights when significant, not when workflows are smooth or obvious
-
-### Execution
-
-- Execute all tasks until completion except when need to pause for user input like the first three tasks.
-- When blocked:
-  - Log the blocker/challenge, attempts, and rationales
-  - Suggest potential workarounds and alternative approaches
-  - Ask the user for help, offering options to:
-    - Manually fix the blocker
-    - Approve the workaround
-    - Pivot to a different approach
-    - Skip to the next task
-
-### Mission Completion
-
-When all tasks are completed and the user requests to "Conclude a mission", add a "Mission Review and Retrospective" section above the "Tasks" section that:
-
-1. Summarizes work done, compromises, lessons learned, challenges, solutions, and tech debt
-2. Suggests ideas for the next mission
-3. Lists both workflow and implementation retrospective points (good, bad, questions, improvement ideas)
-
-## Kickoff
-
-- Always start a mission with the kickoff steps. 
-- Create Kickoff files at `[path-of-current-mission]/kickoffs/<mission-number>-<mission-name>.kickoff.md`.
-- Pause and ask for user feedback in each kickoff step. 
-- DO NOT jump to the next kickoff step until user provided feedback and prompt to continue. 
-- Like tasks, tick checkbox to mark kickoff step complete after each step.
-
-Kickoff steps:
-
-- [ ] Step 1: "Clarify the Mission Goal"
-   1. List questions in the Kickoff file to clarify the mission (context, scope, constraints, priorities)
-   2. Pause and ask user to answer the questions
-   3. User will provide feedback and then prompt to continue. 
-   4. Update mission goal in mission file based on feedback
-
-- [ ] Step 2: "Are we doing the right thing?"
-   1. Consider blind spots in business and technical aspects. Challenge the mission goal. List them in the Kickoff file.
-   2. Pause and ask user to confirm and provide feedback
-   3. User will provide feedback and then prompt to continue. 
-   4. Update mission goal in mission file based on feedback
-
-- [ ] Step 3: "List and rank solution options"
-   1. List and rank potential solutions in Kickoff file
-   2. Pause and ask user to select an option
-   3. User will provide feedback and then prompt to continue. 
-   4. Update mission goal in mission file
-   4. Draft tasks based on feedback
-
-- [ ] Step 4: "Specification"
-   1. List behaviour specifications of happy path, unhappy path, edge cases in Kickoff file
-   2. Pause and ask user to confirm and provide feedback
-   3. User will provide feedback and then prompt to continue. 
-   4. Update mission goal in mission file
-   5. Update tasks based on feedback
-
-## Version Control
-
-- start the mission with checking and setting git branch to: `mission-<mission-number>-<mission-name>`
-<!-- /source: .ai/rules/shared/rules/mission-rules.mdc -->
-
 <!-- source: .ai/rules/shared/rules/principles.mdc priority=0 -->
 ---
 description: Core principles
@@ -1933,6 +1797,11 @@ Standard response:
 <!-- source: .solo/designs/50-codebase.md priority=0 -->
 # Codebase Convention Design
 
+## Mission Workflow
+- Missions live in `.solo/missions/*.mission.md`. Treat each as the authoritative brief for scope, tasks, tests, and file targets.
+- Track active work in `.solo/missions/current-state.md`: update **Active mission**, jot blockers in the log, and summarise the agreed scope after finishing Kickoff Step 4.
+- If there is any design change, ./solo/designs/ documentations must be updated before commits land; mission requirements call for Mermaid diagrams when visualising flows.
+
 ## Repo Structure
 ```plaintext
 solo-unicorn/
@@ -1980,6 +1849,11 @@ solo-unicorn/
 - Prefer named exports and direct imports; avoid barrels to keep tree-shaking predictable
 - Tests and docs update alongside code; PR checklist enforces spec-to-implementation parity
 - Every development step starts with an opt-in MSW API mock; UI must expose a "Mock API" toggle stored in `localStorage` so teammates can switch between real and mocked endpoints
+
+## Testing Guidance
+- Default to Bun test runner for unit/integration tests across server, web, and CLI.
+- Run `bun typecheck` after structural changes; mission tasks typically specify additional suites.
+- Prior to handoff or completion, annotate the mission log with test evidence (commands run, outcomes).
 
 ## Tech Stack
 | Category | Technology | Version | Purpose | Notes |
