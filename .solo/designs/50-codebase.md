@@ -70,6 +70,25 @@ solo-unicorn/
 | Auth | Monster Auth | latest | OAuth + token issuance | Cookie + PAT support |
 | Styling | TailwindCSS v4 + shadcn/ui | latest | UI theming | Install via MCP tooling |
 
+## Environment Variables
+- Never read from `process.env.*` or `import.meta.env.*` in application code. Every runtime must funnel through `apps/<appname>/env.ts#getEnv` so values stay typed, validated, and stage-aware in one place.
+- `.env` files are **development only**; they seed `getEnv('development' | 'test')`. Production-like stages (`alpha`, `production`) fetch configuration from provisioned infrastructure bindings instead.
+- When new configuration is needed, extend the appropriate `getEnv` return value and validation guardrails in that file. Document intent inline so the contract remains obvious to teammates.
+- Example usage:
+
+```ts
+// apps/server/src/lib/monster-auth.ts
+import { getEnv } from '../../env'
+
+const env = getEnv(process.env.SST_STAGE)
+
+export function createAuthClient() {
+  return new MonsterAuthClient({
+    baseUrl: env.monsterAuthUrl,
+  })
+}
+```
+
 ## Commands & Tools
 - Install deps — `bun install`
 - Start all apps — `bun dev`
