@@ -2,7 +2,7 @@
 
 ## Mission Workflow
 - Missions live in `.solo/missions/*.mission.md`. Treat each as the authoritative brief for scope, tasks, tests, and file targets.
-- Track active work in `.solo/missions/current-state.md`: update **Active mission**, jot blockers in the log, and summarise the agreed scope after finishing Kickoff Step 4.
+- Track active work in `.solo/missions/current-state.md`: update **Active mission**.
 - If there is any design change, ./solo/designs/ documentations must be updated before commits land; mission requirements call for Mermaid diagrams when visualising flows.
 
 ## Repo Structure

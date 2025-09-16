@@ -1799,7 +1799,7 @@ Standard response:
 
 ## Mission Workflow
 - Missions live in `.solo/missions/*.mission.md`. Treat each as the authoritative brief for scope, tasks, tests, and file targets.
-- Track active work in `.solo/missions/current-state.md`: update **Active mission**, jot blockers in the log, and summarise the agreed scope after finishing Kickoff Step 4.
+- Track active work in `.solo/missions/current-state.md`: update **Active mission**.
 - If there is any design change, ./solo/designs/ documentations must be updated before commits land; mission requirements call for Mermaid diagrams when visualising flows.
 
 ## Repo Structure
@@ -1866,6 +1866,25 @@ solo-unicorn/
 | Realtime | Monster Realtime | latest | Presence & mission events | Push-only, offline fallback |
 | Auth | Monster Auth | latest | OAuth + token issuance | Cookie + PAT support |
 | Styling | TailwindCSS v4 + shadcn/ui | latest | UI theming | Install via MCP tooling |
+
+## Environment Variables
+- Never read from `process.env.*` or `import.meta.env.*` in application code. Every runtime must funnel through `apps/<appname>/env.ts#getEnv` so values stay typed, validated, and stage-aware in one place.
+- `.env` files are **development only**; they seed `getEnv('development' | 'test')`. Production-like stages (`alpha`, `production`) fetch configuration from provisioned infrastructure bindings instead.
+- When new configuration is needed, extend the appropriate `getEnv` return value and validation guardrails in that file. Document intent inline so the contract remains obvious to teammates.
+- Example usage:
+
+```ts
+// apps/server/src/lib/monster-auth.ts
+import { getEnv } from '../../env'
+
+const env = getEnv(process.env.SST_STAGE)
+
+export function createAuthClient() {
+  return new MonsterAuthClient({
+    baseUrl: env.monsterAuthUrl,
+  })
+}
+```
 
 ## Commands & Tools
 - Install deps — `bun install`
