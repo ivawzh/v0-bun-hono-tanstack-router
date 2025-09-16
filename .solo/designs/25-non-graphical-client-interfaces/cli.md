@@ -1,211 +1,159 @@
 # CLI Interface Design
 
 ## Overview
+Solo Unicorn CLI is a Bun-compiled single binary that keeps humans in the loop for workstation operations, mission execution, and Mission Fallback management. It mirrors the web experience with mobile-first language, smart defaults, and actionable guidance.
 
-Solo Unicorn CLI is a Bun-compiled single-file tool that registers a workstation, connects to Monster Realtime, manages repositories and git worktrees, and coordinates AI code agents locally. It consumes versioned HTTP APIs (/api) and receives push events via realtime channels.
+## Experience Principles
+- Plain-language feedback with next steps and undo hints
+- Smart context inference (org/project/workstation) while always stating assumptions
+- Safety nets: dry runs, confirmations, resumable operations, offline queue
+- Observability: emoji-rich TTY output plus JSON for scripting
+- Fallback-first mindset: keep Todo backlog healthy without loop missions
 
 ## Architecture
-
 ```
-Solo Unicorn Server ──HTTP /api──▶ CLI (Workstation)
-                      ◀─WS push─── Monster Realtime
-CLI ⇄ Local Agents (Claude Code, Cursor...)
-CLI ⇄ Git (clone, worktrees)
-CLI ⇄ Dev server (optional) ⇄ Tunnel proxy
+Solo Unicorn Server ─HTTP /api────────▶ CLI commands
+                   ◀──WS push───────── Monster Realtime (presence, mission/fallback events)
+CLI daemon ───────▶ Background telemetry + mission supervision + fallback alerts
+CLI ─────────────▶ Local code agents, Git, dev servers, OS notifications
 ```
+- **Daemon mode (`workstation daemon`)** maintains realtime connection, supervises missions, watches backlog thresholds, and emits desktop notifications.
+- Foreground commands talk to daemon via local IPC for fast status and queue updates.
 
-Key integrations:
-- Monster Auth (PAT/org key); OS keychain for secret storage
-- Monster Realtime (presence + mission push)
-- Git worktrees (auto-managed pools)
-- Optional dev server + Cloudflare Tunnel proxy (MVP)
+## Command System
 
-## Commands (MVP)
-
-Authentication
+### Authentication
 - `solo-unicorn auth login [--web|--api-key KEY|--org-key KEY] [--org ORG]`
-- `solo-unicorn auth logout`
-- `solo-unicorn auth whoami`
+- `solo-unicorn auth logout [--all]`
+- `solo-unicorn auth whoami [--json]`
 
-Workstation lifecycle (aliases: start/stop/status/restart)
+### Workstations
 - `solo-unicorn workstation register [--name NAME] [--force]`
-- `solo-unicorn workstation start [--background]`
-- `solo-unicorn workstation stop [--force]`
-- `solo-unicorn workstation status [--json]`
-- `solo-unicorn workstation restart`
+- `solo-unicorn workstation daemon [--foreground] [--log-level LEVEL]`
+- `solo-unicorn workstation status [--json] [--watch]`
+- `solo-unicorn workstation pause|resume [--reason TEXT]`
+- `solo-unicorn workstation diagnostics`
 
-Repositories (GitHub linking)
-- `solo-unicorn repo add GITHUB_URL [--path PATH]`
-- `solo-unicorn repo list`
-- `solo-unicorn repo remove REPO_ID`
+### Projects & Context
+- `solo-unicorn project list [--org ORG]`
+- `solo-unicorn project switch PROJECT_ID`
+- `solo-unicorn project status [--json]`
 
-Configuration
-- `solo-unicorn config get [KEY]`
-- `solo-unicorn config set KEY VALUE`
-- `solo-unicorn config list`
-- `solo-unicorn config reset [KEY]`
+### Missions
+- `solo-unicorn mission list [--project PROJECT_ID] [--filter REVIEW|DOING|READY|FALLBACK] [--json]`
+- `solo-unicorn mission accept MISSION_ID [--worktree WORKTREE]`
+- `solo-unicorn mission show MISSION_ID [--log --json]`
+- `solo-unicorn mission ready MISSION_ID [--note TEXT]`
+- `solo-unicorn mission handoff MISSION_ID [--workstation WS_ID]`
+- `solo-unicorn mission complete MISSION_ID [--summary FILE|--stdin]`
+- `solo-unicorn mission retry MISSION_ID [--reason TEXT]`
 
-Agents
-- `solo-unicorn agent scan`
-- `solo-unicorn agent list`
-- `solo-unicorn agent add TYPE [--version VERSION]`
+### Mission Fallback
+- `solo-unicorn fallback status [--json]` — show backlog threshold, last run, accepted/discarded counts
+- `solo-unicorn fallback run [--project PROJECT_ID] [--accept-all|--dry-run]` — trigger generation immediately
+- `solo-unicorn fallback approve RUN_ID [MISSION_ID...] [--all]` — accept generated missions
+- `solo-unicorn fallback discard RUN_ID [MISSION_ID...] [--note TEXT]`
+- `solo-unicorn fallback templates list|enable|disable|edit` — manage templates (opens editor or uses flags)
+- `solo-unicorn fallback config` — open configuration in `$EDITOR`, validates before saving
 
-Dev Server & Tunnel (post-MVP friendly; MVP supports tunnel)
-- `solo-unicorn dev-server start [--port PORT] [--project PROJECT_ID]`
-- `solo-unicorn dev-server stop|status`
-- `solo-unicorn tunnel open [--target-port PORT] [--project PROJECT_ID]`
-- `solo-unicorn tunnel close|status`
+### Repositories & Worktrees
+- `solo-unicorn repo add GITHUB_URL [--path PATH] [--default-branch main]`
+- `solo-unicorn repo list [--json]`
+- `solo-unicorn repo remove REPO_ID [--preserve-clone]`
+- `solo-unicorn worktree list [--repo REPO_ID]`
+- `solo-unicorn worktree clean [--repo REPO_ID] [--days N]`
 
-Self-management
-- `solo-unicorn self update|version`
+### Agents
+- `solo-unicorn agent scan [--include PATH]`
+- `solo-unicorn agent list [--json]`
+- `solo-unicorn agent add TYPE [--version VERSION] [--config FILE]`
+- `solo-unicorn agent check TYPE`
 
-## Realtime Integration
+### Notifications & Inbox
+- `solo-unicorn notifications pull [--json] [--since TIMESTAMP]`
+- `solo-unicorn notifications read NOTIFICATION_ID...`
+- `solo-unicorn notifications watch` — streams realtime events, including fallback runs
 
-Channels
-- `workstation:{workstation_id}` (presence + mission:assign)
-- `project:{project_id}:workstations`
-- `mission:{mission_id}`
+### Access Requests
+- `solo-unicorn access request PROJECT_ID --role contributor|collaborator [--message TEXT]`
+- `solo-unicorn access list [--project PROJECT_ID] [--json]`
+- `solo-unicorn access approve REQUEST_ID [--note TEXT]`
+- `solo-unicorn access decline REQUEST_ID [--note TEXT]`
 
-Presence payload (example)
-```json
-{
-  "status": "online",
-  "availableCodeAgents": ["claude-code", "cursor"],
-  "activeProjects": ["proj_123"],
-  "devServerPort": 3000,
-  "currentMissionCount": 1,
-  "maxConcurrency": 2
-}
-```
+### Diagnostics & Support
+- `solo-unicorn doctor`
+- `solo-unicorn bugreport [--mission MISSION_ID]`
+- `solo-unicorn update [--channel stable|beta|nightly]`
 
-Status surfaces (summary)
-- Auth state (user/org, token freshness)
-- Realtime connection (gateway, channels, latency)
-- Repositories and worktrees (paths, branches, cloning status)
-- Code agents (type, version, availability, health)
-- Dev server (local URL, public tunnel URL)
-- Active missions (id, repo/branch, agent)
+### Configuration & Self
+- `solo-unicorn config get|set|list|reset`
+- `solo-unicorn config edit`
+- `solo-unicorn version`
+- `solo-unicorn completion install|uninstall`
 
-## Repository & Worktree Management
+## Output Patterns
+- **TTY:** Tables with Monster Theme emojis (🟢 online, 🟡 idle, 🔴 offline, 🧪 review, 🏭 fallback). Progress bars show clone/generation status.
+- **JSON:** Structured as `{ context, data, meta }` for scripting. Fallback runs include `missions[]` with status `proposed|accepted|discarded`.
+- **Quiet (-q):** Silence on success, errors only.
 
-Identifier
-- `repository_id` = GitHub numeric repo ID (BIGINT); optional `additionalRepositoryIds[]`
+## Background Daemon
+- Autostarts after `register` (unless `--no-daemon`).
+- Monitors Todo count; when below threshold, triggers Mission Fallback run (subject to project config) and notifies via desktop + CLI.
+- Persists mission queue and fallback proposals under `~/.solo-unicorn/state.json` with journaling for offline replay.
+- Sends heartbeats every 15s; backs off when offline and surfaces local notifications.
 
-Flow
-1) Clone to workspace root on first use
-2) On first mission/branch: auto-create worktree at `repo-branch` path
-3) Reuse existing worktrees when possible; keep a small vacant pool
-4) Cleanup unused worktrees after 7+ days (keep ≥1 vacant)
+## Realtime Contracts
+- `workstation:{id}` → presence, mission assignment, tunnel updates.
+- `mission:{id}` → timeline updates, review actions.
+- `user:{id}:notifications` → inbox events, including fallback run results.
+- `project:{id}:fallback` → mission fallback status, run summaries.
 
-Pool policy
-- Max worktrees per repo = `maxConcurrencyLimit + 3`
-- Reuse same-branch worktree when available
-
-## Dev Server & Public Tunneling
-
-MVP choice: Cloudflare Tunnel (cloudflared). Server proxies via channel path:
-`https://channel.solounicorn.lol/workstation/{ws}/project/{proj}`
-
-Tunnel message shapes
-```ts
-type TunnelRequest = { type: 'http:request', requestId: string, method: string, path: string, headers: Record<string,string>, body?: string }
-type TunnelResponse = { type: 'http:response', requestId: string, status: number, headers: Record<string,string>, body?: string }
-```
-
-Use cases
-- Live preview, remote QA, demos, debugging
+## Offline Queue & Retry
+- Mutative commands append to `~/.solo-unicorn/offline-queue.jsonl` when disconnected.
+- Daemon replays with exponential backoff and tags output `⚡ replayed at 12:04`.
+- Conflicts prompt diff: user chooses remote, local, or abort.
 
 ## Configuration Files
+- `~/.solo-unicorn/config.json` — global prefs.
+- `~/.solo-unicorn/code-agents.json` — agent registry.
+- `~/.solo-unicorn/settings.d/{project-id}.json` — per-project overrides (workspace path, concurrency, fallback defaults).
+- `.solo-unicorn/settings.json` inside repo for hints (optional).
 
-Main config: `~/.solo-unicorn/config.json`
+Mission Fallback template sample (`~/.solo-unicorn/templates/fallback/landing-polish.json`):
 ```json
 {
-  "version": "1",
-  "workstation": { "id": "ws_...", "name": "MacBook-Pro" },
-  "auth": { "organizationId": "org_...", "email": "user@org.com", "personalAccessToken": "encrypted" },
-  "realtime": { "gatewayUrl": "wss://...", "timeout": 30000 },
-  "server": { "apiUrl": "https://api...", "tunnelUrl": "https://channel..." },
-  "workspace": { "rootPath": "~/workspace", "defaultBranch": "main" },
-  "devServer": { "enabled": true, "defaultPort": 3000, "publicTunneling": true },
-  "repositories": [
-    { "id": "repo_123", "githubUrl": "https://github.com/user/repo", "mainPath": "~/repos/repo", "worktrees": [] }
-  ]
+  "id": "tmpl_landing_polish",
+  "name": "Polish landing hero copy",
+  "flowId": "flow_copy_polish",
+  "actorId": "actor_storyteller",
+  "repositoryId": "repo_web",
+  "estimatedEffortMinutes": 45,
+  "priority": 2,
+  "description": "Refine hero headline and CTA to match current campaign.",
+  "acceptance": "Preview includes before/after diff and fallback copy."
 }
 ```
 
-Agent config: `~/.solo-unicorn/code-agents.json`
-```json
-{
-  "version": "1",
-  "workstationId": "ws_...",
-  "codeAgents": {
-    "codeagent_claude_001": {
-      "id": "codeagent_claude_001", "type": "claude-code", "name": "Claude Code",
-      "customSettings": { "claudeCode": { "configDir": "~/.claude", "defaultModel": "claude-3.5-sonnet" } },
-      "enabled": true, "healthStatus": "healthy"
-    }
-  },
-  "settings": { "autoUpdateCodeAgentStatus": true, "healthCheckInterval": 300 }
-}
-```
-
-## Errors & UX
-
-Patterns
-- Clear actionable errors with next steps
-- Progress bars for long operations (clone)
-- Status dashboards for workstation/agents/repos
-
-Examples
-- Not logged in → prompt to run `auth login`
-- Branch not found → suggest creating or picking an existing branch
-- Realtime failure → verify auth, check tunnel, retry
+## Error Handling & Guidance
+- Errors show `What happened`, `Why it matters`, `Try this next`, docs link.
+- Exit codes follow POSIX conventions.
+- `--debug` prints stack trace + HTTP trace id; `mission` and `fallback` commands include correlation ids for support.
 
 ## Installation & Distribution
+- npm/bun global install, signed installer script, Homebrew, Scoop, GitHub releases, container image.
+- Ed25519 signatures validated post-install; CLI warns if binary outdated per `/api/v1/meta/status`.
 
-Methods
-- npm/bun global install
-- Direct binary install script
-- Homebrew (macOS), Scoop (Windows), Snap (Linux)
+## Cross-Platform Notes
+- Windows: Task Scheduler integration for daemon, Credential Manager for secrets.
+- macOS: LaunchAgent plist generator, Keychain storage, Notification Center hooks.
+- Linux: systemd unit generator, libsecret support, DBus notifications.
+- Containers: `--container` flag disables desktop integrations, logs to STDOUT.
 
-Cross-platform
-- Windows: PowerShell; Windows Service for background
-- macOS: Keychain; launchd integration; notarized binaries
-- Linux: systemd; distro packages; AppImage; container support
+## Future Hooks
+- Plugin system placeholder (`solo-unicorn plugin ...`) behind feature flag.
+- Mission Fallback scoring engine improvements (accept/discard feedback loops) planned post-beta.
 
-## PR Support
-
-Modes
-- YOLO: direct push to default branch
-- PR Mode: auto-branch and PR, review cycles; merge strategies; auto-delete branch
-
-Agent integration
-- Read PR comments via `gh`; implement changes; respond if needed
-
-## Future Enhancements
-
-- Multi-agent orchestration per mission
-- Mission templates
-- Remote development (VS Code server)
-- Team workstation pools
-- CI/CD integration (GitHub Actions)
-- Metrics & analytics
-- Plugin system
-- Loop mission scheduling
-
-## Security & Best Practices
-
-Token management
-- Store access/refresh tokens in OS keychain
-- Automatic refresh and rotation; handle server-initiated refresh via realtime
-- Scope validation; revoke and cleanup on logout
-
-Network security
-- TLS only; validate certificates (pinning where supported)
-- Corporate proxy detection and configuration support
-- Respect API rate limits with backoff
-
-Repository security
-- SSH key management guidance; proper file permissions
-- Isolate agent execution where feasible
-- Audit logging for filesystem operations (where applicable)
+## Support & Documentation
+- `solo-unicorn help <command>` includes examples referencing web flows.
+- `solo-unicorn doc open mission-fallback` opens docs on backlog automation.
+- `doctor` command exports shareable Markdown summary with mission + fallback diagnostics.

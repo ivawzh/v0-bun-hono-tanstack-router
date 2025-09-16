@@ -1,410 +1,584 @@
 # Features Design
 
 ## Problems
-- Hard to coordinate AI coding across repos and machines
-- Need optional PR control without slowing iteration
-- Real-time visibility into missions and agents is lacking
-- Public collaboration needs granular permissions
-- Cross-interface consistency between Web, CLI, MCP is hard
+- AI missions feel opaque and hard to monitor
+- Workstation setup requires confusing manual steps
+- Reviews stall missions without timely nudges
+- Public collaborators lack clarity on permissions
+- Mission backlog dries up when Todo empties, wasting AI capacity
 
 ## Overview
 
 ### Vision
-Build a modern, type-safe AI development system where humans define intent and flows, code agents execute work on user-controlled workstations, and teams collaborate via optional PR review and public projects.
+Deliver a mission-first development companion where humans feel in control, AI agents stay transparent, and collaboration across web, CLI, and public surfaces feels consistent and friendly from day one.
 
 ### Product Goals
-- Mission-centric workflow with flow-first creation and review gates
-- Optional PR-based change control and fast YOLO mode
-- Workstation-first execution with presence and push assignments
-- Public projects with permission-aware UX and APIs
-- One truth for operations via MCP tools + versioned /api
+- Make mission progress legible with live context and actionable nudges
+- Keep workstation setup under five minutes with guided guardrails
+- Support flexible change management (YOLO or PR) without configuration fatigue
+- Enable secure public discovery with clear permission messaging and low-friction access requests
+- Maintain a healthy mission backlog using the Mission Fallback so AI capacity is always productive
 
 ## Features
 
 ### FEAT-001 - Authentication & Authorization
-- ID: FEAT-001
-- Name: Authentication & Authorization
-- Status: Shipped (MVP scope)
+- **ID:** FEAT-001
+- **Name:** Authentication & Authorization
+- **Status:** Draft (MVP)
 
 #### Intent
-Securely authenticate users via Monster Auth and authorize actions by org/project roles without duplicating identity tables.
+Authenticate through Monster Auth and authorize by org/project roles so every surface knows who the user is and what they can do.
 
 #### Goals
-- Support Google OAuth and email/password via Monster Auth
-- Support PATs (pat_...) and org keys (org_key_...) for CLI/MCP
-- Org-based multi-tenancy and roles: owner, admin, member
-- Canonical identity by email; no custom auth table
-- Token refresh incl. server-initiated via realtime signal
+- Support Google OAuth and password flows via Monster Auth
+- Provide PAT/org keys for CLI and MCP usage
+- Keep cookie-based /rpc sessions with CSRF protection
+- Expose role-based context to UI and CLI responses
 
 #### Non-Goals
-- Custom identity providers beyond Monster Auth (MVP)
-- Fine-grained SQL permission logic as source of truth
+- Support non-Monster Auth providers in MVP
+- Manage passwords or MFA locally
 
 #### Solution
-Use Monster Auth for identity, app-layer TypeScript for authz, secure cookies for web (/rpc), and Authorization headers for /api and MCP.
+Monster Auth handles identity; server issues HTTP-only cookies for web and scoped PAT/org keys for CLI/MCP. A context resolver injects org/project roles into every request, and UI surfaces assumed context clearly.
 
 #### User Flow Links
-- [UF-AUTH-001](./20-gui/web.md#uf-auth-001---authentication-flow)
+- [UF-LAUNCH-001](./20-gui/web.md#uf-launch-001---organization-launchpad)
 
 #### Transport Flow Links
-- HTTP: GET /api/oauth/callback (OAuth)
-- HTTP: /api/v1/... with PAT/org key for CLI/MCP
-
-#### Design Notes
-- Email is canonical identity; multiple providers allowed if same email
-- CORS allowlist and CSRF for cookie APIs
-- Rate limiting on public endpoints
+- HTTP: GET /api/oauth/callback
+- HTTP: POST /api/v1/auth/pat
 
 #### Risks & Mitigations
-- Token leaks → OS keychain storage + short-lived tokens
-- Email change at IdP → out-of-band migration process
+- Token leak → PAT stored in OS keychain with scoped expiry and revoke endpoint
 
 ---
 
 ### FEAT-002 - Workstation Management
-- ID: FEAT-002
-- Name: Workstation Management
-- Status: Shipped (MVP scope)
+- **ID:** FEAT-002
+- **Name:** Workstation Management
+- **Status:** Draft (MVP)
 
 #### Intent
-User-owned machines register as workstations that host agents, receive missions via push, and report presence/health.
+Let humans register, monitor, and pause workstations quickly so agents run where expected.
 
 #### Goals
-- Register/start/stop/status via CLI
-- Presence via Monster Realtime; channel per workstation
-- Cross-platform (Windows/macOS/Linux)
-- Background/daemon mode support
-- Health and diagnostics visibility
+- Guided workstation onboarding wizard with real-time status
+- Daemon supervision with diagnostics and pause/resume controls
+- Cross-platform auto-start helpers (launchd, systemd, Task Scheduler)
+- Workstation health widgets on Launchpad + CLI parity
 
 #### Non-Goals
-- Server-persisted agent configs (kept client-side)
+- Remote desktop or shell access
 
 #### Solution
-CLI registers workstation, connects to realtime, reports available agents and dev server info; server stores minimal state for orchestration.
+Web wizard pairs with CLI register command; realtime updates drive checklist completion. Workstation console and CLI status share the same `/api/v1/workstations/*` endpoints.
 
 #### User Flow Links
-- [UF-WS-001](./20-gui/web.md#uf-ws-001---workstation-view)
+- [UF-WORKSTATION-ONBOARD-001](./20-gui/web.md#uf-workstation-onboard-001---workstation-onboarding)
 
 #### Transport Flow Links
-- WS: workstation:{id} (presence, mission:assign)
-- HTTP: POST /api/v1/workstations/register
+- HTTP: POST /api/v1/workstations
+- HTTP: POST /api/v1/workstations/{id}/sessions
+- WS: workstation:{id}
 
-#### Design Notes
-- Availability, concurrency, versions reported by presence; not stored as config on server
+#### Risks & Mitigations
+- Daemon crash → watchdog restarts plus `doctor` command bundling logs
 
 ---
 
 ### FEAT-003 - Code Agent Orchestration
-- ID: FEAT-003
-- Name: Code Agent Orchestration
-- Status: Shipped (MVP scope)
+- **ID:** FEAT-003
+- **Name:** Code Agent Orchestration
+- **Status:** Draft (MVP)
 
 #### Intent
-Discover and track code agents on workstations, respecting rate limits and concurrency for mission assignment.
+Discover local agents, track health, and respect concurrency so missions land on capable machines.
 
 #### Goals
-- agent scan/list/add via CLI
-- Track availability and capacity via presence
-- Health checks and rate-limit hints
+- CLI agent scan/add/check commands with friendly prompts
+- Presence payload includes agent type, version, capacity
+- Mission assignment considers agent load and repo compatibility
 
 #### Non-Goals
-- Persist detailed agent configs server-side
+- Persist agent configuration server-side
 
 #### Solution
-Client stores ~/.solo-unicorn/code-agents.json; server maintains static type definitions; orchestration uses presence + minimal DB fields.
+Agents remain in `code-agents.json`; workstation presence publishes metadata consumed by assignment service, Mission Room, and CLI status.
 
 #### Transport Flow Links
-- WS presence meta fields for available agents
-
-#### Design Notes
-- Server-side “type definitions” for agent capabilities
+- WS: workstation:{id} presence payload
+- HTTP: PATCH /api/v1/workstations/{id}
 
 ---
 
-### FEAT-004 - Repository & Git Worktree Management
-- ID: FEAT-004
-- Name: Repositories & Worktrees
-- Status: Shipped (MVP scope)
+### FEAT-004 - Repositories & Worktrees
+- **ID:** FEAT-004
+- **Name:** Repositories & Worktrees
+- **Status:** Draft (MVP)
 
 #### Intent
-Enable parallel development through git worktrees managed by the CLI, with stable repo identification.
+Keep git operations predictable with managed clones and worktree pools per mission.
 
 #### Goals
-- Repository add/list/remove via CLI
-- Auto-create worktrees per mission/branch on first use
-- Stable identifier: GitHub numeric repository ID (BIGINT)
-- Optional additionalRepositoryIds
+- Repository linking via GitHub ID with validation
+- Auto-create worktrees on mission accept; reuse when idle
+- CLI clean-up with preview; server visibility of worktree state
 
 #### Non-Goals
-- User-facing worktree commands in MVP
+- Supporting non-git VCS in MVP
 
 #### Solution
-CLI manages cloning and worktree pools in the workspace; server references repos by GitHub repo ID and links to projects.
-
-#### Design Notes
-- Worktree pool policy: reuse, keep vacant, cleanup after inactivity
-
----
-
-### FEAT-005 - Mission Management & Flow
-- ID: FEAT-005
-- Name: Missions & Flows
-- Status: Shipped (MVP scope)
-
-#### Intent
-Mission-centric workflow with flow-first creation; stages drive prompting; optional human review and dependencies.
-
-#### Goals
-- Columns: Todo, Doing, Review, Done; special Loop list
-- Default stages: clarify → plan → code; custom stages allowed
-- Flow-first creation with stage toggles and review flags
-- Dependencies, priority, list order (DnD)
-- Solution & tasks persisted hybrid (FS+DB)
-
-#### Non-Goals
-- Complex task append/reorder via MCP in MVP
-
-#### Solution
-Kanban UI + MissionModal tabs; DB fields for stage/flow/review; FS docs for solution and per-task notes in mission folder.
-
-#### User Flow Links
-- [UF-MISSION-001](./20-gui/web.md#uf-mission-001---mission-creation-flow)
-- [UF-MISSION-002](./20-gui/web.md#uf-mission-002---mission-execution-flow)
-
-#### Design Notes
-- Review column shows PR status when PR mode
-- Ready flag gates assignment
-
----
-
-### FEAT-006 - Change Management: PR Mode and YOLO
-- ID: FEAT-006
-- Name: Change Management (PR/YOLO)
-- Status: Shipped (MVP scope)
-
-#### Intent
-Let projects choose between direct commits for speed or PR-based flows for control, with AI reading PR comments.
-
-#### Goals
-- Optional PR mode per-project and per-mission override
-- Auto-branch naming and PR creation in Review stage
-- Read PR comments via gh CLI; iterate on changes
-- YOLO mode for early-stage projects
-
-#### Non-Goals
-- Full in-app PR comment UI in MVP
-
-#### Solution
-If PR mode, create PR and surface status in UI; if rejection in app, prompt agent to read PR comments and iterate.
-
-#### User Flow Links
-- [UF-PR-001](./20-gui/web.md#uf-pr-001---pr-mode-workflow)
+CLI manages clones/worktrees; server stores repo metadata and receives worktree telemetry for dashboards and conflicts prevention.
 
 #### Transport Flow Links
-- HTTP: GitHub REST via agent tools; no incoming webhooks required
-
-#### Design Notes
-- Merge strategies supported (merge/squash/rebase)
-- Auto-delete branches post-merge (configurable)
+- HTTP: POST /api/v1/projects/{projectId}/repositories
+- HTTP: POST /api/v1/workstations/{id}/worktrees/sync
 
 ---
 
-### FEAT-007 - Real-time Communication
-- ID: FEAT-007
-- Name: Realtime Presence & Push
-- Status: Shipped (MVP scope)
+### FEAT-005 - Missions & Flows
+- **ID:** FEAT-005
+- **Name:** Missions & Flows
+- **Status:** Draft (MVP)
 
 #### Intent
-Use Monster Realtime for push-only presence and events; never for request/response RPC.
+Create missions with flow-first configuration, provide live mission rooms, and keep agents aligned with human intent.
 
 #### Goals
-- Presence updates with available agents and activity
-- Mission assignment push to workstations
-- Project-wide workstation channels
+- Flow templates with stage toggles and review flags
+- Mission Room with live transcript, diff preview, and Ready guardrails
+- Dependencies and priority management without "Loop" list (all missions complete in Done)
 
-#### Transport Flow Links
-- WS channels: workstation:{id}, project:{id}:workstations, mission:{id}
+#### Non-Goals
+- Dragging tasks between missions in MVP
 
-#### Design Notes
-- Web consumes push for status; all operations remain HTTP
-
----
-
-### FEAT-008 - Project & Organization Management
-- ID: FEAT-008
-- Name: Projects & Orgs
-- Status: Shipped (MVP scope)
-
-#### Intent
-Support multiple projects per org with member roles, project memory, and configuration defaults.
-
-#### Goals
-- Project creation/settings; org membership and roles
-- Project memory; default flows/actors
-- Workstation association to projects
+#### Solution
+Mission creation modal highlights flow preview and prerequisites. Mission Room unifies status, transcripts, flow editing, and PR view. Board lists remain Todo → Doing → Review → Done for simple mental model.
 
 #### User Flow Links
-- [SR-PROJECTS](./20-gui/web.md#information-architecture)
+- [UF-MISSION-CREATE-001](./20-gui/web.md#uf-mission-create-001---mission-creation)
+- [UF-MISSION-EXECUTE-001](./20-gui/web.md#uf-mission-execute-001---mission-execution)
+
+#### Transport Flow Links
+- HTTP: POST /api/v1/projects/{projectId}/missions
+- HTTP: PATCH /api/v1/missions/{id}
+- Event: mission.updated
+
+---
+
+### FEAT-006 - Change Management (PR & YOLO)
+- **ID:** FEAT-006
+- **Name:** Change Management (PR/YOLO)
+- **Status:** Draft (MVP)
+
+#### Intent
+Let teams choose YOLO or PR mode per mission with effortless review handling.
+
+#### Goals
+- Per-project default change policy with per-mission override
+- Auto-branching, PR creation, and status syncing
+- Inline diff preview even for YOLO missions
+
+#### Non-Goals
+- Hosting PR comments natively in MVP
+
+#### Solution
+When review required, mission entering Review triggers PR creation via GitHub. UI surfaces PR state, comments digest, and approval controls; YOLO missions get diff summary + confirm commit CTA.
+
+#### User Flow Links
+- [UF-MISSION-REVIEW-001](./20-gui/web.md#uf-mission-review-001---mission-review--iteration)
+
+#### Transport Flow Links
+- HTTP: POST /api/v1/missions/{id}/pull-request
+- HTTP: POST /api/v1/missions/{id}/review
+- Event: mission.review.requested
+
+---
+
+### FEAT-007 - Realtime Presence & Push
+- **ID:** FEAT-007
+- **Name:** Realtime Presence & Push
+- **Status:** Draft (MVP)
+
+#### Intent
+Keep UI and CLI live with push-only updates while falling back gracefully when offline.
+
+#### Goals
+- Presence updates for workstations, missions, notifications
+- Assignment events with idempotent payloads
+- Offline fallback with 15s polling and stale markers
+
+#### Solution
+Monster Realtime handles push events; watchers degrade to HTTP polls when disconnected while surfacing offline badges in UI.
+
+#### Transport Flow Links
+- WS: workstation:{id}
+- Event: mission.assign
+- Event: notification.created
+
+---
+
+### FEAT-008 - Projects & Organizations
+- **ID:** FEAT-008
+- **Name:** Projects & Organizations
+- **Status:** Draft (MVP)
+
+#### Intent
+Structure work by org and project with defaults for flows, actors, repositories, and team roles.
+
+#### Goals
+- Org Launchpad with health snapshot and quick actions
+- Project workspace with board, mission room, workstations, library, PR center
+- Project defaults for flow/actor/PR policy and workstation priority
+
+#### Non-Goals
+- Cross-org shared projects in MVP
+
+#### Solution
+Launchpad surfaces org summary, recents, and alerts. Projects expose tabbed workspace. Settings manage defaults and invites with guardrails.
+
+#### User Flow Links
+- [UF-LAUNCH-001](./20-gui/web.md#uf-launch-001---organization-launchpad)
+- [UF-ACCESS-REQUEST-001](./20-gui/web.md#uf-access-request-001---access-request--approval)
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/organizations/{id}
+- HTTP: POST /api/v1/projects
 
 ---
 
 ### FEAT-009 - Configuration Management
-- ID: FEAT-009
-- Name: Configuration Management
-- Status: Shipped (MVP scope)
+- **ID:** FEAT-009
+- **Name:** Configuration Management
+- **Status:** Draft (MVP)
 
 #### Intent
-Provide secure, typed configuration for CLI and per-project settings.
+Keep configuration typed, discoverable, and safe across CLI and server.
 
 #### Goals
-- CLI config in ~/.solo-unicorn/config.json
-- Secure token storage via OS keychain
-- Typed env via apps/*/env.ts (no process.env direct)
+- `apps/*/env.ts` typed access; no direct `process.env`
+- CLI config editing with validation and backup
+- Config diff hints when CLI/server versions mismatch
+
+#### Solution
+Config service validates schema on load, surfaces context in CLI and Mission Room. Version negotiation endpoint shares supported ranges.
 
 #### Transport Flow Links
-- CLI commands: config get/set/list/reset
+- HTTP: GET /api/v1/meta/features
 
 ---
 
-### FEAT-010 - Flow Review System
-- ID: FEAT-010
-- Name: Flow Reviews
-- Status: Shipped (MVP scope)
+### FEAT-010 - Flow Reviews
+- **ID:** FEAT-010
+- **Name:** Flow Reviews
+- **Status:** Draft (MVP)
 
 #### Intent
-Allow stages to require human review and provide a Review list with approve/reject and feedback.
+Deliver review queue with approve/reject workflows, shortcuts, and rationale capture.
 
 #### Goals
-- Per-stage review flags
-- Review column, approve/reject with feedback
-- Review history metadata (who/when/feedback)
+- Review column with keyboard shortcuts
+- Review history metadata with who/when/feedback
+- Quick assign reviewer plus optional auto-assign policies
+
+#### Solution
+Mission Room review tab surfaces diffs, comment digest, and required checklist before approval.
+
+#### User Flow Links
+- [UF-MISSION-REVIEW-001](./20-gui/web.md#uf-mission-review-001---mission-review--iteration)
 
 #### Transport Flow Links
-- MCP tool: request_review (agent-triggered)
+- HTTP: POST /api/v1/missions/{id}/review
+- Event: mission.review.decision
 
 ---
 
-### FEAT-011 - Solution & Tasks Document Management
-- ID: FEAT-011
-- Name: Solution & Tasks Docs
-- Status: Shipped (MVP scope)
+### FEAT-011 - Solution & Tasks Docs
+- **ID:** FEAT-011
+- **Name:** Solution & Tasks Docs
+- **Status:** Draft (MVP)
 
 #### Intent
-Persist rich solution write-ups and per-task notes on filesystem with DB progress tracking.
+Persist mission reasoning and task lists on filesystem with DB sync so humans and agents share context.
 
 #### Goals
-- FS: solo-unicorn-docs/missions/{id}/solution.md and tasks/{n}.md
-- DB: solution TEXT, tasks JSON, tasks_current INT
-- Cross-session context and version history via git
+- `solution.md` + `tasks/{n}.md` stored per mission
+- DB fields track progress, sync status, and last editor
+- CLI and GUI open docs with correct path hints
 
-#### Design Notes
-- Tasks fit a single agent session to avoid context bloat
-
----
-
-### FEAT-012 - Public Projects & Access Control
-- ID: FEAT-012
-- Name: Public Projects & ACL
-- Status: Shipped (MVP scope)
-
-#### Intent
-Enable public viewing and contribution with granular, role-based controls and workstation privacy settings.
-
-#### Goals
-- Visibility: private by default; opt-in public
-- Roles: Public, Contributor, Collaborator, Maintainer, Owner
-- Controls: mission read/write, workstation visibility, execution permissions, memory access
-- Access requests with approval workflow
+#### Solution
+FS watcher records updates, CLI surfaces path in mission show, Mission Room preview renders Markdown.
 
 #### Transport Flow Links
-- HTTP: /api/v1/public/* endpoints
-
-#### Design Notes
-- Permission checks in app layer; responses permission-aware and cacheable
- - Permission matrix (summary):
-   - Read Missions: Public (conditional), Contributor+, Maintainer, Owner
-   - Write Missions: Contributor*+, Collaborator+, Maintainer, Owner
-   - Read Project Memory/Repository: Public (conditional) and above
-   - View Workstations: Hidden | Status Only | Full Details (setting-based)
-   - Execute Missions: Maintainer*, Owner
-   - Manage Repositories/Permissions/Settings: Maintainer/Owner or Owner-only
- - Inheritance and overrides:
-   - Role defaults with per-user overrides; org owners override within org; explicit user permissions can override role
+- HTTP: POST /api/v1/missions/{id}/documents/sync
 
 ---
 
-### FEAT-013 - Public Project Discovery & Community
-- ID: FEAT-013
-- Name: Discovery & Community
-- Status: Shipped (MVP scope)
+### FEAT-012 - Public Projects & ACL
+- **ID:** FEAT-012
+- **Name:** Public Projects & ACL
+- **Status:** Draft (MVP)
 
 #### Intent
-Provide gallery, categories/tags, featured projects, metrics, and social actions (stars, follows) for public projects.
+Expose public projects safely, clarify what visitors can see, and respect workstation privacy.
 
 #### Goals
-- Search/filter/sort gallery with pagination
-- Templates library and one-click create-from-template
-- Metrics and activity feeds; stars and follows
+- Permission-aware sections (missions, docs, repositories, workstations)
+- Public slug + SEO-friendly metadata
+- Workstation visibility levels (hidden, status only, full)
+
+#### Solution
+Public project detail uses access matrix to toggle sections. Access requests tie into notifications and approvals.
+
+#### User Flow Links
+- [UF-PUBLIC-001](./20-gui/web.md#uf-public-001---public-project-discovery)
+- [UF-ACCESS-REQUEST-001](./20-gui/web.md#uf-access-request-001---access-request--approval)
 
 #### Transport Flow Links
-- HTTP: GET /api/v1/public/projects, .../search, .../{slug}
+- HTTP: GET /api/v1/public/projects
+- HTTP: GET /api/v1/public/projects/{slug}
+- HTTP: POST /api/v1/public/projects/{slug}/access-requests
 
 ---
 
-### FEAT-014 - Public API Design & Security
-- ID: FEAT-014
-- Name: Public API & Security
-- Status: Shipped (MVP scope)
+### FEAT-013 - Discovery & Community
+- **ID:** FEAT-013
+- **Name:** Discovery & Community
+- **Status:** Draft (Beta)
 
 #### Intent
-Offer stable, versioned public endpoints with CORS, rate limits, and caching for high-traffic content.
+Encourage exploration via gallery, categories, templates, stars, and highlight activity trends.
 
 #### Goals
-- URL versioning (/api/v1)
-- Rate limits with headers and burst (anon 100/hr/IP; auth 1000/hr; contributor+ 5000/hr)
-- CORS and CSRF handling (public endpoints permissive origin; credentials supported)
-- CDN caching and conditional requests (ETag/If-Modified-Since; smart invalidation; Vary headers)
-- OpenAPI + interactive docs
+- Search, filters, categories, trending insights
+- Template usage CTA with shareable link
+- Activity feed summarizing stars, mission completions, contributors
 
-#### Design Notes
-- Permission-aware responses with Vary headers as needed
- - Response headers may include effective role when authenticated
- - Graceful degradation: anonymous gets reduced, non-error responses
+#### Solution
+Gallery page reads from discovery endpoints with caching; cards highlight permission state, achievements, and CTA buttons.
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/public/projects/search
+- HTTP: GET /api/v1/public/categories
 
 ---
 
-### FEAT-015 - Development Server & Public Tunneling
-- ID: FEAT-015
-- Name: Dev Server & Tunneling
-- Status: Shipped (MVP scope)
+### FEAT-014 - Public API & Security
+- **ID:** FEAT-014
+- **Name:** Public API & Security
+- **Status:** Draft (MVP)
 
 #### Intent
-Expose local dev servers for preview via secure proxy/tunnel.
+Provide stable versioned API for CLI, MCP, and third parties with guardrails and observability.
 
 #### Goals
-- CLI dev-server start/stop/status
-- Public tunnel via Cloudflare Tunnel (MVP)
-- Channel-based proxy path per workstation/project
+- `/api/v1` versioning with deprecation headers
+- Rate limits by role (anon/auth/contributor)
+- OpenAPI docs plus schema endpoint
+- Structured error payloads with trace ids
 
-#### Design Notes
-- Cost-effective choice for MVP; no performance objectives
+#### Solution
+Hono server exposes API format routes via oRPC; middleware handles auth, rate limits, logging, caching.
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/public/system-schema
+- HTTP: GET /api/v1/meta/status
 
 ---
 
-### FEAT-016 - Flow Templates & Prompt Strategy
-- ID: FEAT-016
-- Name: Flow Templates & Prompts
-- Status: Shipped (MVP scope)
+### FEAT-015 - Dev Server & Public Tunneling
+- **ID:** FEAT-015
+- **Name:** Dev Server & Public Tunneling
+- **Status:** Draft (MVP)
 
 #### Intent
-Treat flows/stages/prompts as versioned artifacts; allow static templates in MVP.
+Let teams share local previews securely with minimal configuration.
 
 #### Goals
-- Versioned flow/stage templates with semantic versions
-- Static prompt templates in MVP; dynamic prompt fetch post-MVP
+- CLI dev-server start/stop/status commands
+- Cloudflare Tunnel integration with TTL tokens
+- UI surfaces public URL with expiration indicator
 
-#### Design Notes
-- Future: dynamic POST to client-hosted prompt endpoint. Example (post-MVP):
-  - POST https://client-company.com/custom-prompt
-  - Body: { mission: { id, title, description, tasks, solution }, stage, flow, workstation, repositoryId, additionalRepositoryIds, codeAgent }
-  - Returns: { prompt: string }
+#### Solution
+Daemon manages tunnel lifecycle; Mission Room surfaces preview link and revocation control.
+
+#### Transport Flow Links
+- HTTP: POST /api/v1/workstations/{id}/tunnels
+- WS: workstation:{id} tunnel events
+
+---
+
+### FEAT-016 - Flow Templates & Prompts
+- **ID:** FEAT-016
+- **Name:** Flow Templates & Prompts
+- **Status:** Draft (Beta)
+
+#### Intent
+Version flow templates and prompts to keep missions consistent while enabling customization.
+
+#### Goals
+- Versioned flow library (semantic versions)
+- Prompt preview with quick edit and rollout plan
+- Export/import templates for org sharing
+
+#### Solution
+Templates stored in DB with JSON schema; Mission creation references them, CLI can pull updates.
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/projects/{projectId}/flows
+- HTTP: POST /api/v1/projects/{projectId}/flows
+
+---
+
+### FEAT-017 - Unified Notifications
+- **ID:** FEAT-017
+- **Name:** Unified Notifications
+- **Status:** Draft (Beta)
+
+#### Intent
+Consolidate mission, workstation, and community events across web and CLI with snooze controls.
+
+#### Goals
+- Real-time toasts + inbox with filters and quiet hours
+- CLI notifications pull/watch commands
+- Weekly digest email option
+
+#### Solution
+Notification service writes to DB, emits realtime event, and surfaces restful endpoints for inbox, read receipts, and preferences.
+
+#### User Flow Links
+- [UF-NOTIFY-001](./20-gui/web.md#uf-notify-001---notification-inbox)
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/notifications
+- HTTP: POST /api/v1/notifications/{id}/read
+- Event: notification.created
+
+---
+
+### FEAT-018 - Global Search & Command
+- **ID:** FEAT-018
+- **Name:** Global Search & Command
+- **Status:** Draft (Beta)
+
+#### Intent
+Give users a lightning-fast command palette to navigate and act without context switching.
+
+#### Goals
+- <200ms initial results with keyboard-first navigation
+- Search across missions, projects, documentation, commands
+- CLI parity via `mission`, `project`, `doc` open commands
+
+#### Solution
+Search service indexes DB tables and mission docs; command palette fetches suggestion bundles and executes actions via restful endpoints.
+
+#### User Flow Links
+- [UF-SEARCH-001](./20-gui/web.md#uf-search-001---global-search--command-palette)
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/search?q=
+- HTTP: POST /api/v1/commands/execute
+
+---
+
+### FEAT-019 - Observability & Auditing
+- **ID:** FEAT-019
+- **Name:** Observability & Auditing
+- **Status:** Draft (Beta)
+
+#### Intent
+Surface mission health, workstation uptime, and audit trails that humans can trust.
+
+#### Goals
+- Launchpad and Project dashboards with SLA and uptime charts
+- Mission timeline events stored with diff, actor, agent, reviewer
+- Audit logs for sensitive actions with retention policy
+
+#### Solution
+Mission events table drives dashboards; analytics endpoints feed UI cards and CLI doctor command.
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/projects/{projectId}/metrics
+- HTTP: GET /api/v1/audit-events
+
+---
+
+### FEAT-020 - Access Requests & Approvals
+- **ID:** FEAT-020
+- **Name:** Access Requests & Approvals
+- **Status:** Draft (MVP)
+
+#### Intent
+Allow visitors to request contributor roles and give maintainers a tidy approval workflow.
+
+#### Goals
+- Friendly request form with expectations and SLA estimate
+- Maintainer approvals from inbox or CLI
+- Timeline updates for requester with status changes
+
+#### Solution
+Public request form posts to access request service; maintainers act via notifications or CLI; mission timeline logs outcomes.
+
+#### User Flow Links
+- [UF-ACCESS-REQUEST-001](./20-gui/web.md#uf-access-request-001---access-request--approval)
+
+#### Transport Flow Links
+- HTTP: POST /api/v1/public/projects/{slug}/access-requests
+- HTTP: POST /api/v1/access-requests/{id}/decision
+- Event: access-request.updated
+
+---
+
+### FEAT-021 - Mission Fallback
+- **ID:** FEAT-021
+- **Name:** Mission Fallback
+- **Status:** Draft (Beta)
+
+#### Intent
+Automatically generate ready-to-start missions when the Todo backlog is empty, and surface those templates inside the Todo "Fallback" area so agents stay productive without manual prep.
+
+#### Goals
+- Configurable triggers (Todo count, cadence, manual run)
+- Template gallery defining intent, effort, flow, actor, repository
+- Approval workflow to accept/discard generated missions
+- Analytics on fallback output (accepted vs discarded, time saved)
+
+#### Non-Goals
+- Blindly auto-accepting missions without human opt-in (unless explicitly toggled)
+- Generating missions without predefined templates in MVP
+
+#### Solution
+Mission Fallback service evaluates backlog thresholds and monthly budget. When conditions met, it creates mission proposals using templates and posts them to both the approval queue and the Todo Fallback area. Users can accept via web modal or CLI, or launch directly from the Fallback panel. Accepted missions land in Todo with `Fallback` badge while the template remains available for next time.
+
+#### User Flow Links
+- [Kanban Board Layout](./20-gui/web.md#kanban-board-layout)
+- [Mission Modal (Popup)](./20-gui/web.md#mission-modal-popup)
+- [Mission Creation Modal](./20-gui/web.md#mission-creation-modal)
+
+#### Transport Flow Links
+- HTTP: GET /api/v1/projects/{projectId}/mission-fallback/config
+- HTTP: PATCH /api/v1/projects/{projectId}/mission-fallback/config
+- HTTP: POST /api/v1/projects/{projectId}/mission-fallback/run
+- Event: mission-fallback.generated
+
+#### Risks & Mitigations
+- Fallback templates spamming irrelevant missions → Template quality review + discard feedback loop
+- Budget overspend → Guardrail fields (max missions/week, monthly hour targets) enforced server-side
+
+---
+
+## Design Notes
+- Board columns now fixed to Todo, Doing, Review, Done. Loop missions removed; the Todo Fallback panel keeps reusable templates powered by Mission Fallback.
+- Mission Fallback produces missions tagged with origin metadata for transparency and leaves templates visible in Fallback after execution.
+- All mission creation surfaces are modals centered on screen (mobile sheets) for focus, matching the Mission Modal experience in the board design.
+- Ready toggle component stays visually consistent on cards, modals, and mobile layouts.
+- Notifications and CLI commands expose mission fallback activity for parity across interfaces.
+
+## Acceptance Criteria
+- Mission creation to mission completion remains traceable within Mission Room timeline without leaving the page.
+- Workstation onboarding from CTA to healthy online state averages <5 minutes with checklist guidance.
+- Mission Fallback keeps Todo backlog ≥ configured threshold 90% of active hours or surfaces actionable alerts when budget guardrails prevent generation; Fallback always offers templates when backlog is empty.
+- Access requests receive response (auto or manual) within SLA surfaced to requester and maintainer.
+- Notifications stay consistent across web and CLI, with unread counts matching and quiet hours respected.
+- Global search results respond in <200ms median with zero dead links.

@@ -1,16 +1,13 @@
 # System Interface Design
 
 ## High-Level System Overview
+Solo Unicorn server (Bun + Hono) serves:
+- `/rpc` — internal oRPC for web (cookie auth, breakable)
+- `/api/v1` — versioned HTTP for CLI, MCP, third parties
+- Monster Realtime — push-only channels for missions, workstations, notifications, Mission Fallback
+- OAuth callbacks with Monster Auth
 
-### Architecture Context
-Consumers: Web app (/rpc), CLI and AI agents (/api via MCP), public users (public /api), Monster Auth (OAuth callback), Monster Realtime (push). Producers: Server services expose oRPC (/rpc) and versioned HTTP APIs (/api). WebSocket is strictly push-only.
-
-### Boundaries
-- Trust: /rpc for first-party web only (cookie auth, breakable); /api versioned and backward-compatible; MCP tools map to /api and are versioned (mission.v1.*)
-- Deployment: Co-hosted Hono server (Bun) with MCP tools; PostgreSQL DB; Monster Realtime external service
-- Security: Auth via Monster Auth tokens; PAT/org keys via Authorization header; CORS allowlist; CSRF for cookie APIs
-- OpenAPI: /api uses oRPC API-format and emits OpenAPI (Swagger)
- - Repository identification: canonical GitHub numeric repo ID; future providers may use `provider:id` (e.g., `github:123`); MVP supports GitHub only
+Design goals: human-friendly errors, traceable `request_id`, idempotent mutations, and transparency in automation.
 
 ### Architecture Diagram
 ```mermaid
@@ -18,195 +15,209 @@ graph LR
   subgraph Client
     Web[Web App]
     CLI[CLI]
-    Agent[AI Agents (MCP)]
+    MCP[AI Agent]
+    Public[Public Visitor]
   end
 
   subgraph Server["Solo Unicorn Server"]
     RPC[/ /rpc oRPC /]
-    API[/ /api HTTP /]
-    MCP[MCP Tools]
-    Svc[Services]
+    API[/ /api/v1 HTTP /]
+    Services
+    Events[(Event Bus)]
     DB[(PostgreSQL)]
   end
 
-  MR[Monster Realtime]
-  MA[Monster Auth]
-  GH[GitHub]
-
   Web --> RPC
-  RPC --> Svc
-  Svc --> DB
-
-  Agent -- HTTP --> MCP
-  MCP --> API
-  API --> Svc
-
+  RPC --> Services
   CLI --> API
+  MCP --> API
+  Services --> DB
+  Services --> Events
+  Events --> MR[Monster Realtime]
+  MR --> Web
+  MR --> CLI
 
-  Svc -- push --> MR
-  MR -- presence/events --> Web
-  MR -- assignments --> CLI
-
-  Web -- OAuth --> MA
+  Web -- OAuth --> MA[Monster Auth]
   MA -- callback --> API
-
-  Agent -- "gh CLI" --> GH
 ```
 
-## Transport Flows
+### Versioning & Compatibility
+- `/rpc` ships with web; breaking changes acceptable.
+- `/api/v1` stable; additive changes preferred; breaking changes → `/api/v2`.
+- MCP tools map to `/api/v1` namespaces (e.g., `mission.v1.list`).
+- Deprecation via `Sunset`/`Deprecation` headers with ≥90-day notice.
+- `GET /api/v1/meta/status` provides server version, min CLI version, feature flags.
 
-### Web → /rpc
-Pattern: HTTP
-Path/Channel(s): POST /rpc/{method}
-Notes: Internal only; typed; TanStack Query cache keys map to RPC methods
+### Authentication & Context
+- `/rpc`: cookie auth + CSRF token in headers.
+- `/api/v1`: `Authorization: Bearer <pat|org_key>`.
+- Responses include `context` block (organizationId, projectId, workstationId) when relevant.
+- Idempotency: clients send `Idempotency-Key` header for POST/PATCH; server stores 24h dedupe window.
 
-Flow Diagram:
-```mermaid
-sequenceDiagram
-  participant Web as Web (React)
-  participant RPC as /rpc
-  participant S as Services
-  participant DB as PostgreSQL
-  Web->>RPC: call method(args) (cookie auth)
-  RPC->>S: service(method,args)
-  S->>DB: SQL
-  DB-->>S: rows
-  S-->>RPC: result
-  RPC-->>Web: JSON
-```
+## Transport Patterns
+- Web uses `/rpc` with TanStack Query.
+- CLI/MCP use `/api/v1` JSON with cursor pagination (`cursor`, `limit`).
+- Monster Realtime channels:
+  - `workstation:{id}` — presence, mission assignment, tunnel updates
+  - `mission:{id}` — mission timeline, review events
+  - `user:{id}:notifications` — notification inbox updates
+  - `project:{id}:fallback` — mission fallback status and runs
 
-### MCP Agent → MCP Tools → /api
-Pattern: HTTP
-Path/Channel(s): /api/v1/{resource}
-Notes: Tools are versioned (mission.v1.*) and map 1:1 to /api
+## Endpoint Catalog
 
-Flow Diagram:
-```mermaid
-sequenceDiagram
-  participant Agent as MCP Agent
-  participant MCP as MCP Tools
-  participant API as /api
-  participant S as Services
-  Agent->>MCP: tool.invoke(op, args)
-  MCP->>API: HTTP /api/v1/{op}
-  API->>S: service call
-  S-->>API: JSON
-  API-->>MCP: result
-  MCP-->>Agent: tool result
-```
+### Auth & Meta
+- **GET /api/oauth/callback** — set cookies from Monster Auth and redirect.
+- **POST /api/v1/auth/pat** — exchange org key/PAT for token.
+- **DELETE /api/v1/auth/pat** — revoke current token.
+- **GET /api/v1/meta/status** — version info, feature flags, min CLI version.
+- **GET /api/v1/meta/features** — enabled features, limits, guardrails.
 
-### CLI/3P → /api and Realtime push
-Pattern: HTTP + WS push
-Path/Channel(s): /api/v1/*; WS channels workstation:{id}, project:{id}:workstations, mission:{id}
-Notes: PAT/org key auth; push-only WS
+### Organizations & Projects
+- **GET /api/v1/organizations/{organizationId}** — org summary.
+- **GET /api/v1/organizations/{organizationId}/projects** — paginated list.
+- **POST /api/v1/projects** — create project.
+- **GET /api/v1/projects/{projectId}** — workspace summary, defaults, fallback status.
+- **PATCH /api/v1/projects/{projectId}** — update defaults, privacy, featured flags.
+- **POST /api/v1/projects/{projectId}/members** — invite/update member.
+- **DELETE /api/v1/projects/{projectId}/members/{memberId}** — remove member.
+- **GET /api/v1/projects/{projectId}/metrics** — mission throughput, review SLA, fallback stats.
 
-## Endpoints (MVP)
+### Workstations
+- **POST /api/v1/workstations** — register/reregister workstation.
+- **GET /api/v1/workstations/{workstationId}** — workstation profile, agents, sessions.
+- **PATCH /api/v1/workstations/{workstationId}** — pause/resume, labels, concurrency.
+- **POST /api/v1/workstations/{workstationId}/sessions** — start/stop daemon session.
+- **POST /api/v1/workstations/{workstationId}/diagnostics** — upload diagnostics snapshot.
+- **POST /api/v1/workstations/{workstationId}/tunnels** — manage tunnel tokens.
+- **POST /api/v1/workstations/{workstationId}/worktrees/sync** — sync worktree metadata.
 
-### INT-AUTH-001 - OAuth Callback
-- Purpose: Complete Monster Auth flow and set cookies
-- Kind: HTTP
-- Identifier/Path: GET /api/oauth/callback
-- Input Fields: { code, state }
-- Output Fields: redirect
-- Notes: Sets httpOnly cookies for /rpc
+### Repositories
+- **POST /api/v1/projects/{projectId}/repositories** — link GitHub repo.
+- **GET /api/v1/projects/{projectId}/repositories** — list repositories w/ status.
+- **DELETE /api/v1/project-repositories/{repositoryId}** — unlink repository.
 
-### INT-WS-001 - Register Workstation
-- Purpose: Register/re-register workstation
-- Kind: HTTP
-- Identifier/Path: POST /api/v1/workstations/register
-- Input Fields: { name, os, arch, hostname, cliVersion }
-- Output Fields: { workstationId }
-- Notes: Idempotent; safe to run repeatedly
+### Missions
+- **POST /api/v1/projects/{projectId}/missions** — create mission (manual or fallback accept).
+- **GET /api/v1/projects/{projectId}/missions** — list missions (`list`, `actor`, `ready`, `origin` filters). Response includes `fallbackTemplates[]` metadata when the Todo column needs to render the Fallback panel.
+- **GET /api/v1/missions/{missionId}** — detail (timeline, docs, PR info).
+- **PATCH /api/v1/missions/{missionId}** — update stage, ready, actor, description.
+- **POST /api/v1/missions/{missionId}/ready** — toggle ready state with validation.
+- **POST /api/v1/missions/{missionId}/review** — submit review decision.
+- **POST /api/v1/missions/{missionId}/handoff** — reassign to workstation.
+- **POST /api/v1/missions/{missionId}/documents/sync** — update doc metadata.
+- **POST /api/v1/missions/{missionId}/pull-request** — sync PR metadata.
+- **GET /api/v1/missions/{missionId}/events** — timeline pagination.
 
-### INT-MISS-001 - List Missions
-- Purpose: List missions by project
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/projects/{projectId}/missions
-- Input Fields: { filter? }
-- Output Fields: Mission[] (id, title, list, stage, priority, pr info)
+### Mission Fallback
+- **GET /api/v1/projects/{projectId}/mission-fallback/config** — fetch configuration (thresholds, caps, status).
+- **PATCH /api/v1/projects/{projectId}/mission-fallback/config** — update configuration.
+- **GET /api/v1/projects/{projectId}/mission-fallback/templates** — list templates (drives Todo Fallback panel and Mission Fallback modals).
+- **POST /api/v1/projects/{projectId}/mission-fallback/templates** — create template.
+- **PATCH /api/v1/mission-fallback/templates/{templateId}** — update/enable/disable template.
+- **DELETE /api/v1/mission-fallback/templates/{templateId}** — delete template.
+- **POST /api/v1/projects/{projectId}/mission-fallback/run** — trigger manual run; response includes run id and generated items.
+- **GET /api/v1/projects/{projectId}/mission-fallback/runs** — list recent runs.
+- **POST /api/v1/mission-fallback/runs/{runId}/accept** — accept proposed missions (optionally subset).
+- **POST /api/v1/mission-fallback/runs/{runId}/discard** — discard missions with optional feedback.
 
-### INT-MISS-002 - Get Mission
-- Purpose: Fetch mission details
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/missions/{id}
-- Output Fields: Mission
+### Notifications
+- **GET /api/v1/notifications** — list notifications grouped by project/type.
+- **POST /api/v1/notifications/{notificationId}/read** — mark read.
+- **POST /api/v1/notifications/{notificationId}/snooze** — set snooze window.
+- **GET /api/v1/notifications/preferences** — fetch quiet hours, digest settings.
+- **PATCH /api/v1/notifications/preferences** — update preferences.
 
-### INT-MISS-003 - Update Mission
-- Purpose: Update mission fields
-- Kind: HTTP
-- Identifier/Path: PATCH /api/v1/missions/{id}
-- Input Fields: { clarification?, solution?, priority?, list?, stage?, flowId?, tasks?, currentTask?, repositoryId?, prMode? }
-- Output Fields: Mission
+### Access Requests
+- **POST /api/v1/public/projects/{slug}/access-requests** — submit request.
+- **GET /api/v1/projects/{projectId}/access-requests** — list requests.
+- **POST /api/v1/access-requests/{requestId}/decision** — approve/decline.
 
-### INT-PUB-001 - Public Projects (discovery)
-- Purpose: Browse/search public projects
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/public/projects, /api/v1/public/projects/search
-- Input Fields: { q?, filters? }
-- Output Fields: { projects, pagination }
+### Search & Command
+- **GET /api/v1/search** — global search (missions, projects, docs, fallback templates) with `scopes[]` filter.
+- **POST /api/v1/commands/execute** — run server-side command (open mission, pause workstation, run fallback) with idempotency.
 
-### INT-PUB-002 - Public Project Details
-- Purpose: Get public project info
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/public/projects/{slug}
-- Output Fields: { project, missions? }
+### Observability & Audit
+- **GET /api/v1/projects/{projectId}/timeline** — combined activity feed.
+- **GET /api/v1/audit-events** — audit log.
 
-### INT-PUB-003 - Public Categories
-- Purpose: List categories and counts
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/public/categories
-- Output Fields: { categories: Array<{ id, name, count }> }
-
-### INT-PUB-004 - Public Featured Projects
-- Purpose: Get featured projects
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/public/featured
-- Output Fields: { projects }
-
-### INT-PUB-005 - Public Project Missions
-- Purpose: List public missions for a project (permission-aware)
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/public/projects/{slug}/missions
-- Output Fields: Mission[] (filtered by public settings)
-
-### INT-SYS-001 - System Schema
-- Purpose: Machine-readable schema for system (API key auth)
-- Kind: HTTP
-- Identifier/Path: GET /api/v1/public/system-schema
-- Output Fields: { version, resources }
+### Public Discovery
+- **GET /api/v1/public/projects** — featured/trending list.
+- **GET /api/v1/public/projects/search** — search.
+- **GET /api/v1/public/projects/{slug}** — public detail.
+- **GET /api/v1/public/projects/{slug}/missions** — permission-aware missions.
+- **GET /api/v1/public/categories** — category counts.
+- **GET /api/v1/public/system-schema** — schema snapshot.
 
 ## Error Model
+Standard response:
+```json
+{
+  "error": {
+    "code": "MISSION_FALLBACK_GUARDRAIL",
+    "message": "Weekly mission cap reached. Increase cap or wait until Monday.",
+    "details": { "cap": 20, "resetsAt": "2025-02-03T00:00:00Z" },
+    "trace_id": "req_8JA3"
+  }
+}
+```
 
-- HTTP APIs: status code + `{ error: { code: string, message: string, details?: Object } }`
-- MCP tools: `{ error: { code: string, message: string, details?: Object } }`
-
-## Versioning & Compatibility
-
-- /rpc: internal and breakable; no versioning required; changes with web bundle
-- /api: versioned (/api/v1) with backward compatibility requirements
-- MCP tools: versioned namespaces (mission.v1.*) with stable signatures
-- oRPC supports both RPC format (/rpc) and API format (/api) with automatic OpenAPI generation
-- Repository identification: canonical GitHub numeric repo ID; future providers may use `provider:id` format
-
-## Security & Performance
-
-- Rate limiting: 100/hr/IP (anon), 1000/hr (auth), 5000/hr (contributor+)
-- CORS allowlist per environment; public endpoints permissive
-- CDN caching with Vary headers for permission-aware responses
-- Input validation via zod at boundaries; sanitized responses
+### Error Catalog (selected)
+- `AUTH_INVALID_TOKEN`
+- `CONTEXT_PROJECT_REQUIRED`
+- `MISSION_BLOCKED_DEPENDENCY`
+- `MISSION_ALREADY_ASSIGNED`
+- `MISSION_FALLBACK_DISABLED`
+- `MISSION_FALLBACK_GUARDRAIL`
+- `MISSION_FALLBACK_NOTHING_GENERATED`
+- `WORKSTATION_OFFLINE`
+- `ACCESS_REQUIRES_REVIEW`
+- `NOTIFICATION_ALREADY_READ`
+- `RATE_LIMITED`
 
 ## Events
 
-### EVT-WS-001 - presence.update
-- Channel/Topic: workstation:{workstation_id}
-- Producers: CLI (workstation)
-- Consumers: Web, Server services
-- Payload Fields: { status, availableCodeAgents[], activeProjects[], devServerPort?, currentMissionCount, maxConcurrency }
-- Notes: Used for assignment and status indicators
+### Workstation Events (`workstation:{id}`)
+- `presence.update`: `{ status, agents, concurrency, devServer, daemonUptime, issues[] }`
+- `mission.assign`: `{ missionId, repositoryId, branch, actorId, flowId, mode, idempotencyKey }`
+- `tunnel.updated`: `{ tunnelId, status, url?, expiresAt }`
 
-### EVT-WS-002 - mission.assign
-- Channel/Topic: workstation:{workstation_id}
-- Producers: Server services
-- Consumers: CLI (workstation)
-- Payload Fields: { missionId, repositoryId, branch, actor, flow, prMode }
-- Notes: CLI auto-prepares worktree and starts agent
+### Mission Events (`mission:{id}`)
+- `mission.updated`: state diff with `updatedBy`.
+- `mission.review.requested`: `{ reviewerIds, prUrl?, checklist }`.
+- `mission.review.decision`: `{ decision, feedback, decidedBy }`.
+- `mission.event.appended`: timeline entry, including fallback acceptance note.
+
+### Mission Fallback Events (`project:{id}:fallback`)
+- `mission-fallback.status`: `{ status, backlog, threshold, nextCheckAt }`
+- `mission-fallback.generated`: `{ runId, generated, templatesUsed[], backlogBefore }` (UI refreshes Todo Fallback panel with latest template usage)
+- `mission-fallback.accepted`: `{ runId, missionIds[], acceptedCount }`
+- `mission-fallback.discarded`: `{ runId, missionIds[], feedback? }`
+
+### Notification Events (`user:{id}:notifications`)
+- `notification.created`: new notification summary.
+- `notification.snoozed`: quiet window update.
+
+## Performance Targets
+- `/api/v1/search` median 200ms (p95 500ms).
+- Mission list median 120ms (filter indexes).
+- Mission Fallback run creation <250ms for 10 proposals.
+- Notification unread count fetch <50ms via materialized view.
+
+## Security
+- Access control enforced before hitting services (org membership, project roles).
+- Rate limits: 100/hour/IP (anon), 1000/hour (auth), 5000/hour (contributors+).
+- CORS allowlist per environment; public endpoints cached with `Vary: Authorization`.
+- Input validation via zod; sanitized responses.
+- Audit log entries for mission fallback runs, template edits, configuration changes.
+
+## Observability
+- Structured logs include `request_id`, `user_id`, `organization_id`, `project_id`.
+- Mission Fallback runs generate metrics (`fallback.generated`, `fallback.accepted`, `fallback.discarded`).
+- Tracing spans: mission create → assign → review; fallback run → accept/discard.
+- CLI surfaces `trace_id` when `--debug`.
+
+## Deprecation Workflow
+1. Mark endpoint with `Deprecation` header; link documentation.
+2. Capture usage metrics.
+3. Notify CLI (update message) and Mission Fallback service via feature flags.
+4. Remove after usage <1% for ≥90 days with alternative stable.

@@ -1,310 +1,67 @@
 # Data Design
 
 ## Overview
-Workstation-centric, multi-tenant schema with projects, missions, flexible flows, optional PR support, and public projects. Hybrid storage persists Solution & Tasks in filesystem with DB progress tracking. Agent configurations live client-side; server stores minimal availability state for orchestration.
+The Solo Unicorn schema centers on missions, workstations, and transparent automation. Mission Fallback replaces loop missions: instead of looping tasks, the system generates new missions from templates when the backlog is low. Those templates appear in the Todo column “Fallback” area so users can launch work instantly while the template remains available. Hybrid storage keeps rich mission docs on the filesystem with DB pointers for cross-session continuity.
 
 ## Data Relations Diagram
 ```mermaid
 erDiagram
-  ORGANIZATIONS ||--o{ USERS : has
   ORGANIZATIONS ||--o{ ORGANIZATION_MEMBERSHIPS : includes
-  ORGANIZATIONS ||--o{ WORKSTATIONS : owns
   ORGANIZATIONS ||--o{ PROJECTS : owns
+  ORGANIZATIONS ||--o{ WORKSTATIONS : owns
+  ORGANIZATIONS ||--o{ NOTIFICATION_PREFERENCES : configures
 
-  PROJECTS ||--o{ PROJECT_WORKSTATIONS : links
-  WORKSTATIONS ||--o{ PROJECT_WORKSTATIONS : links
+  USERS ||--o{ ORGANIZATION_MEMBERSHIPS : joins
+  USERS ||--o{ PROJECT_MEMBERS : collaborates
+  USERS ||--o{ PROJECT_STARS : stars
+  USERS ||--o{ ACCESS_REQUESTS : submits
+  USERS ||--o{ NOTIFICATIONS : receives
 
-  PROJECTS ||--o{ PROJECT_REPOSITORIES : uses
+  PROJECTS ||--o{ PROJECT_MEMBERS : assigns
+  PROJECTS ||--o{ PROJECT_REPOSITORIES : links
   PROJECTS ||--o{ FLOWS : defines
   PROJECTS ||--o{ ACTORS : defines
   PROJECTS ||--o{ MISSIONS : contains
-
-  MISSIONS ||--o{ MISSION_DEPENDENCIES : depends
-  MISSIONS ||--o{ CODE_AGENT_SESSIONS : tracks
-  MISSIONS ||--o{ GITHUB_PULL_REQUESTS : opens
-  GITHUB_PULL_REQUESTS ||--o{ GITHUB_PR_COMMENTS : includes
-
-  PROJECTS ||--o{ PROJECT_STARS : starred_by
+  PROJECTS ||--o{ MISSION_FALLBACK_CONFIGS : configures
+  PROJECTS ||--o{ MISSION_FALLBACK_TEMPLATES : stores
+  PROJECTS ||--o{ MISSION_FALLBACK_RUNS : records
   PROJECTS ||--o{ PROJECT_ACTIVITY : logs
 
-  HELPERS {
-    id varchar
-    code varchar
-  }
+  WORKSTATIONS ||--o{ PROJECT_WORKSTATIONS : maps
+  WORKSTATIONS ||--o{ WORKSTATION_SESSIONS : tracks
+  WORKSTATIONS ||--o{ WORKSTATION_REPOSITORIES : clones
+  WORKSTATIONS ||--o{ WORKSTATION_WORKTREES : pools
+
+  MISSIONS ||--o{ MISSION_DEPENDENCIES : depends
+  MISSIONS ||--o{ MISSION_EVENTS : emits
+  MISSIONS ||--o{ CODE_AGENT_SESSIONS : runs
+  MISSIONS ||--o{ GITHUB_PULL_REQUESTS : opens
+  GITHUB_PULL_REQUESTS ||--o{ GITHUB_PR_COMMENTS : includes
+  MISSIONS ||--o{ NOTIFICATIONS : triggers
+  MISSION_FALLBACK_RUNS ||--o{ MISSION_FALLBACK_ITEMS : proposes
+  MISSION_FALLBACK_ITEMS }o--|| MISSIONS : may_create
 ```
 
 ## Conceptual Entities
-
-### ENT-ORG - Organization
-Purpose: Tenant boundary; owns projects, workstations
-Relationships: has memberships (users), owns projects/workstations
-
-### ENT-USER - User
-Purpose: Canonical identity (email via Monster Auth)
-Relationships: member of organizations; stars public projects
-
-### ENT-MEM - Organization Membership
-Purpose: Role in org (owner/admin/member)
-Relationships: links user↔org
-
-### ENT-WS - Workstation
-Purpose: Registered machine hosting agents
-Relationships: belongs to org; linked to projects; reports presence
-
-### ENT-PROJ - Project
-Purpose: Unit of collaboration and configuration
-Relationships: repositories, flows, actors, missions; stars/activity
-
-### ENT-REPO - Project Repository
-Purpose: GitHub repository linkage (stable by GitHub numeric ID)
-Relationships: belongs to project; referenced by missions/PRs
-
-### ENT-FLOW - Flow
-Purpose: Stage sequence with review flags
-Relationships: used by missions
-
-### ENT-ACTOR - Actor
-Purpose: AI persona/methodology
-Relationships: referenced by missions
-
-### ENT-MISSION - Mission
-Purpose: Work item with stage/flow, PR mode, tasks/solution
-Relationships: depends on missions; has agent sessions; PRs
-
-### ENT-PR - GitHub Pull Request
-Purpose: Track PR metadata/status
-Relationships: belongs to mission and repository
-
-### ENT-PRC - GitHub PR Comment
-Purpose: PR feedback for AI iteration
-Relationships: belongs to PR
-
-### ENT-STAR - Project Star
-Purpose: Community engagement
-Relationships: user stars project
-
-### ENT-ACT - Project Activity
-Purpose: Public analytics feed
-Relationships: project-scoped events; optional user/mission/ws context
-
-### ENT-HLP - Helpers
-Purpose: System helpers (e.g., DB locking)
-Relationships: standalone
+- **ENT-ORG:** Organization owning projects and workstations.
+- **ENT-USER:** Monster Auth identity, receives notifications.
+- **ENT-MEM:** Organization membership with role.
+- **ENT-PROJECT:** Collaboration container with defaults, privacy, metrics, mission fallback settings.
+- **ENT-PROJECT-MEMBER:** Project-level permission overrides.
+- **ENT-WORKSTATION / ENT-WORKSTATION-SESSION:** Machines + daemon sessions.
+- **ENT-REPOSITORY / ENT-WORKTREE:** GitHub linkage and mission worktrees.
+- **ENT-FLOW / ENT-ACTOR:** Workflow templates and personas.
+- **ENT-MISSION:** Core task, always ends in Done (no loop list).
+- **ENT-MISSION-EVENT:** Timeline events for transparency.
+- **ENT-CODE-AGENT-SESSION:** Execution attempts metadata.
+- **ENT-MISSION-FACTORY-CONFIG/TEMPLATE/RUN/ITEM:** Configuration, template definitions, run history, and individual mission proposals. Templates power the Todo Fallback area; items record each generated mission while leaving the template in place.
+- **ENT-ACCESS-REQUEST / ENT-NOTIFICATION / ENT-AUDIT-EVENT:** Collaboration, alerts, compliance.
 
 ## Database Schema (key tables)
-
-Note: SQL defines enums and indexes optimized for high-frequency monitoring and mission assignment. AuthZ is enforced in the app layer; SQL helper functions exist for reference only.
+(Columns abbreviated; migrations capture full structure.)
 
 ```sql
--- Organizations
-CREATE TABLE organizations (
-  id VARCHAR(26) PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  slug VARCHAR(100) UNIQUE NOT NULL,
-  domain VARCHAR(255),
-  owner_email VARCHAR(255) NOT NULL,
-  api_key VARCHAR(100) UNIQUE,
-  api_key_created_at TIMESTAMP,
-  api_key_expires_at TIMESTAMP,
-  default_flow_id VARCHAR(26),
-  auto_invite_to_projects BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  deleted_at TIMESTAMP NULL
-);
-
--- Users
-CREATE TABLE users (
-  id VARCHAR(26) PRIMARY KEY,
-  email VARCHAR(255) UNIQUE NOT NULL,
-  name VARCHAR(255),
-  avatar TEXT,
-  monster_auth JSONB,
-  timezone VARCHAR(50) DEFAULT 'UTC',
-  email_verified BOOLEAN DEFAULT false,
-  status ENUM('active','suspended','deleted') DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  last_active_at TIMESTAMP DEFAULT NOW()
-);
-
--- Organization Memberships
-CREATE TABLE organization_memberships (
-  id VARCHAR(26) PRIMARY KEY,
-  organization_id VARCHAR(26) NOT NULL,
-  user_id VARCHAR(26) NOT NULL,
-  role ENUM('owner','admin','member') DEFAULT 'member',
-  status ENUM('active','invited','suspended') DEFAULT 'active',
-  invited_by VARCHAR(26),
-  invited_at TIMESTAMP,
-  joined_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Workstations
-CREATE TABLE workstations (
-  id VARCHAR(26) PRIMARY KEY,
-  organization_id VARCHAR(26) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  hostname VARCHAR(255),
-  os VARCHAR(50), arch VARCHAR(50), platform_version VARCHAR(100),
-  cli_version VARCHAR(20), registration_token VARCHAR(100),
-  last_ip_address INET, last_user_agent TEXT,
-  status ENUM('online','offline','suspended') DEFAULT 'offline',
-  last_seen_at TIMESTAMP, last_heartbeat_at TIMESTAMP,
-  available_code_agents JSON,
-  realtime_member_key JSON, realtime_presence_meta JSON,
-  dev_server_enabled BOOLEAN DEFAULT false,
-  dev_server_port INTEGER,
-  dev_server_public_url TEXT,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW(),
-  deleted_at TIMESTAMP NULL
-);
-
--- Projects
-CREATE TABLE projects (
-  id VARCHAR(26) PRIMARY KEY,
-  organization_id VARCHAR(26) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  slug VARCHAR(100),
-  visibility ENUM('private','public') DEFAULT 'private',
-  public_slug VARCHAR(100) UNIQUE,
-  category VARCHAR(50), tags JSON, featured BOOLEAN DEFAULT false,
-  star_count INTEGER DEFAULT 0,
-  public_mission_read BOOLEAN DEFAULT true,
-  public_memory_read BOOLEAN DEFAULT true,
-  public_repository_read BOOLEAN DEFAULT true,
-  contributor_mission_write BOOLEAN DEFAULT true,
-  collaborator_workstation_read BOOLEAN DEFAULT false,
-  maintainer_mission_execute BOOLEAN DEFAULT false,
-  workstation_visibility ENUM('hidden','status_only','full_details') DEFAULT 'hidden',
-  default_flow_id VARCHAR(26), default_actor_id VARCHAR(26),
-  memory TEXT,
-  pr_mode_default ENUM('disabled','enabled') DEFAULT 'disabled',
-  pr_require_review BOOLEAN DEFAULT true,
-  pr_auto_merge BOOLEAN DEFAULT false,
-  pr_delete_branch_after_merge BOOLEAN DEFAULT true,
-  pr_template TEXT,
-  status ENUM('active','archived','suspended') DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW(), archived_at TIMESTAMP NULL
-);
-
--- Project Repositories
-CREATE TABLE project_repositories (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  github_repo_id BIGINT,
-  github_owner VARCHAR(100) NOT NULL,
-  github_name VARCHAR(100) NOT NULL,
-  github_full_name VARCHAR(255) NOT NULL,
-  github_url TEXT NOT NULL,
-  default_branch VARCHAR(100) DEFAULT 'main'
-);
-
--- Project Stars
-CREATE TABLE project_stars (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  user_id VARCHAR(26) NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Project Activity
-CREATE TABLE project_activity (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  user_id VARCHAR(26),
-  activity_type ENUM('mission_created','mission_completed','user_joined','star_added','repository_updated') NOT NULL,
-  activity_data JSON,
-  mission_id VARCHAR(26),
-  workstation_id VARCHAR(26),
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Project Workstations
-CREATE TABLE project_workstations (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  workstation_id VARCHAR(26) NOT NULL,
-  can_receive_missions BOOLEAN DEFAULT true,
-  priority INTEGER DEFAULT 100,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Workstation Repositories (Git Worktrees)
-CREATE TABLE workstation_repositories (
-  id VARCHAR(26) PRIMARY KEY,
-  workstation_id VARCHAR(26) NOT NULL,
-  project_repository_id VARCHAR(26) NOT NULL,
-  main_path TEXT NOT NULL,
-  main_branch VARCHAR(100) DEFAULT 'main',
-  clone_status ENUM('cloning','ready','error') DEFAULT 'cloning',
-  clone_error TEXT,
-  last_synced_at TIMESTAMP,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Git Worktrees
-CREATE TABLE git_worktrees (
-  id VARCHAR(26) PRIMARY KEY,
-  workstation_repository_id VARCHAR(26) NOT NULL,
-  branch VARCHAR(100) NOT NULL,
-  worktree_path TEXT NOT NULL,
-  status ENUM('creating','ready','busy','error') DEFAULT 'creating',
-  error_message TEXT,
-  last_used_at TIMESTAMP,
-  active_mission_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(),
-  updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Flows
-CREATE TABLE flows (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  stage_sequence JSON NOT NULL,
-  is_default BOOLEAN DEFAULT false,
-  is_system BOOLEAN DEFAULT false,
-  missions_using_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Flow Stages
-CREATE TABLE flow_stages (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NULL,
-  name VARCHAR(50) NOT NULL,
-  display_name VARCHAR(255) NOT NULL,
-  description TEXT,
-  prompt_template TEXT,
-  is_system BOOLEAN DEFAULT false,
-  requires_code_execution BOOLEAN DEFAULT true,
-  usage_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Actors
-CREATE TABLE actors (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  description TEXT,
-  system_prompt TEXT,
-  methodology TEXT,
-  focus_areas JSON,
-  is_default BOOLEAN DEFAULT false,
-  missions_assigned_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Missions
+-- Missions (list excludes "loop")
 CREATE TABLE missions (
   id VARCHAR(26) PRIMARY KEY,
   project_id VARCHAR(26) NOT NULL,
@@ -312,228 +69,151 @@ CREATE TABLE missions (
   description TEXT,
   clarification TEXT,
   priority INTEGER DEFAULT 3,
-  list ENUM('todo','doing','review','done','loop') DEFAULT 'todo',
-  list_order DECIMAL(10,5) DEFAULT 1000.00000,
-  stage VARCHAR(50) DEFAULT 'clarify',
+  list ENUM('todo','doing','review','done') DEFAULT 'todo',
+  list_order DECIMAL(10,5) DEFAULT 1000,
   flow_id VARCHAR(26),
-  flow_config JSON,
-  current_flow_task INTEGER DEFAULT 0,
+  stage VARCHAR(64) DEFAULT 'clarify',
   requires_review BOOLEAN DEFAULT false,
-  repository_id BIGINT,
-  project_repository_id VARCHAR(26),
-  target_branch VARCHAR(100) DEFAULT 'main',
   actor_id VARCHAR(26),
+  repository_id VARCHAR(26),
+  target_branch VARCHAR(120) DEFAULT 'main',
   pr_mode ENUM('disabled','enabled','auto') DEFAULT 'auto',
-  pr_created BOOLEAN DEFAULT false,
-  github_pr_number INTEGER,
-  github_pr_url TEXT,
   pr_branch_name VARCHAR(255),
-  pr_merge_strategy ENUM('merge','squash','rebase') DEFAULT 'squash',
-  is_loop BOOLEAN DEFAULT false,
-  loop_schedule JSON,
+  github_pr_number INTEGER,
   ready BOOLEAN DEFAULT false,
-  agent_session_status ENUM('INACTIVE','PUSHING','ACTIVE') DEFAULT 'INACTIVE',
-  agent_session_status_changed_at TIMESTAMP DEFAULT NOW(),
-  code_agent_type VARCHAR(50),
-  code_agent_name VARCHAR(255),
-  last_code_agent_session_id VARCHAR(100),
-  solution TEXT,
-  tasks JSON,
-  tasks_current INTEGER DEFAULT 0,
+  origin ENUM('manual','fallback','imported') DEFAULT 'manual',
+  fallback_item_id VARCHAR(26),
+  agent_session_status ENUM('inactive','pushing','active') DEFAULT 'inactive',
+  solution_path TEXT,
+  tasks_path TEXT,
   review_status ENUM('pending','approved','rejected') DEFAULT NULL,
   review_feedback TEXT,
-  review_requested_at TIMESTAMP NULL,
-  review_completed_at TIMESTAMP NULL,
-  reviewed_by_user_id VARCHAR(26),
   dependency_count INTEGER DEFAULT 0,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Mission Dependencies
-CREATE TABLE mission_dependencies (
-  id VARCHAR(26) PRIMARY KEY,
-  mission_id VARCHAR(26) NOT NULL,
-  depends_on_mission_id VARCHAR(26) NOT NULL,
-  status ENUM('active','resolved') DEFAULT 'active',
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Code Agent Sessions
-CREATE TABLE code_agent_sessions (
-  id VARCHAR(26) PRIMARY KEY,
-  mission_id VARCHAR(26) NOT NULL,
-  code_agent_id VARCHAR(255),
-  workstation_id VARCHAR(26),
-  status ENUM('starting','active','stopped','failed') DEFAULT 'starting',
-  started_at TIMESTAMP DEFAULT NOW(),
-  ended_at TIMESTAMP NULL
-);
-
--- GitHub Pull Requests
-CREATE TABLE github_pull_requests (
-  id VARCHAR(26) PRIMARY KEY,
-  mission_id VARCHAR(26) NOT NULL,
-  project_repository_id VARCHAR(26) NOT NULL,
-  github_pr_number INTEGER NOT NULL,
-  github_pr_id BIGINT,
-  github_pr_url TEXT NOT NULL,
-  source_branch VARCHAR(255) NOT NULL,
-  target_branch VARCHAR(255) NOT NULL,
-  title VARCHAR(500) NOT NULL,
-  description TEXT,
-  status ENUM('open','closed','merged','draft') NOT NULL,
-  mergeable BOOLEAN,
-  mergeable_state VARCHAR(50),
-  review_status ENUM('pending','approved','changes_requested','dismissed') DEFAULT 'pending',
-  required_reviews_count INTEGER DEFAULT 0,
-  approved_reviews_count INTEGER DEFAULT 0,
-  created_by_code_agent_type VARCHAR(50),
-  created_by_code_agent_name VARCHAR(255),
-  created_by_workstation_id VARCHAR(26),
-  github_created_at TIMESTAMP,
-  github_updated_at TIMESTAMP,
-  github_merged_at TIMESTAMP,
-  github_closed_at TIMESTAMP,
-  last_synced_at TIMESTAMP DEFAULT NOW(),
-  sync_status ENUM('synced','pending','error') DEFAULT 'pending',
-  sync_error TEXT,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- GitHub PR Comments
-CREATE TABLE github_pr_comments (
-  id VARCHAR(26) PRIMARY KEY,
-  github_pr_id VARCHAR(26) NOT NULL,
-  github_comment_id BIGINT NOT NULL,
-  comment_type ENUM('issue','review','review_comment') NOT NULL,
-  body TEXT NOT NULL,
-  html_url TEXT,
-  author_github_login VARCHAR(100),
-  author_github_id BIGINT,
-  author_type ENUM('user','bot') DEFAULT 'user',
-  file_path TEXT,
-  line_number INTEGER,
-  diff_hunk TEXT,
-  review_id BIGINT,
-  review_state ENUM('pending','approved','changes_requested','commented'),
-  processed_by_ai BOOLEAN DEFAULT false,
-  ai_response TEXT,
-  ai_response_at TIMESTAMP,
-  github_created_at TIMESTAMP,
-  github_updated_at TIMESTAMP,
-  last_synced_at TIMESTAMP DEFAULT NOW(),
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-
--- Helpers (DB locking/config)
-CREATE TABLE helpers (
-  id VARCHAR(26) PRIMARY KEY,
-  code VARCHAR(100) UNIQUE NOT NULL,
-  description TEXT,
-  state JSON,
-  active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-Indexes & Performance (highlights)
-- **Ultra-high frequency monitoring** (every 10s): partial indexes on missions by agent_session_status and list
-- **Mission assignment optimization**: composite indexes for complex queries with embedded subqueries
-- **Repository concurrency**: indexes by repository_id and code_agent_type with ACTIVE/PUSHING status
-- **Dependencies resolution**: partial index on mission_dependencies where status='active'
-- **Database locking**: helpers table index by code/active/updated_at for atomic operations
-- **Future optimization**: materialized views for mv_active_mission_counts, mv_agent_capacity
-
-Critical performance targets:
-- Monitoring queries: ~1-5ms (was 50-100ms)
-- Mission assignment: ~50-100ms (was 200-500ms)
-- Agent availability: ~1-2ms (was 10-50ms)
-
-Key index names: idx_monitoring_active_missions, idx_monitoring_ready_missions, idx_mission_assignment_complex, idx_repo_active_missions, idx_code_agent_active_missions, idx_mission_dependencies_blocking
-
-Triggers (highlights)
-- Update agent_session_status_changed_at on status change
-- Update dependency_count on mission_dependencies changes
-- Flow usage counter increment on mission insert with flow_id
-- Update projects.star_count on star insert/delete
-- Project activity on mission done and permission changes
-
-Agent storage strategy
-- Server: static code agent type definitions (capabilities, models)
-- Client: ~/.solo-unicorn/code-agents.json with paths, env, health, stats
-
-Reference SQL helpers (app-layer authz remains source of truth)
-- get_user_project_role(userId, projectId)
-- can_user_access_project(userId, projectId, action)
-
-Seed data
-- Insert required lock row for helpers: ('helper_01MISSION_PUSH_LOCK','MISSION_PUSH_LOCK', ...)
-
-Project-level permissions
-```sql
-CREATE TABLE project_permissions (
-  id VARCHAR(26) PRIMARY KEY,
-  project_id VARCHAR(26) NOT NULL,
-  user_id VARCHAR(26),
-  role ENUM('public','contributor','collaborator','maintainer','owner') NOT NULL,
-  can_read_missions BOOLEAN DEFAULT NULL,
-  can_write_missions BOOLEAN DEFAULT NULL,
-  can_read_workstations BOOLEAN DEFAULT NULL,
-  can_execute_missions BOOLEAN DEFAULT NULL,
-  can_admin_project BOOLEAN DEFAULT NULL,
-  can_invite_users BOOLEAN DEFAULT NULL,
-  can_manage_repositories BOOLEAN DEFAULT NULL,
-  can_view_analytics BOOLEAN DEFAULT NULL,
-  status ENUM('active','invited','revoked') DEFAULT 'active',
-  invited_by VARCHAR(26),
-  invited_at TIMESTAMP,
-  accepted_at TIMESTAMP,
+  last_event_at TIMESTAMP,
   created_at TIMESTAMP DEFAULT NOW(),
   updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Mission Fallback Configuration
+CREATE TABLE mission_fallback_configs (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL UNIQUE,
+  backlog_threshold INTEGER DEFAULT 5,
+  check_cadence_minutes INTEGER DEFAULT 15,
+  auto_accept BOOLEAN DEFAULT false,
+  monthly_target_hours INTEGER DEFAULT 120,
+  weekly_mission_cap INTEGER DEFAULT 20,
+  status ENUM('active','paused','snoozed') DEFAULT 'active',
+  last_run_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE mission_fallback_templates (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  flow_id VARCHAR(26) NOT NULL,
+  actor_id VARCHAR(26) NOT NULL,
+  repository_id VARCHAR(26) NOT NULL,
+  priority INTEGER DEFAULT 3,
+  estimated_effort_minutes INTEGER NOT NULL,
+  acceptance_criteria TEXT,
+  enabled BOOLEAN DEFAULT true,
+  tags JSONB,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE mission_fallback_runs (
+  id VARCHAR(26) PRIMARY KEY,
+  project_id VARCHAR(26) NOT NULL,
+  triggered_by ENUM('automatic','manual','api') NOT NULL,
+  backlog_count_before INTEGER,
+  backlog_threshold INTEGER,
+  generated_count INTEGER DEFAULT 0,
+  accepted_count INTEGER DEFAULT 0,
+  discarded_count INTEGER DEFAULT 0,
+  status ENUM('pending','awaiting_review','completed','cancelled','errored') DEFAULT 'awaiting_review',
+  started_at TIMESTAMP DEFAULT NOW(),
+  completed_at TIMESTAMP
+);
+
+CREATE TABLE mission_fallback_items (
+  id VARCHAR(26) PRIMARY KEY,
+  mission_fallback_run_id VARCHAR(26) NOT NULL,
+  template_id VARCHAR(26) NOT NULL,
+  project_id VARCHAR(26) NOT NULL,
+  title VARCHAR(500) NOT NULL,
+  description TEXT,
+  flow_id VARCHAR(26) NOT NULL,
+  actor_id VARCHAR(26) NOT NULL,
+  repository_id VARCHAR(26) NOT NULL,
+  priority INTEGER,
+  estimated_effort_minutes INTEGER,
+  status ENUM('proposed','accepted','discarded') DEFAULT 'proposed',
+  mission_id VARCHAR(26),
+  feedback TEXT,
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Additional mission / fallback indexes
+CREATE INDEX idx_missions_project_list_ready ON missions(project_id, list, ready);
+CREATE INDEX idx_mission_fallback_runs_project ON mission_fallback_runs(project_id, started_at DESC);
+CREATE INDEX idx_mission_fallback_items_run_status ON mission_fallback_items(mission_fallback_run_id, status);
 ```
 
-## Object Storage Layout
-- N/A (MVP)
+Other core tables (organizations, users, workstations, repositories, mission events, notifications, audit events) remain as in previous revision but remove any `is_loop` or `loop_schedule` columns.
 
-## Client Filesystem
-
-Mission artifacts
-```yaml
-path: ./solo-unicorn-docs/missions/{mission-id}/
-files:
-  - solution.md
-  - tasks/{n}.md  # detailed per-task notes
-git_tracked: true
-purpose: Rich solution and session-scoped context across iterations
+## Mission Events
+Mission events capture all lifecycle updates including fallback signals.
+```sql
+ALTER TABLE mission_events ADD COLUMN origin ENUM('system','user','agent','fallback') DEFAULT 'system';
 ```
+Fallback run completion inserts summary events with payload `{ "runId": "run_123", "generated": 3, "accepted": 2 }`.
 
-## Monster Services Integration
+## Hybrid Storage
+- Mission docs: `solo-unicorn-docs/missions/{missionId}/solution.md`, `tasks/{n}.md`
+- Fallback run reports (JSON) stored under `solo-unicorn-docs/fallback/{runId}.json` for audit
+- Agent logs remain in `logs/{sessionId}.log` (gitignored)
 
-### Monster Auth Integration
-- `users.monster_auth` JSONB: links to Monster Auth user identity and OAuth payload
-- Email is canonical identity; multiple OAuth providers supported if same email
-- No server-side auth table duplication; Monster Auth is source of truth
+## Derived Views & Metrics
+- `mv_project_metrics_daily` includes columns `fallback_generated`, `fallback_accepted`, `fallback_discarded`, `avg_backlog_size`.
+- `mv_fallback_health` summarizes backlog threshold adherence and guardrail usage.
+- `mv_notification_counts` adds fallback segment counts.
 
-### Monster Realtime Integration
-- Workstation presence via `workstations.realtime_presence_meta` JSON field
-- Real-time channels: workstation:{id}, project:{id}:workstations, mission:{id}
-- Push-only communication; no request/response over WebSocket
+## Retention & Compliance
+- Fallback runs retained 180 days; aggregated stats remain in metrics view.
+- Notifications older than 180 days archived.
+- Access request messages anonymized 30 days post decision.
+- Audit events WORM for 400 days.
+- When user deleted, mission `reviewed_by` replaced with pseudonymous token; fallback feedback retains anonymized reviewer reference.
 
-## Performance Strategy
+## Performance
+- Mission queries: partial indexes on `(list='todo', ready=true)` for fast backlog checks.
+- Fallback run listing uses covering index `(project_id, started_at DESC, status)` to keep UI responsive.
+- Notification unread counts rely on partial index `WHERE read_at IS NULL`.
+- All thresholds ensure mission backlog check stays <20ms.
 
-### Architecture Decisions
-- **Agent storage**: Static type definitions on server; detailed config client-side
-- **Mission assignment**: Uses workstation presence data + simple indexed queries
-- **No materialized views in MVP**: Simple indexed queries preferred for monitoring
-- **Hybrid storage**: Solution & Tasks in filesystem + DB progress tracking
+## Migration Strategy
+1. Introduce new fallback tables and add `origin`, `fallback_item_id` columns to missions.
+2. Backfill existing missions with `origin='manual'`.
+3. Drop `is_loop`, `loop_schedule`, and `list` enum values referencing loop (with fallback conversions to `todo`).
+4. Update APIs/CLI to reference new structures.
+5. Deploy mission fallback service with feature flag for progressive rollout.
 
-### Migration Strategy
-- Phase 1: Core entities (Organizations, Users, Workstations)
-- Phase 2: Mission management (Flows, Missions, Dependencies)
-- Phase 3: Advanced features (Git Worktrees, Sessions, Performance optimization)
-- Zero-downtime migration with backward compatibility fields
+## Data Quality
+- Database constraints: `mission_fallback_items.mission_id` references missions; `missions.fallback_item_id` references items when accepted.
+- Guardrail check ensures accepted mission count per week ≤ cap.
+- Application enforces backlog threshold evaluation; DB triggers ensure Mission Fallback runs update counts on accept/discard.
 
-## Lifecycle & Compliance
-- PII: user email, names (users table); persisted per org/project with standard retention
-- Retention: project data retained until deletion; PR metadata mirrors GitHub state; logs/events per product policy
+## Monster Service Integrations
+- Monster Realtime publishes fallback events on `project:{id}:fallback` channel, payload stored in `mission_fallback_runs`.
+- Monster Auth metadata remains canonical identity source.
+
+## Open Questions & Future Work
+- Template marketplace across organizations (post-MVP).
+- Machine learning scoring for template selection (future).
+- Auto-accept policies per template once confidence high.

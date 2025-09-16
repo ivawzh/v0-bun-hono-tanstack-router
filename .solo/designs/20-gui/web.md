@@ -1,239 +1,88 @@
 # GUI design - web
 
+## Design Principles
+- Friendly-first copy and layout so users always know status and next step
+- Mobile-first compositions that rely on shadcn/ui Kanban + DnD for touch interactions
+- Monster Theme tokens for color, spacing, typography, and elevation
+- Centered modals for primary flows; drawers avoided
+- Consistent Ready toggle across cards, modals, and mobile UI
+
 ## Information Architecture
 
 ### Site Map / Screen Inventory
 ```mermaid
 graph TD
-  A[Root Shell] --> B[Dashboard]
-  A --> C[Projects]
-  A --> D[Public Gallery]
-  A --> E[Community]
-  A --> F[Settings]
+  L[Launchpad / Org Switcher]
+  L --> OD[Org Dashboard]
+  L --> PW[Project Workspace]
+  L --> WK[Workstations]
+  L --> PG[Public Gallery]
+  L --> CM[Community]
+  L --> NO[Notifications]
+  L --> ST[Settings]
 
-  C --> C1[Project List]
-  C --> C2[Project Detail]
+  PW --> KB[Kanban Board]
+  KB --> KB1[Todo Column]
+  KB1 --> KB1a[Normal Missions]
+  KB1 --> KB1b[Fallback Templates]
+  KB --> KB2[Doing]
+  KB --> KB3[Review]
+  KB --> KB4[Done]
 
-  C2 --> C2a[Kanban Board]
-  C2 --> C2b[Project Settings]
-  C2 --> C2c[Workstations]
-  C2 --> C2d[Members]
-  C2 --> C2e[Repositories]
-  C2 --> C2f[Flows]
-  C2 --> C2g[Actors]
+  PW --> MM[Mission Modal]
+  PW --> PS[Project Settings]
+  PW --> PR[PR Center]
+  PW --> PL[Project Library]
 
-  D --> D1[Project Overview]
-  D --> D2[Missions]
-  D --> D3[Contributors]
-  D --> D4[Analytics]
-  D --> D5[Contribute]
+  PG --> PG1[Gallery]
+  PG --> PG2[Public Project Detail]
 ```
 
-### Navigation Structure
-Primary: Dashboard, Projects, Public Gallery, Community, Settings
+### Navigation
+- **Top header:** Logo, project picker, dark/light toggle, user menu
+- **Sub header:** Project name, PR mode indicator (🔄 / ⚡), active members, online workstations, Pause/Resume AI, Settings
+- **Mobile:** Bottom tab bar mirrors top-level nav; horizontal scroll Kanban with shadcn/ui DnD gestures
+- **Quick actions:** `+ Mission`, `Invite teammate`, `Edit project`
 
-Secondary: Kanban Board, Project Settings, Workstations, Members, Repositories, Flows, Actors
+## Mission Board Pattern
 
-Breadcrumbs: Organization / Project / Area / Item
-
-## User Flows
-
-### UF-WS-001 - Workstation View
-User Goal: Monitor workstation presence, agents, repositories, and activity
-
-Entry Points: Project → Workstations tab; Organization overview → Workstations list
-
-Success Criteria: Clear online status, agent availability, repos/worktrees, active missions
-
-Steps:
-1. Open Workstations tab
-2. Inspect status (online/offline/idle), agents (type/health), repositories
-3. View active missions and optional dev server/tunnel info
-4. Take actions (View, Settings)
-
-### UF-AUTH-001 - Authentication Flow
-User Goal: Access Solo Unicorn securely as org member or public visitor
-
-Entry Points: Sign In; deep links; public pages
-
-Success Criteria: Authenticated and routed to org/project context or public page with permission-aware content
-
-Steps:
-1. Visit app and click Sign In
-2. Redirect to Monster Auth and complete OAuth
-3. Callback sets secure cookies
-4. Land on Dashboard or last project
-
-Interface References:
-- GET /api/oauth/callback
-- /rpc cookie-authenticated calls
-
-Flow Diagram:
-```mermaid
-flowchart LR
-  U[Visit App] --> S[Sign In]
-  S --> MA[Monster Auth]
-  MA -->|Success| R[Redirect Back]
-  R --> D[Dashboard / Last Project]
-  MA -->|Fail| E[Error Prompt]
-```
-
-### UF-PROJ-001 - Project Creation Flow
-User Goal: Create a new project and prepare it for missions
-
-Entry Points: Create New Project (Dashboard/Projects)
-
-Success Criteria: Project ready; optional sample mission created
-
-Steps:
-1. Open Project Create
-2. Fill details (name, description)
-3. Associate workstation (hints if none online)
-4. Link repository (validate URL)
-5. Optionally create sample mission
-
-Flow Diagram:
-```mermaid
-flowchart LR
-  S[Start] --> D1[Project Details]
-  D1 --> W1[Workstation Setup]
-  W1 --> R1[Repo Link]
-  R1 --> O[Optional: Sample Mission]
-  O --> C[Project Created]
-```
-
-### UF-MISSION-001 - Mission Creation Flow
-User Goal: Create a mission with flow-first settings and set Ready
-
-Entry Points: Create Mission from Kanban
-
-Success Criteria: Mission appears in Todo with Ready enabled
-
-Steps:
-1. Select a Flow (primary selection)
-2. Configure stages (enable/require review; choose start stage)
-3. Fill Base fields (title, description, priority, list)
-4. Add optional dependencies
-5. Set Ready
-
-Flow Diagram:
-```mermaid
-flowchart LR
-  C[Open Create Mission] --> F[Select Flow]
-  F --> S1[Configure Stages & Review]
-  S1 --> B[Fill Base Fields]
-  B --> D[Dependencies]
-  D --> R[Set Ready]
-  R --> K[Mission in Todo]
-```
-
-### UF-MISSION-002 - Mission Execution Flow
-User Goal: Agent executes code; real-time updates; human review if required
-
-Entry Points: Mission moves Todo → Doing → Review → Done
-
-Success Criteria: Mission approved (if required) and completed
-
-Steps:
-1. Assignment when Ready and dependencies clear
-2. Doing: AI at work; status updates live
-3. Review: Approve or Reject with feedback
-4. Done or Iterate back to Doing on reject
-
-Flow Diagram:
-```mermaid
-flowchart LR
-  T[Todo + Ready] --> A[Assignment]
-  A --> Do[Doing - AI at work]
-  Do --> Rev[Review]
-  Rev -->|Approve| X[Done]
-  Rev -->|Reject| Do
-```
-
-Flow Diagram:
-```mermaid
-flowchart LR
-  T[Todo + Ready] --> A[Assignment]
-  A --> Do[Doing - AI at work]
-  Do --> Rev[Review if configured]
-  Rev -->|Approve| X[Done]
-  Rev -->|Reject| Do
-```
-
-Process Badges
-- Todo: Queueing
-- Doing: AI at work
-- Review/Done: no process badge
-
-Stage Badges
-- Display-only on cards; click opens Flow tab to make changes
-
-### UF-PUBLIC-001 - Public Project Discovery
-User Goal: Browse public projects and request access
-
-Success Criteria: Understand project quickly; optionally request access
-
-Steps:
-1. Browse/search gallery; filter/sort
-2. Open project and view overview/kanban read-only
-3. Request access (Contributor/Collaborator)
-4. Await owner decision
-
-### UF-PR-001 - PR Mode Workflow
-User Goal: Use PR-based change management with review
-
-Success Criteria: PR approved and merged; mission Done
-
-Steps:
-1. Feature branch created on Doing
-2. Create PR on entering Review
-3. Human review on GitHub; if changes requested, iterate
-4. Merge and Done
-
-Flow Diagram:
-```mermaid
-flowchart LR
-  M[Mission PR Mode] --> B[Feature Branch]
-  B --> P[Create PR]
-  P --> H[Human Review @ GitHub]
-  H -->|Approve| M1[Merge]
-  H -->|Changes Requested| I[Iterate - read PR comments]
-  I --> P
-  M1 --> Dn[Mission Done]
-```
-
-## Wireframes & Mockups
-
-### KanbanBoard
+### Kanban Board Layout
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │ [LOGO] [Project ▼]                           [🌙/☀️] [👤 User ▼]            │
 ├──────────────────────────────────────────────────────────────────────────────┤
-│ Project Name      👤👤👤  🟢 Workstations: 2  [⏸️ Pause] [⚙️ Settings]       │
+│ Project Name                👤👤👤 🟢 Workstations: 2  [⏸️ Pause] [⚙️ Settings] │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │                                                                              │
 │ ┌─────────┬─────────┬─────────┬─────────┐                                    │
 │ │  TODO   │  DOING  │ REVIEW  │  DONE   │                                    │
 │ ├─────────┼─────────┼─────────┼─────────┤                                    │
 │ │┌───────┐│         │         │         │                                    │
-│ ││Normal ▼││         │         │         │                                    │
+│ ││Normal ▼││        │         │         │                                    │
 │ │├───────┤│         │         │         │                                    │
 │ ││┌─────┐││┌───────┐│┌───────┐│┌───────┐│                                    │
-│ │││Mission│││ Mission ││ Mission ││ Mission ││                                    │
-│ │││P H   │││ P L    ││ P M    ││ P H    ││                                    │
-│ │││Code  │││ Plan   ││ Review ││ Done   ││                                    │
-│ │││🔄    │││🤖 AI   ││        ││        ││                                    │
-│ │││Desc  │││ Desc   ││ Desc   ││ Desc   ││                                    │
-│ │││Ready │││ Ready  ││ Review ││        ││                                    │
+│ │││Mission │││ Mission  ││ Mission  ││ Mission  ││                                    │
+│ │││P H   │││ P L    ││ P M    ││ P H    ││                                   │
+│ │││Code  │││ Plan   ││ Review ││ Done   ││                                   │
+│ │││🔄    │││🤖 AI   ││        ││        ││                                  │
+│ │││Desc  │││ Desc   ││ Desc   ││ Desc   ││                                   │
+│ │││Ready │││ Ready  ││ Review ││        ││                                   │
 │ ││└─────┘││└───────┘│└───────┘│└───────┘│                                    │
 │ │├───────┤│         │         │         │                                    │
-│ ││Loop ▶ ││         │         │         │                                    │
+│ ││Fallback▶││         │         │         │                                 │
 │ │└───────┘│         │         │         │                                    │
 │ └─────────┴─────────┴─────────┴─────────┘                                    │
+│                                                                              │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### MissionCard (Todo)
+- Todo column splits into **Normal missions** and **Fallback templates** (collapsible). Fallback items are reusable placeholders; selecting one opens a pre-filled Mission Modal, creates a mission in Todo, and leaves the template in place to fill idle agent time when no Ready missions exist.
+- Doing, Review, Done columns follow traditional Kanban. Drag/drop updates `mission.list`.
+- Ready toggle appears on every mission card footer (Todo/Doing) with the same styling as Mission Modal.
+
+### Mission Card Structure
+
+#### Todo / Doing Card
 ```
 ┌───────────────────────────────────────┐
 │ Mission Title Here                [⋮] │
@@ -242,62 +91,94 @@ flowchart LR
 ├───────────────────────────────────────┤
 │ Branch: solo-unicorn/mission-auth-123 │
 ├───────────────────────────────────────┤
-│ Description snippet (3.5 lines max)   │
+│ Description text… (3.5 lines, collapsible)│
+│ ⋮                                      │
 ├───────────────────────────────────────┤
-│                     [✓ Ready]          │
+│ Ready status: ☐ Not Ready              │
+│ [ Toggle Ready ]                       │
 └───────────────────────────────────────┘
 ```
-Overflow Menu [⋮]
-- View & Edit (open MissionModal)
-- Reset AI (when active)
-- Delete Mission
+- Dropdown menu (⋮): View & Edit, Reset AI, Delete Mission.
 
-### MissionCard (Review)
+#### Review Card (PR Mode)
 ```
 ┌─────────────────────────────────────┐
 │ Mission Title Here                  │
 ├─────────────────────────────────────┤
-│ P Low [Code] [📝 PR #12]            │
+│ P Medium [Plan]  👀 PR #42           │
 ├─────────────────────────────────────┤
-│ Description snippet (3.5 lines max) │
+│ Branch: solo-unicorn/mission-auth-123│
+│ Description preview…                │
 ├─────────────────────────────────────┤
-│                       [Review]       │
+│ GitHub PR → https://github.com/...  │
+│ [Approve] [Request Changes]         │
 └─────────────────────────────────────┘
 ```
 
-### MissionModal
+#### Done Card
+```
+┌─────────────────────────────────────┐
+│ Mission Title Here                  │
+├─────────────────────────────────────┤
+│ P Low [Code]  ✅ Merged              │
+├─────────────────────────────────────┤
+│ Branch: solo-unicorn/mission-auth-123│
+│ Description preview…                │
+├─────────────────────────────────────┤
+│ Merged by sarah@example.com         │
+└─────────────────────────────────────┘
+```
+
+## Mission Modal (Popup)
+
+Mission Modal replaces the “Mission Room”. Content is identical to the original MissionPopup design.
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ Mission: Implement user authentication                                   [×]│
+│ Mission Title Here                                    [⟳ Refresh]  [×]      │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ [Base] [Flow] [Clarify] [Plan] [Review] [Dependencies] [Settings]          │
+│ Tabs: Overview | Activity | Flow | Files | Review | History                  │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│ Base Tab: Title, Description, Spec, Priority, List, Stage (display-only)    │
-│ Attachments, Real-time status, Danger zone (Reset/Delete)                   │
+│ Overview                                                                    │
+│ • Priority: P High                                                          │
+│ • Stage: Plan                                                               │
+│ • Process: Queueing                                                         │
+│ • Ready status: [ Toggle Ready ]                                            │
+│ • Repository: solo-unicorn/mission-auth-123                                 │
+│ • Branch: mission-auth-123                                                  │
+│ • Actor: Claude Code                                                        │
+│ • Flow: Normal (Clarify → Plan → Code)                                      │
+│ • Dependencies: Mission #123                                                │
+│ • Description: …                                                            │
+│ • Acceptance Criteria: …                                                    │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Activity log (Agent + Human events)                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Flow tab: edit stages, toggle reviews, skip stage                           │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Files tab: list changed files + view diff                                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Review tab: Approve / Request changes with feedback box                     │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ History tab: timeline of mission state                                      │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Tabs
-- Base: Title, Description, Spec, Priority, List; Stage display-only on card
-- Flow: Switch flow; enable/disable stages; per-stage review; skip to later stage
-- Clarify/Plan: Show raw input vs AI output, editing controls
-- Review: Review instructions; Approve/Reject (Reject requires feedback)
-- Dependencies: Depends-on and Blocks lists with add/remove
-- Settings: Workstation/Repository; IDs; Danger zone (Reset AI/Delete)
-
-### MissionCreatePopup
+## Mission Creation Modal
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Create New Mission                                                       [×] │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │ Title, Description (+ attachments)                                         │
-│ Priority, List, Repository, Workstation, Agent, Model, Actor               │
-│ Flow (primary): stages with enable/review toggles; tips for skipping ahead  │
+│ Priority, List, Repository, Workstation, Actor                             │
+│ Flow (primary): stages with enable/review toggles                           │
 │ Dependencies (optional)                                                    │
+│ Ready toggle (default off)                                                 │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Project Settings (PR Configuration)
+## Project & Organization Views
+
+### Project Settings – PR Configuration
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Project Settings — PR Mode                                                 │
@@ -311,7 +192,20 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Organization Page (Overview)
+### Workstation View
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Workstations                                             [Register Workstation] │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🟢 Delta (macOS)  •  Agents: Claude Code  •  Active Missions: 1             │
+│ Ready to accept fallback templates when backlog is empty.                   │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ 🟡 Echo (Linux)   •  Agents: Cursor       •  Active Missions: 0             │
+│ Recommend toggling Ready on queued missions to keep agents busy.           │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Organization Page
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Organization: My Org                                   [⚙️ Settings]        │
@@ -320,7 +214,7 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Organization Settings Modal
+### Organization Settings
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Organization Settings                                                 [×]   │
@@ -334,7 +228,9 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### PublicProjectGallery
+## Public Surfaces
+
+### Public Project Gallery
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ [LOGO] Discover Projects                              [Sign In] [Sign Up]   │
@@ -343,7 +239,7 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### PublicProjectView
+### Public Project View
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ [← Back] Project Title                      [⭐ Star] [🍴 Use Template]      │
@@ -352,7 +248,7 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### AccessRequestModal
+### Access Request Modal
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Request Access                                                          [×] │
@@ -365,7 +261,7 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### ProjectPermissionsPanel
+### Project Permissions Panel
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │ Project Permissions                                                          │
@@ -380,28 +276,15 @@ Tabs
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Theming & Style Guide
+## Mobile Patterns
+- Uses shadcn/ui Kanban with DnD for horizontal scroll; cards stack vertically within each column.
+- Ready toggle sits at bottom of each card with large tap target.
+- Mission Modal becomes full-screen sheet on mobile.
+- Todo column preserves Normal vs Fallback accordion sections (default closed for Fallback).
+- PR review experiences link out to GitHub but show status chips on cards.
 
-Visual Identity: Use existing brand; Tailwind tokens with dark/light mode
-
-Color Palette: semantic tokens for Primary/Secondary/Accent/Success/Warning/Error/Neutral
-
-Typography: project-standard fonts; accessible contrast and sizes
-
-Spacing & Layout: 12-col grid; 4/8 spacing scale; mobile-first responsive
-
-Accessibility
-- Target WCAG 2.2 AA; keyboard-first workflows; clear focus; alt text; semantic structure
-
-Responsiveness
-- Breakpoints: Mobile/Tablet/Desktop/Wide; Kanban horizontal scroll on mobile; tabs collapse into overflow
-
-Animation & Micro-interactions
-- DnD affordances on Kanban (150–200ms, ease-out); Ready toggle transitions; modal open/close 160–220ms; respect reduce-motion
-
-PR Status Badges
-- ⚡ Direct (YOLO)
-- 📝 PR #N (created and linked)
-- ✅ Merged / ❌ Closed
-- (Post-MVP) ✅ Approved / 👎 Changes
-- Iterations: 👎 PR #N (iterate #k)
+## States & Feedback
+- **Ready toggle:** consistent component across card footers and modal; label clarifies effect on AI eligibility.
+- **Fallback templates:** remain even after mission creation; show last-used timestamp to indicate freshness.
+- **Errors:** Inline banners and toasts with retry; fallback failure links to template edit.
+- **Notifications:** Severity badges (⚠️, ✅) align with Monster Theme colors.

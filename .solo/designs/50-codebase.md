@@ -1,215 +1,95 @@
-# Codebase Conventions
+# Codebase Convention Design
 
-## Scope & Purpose
-Defines repository-wide codebase conventions. Covers layout, boundaries, coding standards, testing, dependency rules, security, and performance practices. Not an implementation plan and not an interface or workflow spec.
-
-## Repo Layout
-
-- apps/web — React 19 + Vite + TanStack Router/Query
-- apps/server — Bun + Hono; /rpc (oRPC), /api (OpenAPI)
-- apps/cli — Bun single-file executable
-
-Shared (intra-app)
-- Web: `src/shared/{components,hooks,services,theme,utils}`
-- Server: `src/{services,validators,lib}` (lib: `orpc.ts`, `context.ts`)
-- CLI: `src/services/{configStore,mcpClient,realtimeClient,worktree}.ts`
-
-```bash
+## Repo Structure
+```plaintext
 solo-unicorn/
 ├─ apps/
-│  ├─ web/                         # React + Vite app (UI, PWA)
+│  ├─ web/                         # React 19 + Vite web app (mission-first UI)
 │  │  ├─ src/
-│  │  │  ├─ shared/               # App-shared UI primitives, hooks, utils, constants, theme
-│  │  │  │  ├─ components/        # Button, Input, Modal, Toast, Badge, Skeleton
-│  │  │  │  ├─ hooks/             # useAuth, useSession, useRPC, useRealtime, useToast
-│  │  │  │  ├─ services/          # rpcClient.ts (oRPC client), errorToToast.ts, queryKeys.ts
-│  │  │  │  ├─ theme/             # tokens, CSS vars, dark/light mode helpers
-│  │  │  │  └─ utils/             # pure utils (ids, formatters)
-│  │  │  ├─ features/             # Feature folders combine UI + data glue
-│  │  │  │  ├─ mission/           # MissionCard, MissionBoard, MissionModal shell, service fns
-│  │  │  │  ├─ project/           # ProjectSettingsModal, forms, service fns
-│  │  │  │  └─ workstation/       # WorkstationView, status badges, service fns
-│  │  │  ├─ routes/               # TanStack Router routes
-│  │  │  ├─ main.tsx, index.css
-│  │  │  └─ lib/                  # Presentation-only helpers (no domain)
+│  │  │  ├─ shared/               # primitives, hooks, services, utils, theme tokens
+│  │  │  ├─ features/             # feature folders (mission, mission-fallback, workstation, notifications, search)
+│  │  │  ├─ routes/               # TanStack Router routes per shell (launchpad, project, public)
+│  │  │  └─ lib/                  # presentation helpers (formatters, charts)
 │  │  ├─ public/
-│  │  ├─ env.ts, vite.config.ts, tsconfig.json
-│  │  └─ sst-env.d.ts (if used)
-│  ├─ server/                      # Bun + Hono app (oRPC + /api)
+│  │  ├─ env.ts                   # typed env reader
+│  │  └─ vite.config.ts
+│  ├─ server/                     # Bun + Hono server (oRPC + /api + MCP tools)
 │  │  ├─ src/
-│  │  │  ├─ index.ts              # Server bootstrap (Hono, CORS, route mounts)
-│  │  │  ├─ lib/
-│  │  │  │  ├─ context.ts         # Request context (session/org/project)
-│  │  │  │  ├─ orpc.ts            # oRPC server setup (publicProcedure, guards glue)
-│  │  │  │  └─ openauth.ts        # Monster Auth client
-│  │  │  ├─ routers/
-│  │  │  │  ├─ rpc.ts             # oRPC router mount (/rpc)
-│  │  │  │  ├─ api.ts             # API-format mount (/api) (REST-like or verbs), OpenAPI emit
-│  │  │  │  ├─ rpc/
-│  │  │  │  │  ├─ auth.ts
-│  │  │  │  │  ├─ mission.ts      # RPC procedures for mission
-│  │  │  │  │  └─ project.ts      # RPC procedures for project
-│  │  │  │  └─ others/
-│  │  │  │     └─ oauth-callback.ts
-│  │  │  ├─ services/             # Domain services (auth, missions, flows, projects)
-│  │  │  ├─ validators/           # Zod schemas used on server side
-│  │  │  ├─ db/
-│  │  │  │  ├─ db.ts
-│  │  │  │  ├─ schema/            # Drizzle table definitions
-│  │  │  │  └─ migrations/
-│  │  │  └─ utils/                # Server-only helpers (intervals, adapters)
-│  │  ├─ env.ts, drizzle.config.ts, tsconfig.json
-│  │  └─ sst-env.d.ts (if used)
-│  ├─ cli/                         # Bun-based CLI (single-file/binary target)
+│  │  │  ├─ index.ts              # bootstrap, middlewares, routes mount
+│  │  │  ├─ lib/                  # context, orpc setup, auth adapters, telemetry helpers
+│  │  │  ├─ routers/              # rpc.ts, api.ts, resource routers, webhook handlers
+│  │  │  ├─ services/             # domain logic (missions, projects, notifications, access)
+│  │  │  ├─ validators/           # zod schemas per boundary
+│  │  │  ├─ db/                   # drizzle client, schema definitions, migrations
+│  │  │  └─ utils/                # server-only helpers (idempotency, background jobs)
+│  │  ├─ env.ts                   # typed env loader
+│  │  └─ drizzle.config.ts
+│  ├─ cli/                        # Bun CLI (single-file build target)
 │  │  ├─ src/
-│  │  │  ├─ commands/
-│  │  │  │  ├─ auth.ts            # login/logout/whoami
-│  │  │  │  ├─ workstation.ts     # register/start/stop/status
-│  │  │  │  ├─ repo.ts            # repo add/list/remove
-│  │  │  │  ├─ agent.ts           # agent scan/list/add
-│  │  │  │  └─ status.ts          # combined status output
-│  │  │  ├─ services/
-│  │  │  │  ├─ configStore.ts     # ~/.solo-unicorn/config.json read/write
-│  │  │  │  ├─ mcpClient.ts       # HTTP client to /api (PAT/org key)
-│  │  │  │  ├─ realtimeClient.ts  # Monster Realtime wrapper
-│  │  │  │  └─ worktree.ts        # git worktree helpers
-│  │  │  ├─ bin.ts                # CLI entry (bun build target)
-│  │  │  └─ index.ts              # program setup, command registration
+│  │  │  ├─ commands/            # auth, workstation, mission, repo, notifications, access
+│  │  │  ├─ services/            # configStore, mcpClient, realtimeClient, worktree, tunnel
+│  │  │  ├─ instrumentation/     # logging, metrics stubs, tracing hooks
+│  │  │  └─ index.ts             # command registration + yargs setup
 │  │  └─ tsconfig.json
-│  │
-├─ docs/                           # Design/architecture/spec documents
-│  ├─ foundation/                  # Source foundational docs (001–006)
-│  ├─ architecture.md              # This architecture (authoritative)
-│  └─ front-end-spec.md            # UI/UX spec and component inventory
-│
-├─ .solo/
-│  └─ designs/                     # SOLO50 design documents
-├─ solo-unicorn-docs/
-│  └─ missions/{mission-id}/       # Mission solution/tasks filesystem storage
-│
-├─ scripts/                        # Dev/build/release scripts
-├─ package.json                    # Workspaces (apps/*)
+├─ docs/                          # human-facing docs, diagrams (Mermaid where possible)
+├─ .solo/designs/                 # SOLO50 design specifications (keep current)
+├─ solo-unicorn-docs/             # mission filesystem artifacts (git-tracked solutions)
+├─ scripts/                       # helper scripts (db, lint, release)
+├─ package.json                   # workspace definitions, scripts
 ├─ bunfig.toml
-└─ tsconfig.json                   # Base TS config
+└─ tsconfig.json                  # base TS config
 ```
 
-## Module Boundaries
+## Principles
+- Ship trust: every change surfaces human-friendly copy, context, and undo clues
+- Mission-first mindset: code gravitates toward mission/workstation flows and shared services
+- Mission backlog stays healthy via Mission Fallback—Todo Fallback panel surfaces templates instead of loop hacks
+- Favor pure functions for business rules; create adapters for I/O and side effects
+- Keep files lean (<300 lines) and feature folders cohesive; extract to shared modules only after 3 usages
+- Prefer named exports and direct imports; avoid barrels to keep tree-shaking predictable
+- Tests and docs update alongside code; PR checklist enforces spec-to-implementation parity
+- Every development step starts with an opt-in MSW API mock; UI must expose a "Mock API" toggle stored in `localStorage` so teammates can switch between real and mocked endpoints
 
-- Web
-  - Uses `/rpc` only; never calls `/api` directly
-  - Network code lives under `src/shared/services` (typed oRPC client)
-  - TanStack Query keys centralized in `queryKeys.ts`; mutate → invalidate via helpers
-  - Routes under `src/routes`; features under `src/features/{feature}`
+## Tech Stack
+| Category | Technology | Version | Purpose | Notes |
+| --- | --- | --- | --- | --- |
+| Language | TypeScript | 5.x | Shared typing across web/server/CLI | `strict` true, no `any` without justification |
+| Runtime | Bun | 1.2+ | Server + CLI runtime, bundler | Align CLI and server tooling |
+| Backend Framework | Hono + oRPC | latest | HTTP routing, RPC + OpenAPI generation | Single entrypoint, typed handlers |
+| Frontend Framework | React | 19 | Mission-first UI with Suspense | TanStack Router/Query |
+| Data Store | PostgreSQL + Drizzle | 15 / latest | Mission + org data | Reversible migrations, typed schema |
+| Realtime | Monster Realtime | latest | Presence & mission events | Push-only, offline fallback |
+| Auth | Monster Auth | latest | OAuth + token issuance | Cookie + PAT support |
+| Styling | TailwindCSS v4 + shadcn/ui | latest | UI theming | Install via MCP tooling |
 
-- Server
-  - Routers in `src/routers/{rpc,api}`; keep handlers thin
-  - Services in `src/services` hold domain logic; unit-testable; no HTTP concerns
-  - Validation in `src/validators` with zod; validate at the boundary
-  - `lib/orpc.ts` centralizes oRPC setup; `lib/context.ts` derives request context
-  - Authn via Monster Auth; authz enforced in services (TypeScript)
+## Commands & Tools
+- Install deps — `bun install`
+- Start all apps — `bun dev`
+- Web only — `bun dev:web`
+- Server only — `bun dev:server`
+- Type check — `bun typecheck`
+- Lint — `bun lint`
+- Lint (fix) — `bun lint:fix`
+- Tests (all) — `bun test`
+- DB push (dev) — `bun db:push`
+- DB migrate (prod) — `bun db:migrate`
+- Build — `bun build`
 
-- CLI
-  - Commands in `src/commands`; orchestration-only code
-  - HTTP in `src/services/mcpClient.ts`; realtime in `realtimeClient.ts`
-  - Local state in `configStore.ts`; git helpers in `worktree.ts`
+## Agent Rules
+- Update `.solo/designs/20-gui/web.md` whenever UI flows, surfaces, or navigation change
+- Reflect new CLI commands or flags in `.solo/designs/25-non-graphical-client-interfaces/cli.md`
+- Document new features, flows, or scope adjustments in `.solo/designs/10-features.md`
+- Persist schema updates, new tables, or payload changes in `.solo/designs/30-data.md`
+- When adding or altering endpoints/events, sync `.solo/designs/40-server-interfaces.md`
+- Mission Fallback behaviour (config, templates, runs) must stay consistent across docs and code—update all relevant specs when touching it, including Todo Fallback rendering
+- Mission Modal stays source of truth for mission details; Mission Room pages should not diverge
+- Keep doc diagrams in Mermaid and refresh when structural changes happen
+- Always accompany behavior changes with updated acceptance criteria or tests
 
-## Language & Style
-
-- TypeScript everywhere; strict mode
-- Interfaces over types; string unions over enums
-- Named exports only; import from source files (avoid barrels)
-- Function declarations (`function name() {}`), not arrow for top-level
-- Indent 2 spaces; single quotes; no semicolons
-- Variables in camelCase; React components in PascalCase; files/folders kebab-case
-- Keep files ≤ ~300 lines; refactor before exceeding
-- Exported functions first; small private helpers per step
-- Prefer map/reduce and ts-pattern match; avoid mutations and for-loops when practical
-- Comments only for logic/edge cases/trade-offs; no meta/progress comments
-
-## Error Handling & Validation
-
-- Validate inputs at the boundary with zod; return typed errors (no opaque any)
-- Prefer Result-style returns or typed error objects across service boundaries
-- Do not throw across network boundaries; map to error payloads
-- In web, surface errors via shared toast utilities with friendly messages
-
-## Logging & Observability
-
-- Structured logs with levels; attach requestId/session when available
-- Avoid logging secrets/PII; sanitize inputs in logs
-- Add lightweight health checks where helpful; instrument hotspots pragmatically
-
-## RPC/API Contracts & Cache
-
-- /rpc is internal and breakable; align TanStack Query keys with RPC methods
-- /api is versioned and stable; MCP tools call /api over HTTP
-- Websocket is push-only (presence, notifications); no request/response RPC over WS
-
-## Database Conventions
-
-- PostgreSQL via Drizzle; migrations tracked and reversible
-- IDs use ULIDs (`varchar(26)`) except GitHub repository IDs (BIGINT canonical)
-- Validation and permission checks in application layer (TypeScript)
-- Hybrid storage for mission artifacts: filesystem docs + DB progress fields
-- Add purpose-built indexes for monitoring/assignment; follow documented names
-- Use helpers table for DB locking; seed required lock rows in migrations
-
-## Web UI Conventions
-
-- Use shadcn/ui components; install via MCP tools; don’t handcraft equivalents
-- Tailwind v4 with semantic tokens; dark/light mode supported
-- Components live in `src/shared/components` for primitives; feature UI in `src/features/*`
-- Accessibility: target WCAG 2.2 AA; keyboard-first; clear focus states
-
-## CLI Code Organization
-
-- Keep commands minimal; orchestrate via services
-- All network and realtime code in services; no direct fetch/WebSocket in commands
-- Persist local state under `configStore`; isolate fs interactions
-
-## Testing Strategy
-
-- Web: MSW for /rpc and /api; render helpers under `src/shared`
-- Server: unit-test services; import schema/types from db `schema`
-- CLI: integration-style tests with mocked HTTP and realtime
-
-## Dependency Management
-
-- Prefer native/platform capabilities; add deps only for clear value
-- Avoid creating packages/* unless ≥2 apps need the code
-- Apply “Rule of Three” before abstracting; compose over inherit
-
-## Environment & Security
-
-- Use `apps/{app}/env.ts`; never access `process.env` directly
-- CORS allowlist; CSRF protection for cookie APIs
-- Never commit secrets; store credentials in OS keychain (CLI)
-- Sanitize user input and API responses; principle of least privilege
-
-Environments (domains)
-- Production: web `https://solounicorn.lol`, server `https://server.solounicorn.lol`, Monster Auth `https://auth.monstermake.limited`
-- Alpha: web `https://alpha.solounicorn.lol`, server `https://server.alpha.solounicorn.lol`, Monster Auth `https://auth.alpha.monstermake.limited`
-- Development/Test: require env vars `VITE_WEB_URL`, `VITE_SERVER_URL`, `DATABASE_URL`
-
-## Performance Principles
-
-- Index hot queries; serve public content with CDN + caching headers
-- Web: use skeletons, optimistic updates where safe, reconcile via realtime
-- Respect simplicity over micro-optimizations; revisit after MVP
-
-## Deployment & Configuration
-
-- **SST v3** for AWS infrastructure deployment
-- **Environment management**: apps/{app}/env.ts; never direct process.env access
-- **Database**: PostgreSQL via Drizzle ORM with migration tracking
-- **Build commands**: `bun dev` (all), `bun build` (all), `bun typecheck`, `bun lint`
-- **Database operations**: `bun db:push`, `bun db:studio`, `bun db:migrate`
-- **Deployment**: `bun sst:alpha` (staging), `bun sst:prod` (production)
-
-## Interface Boundary Rules (CRITICAL)
-
-- **Web app** → /rpc only (oRPC internal, breakable with web bundle)
-- **AI agents via MCP** → /api (HTTP) through MCP tools (not WebSocket)
-- **CLI/3rd parties** → /api (HTTP, versioned, backward compatible)
-- **WebSocket** → push-only (Monster Realtime; never request/response RPC)
-- **oRPC** supports both RPC format (/rpc) and API format (/api) with OpenAPI generation
+## Automated Tests
+- Flow unit tests validate mission progression + review outcomes
+- Workstation assignment integration tests ensure queue fairness
+- API contract tests guard `/api/v1` responses + error codes
+- CLI smoke tests cover login → mission accept → completion roundtrip
+- Notification sync tests keep unread counts consistent across channels
+- Mission Fallback tests cover threshold triggers, template selection, accept/discard flows, and Fallback panel rendering when backlog is empty

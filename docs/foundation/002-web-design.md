@@ -106,7 +106,7 @@ Whenever in doubt, follow Trello UI/UX design.
 
 ### MissionCard component (Column-Specific)
 
-MissionCard is the preview of mission before click to open the MissionModal.
+MissionCard is the preview of mission before click to open the MissionPopup.
 
 **Todo Column Card:**
 
@@ -128,7 +128,7 @@ MissionCard is the preview of mission before click to open the MissionModal.
 ```
 
 **MissionCard Dropdown Menu (⋮)**:
-- View & Edit (opens MissionModal)
+- View & Edit (opens MissionPopup)
 - Reset AI (when mission is active)
 - Delete Mission
 
@@ -206,13 +206,13 @@ Examples (badges):
 
 **Review Button** (Review column only):
 
-- Opens MissionModal → Review Tab
+- Opens MissionPopup → Review Tab
 - Shows "review instruction"
 - Approve/Reject buttons
 - Reject requires mandatory "feedback" field
 - Approved missions move to Done column
 
-**MissionModal Integration**
+**MissionPopup Integration**
 
 - Review column Review button → Review Tab
 - Review Tab displays review instructions
@@ -221,7 +221,7 @@ Examples (badges):
 
 This layout provides a comprehensive mission management system specifically designed for AI-agent flows with clear visual hierarchy and intuitive controls.
 
-### MissionModal component
+### MissionPopup component
 
 **Modal Layout (Full Screen on Mobile)**
 
@@ -853,7 +853,7 @@ Note: This Flow settings panel is shared with the Create Mission popup.
 
 **Key Features**:
 
-1. **MissionModal**: Context-aware tabs based on mission state, real-time status updates
+1. **MissionPopup**: Context-aware tabs based on mission state, real-time status updates
 2. **MissionCreatePopup**: Streamlined creation with smart defaults, file attachment support
 3. **ProjectSettingsPopup**: Comprehensive configuration with validation and status indicators
 4. **ProjectCreatePopup**: 3-step wizard with validation and template support
